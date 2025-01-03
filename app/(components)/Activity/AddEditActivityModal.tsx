@@ -27,9 +27,7 @@ export default function AddEditActivityModal({
     setCategory("");
   }
   function handleButtonClick() {
-    const baseUrl = process.env.NEXT_PUBLIC_VERCEL_URL
-      ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
-      : "http://localhost:3000";
+    const baseUrl = window.location.origin;
     if (type === "Add") {
       // Add new activity
       axios
