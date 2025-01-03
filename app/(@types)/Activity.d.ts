@@ -1,7 +1,7 @@
 type ActivityType = {
   id: int;
   icon: string;
-  name: string;
-  type: string;
+  title: string;
+  category: string;
   createdOn?: Date;
 };
