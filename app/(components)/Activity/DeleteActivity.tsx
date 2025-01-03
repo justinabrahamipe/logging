@@ -7,9 +7,7 @@ import { HiOutlineExclamationCircle, HiTrash } from "react-icons/hi";
 
 export default function DeleteActivity({ data }: { data: ActivityType }) {
   const [openModal, setOpenModal] = useState(false);
-  const baseUrl = process.env.NEXT_PUBLIC_VERCEL_URL
-    ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
-    : "http://localhost:3000";
+  const baseUrl = window.location.origin;
   function handleDelete() {
     console.log("Deleting activity:", data?.title);
     axios
@@ -20,7 +18,7 @@ export default function DeleteActivity({ data }: { data: ActivityType }) {
       })
       .then((response) => {
         console.log("Success:", response.data);
-        window.location.reload()
+        window.location.reload();
       });
     setOpenModal(false);
   }
