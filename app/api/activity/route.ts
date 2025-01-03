@@ -7,9 +7,10 @@ export async function GET() {
   try {
     const data = await client.activity.findMany();
     return NextResponse.json({ data });
-  } catch (error: unknown) {
+  } catch (error) {
     return NextResponse.json({
-      error: error instanceof Error ? error.message : "An unknown error occurred",
+      error:
+        error instanceof Error ? error.message : "An unknown error occurred",
     });
   }
 }
@@ -19,9 +20,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const response = await client.activity.create({ data: body });
     return NextResponse.json(response);
-  } catch (error: unknown) {
+  } catch (error) {
     return NextResponse.json({
-      error: error instanceof Error ? error.message : "An unknown error occurred",
+      error:
+        error instanceof Error ? error.message : "An unknown error occurred",
     });
   }
 }
@@ -31,12 +33,13 @@ export async function PUT(request: NextRequest) {
     const { oldName, ...body } = await request.json();
     const response = await client.activity.updateMany({
       where: { name: oldName },
-      data: { ...body },
+      data: body,
     });
     return NextResponse.json(response);
-  } catch (error: unknown) {
+  } catch (error) {
     return NextResponse.json({
-      error: error instanceof Error ? error.message : "An unknown error occurred",
+      error:
+        error instanceof Error ? error.message : "An unknown error occurred",
     });
   }
 }
@@ -48,9 +51,10 @@ export async function DELETE(request: NextRequest) {
       where: { name: body.name },
     });
     return NextResponse.json(response);
-  } catch (error: unknown) {
+  } catch (error) {
     return NextResponse.json({
-      error: error instanceof Error ? error.message : "An unknown error occurred",
+      error:
+        error instanceof Error ? error.message : "An unknown error occurred",
     });
   }
 }
