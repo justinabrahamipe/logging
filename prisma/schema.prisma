@@ -1,0 +1,27 @@
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model Activity {
+    id         Int      @id @default(autoincrement())
+    name       String   @unique
+    type       String
+    created_on DateTime @default(now())
+    Log        Log[]
+}
+
+model Log {
+    id         Int      @id @default(autoincrement())
+    comment    String
+    activity   Activity @relation(fields: [activityId], references: [id])
+    activityId Int
+    start_time DateTime
+    end_time   DateTime
+    created_on DateTime @default(now())
+    time_spent Int      @ignore
+}
