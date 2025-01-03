@@ -21,6 +21,9 @@ export default function Header() {
         <NavbarLink href="/activities" active>
           Activities
         </NavbarLink>
+        <NavbarLink href="/log" active>
+          Log
+        </NavbarLink>
         <DarkThemeToggle />
       </NavbarCollapse>
     </Navbar>
