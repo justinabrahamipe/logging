@@ -30,9 +30,9 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const { oldName, ...body } = await request.json();
+    const { oldTitle, ...body } = await request.json();
     const response = await client.activity.updateMany({
-      where: { name: oldName },
+      where: { title: oldTitle },
       data: body,
     });
     return NextResponse.json(response);
@@ -48,7 +48,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const body = await request.json();
     const response = await client.activity.deleteMany({
-      where: { name: body.name },
+      where: { title: body.title },
     });
     return NextResponse.json(response);
   } catch (error) {
