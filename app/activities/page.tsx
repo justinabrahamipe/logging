@@ -1,8 +1,8 @@
 import axios from "axios";
-import ActivityCard from "../components/ActivityCard";
+import ActivityCard from "../(components)/ActivityCard";
 import { Button } from "flowbite-react";
 import { HiDocumentAdd } from "react-icons/hi";
-import AddEditActivityModal from "../components/AddEditActivityModal";
+import AddEditActivityModal from "../(components)/AddEditActivityModal";
 
 export default async function Activities() {
   const data = await axios.get("http://localhost:3000/api/activity");
