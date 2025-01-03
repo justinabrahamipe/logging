@@ -3,7 +3,7 @@
 import { Button, Checkbox, Label, Modal, TextInput } from "flowbite-react";
 import { useState } from "react";
 
-export default function AddEditActivityModal({ type, data }) {
+export default function AddEditActivityModal({ data }: { data?: ActivityType }) {
   const [openModal, setOpenModal] = useState(false);
   const [email, setEmail] = useState("");
 
@@ -18,7 +18,7 @@ export default function AddEditActivityModal({ type, data }) {
         className="cursor-pointer hover:underline"
         onClick={() => setOpenModal(true)}
       >
-        {type}
+        {data?.type}
       </div>
       <Modal show={openModal} size="md" onClose={onCloseModal} popup>
         <Modal.Header />
