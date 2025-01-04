@@ -1,15 +1,13 @@
 "use client";
 import axios from "axios";
 import { Button, Label, Modal, TextInput } from "flowbite-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import * as HiIcons from "react-icons/hi";
 
 export default function AddEditActivityModal({
   data,
-  setRerun,
 }: {
   data?: ActivityType;
-  setRerun: React.Dispatch<React.SetStateAction<boolean>>;
 }) {
   const [openModal, setOpenModal] = useState(false);
   const [openIconTray, setOpenIconTray] = useState(false);
@@ -19,10 +17,6 @@ export default function AddEditActivityModal({
   const [category, setCategory] = useState(data ? data.category : "");
   const allHiIcons = Object.values(HiIcons);
   const type = data ? "Edit" : "Add";
-  useEffect(() => {
-    setTitle(data?.title || "");
-    setCategory(data?.category || "");
-  }, [data]);
   const IconComponent =
     HiIcons[iconName as keyof typeof HiIcons] ||
     HiIcons.HiOutlineQuestionMarkCircle;
@@ -31,10 +25,6 @@ export default function AddEditActivityModal({
     setOpenIconTray(false);
     setTitle("");
     setCategory("");
-  }
-  function handleIconSelect(iconName: string) {
-    setIconName(iconName);
-    setOpenIconTray(false);
   }
   function handleButtonClick() {
     const baseUrl = window.location.origin;
@@ -49,7 +39,7 @@ export default function AddEditActivityModal({
         .then((response) => {
           console.log("Success:", response.data);
           onCloseModal();
-          setRerun((x: boolean) => !x);
+          window.location.reload()
         })
         .catch((error) => {
           console.error(
@@ -70,7 +60,7 @@ export default function AddEditActivityModal({
         .then((response) => {
           console.log("Success:", response.data);
           onCloseModal();
-          setRerun((x: boolean) => !x);
+          window.location.reload()
         })
         .catch((error) => {
           console.error(
@@ -121,7 +111,10 @@ export default function AddEditActivityModal({
                         <Icon
                           size={24}
                           className="cursor-pointer"
-                          onClick={() => handleIconSelect(Icon?.name)}
+                          onClick={() => {
+                            setIconName(Icon.name);
+                            setOpenIconTray(false);
+                          }}
                         />
                       </div>
                     ))}

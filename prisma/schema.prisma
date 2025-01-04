@@ -14,15 +14,19 @@ model Activity {
     category   String
     created_on DateTime @default(now())
     Log        Log[]
+
+    @@unique([title, category, icon])
 }
 
 model Log {
-    id         Int      @id @default(autoincrement())
-    comment    String
-    activity   Activity @relation(fields: [activityId], references: [id])
-    activityId Int
-    start_time DateTime
-    end_time   DateTime
-    created_on DateTime @default(now())
-    time_spent Int      @ignore
+    id               Int       @id @default(autoincrement())
+    comment          String?
+    activity         Activity  @relation(fields: [activityTitle, activityCategory, activityIcon], references: [title, category, icon])
+    activityTitle    String
+    activityCategory String
+    activityIcon     String
+    start_time       DateTime?
+    end_time         DateTime?
+    created_on       DateTime  @default(now())
+    time_spent       Int?
 }

@@ -1,9 +1,8 @@
 "use client";
+import axios from "axios";
 import * as HiIcons from "react-icons/hi";
-import DeleteActivity from "./DeleteActivity";
-import AddEditActivityModal from "./AddEditActivityModal";
 
-export default function ActivityCard({
+export default function LogCandidate({
   data,
   setRerun,
 }: {
@@ -13,7 +12,27 @@ export default function ActivityCard({
   const IconComponent =
     HiIcons[data.icon as keyof typeof HiIcons] ||
     HiIcons.HiOutlineQuestionMarkCircle;
-
+  const baseUrl = window.location.origin;
+  function handleStart() {
+    // Start the activity
+    axios
+      .post(`${baseUrl}/api/log`, {
+        activityTitle: data.title,
+        activityCategory: data.category,
+        activityIcon: data.icon,
+        start_time: new Date().toISOString(),
+      })
+      .then((response) => {
+        console.log("Success:", response.data);
+        setRerun((prev) => !prev);
+      })
+      .catch((error) => {
+        console.error(
+          "Error:",
+          error.response ? error.response.data : error.message
+        );
+      });
+  }
   return (
     <>
       <div className="p-3 border border-gray-50 border-opacity-10 border-r-2 rounded-lg hover:bg-slate-900 min-w-96">
@@ -27,12 +46,8 @@ export default function ActivityCard({
               {data?.category}
             </p>
           </div>
-          <div className="inline-flex items-center text-base text-gray-900 dark:text-white cursor-pointer hover:underline">
-            <AddEditActivityModal data={data} setRerun={setRerun} />
-          </div>
-
           <div className="inline-flex items-center text-base text-gray-900 dark:text-white cursor-pointer ">
-            <DeleteActivity data={data} setRerun={setRerun} />
+            <HiIcons.HiPlay size={36} color="green" onClick={handleStart} />
           </div>
         </div>
       </div>
