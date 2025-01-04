@@ -2,16 +2,40 @@
 import axios from "axios";
 import { useEffect, useState } from "react";
 import LogCandidate from "../(components)/Log/LogCandidate";
+import LogItem from "../(components)/Log/LogItem";
 
-export default function Activities() {
-  const [data, setData] = useState<{ data: ActivityType[] }>({ data: [] });
+export default function Log() {
+  const [activityData, setActivityData] = useState<{ data: ActivityType[] }>({
+    data: [],
+  });
+  const [logData, setLogData] = useState<{ data: LogType[] }>({
+    data: [],
+  });
+  const [rerun, setRerun] = useState<boolean>(false);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const baseUrl = window.location.origin;
+      try {
+        const response = await axios.get(`${baseUrl}/api/log`);
+        const filteredData = response.data.data.filter(
+          (log: LogType) => !log.end_time
+        );
+        setLogData({ data: filteredData });
+      } catch (error) {
+        console.error("Error fetching activities:", error);
+      }
+    };
+
+    fetchData();
+  }, [rerun]);
 
   useEffect(() => {
     const fetchData = async () => {
       const baseUrl = window.location.origin;
       try {
         const response = await axios.get(`${baseUrl}/api/activity`);
-        setData(response.data);
+        setActivityData(response.data);
       } catch (error) {
         console.error("Error fetching activities:", error);
       }
@@ -26,9 +50,16 @@ export default function Activities() {
         <h1 className="font-bold text-5xl"> Log</h1>
         <h1 className="font-bold text-2xl"> Running</h1>
         <div className="flex flex-row gap-4 flex-wrap">
-          {data?.data?.map((activity: ActivityType) => (
+          {logData?.data?.map((log: LogType) => (
+            <div key={log.id}>
+              <LogItem data={log} setRerun={setRerun} />
+            </div>
+          ))}
+        </div>
+        <div className="flex flex-row gap-4 flex-wrap">
+          {activityData?.data?.map((activity: ActivityType) => (
             <div key={activity.id}>
-              <LogCandidate data={activity} />
+              <LogCandidate data={activity} setRerun={setRerun} />
             </div>
           ))}
         </div>
