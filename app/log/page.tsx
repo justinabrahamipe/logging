@@ -3,12 +3,16 @@ import axios from "axios";
 import { useEffect, useState } from "react";
 import LogCandidate from "../(components)/Log/LogCandidate";
 import LogItem from "../(components)/Log/LogItem";
+import LogTable from "../(components)/Log/LogTable";
 
 export default function Log() {
   const [activityData, setActivityData] = useState<{ data: ActivityType[] }>({
     data: [],
   });
   const [logData, setLogData] = useState<{ data: LogType[] }>({
+    data: [],
+  });
+  const [runningLogData, setRunningLogData] = useState<{ data: LogType[] }>({
     data: [],
   });
   const [rerun, setRerun] = useState<boolean>(false);
@@ -21,7 +25,8 @@ export default function Log() {
         const filteredData = response.data.data.filter(
           (log: LogType) => !log.end_time
         );
-        setLogData({ data: filteredData });
+        setRunningLogData({ data: filteredData });
+        setLogData({ data: response.data.data });
       } catch (error) {
         console.error("Error fetching activities:", error);
       }
@@ -50,7 +55,7 @@ export default function Log() {
         <h1 className="font-bold text-5xl"> Log</h1>
         <h1 className="font-bold text-2xl"> Running</h1>
         <div className="flex flex-row gap-4 flex-wrap">
-          {logData?.data?.map((log: LogType) => (
+          {runningLogData?.data?.map((log: LogType) => (
             <div key={log.id}>
               <LogItem data={log} setRerun={setRerun} />
             </div>
@@ -62,6 +67,9 @@ export default function Log() {
               <LogCandidate data={activity} setRerun={setRerun} />
             </div>
           ))}
+        </div>
+        <div className="w-full">
+          <LogTable data={logData.data} />
         </div>
       </main>
     </div>
