@@ -8,6 +8,7 @@ import AddEditActivityModal from "../(components)/Activity/AddEditActivityModal"
 
 export default function Activities() {
   const [data, setData] = useState<{ data: ActivityType[] }>({ data: [] });
+  const [rerun, setRerun] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -21,7 +22,7 @@ export default function Activities() {
     };
 
     fetchData();
-  }, []);
+  }, [rerun]);
 
   return (
     <div className="grid grid-rows-[20px_1fr_20px]  p-4 pb-20 gap-4 sm:p-5 font-[family-name:var(--font-geist-sans)]">
@@ -29,13 +30,14 @@ export default function Activities() {
         <div className="min-w-full flex flex-row justify-between">
           <h1 className="font-bold text-5xl"> Activities</h1>
           <Button outline pill>
-            <HiDocumentAdd className="h-6 w-6" /> <AddEditActivityModal />
+            <HiDocumentAdd className="h-6 w-6" />{" "}
+            <AddEditActivityModal setRerun={setRerun} />
           </Button>
         </div>
         <div className="flex flex-row gap-4 flex-wrap">
           {data?.data?.map((activity: ActivityType) => (
             <div key={activity.id}>
-              <ActivityCard data={activity} />
+              <ActivityCard data={activity} setRerun={setRerun} />
             </div>
           ))}
         </div>

@@ -3,7 +3,13 @@ import * as HiIcons from "react-icons/hi";
 import DeleteActivity from "./DeleteActivity";
 import AddEditActivityModal from "./AddEditActivityModal";
 
-export default function ActivityCard({ data }: { data: ActivityType }) {
+export default function ActivityCard({
+  data,
+  setRerun,
+}: {
+  data: ActivityType;
+  setRerun: React.Dispatch<React.SetStateAction<boolean>>;
+}) {
   const IconComponent =
     HiIcons[data.icon as keyof typeof HiIcons] ||
     HiIcons.HiOutlineQuestionMarkCircle;
@@ -22,11 +28,11 @@ export default function ActivityCard({ data }: { data: ActivityType }) {
             </p>
           </div>
           <div className="inline-flex items-center text-base text-gray-900 dark:text-white cursor-pointer hover:underline">
-            <AddEditActivityModal data={data} />
+            <AddEditActivityModal data={data} setRerun={setRerun} />
           </div>
 
           <div className="inline-flex items-center text-base text-gray-900 dark:text-white cursor-pointer ">
-            <DeleteActivity data={data} />
+            <DeleteActivity data={data} setRerun={setRerun} />
           </div>
         </div>
       </div>

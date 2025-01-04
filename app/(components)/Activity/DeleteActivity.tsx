@@ -5,7 +5,13 @@ import { Button, Modal } from "flowbite-react";
 import { useState } from "react";
 import { HiOutlineExclamationCircle, HiTrash } from "react-icons/hi";
 
-export default function DeleteActivity({ data }: { data: ActivityType }) {
+export default function DeleteActivity({
+  data,
+  setRerun,
+}: {
+  data: ActivityType;
+  setRerun: React.Dispatch<React.SetStateAction<boolean>>;
+}) {
   const [openModal, setOpenModal] = useState(false);
   const baseUrl = window.location.origin;
   function handleDelete() {
@@ -18,7 +24,7 @@ export default function DeleteActivity({ data }: { data: ActivityType }) {
       })
       .then((response) => {
         console.log("Success:", response.data);
-        window.location.reload();
+        setRerun((x: boolean) => !x);
       });
     setOpenModal(false);
   }
