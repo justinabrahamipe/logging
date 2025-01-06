@@ -1,10 +1,10 @@
 "use client";
 import axios from "axios";
 import { useEffect, useState } from "react";
-import ActivityCard from "../(components)/Activity/ActivityCard";
+import ActivityCard from "./(components)/ActivityCard";
 import { Button } from "flowbite-react";
 import { HiDocumentAdd } from "react-icons/hi";
-import AddEditActivityModal from "../(components)/Activity/AddEditActivityModal";
+import AddEditActivityModal from "./(components)/AddEditActivityModal";
 
 export default function Activities() {
   const [data, setData] = useState<{ data: ActivityType[] }>({ data: [] });

@@ -1,9 +1,9 @@
 "use client";
 import axios from "axios";
 import { useEffect, useState } from "react";
-import LogCandidate from "../(components)/Log/LogCandidate";
-import LogItem from "../(components)/Log/LogItem";
-import LogTable from "../(components)/Log/LogTable";
+import LogCandidate from "./(components)/LogCandidate";
+import LogItem from "./(components)/LogItem";
+import LogTable from "./(components)/LogTable";
 
 export default function Log() {
   const [activityData, setActivityData] = useState<{ data: ActivityType[] }>({

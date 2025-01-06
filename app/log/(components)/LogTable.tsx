@@ -1,10 +1,9 @@
 "use client";
-
 import getIconFromName from "@/app/(utilities)/getIconFromName";
 import axios from "axios";
 import { Table } from "flowbite-react";
 import { DateTime } from "luxon";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { HiClipboardCopy, HiOutlinePencilAlt, HiTrash } from "react-icons/hi";
 
 export default function LogTable({
@@ -14,8 +13,13 @@ export default function LogTable({
   data: LogType[];
   setRerun: React.Dispatch<React.SetStateAction<boolean>>;
 }) {
+  const [baseUrl, setBaseUrl] = useState<string>("");
   const [activeRow, setActiveRow] = useState<string | null>(null);
-  const baseUrl = window.location.origin;
+
+  useEffect(() => {
+    setBaseUrl(window.location.origin);
+  }, []);
+
   function handleDelete(id: number) {
     // delete the log
     axios
