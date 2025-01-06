@@ -69,7 +69,7 @@ export default function Log() {
           ))}
         </div>
         <div className="w-full">
-          <LogTable data={logData.data} />
+          <LogTable data={logData.data} setRerun={setRerun} />
         </div>
       </main>
     </div>
