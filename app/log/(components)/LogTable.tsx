@@ -1,10 +1,11 @@
 "use client";
+import DeleteDialog from "@/app/(common)/DeleteDialog";
 import getIconFromName from "@/app/(utilities)/getIconFromName";
 import axios from "axios";
 import { Table } from "flowbite-react";
 import { DateTime } from "luxon";
-import React, { useState, useEffect } from "react";
-import { HiClipboardCopy, HiOutlinePencilAlt, HiTrash } from "react-icons/hi";
+import React, { useEffect, useState } from "react";
+import { HiClipboardCopy, HiOutlinePencilAlt } from "react-icons/hi";
 
 export default function LogTable({
   data,
@@ -97,10 +98,11 @@ export default function LogTable({
                   {activeRow === log.id ? (
                     <div className="flex flex-row flex-wrap justify-end items-center gap-6">
                       <HiOutlinePencilAlt size="28px" color="green" />
-                      <HiTrash
-                        size="28px"
-                        color="red"
-                        onClick={() => handleDelete(log.id)}
+                      <DeleteDialog
+                        id={log.id}
+                        itemToDelete={log.activityTitle}
+                        deleteFunction={handleDelete}
+                        iconSize="28px"
                       />
                       <HiClipboardCopy
                         size="28px"
