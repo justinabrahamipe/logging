@@ -61,6 +61,7 @@ export default function Log() {
             </div>
           ))}
         </div>
+        <h1 className="font-bold text-2xl">Presets</h1>
         <div className="flex flex-row gap-4 flex-wrap">
           {activityData?.data?.map((activity: ActivityType) => (
             <div key={activity.id}>
@@ -68,6 +69,7 @@ export default function Log() {
             </div>
           ))}
         </div>
+        <h1 className="font-bold text-2xl">Log history</h1>
         <div className="w-full">
           <LogTable data={logData.data} setRerun={setRerun} />
         </div>

@@ -2,7 +2,6 @@
 import DeleteDialog from "@/app/(common)/DeleteDialog";
 import getIconFromName from "@/app/(utilities)/getIconFromName";
 import axios from "axios";
-import { Table } from "flowbite-react";
 import { DateTime } from "luxon";
 import React, { useEffect, useState } from "react";
 import { HiClipboardCopy, HiOutlinePencilAlt } from "react-icons/hi";
@@ -68,75 +67,85 @@ export default function LogTable({
       });
   }
   return (
-    <div className="overflow-x-auto">
-      <Table hoverable>
-        <Table.Head>
-          <Table.HeadCell>Activity</Table.HeadCell>
-          <Table.HeadCell>Times</Table.HeadCell>
-        </Table.Head>
-        <Table.Body className="divide-y">
-          {data?.map((log: LogType) => (
-            <Table.Row
-              className="bg-white dark:border-gray-700 dark:bg-gray-800"
-              key={log.id}
-              onMouseEnter={() =>
-                setActiveRow(log.id === activeRow ? null : log.id)
-              }
-            >
-              <Table.Cell className="font-medium text-gray-900 dark:text-white">
-                <div className="flex flex-row flex-wrap gap-3">
-                  <div className="flex flex-row items-center gap-2">
-                    {React.createElement(getIconFromName(log.activityIcon))}
-                    {log.activityTitle}
-                    {log.comment}
-                  </div>{" "}
-                  {log.activityCategory}
-                </div>
-              </Table.Cell>
-              <Table.Cell>
-                <div className="flex flex-row flex-wrap gap-3">
-                  {activeRow === log.id ? (
-                    <div className="flex flex-row flex-wrap justify-end items-center gap-6">
-                      <HiOutlinePencilAlt size="28px" color="green" />
-                      <DeleteDialog
-                        id={log.id}
-                        itemToDelete={log.activityTitle}
-                        deleteFunction={handleDelete}
-                        iconSize="28px"
-                      />
-                      <HiClipboardCopy
-                        size="28px"
-                        color="cyan"
-                        onClick={() =>
-                          handleDuplicate(
-                            log.activityTitle,
-                            log.activityCategory,
-                            log.activityIcon,
-                            log.comment || ""
-                          )
-                        }
-                      />
+    <>
+      {data?.length !== 0 && (
+        <div className="overflow-x-auto rounded-lg">
+          <div className="grid grid-cols-2 gap-4 bg-gray-800 px-4 py-2 font-bold ">
+            <div className="">Activity</div>
+            <div>Times</div>
+          </div>
+          <div className="divide-y">
+            {data?.map((log: LogType) => (
+              <>
+                <div
+                  className="grid grid-cols-2 gap-4 bg-gray-900 p-4 cursor-pointer"
+                  key={log.id}
+                  onClick={() =>
+                    setActiveRow(log.id === activeRow ? null : log.id)
+                  }
+                >
+                  <div className="font-medium dark:text-white">
+                    <div className="flex flex-row flex-wrap gap-3">
+                      <div className="flex flex-row items-center gap-2">
+                        {React.createElement(getIconFromName(log.activityIcon))}
+                        {log.activityTitle}
+                        {log.comment}
+                      </div>{" "}
+                      {log.activityCategory}
                     </div>
-                  ) : (
-                    <>
-                      {log.start_time
-                        ? DateTime.fromISO(log.start_time.toString()).toFormat(
-                            "dd/MM/yy HH:mm"
-                          )
-                        : null}{" "}
-                      {log.end_time
-                        ? DateTime.fromISO(log.end_time.toString()).toFormat(
-                            "dd/MM/yy HH:mm"
-                          )
-                        : null}
-                    </>
-                  )}
+                  </div>
+                  <div>
+                    <div className="flex flex-row  gap-3 align-middle justify-start">
+                      <div className="flex flex-row flex-wrap gap-2">
+                        {" "}
+                        {log.start_time ? (
+                          <div>
+                            {DateTime.fromISO(
+                              log.start_time.toString()
+                            ).toFormat("dd/MM/yy HH:mm")}
+                          </div>
+                        ) : null}{" "}
+                        {log.end_time ? (
+                          <div>
+                            {DateTime.fromISO(log.end_time.toString()).toFormat(
+                              "dd/MM/yy HH:mm"
+                            )}
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                    {activeRow === log.id && (
+                      <div className="col-span-2 p-3">
+                        <div className="flex flex-row flex-wrap justify-end items-center gap-6">
+                          <HiOutlinePencilAlt size="28px" color="green" />
+                          <DeleteDialog
+                            id={log.id}
+                            itemToDelete={log.activityTitle}
+                            deleteFunction={handleDelete}
+                            iconSize="28px"
+                          />
+                          <HiClipboardCopy
+                            size="28px"
+                            color="cyan"
+                            onClick={() =>
+                              handleDuplicate(
+                                log.activityTitle,
+                                log.activityCategory,
+                                log.activityIcon,
+                                log.comment || ""
+                              )
+                            }
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </Table.Cell>
-            </Table.Row>
-          ))}
-        </Table.Body>
-      </Table>
-    </div>
+              </>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
   );
 }
