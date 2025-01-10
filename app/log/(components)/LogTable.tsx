@@ -80,11 +80,13 @@ export default function LogTable({
                 <div
                   className="grid grid-cols-2 gap-4 bg-gray-900 p-4 cursor-pointer"
                   key={log.id}
-                  onClick={() =>
-                    setActiveRow(log.id === activeRow ? null : log.id)
-                  }
                 >
-                  <div className="font-medium dark:text-white">
+                  <div
+                    className="font-medium dark:text-white"
+                    onClick={() =>
+                      setActiveRow(log.id === activeRow ? null : log.id)
+                    }
+                  >
                     <div className="flex flex-row flex-wrap gap-3">
                       <div className="flex flex-row items-center gap-2">
                         {React.createElement(getIconFromName(log.activityIcon))}
@@ -94,52 +96,55 @@ export default function LogTable({
                       {log.activityCategory}
                     </div>
                   </div>
-                  <div>
-                    <div className="flex flex-row  gap-3 align-middle justify-start">
-                      <div className="flex flex-row flex-wrap gap-2">
-                        {" "}
-                        {log.start_time ? (
-                          <div>
-                            {DateTime.fromISO(
-                              log.start_time.toString()
-                            ).toFormat("dd/MM/yy HH:mm")}
-                          </div>
-                        ) : null}{" "}
-                        {log.end_time ? (
-                          <div>
-                            {DateTime.fromISO(log.end_time.toString()).toFormat(
-                              "dd/MM/yy HH:mm"
-                            )}
-                          </div>
-                        ) : null}
+                  <div
+                    className="flex flex-row  gap-3 align-middle justify-start"
+                    onClick={() =>
+                      setActiveRow(log.id === activeRow ? null : log.id)
+                    }
+                  >
+                    <div className="flex flex-row flex-wrap gap-2">
+                      {" "}
+                      {log.start_time ? (
+                        <div>
+                          {DateTime.fromISO(log.start_time.toString()).toFormat(
+                            "dd/MM/yy HH:mm"
+                          )}
+                        </div>
+                      ) : null}{" "}
+                      {log.end_time ? (
+                        <div>
+                          {DateTime.fromISO(log.end_time.toString()).toFormat(
+                            "dd/MM/yy HH:mm"
+                          )}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                  {activeRow === log.id && (
+                    <div className="col-span-2 p-3">
+                      <div className="flex flex-row flex-wrap justify-end items-center gap-6">
+                        <HiOutlinePencilAlt size="28px" color="green" />
+                        <DeleteDialog
+                          id={log.id}
+                          itemToDelete={log.activityTitle}
+                          deleteFunction={handleDelete}
+                          iconSize="28px"
+                        />
+                        <HiClipboardCopy
+                          size="28px"
+                          color="cyan"
+                          onClick={() =>
+                            handleDuplicate(
+                              log.activityTitle,
+                              log.activityCategory,
+                              log.activityIcon,
+                              log.comment || ""
+                            )
+                          }
+                        />
                       </div>
                     </div>
-                    {activeRow === log.id && (
-                      <div className="col-span-2 p-3">
-                        <div className="flex flex-row flex-wrap justify-end items-center gap-6">
-                          <HiOutlinePencilAlt size="28px" color="green" />
-                          <DeleteDialog
-                            id={log.id}
-                            itemToDelete={log.activityTitle}
-                            deleteFunction={handleDelete}
-                            iconSize="28px"
-                          />
-                          <HiClipboardCopy
-                            size="28px"
-                            color="cyan"
-                            onClick={() =>
-                              handleDuplicate(
-                                log.activityTitle,
-                                log.activityCategory,
-                                log.activityIcon,
-                                log.comment || ""
-                              )
-                            }
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  )}
                 </div>
               </>
             ))}
