@@ -19,7 +19,7 @@ export default function RunningActivity({
   const [isHovered, setIsHovered] = useState(false);
 
   // Parse TODO info from comment
-  const parseTodoInfo = (comment: string | null) => {
+  const parseTodoInfo = (comment: string | null | undefined) => {
     if (!comment || !comment.startsWith('TODO-')) return null;
     const parts = comment.split('|');
     return {

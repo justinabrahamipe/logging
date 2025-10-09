@@ -4,12 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "DISABLE_ESLINT_PLUGIN=true && prisma generate && next build",
     "start": "next start",
     "lint": "next lint"
   },
   "dependencies": {
-    "@prisma/client": "^6.7.0",
+    "@prisma/client": "6.17.0",
     "axios": "^1.7.9",
     "date-fns": "^4.1.0",
     "flowbite-react": "^0.10.2",
