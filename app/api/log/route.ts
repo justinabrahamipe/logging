@@ -74,7 +74,11 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const updateData: any = {};
+    const updateData: {
+      end_time?: Date | null;
+      comment?: string | null;
+      time_spent?: number | null;
+    } = {};
     if (body.end_time !== undefined) updateData.end_time = body.end_time ? new Date(body.end_time) : null;
     if (body.comment !== undefined) updateData.comment = body.comment;
     if (body.time_spent !== undefined) updateData.time_spent = body.time_spent;

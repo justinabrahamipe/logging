@@ -2,7 +2,7 @@
 import axios from "axios";
 import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaPlay, FaTimes, FaClock, FaHistory, FaFire, FaList } from "react-icons/fa";
+import { FaPlay, FaTimes, FaClock, FaHistory, FaFire } from "react-icons/fa";
 import ActivityPreset from "./(components)/ActivityPreset";
 import RunningActivity from "./(components)/RunningActivity";
 import ActivityHistory from "./(components)/ActivityHistory";
