@@ -10,7 +10,7 @@ export default function RunningActivity({
   onStop,
 }: {
   data: LogType;
-  onStop: (logId: string) => void;
+  onStop: (logId: number) => void;
 }) {
   const IconComponent =
     HiIcons[data.activityIcon as keyof typeof HiIcons] ||

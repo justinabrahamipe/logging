@@ -1,5 +1,5 @@
 type LogType = {
-	id: int;
+	id: number;
 	comment?: string;
 	activityTitle: string;
 	activityCategory: string;
@@ -8,6 +8,6 @@ type LogType = {
 	start_time?: Date;
 	end_time?: Date;
 	created_on?: Date;
-	time_spent?: int;
+	time_spent?: number;
 	tags?: string;
 };

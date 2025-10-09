@@ -15,9 +15,9 @@ export default function ActivityHistory({
 	setRerun: React.Dispatch<React.SetStateAction<boolean>>;
 	activities: ActivityType[];
 }) {
-	const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-	const [hoveredLogId, setHoveredLogId] = useState<string | null>(null);
-	const [editingId, setEditingId] = useState<string | null>(null);
+	const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+	const [hoveredLogId, setHoveredLogId] = useState<number | null>(null);
+	const [editingId, setEditingId] = useState<number | null>(null);
 	const [editForm, setEditForm] = useState<Partial<LogType>>({});
 
 	// Parse TODO info from comment
@@ -40,11 +40,11 @@ export default function ActivityHistory({
 			.filter((tag) => tag.length > 0);
 	};
 
-	const handleDelete = async (id: string) => {
+	const handleDelete = async (id: number) => {
 		const baseUrl = window.location.origin;
 		try {
 			await axios.delete(`${baseUrl}/api/log`, {
-				data: { id: parseInt(id) },
+				data: { id },
 			});
 			setDeleteConfirmId(null);
 			setRerun((prev) => !prev);

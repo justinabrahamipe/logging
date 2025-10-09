@@ -1,5 +1,5 @@
 type ActivityType = {
-	id: int;
+	id: number;
 	icon: string;
 	title: string;
 	category: string;

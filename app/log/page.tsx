@@ -78,7 +78,7 @@ export default function Log() {
     }
   }, []);
 
-  const handleStopActivity = useCallback(async (logId: string) => {
+  const handleStopActivity = useCallback(async (logId: number) => {
     const log = logData.data.find(l => l.id === logId);
     const endTime = new Date().toISOString();
 
