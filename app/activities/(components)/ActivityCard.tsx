@@ -15,27 +15,26 @@ export default function ActivityCard({
     HiIcons.HiOutlineQuestionMarkCircle;
 
   return (
-    <>
-      <div className="p-3 border border-gray-50 border-opacity-10 border-r-2 rounded-lg hover:bg-slate-900 min-w-96">
-        <div className="flex items-center space-x-4 rtl:space-x-reverse">
-          <IconComponent size={24} />
+    <div className="p-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-200 dark:border-gray-700">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white">
+            <IconComponent size={20} />
+          </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-gray-900 dark:text-white">
+            <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">
               {data?.title}
             </p>
-            <p className="truncate text-sm text-gray-500 dark:text-gray-400">
+            <p className="truncate text-xs text-gray-500 dark:text-gray-400">
               {data?.category}
             </p>
           </div>
-          <div className="inline-flex items-center text-base text-gray-900 dark:text-white cursor-pointer hover:underline">
-            <AddEditActivityModal data={data} setRerun={setRerun} />
-          </div>
-
-          <div className="inline-flex items-center text-base text-gray-900 dark:text-white cursor-pointer ">
-            <DeleteActivity data={data} setRerun={setRerun} />
-          </div>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <AddEditActivityModal data={data} setRerun={setRerun} />
+          <DeleteActivity data={data} setRerun={setRerun} />
         </div>
       </div>
-    </>
+    </div>
   );
 }

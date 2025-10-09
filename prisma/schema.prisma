@@ -12,6 +12,7 @@ model Activity {
     icon       String   @default("--")
     title      String   @unique
     category   String
+    color      String?
     created_on DateTime @default(now())
 }
 
@@ -21,8 +22,24 @@ model Log {
     activityTitle    String
     activityCategory String
     activityIcon     String
+    activityColor    String?
     start_time       DateTime?
     end_time         DateTime?
     created_on       DateTime  @default(now())
     time_spent       Int?
+    tags             String?
+}
+
+model Todo {
+    id               Int      @id @default(autoincrement())
+    title            String
+    description      String?
+    activityTitle    String?
+    activityCategory String?
+    deadline         String?
+    work_date        String?
+    done             Boolean  @default(false)
+    importance       Int      @default(1)
+    urgency          Int      @default(1)
+    created_on       DateTime @default(now())
 }

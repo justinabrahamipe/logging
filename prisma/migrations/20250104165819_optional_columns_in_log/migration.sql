@@ -1,5 +1,0 @@
--- AlterTable
-ALTER TABLE "Log" ALTER COLUMN "comment" DROP NOT NULL,
-ALTER COLUMN "start_time" DROP NOT NULL,
-ALTER COLUMN "end_time" DROP NOT NULL,
-ALTER COLUMN "time_spent" DROP NOT NULL;

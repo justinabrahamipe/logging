@@ -7,9 +7,11 @@ import * as HiIcons from "react-icons/hi";
 export default function AddEditActivityModal({
   data,
   setRerun,
+  children,
 }: {
   data?: ActivityType;
   setRerun: React.Dispatch<React.SetStateAction<boolean>>;
+  children?: React.ReactNode;
 }) {
   const [openModal, setOpenModal] = useState(false);
   const [openIconTray, setOpenIconTray] = useState(false);
@@ -83,10 +85,12 @@ export default function AddEditActivityModal({
   return (
     <>
       <div onClick={() => setOpenModal(true)}>
-        {type === "Add" ? (
-          <div className="cursor-pointer hover:underline">{type}</div>
-        ) : (
-          <HiIcons.HiOutlinePencilAlt size="24px" color="green" />
+        {children || (
+          type === "Add" ? (
+            <div className="cursor-pointer hover:underline">{type}</div>
+          ) : (
+            <HiIcons.HiOutlinePencilAlt size="24px" color="green" />
+          )
         )}
       </div>
       <Modal show={openModal} size="md" onClose={onCloseModal} popup>
