@@ -1,11 +1,9 @@
-import { PrismaClient } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
-
-const client = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   try {
-    const data = await client.log.findMany({
+    const data = await prisma.log.findMany({
       orderBy: {
         created_on: 'desc'
       }
@@ -36,7 +34,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const response = await client.log.create({
+    const response = await prisma.log.create({
       data: {
         activityTitle: body.activityTitle,
         activityCategory: body.activityCategory,
@@ -83,7 +81,7 @@ export async function PUT(request: NextRequest) {
     if (body.comment !== undefined) updateData.comment = body.comment;
     if (body.time_spent !== undefined) updateData.time_spent = body.time_spent;
 
-    const response = await client.log.update({
+    const response = await prisma.log.update({
       where: { id: parseInt(id) },
       data: updateData,
     });
@@ -104,7 +102,7 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const body = await request.json();
-    const response = await client.log.deleteMany({
+    const response = await prisma.log.deleteMany({
       where: { id: body.id },
     });
     return NextResponse.json(response);

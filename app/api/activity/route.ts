@@ -1,11 +1,9 @@
-import { PrismaClient } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
-
-const client = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   try {
-    const data = await client.activity.findMany({
+    const data = await prisma.activity.findMany({
       orderBy: {
         created_on: 'desc'
       }
@@ -35,7 +33,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const response = await client.activity.create({
+    const response = await prisma.activity.create({
       data: {
         title: body.title,
         category: body.category,
@@ -67,7 +65,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const response = await client.activity.updateMany({
+    const response = await prisma.activity.updateMany({
       where: { title: oldTitle },
       data: {
         title: body.title,
@@ -108,7 +106,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const response = await client.activity.deleteMany({
+    const response = await prisma.activity.deleteMany({
       where: { title: body.title },
     });
 

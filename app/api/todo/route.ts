@@ -1,16 +1,9 @@
-import { PrismaClient } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
-
-// Prevent multiple instances in development
-const globalForPrisma = global as unknown as { prisma: PrismaClient };
-
-const client = globalForPrisma.prisma || new PrismaClient();
-
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = client;
+import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   try {
-    const data = await client.todo.findMany();
+    const data = await prisma.todo.findMany();
     console.log("data", data);
     return NextResponse.json({ data });
   } catch (error: unknown) {
@@ -52,7 +45,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("Creating todo in database...");
-    const response = await client.todo.create({ data: todoData });
+    const response = await prisma.todo.create({ data: todoData });
     console.log("Todo created successfully:", response);
 
     return NextResponse.json(response, { status: 201 });
@@ -86,7 +79,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const { id, ...updateData } = body;
-    const response = await client.todo.update({
+    const response = await prisma.todo.update({
       where: { id: Number(id) },
       data: updateData,
     });
@@ -106,7 +99,7 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const body = await request.json();
-    const response = await client.todo.deleteMany({
+    const response = await prisma.todo.deleteMany({
       where: { id: body.id },
     });
     return NextResponse.json(response);
