@@ -1,24 +1,52 @@
 "use client";
 import { DateTime } from "luxon";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import * as HiIcons from "react-icons/hi";
-import { FaTrash, FaEdit, FaSave, FaTimes } from "react-icons/fa";
+import { FaTrash, FaEdit, FaSave, FaTimes, FaStop, FaCalendar, FaCheckSquare, FaSquare, FaClock } from "react-icons/fa";
 import axios from "axios";
+import { DayPicker } from "react-day-picker";
+import DateTimePicker from "@/app/(common)/DateTimePicker";
+import "react-day-picker/dist/style.css";
 
 export default function ActivityHistory({
 	data,
 	setRerun,
 	activities,
+	onStop,
 }: {
 	data: LogType[];
 	setRerun: React.Dispatch<React.SetStateAction<boolean>>;
 	activities: ActivityType[];
+	onStop?: (logId: number) => void;
 }) {
 	const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
 	const [hoveredLogId, setHoveredLogId] = useState<number | null>(null);
 	const [editingId, setEditingId] = useState<number | null>(null);
 	const [editForm, setEditForm] = useState<Partial<LogType>>({});
+	const [selectedDate, setSelectedDate] = useState<string>(DateTime.now().toFormat("yyyy-MM-dd"));
+	const [selectedLogs, setSelectedLogs] = useState<number[]>([]);
+	const [bulkEditMode, setBulkEditMode] = useState(false);
+	const [bulkEditForm, setBulkEditForm] = useState<{ comment?: string; tags?: string }>({});
+	const [showCalendar, setShowCalendar] = useState(false);
+	const calendarRef = useRef<HTMLDivElement>(null);
+
+	// Close calendar when clicking outside
+	useEffect(() => {
+		const handleClickOutside = (event: MouseEvent) => {
+			if (calendarRef.current && !calendarRef.current.contains(event.target as Node)) {
+				setShowCalendar(false);
+			}
+		};
+
+		if (showCalendar) {
+			document.addEventListener('mousedown', handleClickOutside);
+		}
+
+		return () => {
+			document.removeEventListener('mousedown', handleClickOutside);
+		};
+	}, [showCalendar]);
 
 	// Parse TODO info from comment
 	const parseTodoInfo = (comment: string | null | undefined) => {
@@ -94,6 +122,58 @@ export default function ActivityHistory({
 		}
 	};
 
+	const handleBulkDelete = async () => {
+		if (selectedLogs.length === 0) return;
+		const baseUrl = window.location.origin;
+		try {
+			await Promise.all(
+				selectedLogs.map((id) =>
+					axios.delete(`${baseUrl}/api/log`, { data: { id } })
+				)
+			);
+			setSelectedLogs([]);
+			setRerun((prev) => !prev);
+		} catch (error) {
+			console.error("Error bulk deleting logs:", error);
+		}
+	};
+
+	const handleBulkEdit = async () => {
+		if (selectedLogs.length === 0) return;
+		const baseUrl = window.location.origin;
+		try {
+			await Promise.all(
+				selectedLogs.map((id) =>
+					axios.put(`${baseUrl}/api/log`, {
+						id,
+						comment: bulkEditForm.comment,
+						tags: bulkEditForm.tags,
+					})
+				)
+			);
+			setSelectedLogs([]);
+			setBulkEditMode(false);
+			setBulkEditForm({});
+			setRerun((prev) => !prev);
+		} catch (error) {
+			console.error("Error bulk editing logs:", error);
+		}
+	};
+
+	const toggleSelectLog = (id: number) => {
+		setSelectedLogs((prev) =>
+			prev.includes(id) ? prev.filter((logId) => logId !== id) : [...prev, id]
+		);
+	};
+
+	const toggleSelectAll = () => {
+		if (selectedLogs.length === filteredLogs.length) {
+			setSelectedLogs([]);
+		} else {
+			setSelectedLogs(filteredLogs.map((log) => log.id));
+		}
+	};
+
 	const calculateDuration = (start: string | null, end: string | null) => {
 		if (!start) return "N/A";
 		if (!end) return "Running...";
@@ -118,20 +198,379 @@ export default function ActivityHistory({
 		return DateTime.fromISO(time).toFormat("dd/MM/yy HH:mm");
 	};
 
-	// Show all logs (including running ones)
-	const allLogs = data;
+	// Filter logs by selected date
+	const filteredLogs = selectedDate
+		? data.filter((log) => {
+				if (!log.start_time) return false;
+				const logDate = DateTime.fromJSDate(new Date(log.start_time)).toFormat("yyyy-MM-dd");
+				return logDate === selectedDate;
+		  })
+		: data;
+
+	const allLogs = filteredLogs;
+
+	// Calculate total time for filtered logs
+	const totalDuration = allLogs.reduce((total, log) => {
+		if (!log.start_time || !log.end_time) return total;
+		const start = DateTime.fromJSDate(new Date(log.start_time));
+		const end = DateTime.fromJSDate(new Date(log.end_time));
+		const diff = end.diff(start, ["hours"]).hours;
+		return total + diff;
+	}, 0);
+
+	const formatTotalDuration = (hours: number) => {
+		const h = Math.floor(hours);
+		const m = Math.floor((hours - h) * 60);
+		if (h > 0) {
+			return `${h}h ${m}m`;
+		}
+		return `${m}m`;
+	};
+
+	const setQuickDate = (daysAgo: number) => {
+		const date = DateTime.now().minus({ days: daysAgo }).toFormat("yyyy-MM-dd");
+		setSelectedDate(date);
+		setSelectedLogs([]);
+	};
+
+	const navigateDate = (direction: 'prev' | 'next') => {
+		const currentDate = DateTime.fromISO(selectedDate);
+		const newDate = direction === 'prev'
+			? currentDate.minus({ days: 1 })
+			: currentDate.plus({ days: 1 });
+		setSelectedDate(newDate.toFormat("yyyy-MM-dd"));
+		setSelectedLogs([]);
+	};
 
 	return (
 		<>
+			{/* Enhanced Date Filter and Bulk Actions */}
+			<div className="mb-6 space-y-4">
+				{/* Date Picker Section */}
+				<div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+					<div className="flex flex-wrap gap-3 items-center">
+						{/* Quick Filters */}
+						<div className="flex items-center gap-2">
+							<span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+								Quick:
+							</span>
+							<motion.button
+								whileHover={{ scale: 1.05 }}
+								whileTap={{ scale: 0.95 }}
+								onClick={() => setQuickDate(0)}
+								className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+									selectedDate === DateTime.now().toFormat("yyyy-MM-dd")
+										? "bg-blue-600 text-white"
+										: "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+								}`}
+							>
+								Today
+							</motion.button>
+							<motion.button
+								whileHover={{ scale: 1.05 }}
+								whileTap={{ scale: 0.95 }}
+								onClick={() => setQuickDate(1)}
+								className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+									selectedDate === DateTime.now().minus({ days: 1 }).toFormat("yyyy-MM-dd")
+										? "bg-blue-600 text-white"
+										: "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+								}`}
+							>
+								Yesterday
+							</motion.button>
+							<motion.button
+								whileHover={{ scale: 1.05 }}
+								whileTap={{ scale: 0.95 }}
+								onClick={() => {
+									setSelectedDate("");
+									setSelectedLogs([]);
+								}}
+								className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+									selectedDate === ""
+										? "bg-blue-600 text-white"
+										: "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+								}`}
+							>
+								All Time
+							</motion.button>
+						</div>
+
+						<div className="h-6 w-px bg-gray-300 dark:bg-gray-600"></div>
+
+						{/* Date Navigation */}
+						<div className="flex items-center gap-2">
+							<motion.button
+								whileHover={{ scale: 1.1 }}
+								whileTap={{ scale: 0.9 }}
+								onClick={() => navigateDate('prev')}
+								disabled={!selectedDate}
+								className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+								title="Previous day"
+							>
+								←
+							</motion.button>
+
+							{/* Custom Date Picker with DayPicker */}
+							<div className="relative" ref={calendarRef}>
+								<motion.button
+									whileHover={{ scale: 1.02 }}
+									whileTap={{ scale: 0.98 }}
+									onClick={() => setShowCalendar(!showCalendar)}
+									className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg border-2 border-blue-200 dark:border-blue-700 hover:border-blue-300 dark:hover:border-blue-600 transition-colors cursor-pointer"
+								>
+									<FaCalendar className="text-blue-600 dark:text-blue-400" />
+									<span className="text-sm font-semibold text-gray-900 dark:text-white">
+										{selectedDate ? DateTime.fromISO(selectedDate).toFormat("MMM dd, yyyy") : "Select date"}
+									</span>
+									{selectedDate && (
+										<span className="text-xs font-medium text-blue-600 dark:text-blue-400">
+											{DateTime.fromISO(selectedDate).toFormat("cccc")}
+										</span>
+									)}
+								</motion.button>
+
+								{/* Calendar Popup */}
+								<AnimatePresence>
+									{showCalendar && (
+										<motion.div
+											initial={{ opacity: 0, y: -10, scale: 0.95 }}
+											animate={{ opacity: 1, y: 0, scale: 1 }}
+											exit={{ opacity: 0, y: -10, scale: 0.95 }}
+											transition={{ duration: 0.2 }}
+											className="absolute top-full mt-2 z-50 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-4"
+											style={{ minWidth: '320px' }}
+										>
+											<style jsx global>{`
+												.rdp {
+													--rdp-cell-size: 40px;
+													--rdp-accent-color: #3b82f6;
+													--rdp-background-color: #dbeafe;
+													margin: 0;
+												}
+												.dark .rdp {
+													--rdp-accent-color: #60a5fa;
+													--rdp-background-color: #1e3a8a;
+												}
+												.rdp-months {
+													justify-content: center;
+												}
+												.rdp-month {
+													margin: 0;
+												}
+												.rdp-caption {
+													display: flex;
+													justify-content: center;
+													padding: 0.5rem 0;
+													font-weight: 600;
+													font-size: 0.95rem;
+												}
+												.rdp-head_cell {
+													font-weight: 600;
+													font-size: 0.75rem;
+													color: #6b7280;
+													text-transform: uppercase;
+												}
+												.dark .rdp-head_cell {
+													color: #9ca3af;
+												}
+												.rdp-button:hover:not([disabled]):not(.rdp-day_selected) {
+													background-color: #f3f4f6;
+												}
+												.dark .rdp-button:hover:not([disabled]):not(.rdp-day_selected) {
+													background-color: #374151;
+												}
+												.rdp-day_today:not(.rdp-day_selected) {
+													font-weight: bold;
+													color: #3b82f6;
+												}
+												.dark .rdp-day_today:not(.rdp-day_selected) {
+													color: #60a5fa;
+												}
+												.rdp-day_selected {
+													background-color: #3b82f6 !important;
+													color: white !important;
+													font-weight: 600;
+												}
+												.dark .rdp-day_selected {
+													background-color: #2563eb !important;
+												}
+												.rdp-day {
+													border-radius: 0.5rem;
+													transition: all 0.2s;
+												}
+											`}</style>
+											<DayPicker
+												mode="single"
+												selected={selectedDate ? new Date(selectedDate) : undefined}
+												onSelect={(date) => {
+													if (date) {
+														const formatted = DateTime.fromJSDate(date).toFormat("yyyy-MM-dd");
+														setSelectedDate(formatted);
+														setSelectedLogs([]);
+														setShowCalendar(false);
+													}
+												}}
+												disabled={{ after: new Date() }}
+												className="text-gray-900 dark:text-white"
+											/>
+										</motion.div>
+									)}
+								</AnimatePresence>
+							</div>
+
+							<motion.button
+								whileHover={{ scale: 1.1 }}
+								whileTap={{ scale: 0.9 }}
+								onClick={() => navigateDate('next')}
+								disabled={!selectedDate || selectedDate === DateTime.now().toFormat("yyyy-MM-dd")}
+								className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+								title="Next day"
+							>
+								→
+							</motion.button>
+						</div>
+
+						{/* Stats Summary */}
+						{allLogs.length > 0 && (
+							<>
+								<div className="h-6 w-px bg-gray-300 dark:bg-gray-600"></div>
+
+								<div className="flex flex-wrap gap-4">
+									<div className="flex items-center gap-2">
+										<div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+											<span className="text-sm font-bold text-blue-600 dark:text-blue-400">
+												{allLogs.length}
+											</span>
+										</div>
+										<span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+											{allLogs.length === 1 ? 'Entry' : 'Entries'}
+										</span>
+									</div>
+
+									<div className="flex items-center gap-2">
+										<div className="w-8 h-8 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center">
+											<FaClock className="text-indigo-600 dark:text-indigo-400 text-sm" />
+										</div>
+										<span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+											{formatTotalDuration(totalDuration)}
+										</span>
+									</div>
+
+									<div className="flex items-center gap-2">
+										<div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
+											<FaCheckSquare className="text-green-600 dark:text-green-400 text-sm" />
+										</div>
+										<span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+											{allLogs.filter(log => log.end_time).length}/{allLogs.length}
+										</span>
+									</div>
+								</div>
+							</>
+						)}
+					</div>
+				</div>
+
+				{/* Bulk Actions */}
+				{selectedLogs.length > 0 && (
+					<motion.div
+						initial={{ opacity: 0, y: -10 }}
+						animate={{ opacity: 1, y: 0 }}
+						className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl shadow-lg p-4"
+					>
+						<div className="flex flex-wrap gap-3 items-center">
+							<div className="flex items-center gap-2">
+								<div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+									<FaCheckSquare className="text-white" size={16} />
+								</div>
+								<span className="text-sm font-bold text-white">
+									{selectedLogs.length} item{selectedLogs.length > 1 ? 's' : ''} selected
+								</span>
+							</div>
+
+							<div className="h-6 w-px bg-white/30"></div>
+
+							{!bulkEditMode ? (
+								<>
+									<motion.button
+										whileHover={{ scale: 1.05 }}
+										whileTap={{ scale: 0.95 }}
+										onClick={() => setBulkEditMode(true)}
+										className="px-4 py-2 bg-white hover:bg-gray-100 text-blue-600 text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 shadow-md"
+									>
+										<FaEdit size={14} />
+										Edit Selected
+									</motion.button>
+									<motion.button
+										whileHover={{ scale: 1.05 }}
+										whileTap={{ scale: 0.95 }}
+										onClick={handleBulkDelete}
+										className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 shadow-md"
+									>
+										<FaTrash size={14} />
+										Delete Selected
+									</motion.button>
+									<motion.button
+										whileHover={{ scale: 1.05 }}
+										whileTap={{ scale: 0.95 }}
+										onClick={() => setSelectedLogs([])}
+										className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-sm font-medium rounded-lg transition-colors"
+									>
+										Clear Selection
+									</motion.button>
+								</>
+							) : (
+								<>
+									<input
+										type="text"
+										placeholder="Description"
+										value={bulkEditForm.comment || ""}
+										onChange={(e) => setBulkEditForm({ ...bulkEditForm, comment: e.target.value })}
+										className="flex-1 min-w-[200px] px-4 py-2 text-sm rounded-lg border-2 border-white/30 bg-white/10 text-white placeholder-white/60 focus:outline-none focus:border-white/50 backdrop-blur-sm"
+									/>
+									<input
+										type="text"
+										placeholder="Tags (comma-separated)"
+										value={bulkEditForm.tags || ""}
+										onChange={(e) => setBulkEditForm({ ...bulkEditForm, tags: e.target.value })}
+										className="flex-1 min-w-[200px] px-4 py-2 text-sm rounded-lg border-2 border-white/30 bg-white/10 text-white placeholder-white/60 focus:outline-none focus:border-white/50 backdrop-blur-sm"
+									/>
+									<motion.button
+										whileHover={{ scale: 1.05 }}
+										whileTap={{ scale: 0.95 }}
+										onClick={handleBulkEdit}
+										className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 shadow-md"
+									>
+										<FaSave size={14} />
+										Save
+									</motion.button>
+									<motion.button
+										whileHover={{ scale: 1.05 }}
+										whileTap={{ scale: 0.95 }}
+										onClick={() => {
+											setBulkEditMode(false);
+											setBulkEditForm({});
+										}}
+										className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+									>
+										<FaTimes size={14} />
+										Cancel
+									</motion.button>
+								</>
+							)}
+						</div>
+					</motion.div>
+				)}
+			</div>
+
 			<div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
 				{allLogs?.length === 0 ? (
 					<div className="text-center py-16">
 						<div className="text-6xl mb-4">📋</div>
 						<h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-							No history yet
+							{selectedDate ? "No logs for this date" : "No history yet"}
 						</h3>
 						<p className="text-gray-600 dark:text-gray-400">
-							Your activities will appear here
+							{selectedDate ? "Try selecting a different date" : "Your activities will appear here"}
 						</p>
 					</div>
 				) : (
@@ -139,6 +578,18 @@ export default function ActivityHistory({
 						<table className="w-full">
 							<thead>
 								<tr className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700">
+									<th className="px-4 py-4 text-left">
+										<button
+											onClick={toggleSelectAll}
+											className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+										>
+											{selectedLogs.length === allLogs.length && allLogs.length > 0 ? (
+												<FaCheckSquare size={18} />
+											) : (
+												<FaSquare size={18} />
+											)}
+										</button>
+									</th>
 									<th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
 										Activity
 									</th>
@@ -184,6 +635,19 @@ export default function ActivityHistory({
 												onMouseLeave={() => setHoveredLogId(null)}
 												className={`${!isEditing && "hover:bg-gray-50 dark:hover:bg-gray-900/30"} transition-colors ${isEditing && "bg-blue-50 dark:bg-blue-900/10"}`}
 											>
+												{/* Checkbox */}
+												<td className="px-4 py-4">
+													<button
+														onClick={() => toggleSelectLog(log.id)}
+														className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+													>
+														{selectedLogs.includes(log.id) ? (
+															<FaCheckSquare size={18} />
+														) : (
+															<FaSquare size={18} />
+														)}
+													</button>
+												</td>
 												{/* Activity */}
 												<td className="px-6 py-4">
 													{isEditing ? (
@@ -333,41 +797,27 @@ export default function ActivityHistory({
 												<td className="px-6 py-4">
 													{isEditing ? (
 														<div className="space-y-2">
-															<input
-																type="datetime-local"
-																value={
-																	editForm.start_time
-																		? DateTime.fromJSDate(
-																				new Date(editForm.start_time),
-																			).toFormat("yyyy-MM-dd'T'HH:mm")
-																		: ""
-																}
-																onChange={(e) =>
+															<DateTimePicker
+																value={editForm.start_time}
+																onChange={(date) =>
 																	setEditForm({
 																		...editForm,
-																		start_time: new Date(e.target.value),
+																		start_time: date,
 																	})
 																}
-																className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+																placeholder="Start time"
+																disableFuture
 															/>
-															<input
-																type="datetime-local"
-																value={
-																	editForm.end_time
-																		? DateTime.fromJSDate(
-																				new Date(editForm.end_time),
-																			).toFormat("yyyy-MM-dd'T'HH:mm")
-																		: ""
-																}
-																onChange={(e) =>
+															<DateTimePicker
+																value={editForm.end_time}
+																onChange={(date) =>
 																	setEditForm({
 																		...editForm,
-																		end_time: e.target.value
-																			? new Date(e.target.value)
-																			: undefined,
+																		end_time: date,
 																	})
 																}
-																className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+																placeholder="End time (optional)"
+																disableFuture
 															/>
 														</div>
 													) : (
@@ -432,6 +882,17 @@ export default function ActivityHistory({
 															</>
 														) : (
 															<>
+																{!log.end_time && onStop && (
+																	<motion.button
+																		whileHover={{ scale: 1.1 }}
+																		whileTap={{ scale: 0.9 }}
+																		onClick={() => onStop(log.id)}
+																		className="p-2 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg transition-colors"
+																		title="Stop activity"
+																	>
+																		<FaStop size={14} />
+																	</motion.button>
+																)}
 																<motion.button
 																	whileHover={{ scale: 1.1 }}
 																	whileTap={{ scale: 0.9 }}

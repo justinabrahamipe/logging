@@ -279,7 +279,7 @@ export default function Log() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
               >
-                <ActivityHistory data={logData.data} setRerun={setRerun} activities={activityData.data} />
+                <ActivityHistory data={logData.data} setRerun={setRerun} activities={activityData.data} onStop={handleStopActivity} />
               </motion.div>
             </motion.div>
             )}

@@ -2,6 +2,7 @@
 import { useState, memo } from "react";
 import { motion } from "framer-motion";
 import { FaSave, FaTimes } from "react-icons/fa";
+import DatePicker from "@/app/(common)/DatePicker";
 
 interface TodoFormProps {
   isEdit: boolean;
@@ -103,20 +104,18 @@ const TodoForm = memo(({ isEdit, initialData, onSave, onCancel, activities }: To
             ))}
           </select>
 
-          <input
-            type="date"
+          <DatePicker
             value={localForm.work_date || ""}
-            onChange={(e) => setLocalForm({ ...localForm, work_date: e.target.value })}
-            className="w-full px-3 py-2 text-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            onChange={(value) => setLocalForm({ ...localForm, work_date: value })}
             placeholder="Work Date"
+            className="text-xs"
           />
 
-          <input
-            type="date"
+          <DatePicker
             value={localForm.deadline || ""}
-            onChange={(e) => setLocalForm({ ...localForm, deadline: e.target.value })}
-            className="w-full px-3 py-2 text-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            onChange={(value) => setLocalForm({ ...localForm, deadline: value })}
             placeholder="Deadline"
+            className="text-xs"
           />
         </div>
 

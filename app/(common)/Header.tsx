@@ -9,9 +9,11 @@ import { useState, useEffect } from "react";
 export default function Header() {
   const [isDark, setIsDark] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
+    setMounted(true);
     const isDarkMode = document.documentElement.classList.contains("dark");
     setIsDark(isDarkMode);
   }, []);
@@ -87,13 +89,15 @@ export default function Header() {
               className="ml-2 p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
               aria-label="Toggle theme"
             >
-              <motion.div
-                initial={false}
-                animate={{ rotate: isDark ? 180 : 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                {isDark ? <FaSun className="text-lg" /> : <FaMoon className="text-lg" />}
-              </motion.div>
+              {mounted && (
+                <motion.div
+                  initial={false}
+                  animate={{ rotate: isDark ? 180 : 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  {isDark ? <FaSun className="text-lg" /> : <FaMoon className="text-lg" />}
+                </motion.div>
+              )}
             </motion.button>
           </div>
 
@@ -105,7 +109,7 @@ export default function Header() {
               className="p-2 rounded-lg text-gray-700 dark:text-gray-300"
               aria-label="Toggle theme"
             >
-              {isDark ? <FaSun className="text-lg" /> : <FaMoon className="text-lg" />}
+              {mounted && (isDark ? <FaSun className="text-lg" /> : <FaMoon className="text-lg" />)}
             </motion.button>
             <motion.button
               whileTap={{ scale: 0.95 }}

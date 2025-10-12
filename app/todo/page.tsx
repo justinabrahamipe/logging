@@ -74,54 +74,16 @@ export default function TodoPage() {
   }, [rerun]);
 
   useEffect(() => {
-    // API calls disabled - using mock data
-    const mockData = [
-      {
-        id: 1,
-        title: "Complete project documentation",
-        description: "Write comprehensive docs for the new features",
-        urgency: 3,
-        importance: 3,
-        work_date: "2025-10-09",
-        deadline: "2025-10-15",
-        done: false,
-        activityTitle: "jhg",
-        activityCategory: "jg",
-      },
-      {
-        id: 2,
-        title: "Review pull requests",
-        description: "Review pending PRs from the team",
-        urgency: 2,
-        importance: 2,
-        work_date: "2025-10-08",
-        deadline: "2025-10-10",
-        done: false,
-      },
-      {
-        id: 3,
-        title: "Fix authentication bug",
-        description: "Users unable to login with Google OAuth",
-        urgency: 3,
-        importance: 2,
-        work_date: "2025-10-08",
-        deadline: "2025-10-09",
-        done: true,
-      },
-    ];
-
-    setData({ data: mockData as TodoType[] });
-
-    // const fetchData = async () => {
-    //   const baseUrl = window.location.origin;
-    //   try {
-    //     const response = await axios.get(`${baseUrl}/api/todo`);
-    //     setData(response.data);
-    //   } catch (error) {
-    //     console.error("Error fetching todos:", error);
-    //   }
-    // };
-    // fetchData();
+    const fetchData = async () => {
+      const baseUrl = window.location.origin;
+      try {
+        const response = await axios.get(`${baseUrl}/api/todo`);
+        setData(response.data);
+      } catch (error) {
+        console.error("Error fetching todos:", error);
+      }
+    };
+    fetchData();
   }, [rerun]);
 
   const handleToggleDone = useCallback(async (todo: TodoType) => {
@@ -167,23 +129,16 @@ export default function TodoPage() {
       setTimeout(() => setSnackbar(null), 3000);
     }
 
-    // Update in state only - API disabled
-    setData(prevData => ({
-      data: prevData.data.map(t =>
-        t.id === todo.id ? { ...t, done: newStatus } : t
-      )
-    }));
-
-    // const baseUrl = window.location.origin;
-    // try {
-    //   await axios.put(`${baseUrl}/api/todo`, {
-    //     ...todo,
-    //     done: !todo.done,
-    //   });
-    //   setRerun((x) => !x);
-    // } catch (error) {
-    //   console.error("Error updating todo:", error);
-    // }
+    const baseUrl = window.location.origin;
+    try {
+      await axios.put(`${baseUrl}/api/todo`, {
+        ...todo,
+        done: newStatus,
+      });
+      setRerun((x) => !x);
+    } catch (error) {
+      console.error("Error updating todo:", error);
+    }
   }, [activities.data]);
 
   const handleEdit = useCallback((todo: TodoType) => {
@@ -197,26 +152,19 @@ export default function TodoPage() {
   }, []);
 
   const handleSaveEdit = useCallback(async (formData: TodoType) => {
-    // Update in state only - API disabled
-    setData(prevData => ({
-      data: prevData.data.map(t =>
-        t.id === formData.id ? formData : t
-      )
-    }));
-    setEditingId(null);
-    setEditFormData({} as TodoType);
-    setSnackbar({ message: `"${formData.title}" updated successfully`, type: 'success' });
-    setTimeout(() => setSnackbar(null), 3000);
-
-    // const baseUrl = window.location.origin;
-    // try {
-    //   await axios.put(`${baseUrl}/api/todo`, formData);
-    //   setEditingId(null);
-    //   setEditFormData({} as TodoType);
-    //   setRerun((x) => !x);
-    // } catch (error) {
-    //   console.error("Error updating todo:", error);
-    // }
+    const baseUrl = window.location.origin;
+    try {
+      await axios.put(`${baseUrl}/api/todo`, formData);
+      setEditingId(null);
+      setEditFormData({} as TodoType);
+      setRerun((x) => !x);
+      setSnackbar({ message: `"${formData.title}" updated successfully`, type: 'success' });
+      setTimeout(() => setSnackbar(null), 3000);
+    } catch (error) {
+      console.error("Error updating todo:", error);
+      setSnackbar({ message: "Failed to update todo", type: 'error' });
+      setTimeout(() => setSnackbar(null), 3000);
+    }
   }, []);
 
   const handleAddTodo = useCallback(async (formData: TodoType) => {
@@ -226,32 +174,21 @@ export default function TodoPage() {
       return;
     }
 
-    // Add to state only - API disabled
-    const newTodo = {
-      ...formData,
-      id: Date.now(), // Generate temporary ID
-    };
-
-    setData(prevData => ({
-      data: [...prevData.data, newTodo as TodoType]
-    }));
-    setShowAddForm(false);
-    setEditFormData({} as TodoType);
-    setSnackbar({ message: `"${formData.title}" added successfully`, type: 'success' });
-    setTimeout(() => setSnackbar(null), 3000);
-
-    // const baseUrl = window.location.origin;
-    // try {
-    //   const response = await axios.post(`${baseUrl}/api/todo`, formData);
-    //   console.log("Todo added successfully:", response.data);
-    //   setShowAddForm(false);
-    //   setEditFormData({} as TodoType);
-    //   setRerun((x) => !x);
-    // } catch (error: any) {
-    //   console.error("Full error object:", error);
-    //   const errorMessage = error.response?.data?.error || error.message || "Failed to add todo";
-    //   alert(`Error: ${errorMessage}`);
-    // }
+    const baseUrl = window.location.origin;
+    try {
+      const response = await axios.post(`${baseUrl}/api/todo`, formData);
+      console.log("Todo added successfully:", response.data);
+      setShowAddForm(false);
+      setEditFormData({} as TodoType);
+      setRerun((x) => !x);
+      setSnackbar({ message: `"${formData.title}" added successfully`, type: 'success' });
+      setTimeout(() => setSnackbar(null), 3000);
+    } catch (error: any) {
+      console.error("Full error object:", error);
+      const errorMessage = error.response?.data?.error || error.message || "Failed to add todo";
+      setSnackbar({ message: errorMessage, type: 'error' });
+      setTimeout(() => setSnackbar(null), 3000);
+    }
   }, []);
 
   const handleCancelAdd = useCallback(() => {
@@ -259,14 +196,22 @@ export default function TodoPage() {
     setEditFormData({} as TodoType);
   }, []);
 
-  const handleDelete = useCallback((id: number) => {
+  const handleDelete = useCallback(async (id: number) => {
     const todo = data.data.find(t => t.id === id);
     if (confirm("Are you sure you want to delete this todo?")) {
-      setData(prevData => ({
-        data: prevData.data.filter(t => t.id !== id)
-      }));
-      setSnackbar({ message: `"${todo?.title}" deleted successfully`, type: 'success' });
-      setTimeout(() => setSnackbar(null), 3000);
+      const baseUrl = window.location.origin;
+      try {
+        await axios.delete(`${baseUrl}/api/todo`, {
+          data: { id: id }
+        });
+        setRerun(prev => !prev);
+        setSnackbar({ message: `"${todo?.title}" deleted successfully`, type: 'success' });
+        setTimeout(() => setSnackbar(null), 3000);
+      } catch (error) {
+        console.error("Error deleting todo:", error);
+        setSnackbar({ message: "Failed to delete todo", type: 'error' });
+        setTimeout(() => setSnackbar(null), 3000);
+      }
     }
   }, [data.data]);
 
@@ -371,32 +316,45 @@ export default function TodoPage() {
               Manage your tasks and stay productive
             </p>
           </div>
-        </motion.div>
 
-        {/* Stats */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="grid grid-cols-3 gap-4 mb-8"
-        >
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm">
-            <div className="text-2xl font-bold text-gray-900 dark:text-white">
-              {stats.total}
+          {/* Stats - inline with header */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                <span className="text-base font-bold text-gray-900 dark:text-white">
+                  {stats.total}
+                </span>
+              </div>
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Total
+              </span>
             </div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">Total</div>
-          </div>
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm">
-            <div className="text-2xl font-bold text-blue-600">
-              {stats.active}
+
+            <div className="h-8 w-px bg-gray-300 dark:bg-gray-600"></div>
+
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                <span className="text-base font-bold text-blue-600 dark:text-blue-400">
+                  {stats.active}
+                </span>
+              </div>
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Active
+              </span>
             </div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">Active</div>
-          </div>
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm">
-            <div className="text-2xl font-bold text-green-600">
-              {stats.completed}
+
+            <div className="h-8 w-px bg-gray-300 dark:bg-gray-600"></div>
+
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
+                <span className="text-base font-bold text-green-600 dark:text-green-400">
+                  {stats.completed}
+                </span>
+              </div>
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Done
+              </span>
             </div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">Done</div>
           </div>
         </motion.div>
 

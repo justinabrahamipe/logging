@@ -76,10 +76,22 @@ export async function PUT(request: NextRequest) {
       end_time?: Date | null;
       comment?: string | null;
       time_spent?: number | null;
+      tags?: string | null;
+      activityTitle?: string;
+      activityCategory?: string;
+      activityIcon?: string;
+      activityColor?: string | null;
+      start_time?: Date;
     } = {};
     if (body.end_time !== undefined) updateData.end_time = body.end_time ? new Date(body.end_time) : null;
     if (body.comment !== undefined) updateData.comment = body.comment;
     if (body.time_spent !== undefined) updateData.time_spent = body.time_spent;
+    if (body.tags !== undefined) updateData.tags = body.tags;
+    if (body.activityTitle !== undefined) updateData.activityTitle = body.activityTitle;
+    if (body.activityCategory !== undefined) updateData.activityCategory = body.activityCategory;
+    if (body.activityIcon !== undefined) updateData.activityIcon = body.activityIcon;
+    if (body.activityColor !== undefined) updateData.activityColor = body.activityColor;
+    if (body.start_time !== undefined) updateData.start_time = new Date(body.start_time);
 
     const response = await prisma.log.update({
       where: { id: parseInt(id) },
