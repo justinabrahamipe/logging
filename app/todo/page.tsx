@@ -227,10 +227,12 @@ export default function TodoPage() {
 				type: "success",
 			});
 			setTimeout(() => setSnackbar(null), 3000);
-		} catch (error: any) {
+		} catch (error: unknown) {
 			console.error("Full error object:", error);
 			const errorMessage =
-				error.response?.data?.error || error.message || "Failed to add todo";
+				(error as { response?: { data?: { error?: string } }; message?: string }).response?.data?.error ||
+				(error as { message?: string }).message ||
+				"Failed to add todo";
 			setSnackbar({ message: errorMessage, type: "error" });
 			setTimeout(() => setSnackbar(null), 3000);
 		}

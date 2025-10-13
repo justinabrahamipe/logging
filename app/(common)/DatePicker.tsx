@@ -74,16 +74,20 @@ export default function DatePicker({
   }, [showCalendar]);
 
   const getDisabledDays = () => {
-    const disabled: any = {};
+    if (disableFuture && disablePast) {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      return { after: new Date(), before: yesterday };
+    }
     if (disableFuture) {
-      disabled.after = new Date();
+      return { after: new Date() };
     }
     if (disablePast) {
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
-      disabled.before = yesterday;
+      return { before: yesterday };
     }
-    return disabled;
+    return undefined;
   };
 
   return (
