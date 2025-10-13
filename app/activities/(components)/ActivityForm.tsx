@@ -8,14 +8,14 @@ import { PREDEFINED_COLORS, CategoryWithColor } from "./constants";
 
 interface ActivityFormProps {
   initialData: ActivityType;
-  onSave: (data: ActivityType) => void;
-  onCancel: () => void;
+  onSaveAction: (data: ActivityType) => void;
+  onCancelAction: () => void;
   userCustomColors: string[];
-  onCustomColorChange: (index: number, color: string) => void;
+  onCustomColorChangeAction: (index: number, color: string) => void;
   existingCategories: CategoryWithColor[];
 }
 
-const ActivityForm = memo(({ initialData, onSave, onCancel, userCustomColors, onCustomColorChange, existingCategories }: ActivityFormProps) => {
+const ActivityForm = memo(({ initialData, onSaveAction, onCancelAction, userCustomColors, onCustomColorChangeAction, existingCategories }: ActivityFormProps) => {
   const [localForm, setLocalForm] = useState(initialData);
   const [openIconTray, setOpenIconTray] = useState(false);
   const [searchText, setSearchText] = useState("");
@@ -42,7 +42,7 @@ const ActivityForm = memo(({ initialData, onSave, onCancel, userCustomColors, on
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(localForm);
+    onSaveAction(localForm);
   };
 
   return (
@@ -172,7 +172,7 @@ const ActivityForm = memo(({ initialData, onSave, onCancel, userCustomColors, on
                       type="color"
                       value={color}
                       onChange={(e) => {
-                        onCustomColorChange(index, e.target.value);
+                        onCustomColorChangeAction(index, e.target.value);
                         setLocalForm({ ...localForm, color: `custom-${e.target.value}` });
                         setSelectedCustomIndex(index);
                       }}
@@ -233,7 +233,7 @@ const ActivityForm = memo(({ initialData, onSave, onCancel, userCustomColors, on
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               type="button"
-              onClick={onCancel}
+              onClick={onCancelAction}
               className="px-3 py-2 rounded-lg text-sm font-semibold border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-1"
             >
               <FaTimes size={12} /> Cancel

@@ -233,10 +233,10 @@ export default function Activities() {
                 >
                   <ActivityForm
                     initialData={editFormData}
-                    onSave={handleSaveEdit}
-                    onCancel={handleCancelEdit}
+                    onSaveAction={handleSaveEdit}
+                    onCancelAction={handleCancelEdit}
                     userCustomColors={userCustomColors}
-                    onCustomColorChange={handleCustomColorChange}
+                    onCustomColorChangeAction={handleCustomColorChange}
                     existingCategories={existingCategories}
                   />
                 </motion.div>
@@ -304,10 +304,10 @@ export default function Activities() {
             >
               <ActivityForm
                 initialData={{ title: "", category: "", icon: "HiOutlineQuestionMarkCircle", color: "from-blue-500 to-purple-600" } as ActivityType}
-                onSave={handleAddActivity}
-                onCancel={handleCancelAdd}
+                onSaveAction={handleAddActivity}
+                onCancelAction={handleCancelAdd}
                 userCustomColors={userCustomColors}
-                onCustomColorChange={handleCustomColorChange}
+                onCustomColorChangeAction={handleCustomColorChange}
                 existingCategories={existingCategories}
               />
             </motion.div>

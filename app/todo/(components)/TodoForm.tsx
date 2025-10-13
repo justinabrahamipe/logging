@@ -7,17 +7,17 @@ import DatePicker from "@/app/(common)/DatePicker";
 interface TodoFormProps {
   isEdit: boolean;
   initialData: TodoType;
-  onSave: (data: TodoType) => void;
-  onCancel: () => void;
+  onSaveAction: (data: TodoType) => void;
+  onCancelAction: () => void;
   activities: ActivityType[];
 }
 
-const TodoForm = memo(({ isEdit, initialData, onSave, onCancel, activities }: TodoFormProps) => {
+const TodoForm = memo(({ isEdit, initialData, onSaveAction, onCancelAction, activities }: TodoFormProps) => {
   const [localForm, setLocalForm] = useState(initialData);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(localForm);
+    onSaveAction(localForm);
   };
 
   const handleDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -178,7 +178,7 @@ const TodoForm = memo(({ isEdit, initialData, onSave, onCancel, activities }: To
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             type="button"
-            onClick={onCancel}
+            onClick={onCancelAction}
             className="px-4 py-2 rounded-lg text-sm font-semibold border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-1"
           >
             <FaTimes size={12} /> Cancel

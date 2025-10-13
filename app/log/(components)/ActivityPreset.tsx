@@ -5,12 +5,12 @@ import { FaPlay } from "react-icons/fa";
 
 interface ActivityPresetProps {
   data: ActivityType;
-  onStart: (activity: ActivityType) => void;
+  onStartAction: (activity: ActivityType) => void;
 }
 
 export default function ActivityPreset({
   data,
-  onStart,
+  onStartAction,
 }: ActivityPresetProps) {
   const IconComponent =
     HiIcons[data.icon as keyof typeof HiIcons] ||
@@ -20,7 +20,7 @@ export default function ActivityPreset({
     <motion.button
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
-      onClick={() => onStart(data)}
+      onClick={() => onStartAction(data)}
       className="w-full p-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-200 dark:border-gray-700 text-left"
     >
       <div className="flex items-center justify-between gap-3">

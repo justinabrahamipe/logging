@@ -215,7 +215,7 @@ export default function Log() {
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: index * 0.05 }}
                       >
-                        <RunningActivity data={log} onStop={handleStopActivity} />
+                        <RunningActivity data={log} onStopAction={handleStopActivity} />
                       </motion.div>
                     ))}
                   </div>
@@ -259,7 +259,7 @@ export default function Log() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.03 }}
                       >
-                        <ActivityPreset data={activity} onStart={handleStartActivity} />
+                        <ActivityPreset data={activity} onStartAction={handleStartActivity} />
                       </motion.div>
                     ))}
                   </div>
@@ -279,7 +279,7 @@ export default function Log() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
               >
-                <ActivityHistory data={logData.data} refetchAction={refetchAction} activities={activityData.data} onStop={handleStopActivity} />
+                <ActivityHistory data={logData.data} refetchAction={refetchAction} activities={activityData.data} onStopAction={handleStopActivity} />
               </motion.div>
             </motion.div>
             )}

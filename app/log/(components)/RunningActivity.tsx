@@ -7,12 +7,12 @@ import { FaStop } from "react-icons/fa";
 
 interface RunningActivityProps {
   data: LogType;
-  onStop: (logId: number) => void;
+  onStopAction: (logId: number) => void;
 }
 
 export default function RunningActivity({
   data,
-  onStop,
+  onStopAction,
 }: RunningActivityProps) {
   const IconComponent =
     HiIcons[data.activityIcon as keyof typeof HiIcons] ||
@@ -91,7 +91,7 @@ export default function RunningActivity({
           <motion.button
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
-            onClick={() => onStop(data.id)}
+            onClick={() => onStopAction(data.id)}
             className="w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center"
           >
             <FaStop className="text-red-600 dark:text-red-400 text-sm" />

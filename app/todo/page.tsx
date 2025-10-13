@@ -495,8 +495,8 @@ export default function TodoPage() {
 										<TodoForm
 											isEdit={true}
 											initialData={editFormData}
-											onSave={handleSaveEdit}
-											onCancel={handleCancelEdit}
+											onSaveAction={handleSaveEdit}
+											onCancelAction={handleCancelEdit}
 											activities={activities.data}
 										/>
 									</div>
@@ -701,8 +701,8 @@ export default function TodoPage() {
 									initialData={
 										{ title: "", urgency: 1, importance: 1 } as TodoType
 									}
-									onSave={handleAddTodo}
-									onCancel={handleCancelAdd}
+									onSaveAction={handleAddTodo}
+									onCancelAction={handleCancelAdd}
 									activities={activities.data}
 								/>
 							</motion.div>

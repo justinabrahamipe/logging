@@ -13,14 +13,14 @@ interface ActivityHistoryProps {
 	data: LogType[];
 	refetchAction: React.Dispatch<React.SetStateAction<boolean>>;
 	activities: ActivityType[];
-	onStop?: (logId: number) => void;
+	onStopAction?: (logId: number) => void;
 }
 
 export default function ActivityHistory({
 	data,
 	refetchAction,
 	activities,
-	onStop,
+	onStopAction,
 }: ActivityHistoryProps) {
 	const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
 	const [hoveredLogId, setHoveredLogId] = useState<number | null>(null);
@@ -884,11 +884,11 @@ export default function ActivityHistory({
 															</>
 														) : (
 															<>
-																{!log.end_time && onStop && (
+																{!log.end_time && onStopAction && (
 																	<motion.button
 																		whileHover={{ scale: 1.1 }}
 																		whileTap={{ scale: 0.9 }}
-																		onClick={() => onStop(log.id)}
+																		onClick={() => onStopAction(log.id)}
 																		className="p-2 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg transition-colors"
 																		title="Stop activity"
 																	>
