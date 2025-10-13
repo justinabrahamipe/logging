@@ -3,9 +3,5 @@
     "app/api/**/*.ts": {
       "maxDuration": 10
     }
-  },
-  "env": {
-    "DATABASE_URL": "@database_url",
-    "DATABASE_URL_UNPOOLED": "@database_url_unpooled"
   }
 }
