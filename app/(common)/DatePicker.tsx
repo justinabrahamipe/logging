@@ -8,7 +8,7 @@ import "react-day-picker/dist/style.css";
 
 interface DatePickerProps {
   value: string;
-  onChange: (value: string) => void;
+  onChangeAction: (value: string) => void;
   placeholder?: string;
   className?: string;
   disableFuture?: boolean;
@@ -17,7 +17,7 @@ interface DatePickerProps {
 
 export default function DatePicker({
   value,
-  onChange,
+  onChangeAction,
   placeholder = "Select date",
   className = "",
   disableFuture = false,
@@ -187,7 +187,7 @@ export default function DatePicker({
               onSelect={(date) => {
                 if (date) {
                   const formatted = DateTime.fromJSDate(date).toFormat("yyyy-MM-dd");
-                  onChange(formatted);
+                  onChangeAction(formatted);
                   setShowCalendar(false);
                 }
               }}

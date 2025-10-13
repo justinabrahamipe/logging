@@ -7,8 +7,8 @@ import { FaCalendar, FaClock } from "react-icons/fa";
 import "react-day-picker/dist/style.css";
 
 interface DateTimePickerProps {
-  value: Date | string | null | undefined;
-  onChange: (value: Date) => void;
+  value?: Date | string | null;
+  onChangeAction: (value: Date) => void;
   placeholder?: string;
   className?: string;
   disableFuture?: boolean;
@@ -16,7 +16,7 @@ interface DateTimePickerProps {
 
 export default function DateTimePicker({
   value,
-  onChange,
+  onChangeAction,
   placeholder = "Select date & time",
   className = "",
   disableFuture = false,
@@ -88,7 +88,7 @@ export default function DateTimePicker({
       const [hours, minutes] = time.split(":").map(Number);
       const combined = new Date(date);
       combined.setHours(hours, minutes, 0, 0);
-      onChange(combined);
+      onChangeAction(combined);
     }
   };
 
@@ -98,7 +98,7 @@ export default function DateTimePicker({
       const [hours, minutes] = newTime.split(":").map(Number);
       const combined = new Date(selectedDate);
       combined.setHours(hours, minutes, 0, 0);
-      onChange(combined);
+      onChangeAction(combined);
     }
   };
 

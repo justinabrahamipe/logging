@@ -5,10 +5,10 @@ import AddEditActivityModal from "./AddEditActivityModal";
 
 export default function ActivityCard({
   data,
-  setRerun,
+  refetchAction,
 }: {
   data: ActivityType;
-  setRerun: React.Dispatch<React.SetStateAction<boolean>>;
+  refetchAction: React.Dispatch<React.SetStateAction<boolean>>;
 }) {
   const IconComponent =
     HiIcons[data.icon as keyof typeof HiIcons] ||
@@ -31,8 +31,8 @@ export default function ActivityCard({
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <AddEditActivityModal data={data} setRerun={setRerun} />
-          <DeleteActivity data={data} setRerun={setRerun} />
+          <AddEditActivityModal data={data} refetchAction={refetchAction} />
+          <DeleteActivity data={data} refetchAction={refetchAction} />
         </div>
       </div>
     </div>

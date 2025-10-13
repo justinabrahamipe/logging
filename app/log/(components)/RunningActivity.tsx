@@ -5,13 +5,15 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { FaStop } from "react-icons/fa";
 
+interface RunningActivityProps {
+  data: LogType;
+  onStop: (logId: number) => void;
+}
+
 export default function RunningActivity({
   data,
   onStop,
-}: {
-  data: LogType;
-  onStop: (logId: number) => void;
-}) {
+}: RunningActivityProps) {
   const IconComponent =
     HiIcons[data.activityIcon as keyof typeof HiIcons] ||
     HiIcons.HiOutlineQuestionMarkCircle;

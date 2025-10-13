@@ -6,10 +6,10 @@ interface SnackbarProps {
   message: string;
   type: 'success' | 'error' | 'info';
   isOpen: boolean;
-  onClose: () => void;
+  onCloseAction: () => void;
 }
 
-export default function Snackbar({ message, type, isOpen, onClose }: SnackbarProps) {
+export default function Snackbar({ message, type, isOpen, onCloseAction }: SnackbarProps) {
   return (
     <AnimatePresence>
       {isOpen && (
@@ -26,7 +26,7 @@ export default function Snackbar({ message, type, isOpen, onClose }: SnackbarPro
           }`}>
             <span className="text-white font-medium">{message}</span>
             <button
-              onClick={onClose}
+              onClick={onCloseAction}
               className="text-white hover:bg-white/20 rounded p-1 transition-colors"
             >
               <FaTimes size={14} />

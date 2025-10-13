@@ -29,7 +29,7 @@ export default function TodoPage() {
 	const [runningLogs, setRunningLogs] = useState<{ data: LogType[] }>({
 		data: [],
 	});
-	const [rerun, setRerun] = useState<boolean>(false);
+	const [rerun, refetchAction] = useState<boolean>(false);
 
 	// Load saved preferences or use defaults
 	const [filter, setFilter] = useState<"all" | "active" | "completed">(() => {
@@ -168,7 +168,7 @@ export default function TodoPage() {
 					...todo,
 					done: newStatus,
 				});
-				setRerun((x) => !x);
+				refetchAction((x) => !x);
 			} catch (error) {
 				console.error("Error updating todo:", error);
 			}
@@ -192,7 +192,7 @@ export default function TodoPage() {
 			await axios.put(`${baseUrl}/api/todo`, formData);
 			setEditingId(null);
 			setEditFormData({} as TodoType);
-			setRerun((x) => !x);
+			refetchAction((x) => !x);
 			setSnackbar({
 				message: `"${formData.title}" updated successfully`,
 				type: "success",
@@ -221,7 +221,7 @@ export default function TodoPage() {
 			console.log("Todo added successfully:", response.data);
 			setShowAddForm(false);
 			setEditFormData({} as TodoType);
-			setRerun((x) => !x);
+			refetchAction((x) => !x);
 			setSnackbar({
 				message: `"${formData.title}" added successfully`,
 				type: "success",
@@ -252,7 +252,7 @@ export default function TodoPage() {
 					await axios.delete(`${baseUrl}/api/todo`, {
 						data: { id: id },
 					});
-					setRerun((prev) => !prev);
+					refetchAction((prev) => !prev);
 					setSnackbar({
 						message: `"${todo?.title}" deleted successfully`,
 						type: "success",
@@ -292,7 +292,7 @@ export default function TodoPage() {
 			const baseUrl = window.location.origin;
 			try {
 				await axios.post(`${baseUrl}/api/log`, newLog);
-				setRerun((prev) => !prev);
+				refetchAction((prev) => !prev);
 				setSnackbar({
 					message: `Started activity "${activity.title}" for "${todo.title}"`,
 					type: "info",
@@ -315,7 +315,7 @@ export default function TodoPage() {
 					id: logId,
 					end_time: new Date().toISOString(),
 				});
-				setRerun((prev) => !prev);
+				refetchAction((prev) => !prev);
 				setSnackbar({ message: `Stopped "${activityTitle}"`, type: "success" });
 				setTimeout(() => setSnackbar(null), 3000);
 			} catch (error) {
@@ -733,7 +733,7 @@ export default function TodoPage() {
 				message={snackbar?.message || ""}
 				type={snackbar?.type || "info"}
 				isOpen={!!snackbar}
-				onClose={() => setSnackbar(null)}
+				onCloseAction={() => setSnackbar(null)}
 			/>
 
 			{/* Floating Add Button */}

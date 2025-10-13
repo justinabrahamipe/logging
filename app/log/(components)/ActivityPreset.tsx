@@ -3,13 +3,15 @@ import { motion } from "framer-motion";
 import * as HiIcons from "react-icons/hi";
 import { FaPlay } from "react-icons/fa";
 
+interface ActivityPresetProps {
+  data: ActivityType;
+  onStart: (activity: ActivityType) => void;
+}
+
 export default function ActivityPreset({
   data,
   onStart,
-}: {
-  data: ActivityType;
-  onStart: (activity: ActivityType) => void;
-}) {
+}: ActivityPresetProps) {
   const IconComponent =
     HiIcons[data.icon as keyof typeof HiIcons] ||
     HiIcons.HiOutlineQuestionMarkCircle;

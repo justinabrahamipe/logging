@@ -6,11 +6,11 @@ interface DeleteDialogProps {
   isOpen: boolean;
   title: string;
   itemName?: string;
-  onConfirm: () => void;
-  onCancel: () => void;
+  onConfirmAction: () => void;
+  onCancelAction: () => void;
 }
 
-export default function DeleteDialog({ isOpen, title, itemName, onConfirm, onCancel }: DeleteDialogProps) {
+export default function DeleteDialog({ isOpen, title, itemName, onConfirmAction, onCancelAction }: DeleteDialogProps) {
   return (
     <AnimatePresence>
       {isOpen && (
@@ -19,7 +19,7 @@ export default function DeleteDialog({ isOpen, title, itemName, onConfirm, onCan
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          onClick={onCancel}
+          onClick={onCancelAction}
         >
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }}
@@ -46,7 +46,7 @@ export default function DeleteDialog({ isOpen, title, itemName, onConfirm, onCan
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    onClick={onCancel}
+                    onClick={onCancelAction}
                     className="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                   >
                     Cancel
@@ -54,7 +54,7 @@ export default function DeleteDialog({ isOpen, title, itemName, onConfirm, onCan
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    onClick={onConfirm}
+                    onClick={onConfirmAction}
                     className="flex-1 px-4 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 transition-colors"
                   >
                     Delete

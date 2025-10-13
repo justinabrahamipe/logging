@@ -11,7 +11,7 @@ import { CategoryWithColor } from "./(components)/constants";
 
 export default function Activities() {
   const [data, setData] = useState<{ data: ActivityType[] }>({ data: [] });
-  const [rerun, setRerun] = useState<boolean>(false);
+  const [rerun, refetchAction] = useState<boolean>(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editFormData, setEditFormData] = useState<ActivityType>({} as ActivityType);
@@ -56,7 +56,7 @@ export default function Activities() {
       });
       setEditingId(null);
       setEditFormData({} as ActivityType);
-      setRerun(prev => !prev);
+      refetchAction(prev => !prev);
       setSnackbar({ message: `"${formData.title}" updated successfully`, type: 'success' });
       setTimeout(() => setSnackbar(null), 3000);
     } catch (error: unknown) {
@@ -91,7 +91,7 @@ export default function Activities() {
       await axios.post(`${baseUrl}/api/activity`, formData);
       setShowAddForm(false);
       setEditFormData({} as ActivityType);
-      setRerun(prev => !prev);
+      refetchAction(prev => !prev);
       setSnackbar({ message: `"${formData.title}" added successfully`, type: 'success' });
       setTimeout(() => setSnackbar(null), 3000);
     } catch (error: unknown) {
@@ -120,7 +120,7 @@ export default function Activities() {
         data: { title: activity?.title }
       });
       setDeleteConfirmId(null);
-      setRerun(prev => !prev);
+      refetchAction(prev => !prev);
       setSnackbar({ message: `"${activity?.title}" deleted successfully`, type: 'success' });
       setTimeout(() => setSnackbar(null), 3000);
     } catch (error: unknown) {
@@ -356,15 +356,15 @@ export default function Activities() {
         isOpen={deleteConfirmId !== null}
         title="Delete Activity?"
         itemName={data.data.find(a => a.id === deleteConfirmId)?.title}
-        onConfirm={confirmDelete}
-        onCancel={cancelDelete}
+        onConfirmAction={confirmDelete}
+        onCancelAction={cancelDelete}
       />
 
       <Snackbar
         message={snackbar?.message || ""}
         type={snackbar?.type || 'info'}
         isOpen={!!snackbar}
-        onClose={() => setSnackbar(null)}
+        onCloseAction={() => setSnackbar(null)}
       />
     </div>
   );

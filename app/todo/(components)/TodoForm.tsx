@@ -106,14 +106,14 @@ const TodoForm = memo(({ isEdit, initialData, onSave, onCancel, activities }: To
 
           <DatePicker
             value={localForm.work_date || ""}
-            onChange={(value) => setLocalForm({ ...localForm, work_date: value })}
+            onChangeAction={(value) => setLocalForm({ ...localForm, work_date: value })}
             placeholder="Work Date"
             className="text-xs"
           />
 
           <DatePicker
             value={localForm.deadline || ""}
-            onChange={(value) => setLocalForm({ ...localForm, deadline: value })}
+            onChangeAction={(value) => setLocalForm({ ...localForm, deadline: value })}
             placeholder="Deadline"
             className="text-xs"
           />

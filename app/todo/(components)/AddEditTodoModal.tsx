@@ -14,11 +14,11 @@ import { format } from "date-fns";
 
 export default function AddEditActivityModal({
   data,
-  setRerun,
+  refetchAction,
   children,
 }: {
   data?: TodoType;
-  setRerun: React.Dispatch<React.SetStateAction<boolean>>;
+  refetchAction: React.Dispatch<React.SetStateAction<boolean>>;
   children?: React.ReactNode;
 }) {
   const [openModal, setOpenModal] = useState(false);
@@ -45,7 +45,7 @@ export default function AddEditActivityModal({
         .then((response) => {
           console.log("Success:", response.data);
           onCloseModal();
-          setRerun((x: boolean) => !x);
+          refetchAction((x: boolean) => !x);
         })
         .catch((error) => {
           console.error(
@@ -63,7 +63,7 @@ export default function AddEditActivityModal({
         .then((response) => {
           console.log("Success:", response.data);
           onCloseModal();
-          setRerun((x: boolean) => !x);
+          refetchAction((x: boolean) => !x);
         })
         .catch((error) => {
           console.error(

@@ -4,20 +4,22 @@ import { Button, Modal } from "flowbite-react";
 import { useState } from "react";
 import { HiOutlineExclamationCircle, HiTrash } from "react-icons/hi";
 
+interface DeleteDialogProps {
+  id: number;
+  itemToDelete: string;
+  deleteAction: (id: number) => void;
+  iconSize?: string | number;
+}
+
 export default function DeleteDialog({
   id,
   itemToDelete,
-  deleteFunction,
+  deleteAction,
   iconSize,
-}: {
-  id: number;
-  itemToDelete: string;
-  deleteFunction: (id: number) => void;
-  iconSize?: string | number;
-}) {
+}: DeleteDialogProps) {
   const [openModal, setOpenModal] = useState(false);
   function handleDelete() {
-    deleteFunction(id);
+    deleteAction(id);
     setOpenModal(false);
   }
   return (

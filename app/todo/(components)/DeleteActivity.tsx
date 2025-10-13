@@ -7,10 +7,10 @@ import { HiOutlineExclamationCircle, HiTrash } from "react-icons/hi";
 
 export default function DeleteActivity({
   data,
-  setRerun,
+  refetchAction,
 }: {
   data: ActivityType;
-  setRerun: React.Dispatch<React.SetStateAction<boolean>>;
+  refetchAction: React.Dispatch<React.SetStateAction<boolean>>;
 }) {
   const [openModal, setOpenModal] = useState(false);
   const baseUrl = window.location.origin;
@@ -24,7 +24,7 @@ export default function DeleteActivity({
       })
       .then((response) => {
         console.log("Success:", response.data);
-        setRerun((x: boolean) => !x);
+        refetchAction((x: boolean) => !x);
       });
     setOpenModal(false);
   }

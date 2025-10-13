@@ -9,17 +9,19 @@ import { DayPicker } from "react-day-picker";
 import DateTimePicker from "@/app/(common)/DateTimePicker";
 import "react-day-picker/dist/style.css";
 
-export default function ActivityHistory({
-	data,
-	setRerun,
-	activities,
-	onStop,
-}: {
+interface ActivityHistoryProps {
 	data: LogType[];
-	setRerun: React.Dispatch<React.SetStateAction<boolean>>;
+	refetchAction: React.Dispatch<React.SetStateAction<boolean>>;
 	activities: ActivityType[];
 	onStop?: (logId: number) => void;
-}) {
+}
+
+export default function ActivityHistory({
+	data,
+	refetchAction,
+	activities,
+	onStop,
+}: ActivityHistoryProps) {
 	const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
 	const [hoveredLogId, setHoveredLogId] = useState<number | null>(null);
 	const [editingId, setEditingId] = useState<number | null>(null);
@@ -75,7 +77,7 @@ export default function ActivityHistory({
 				data: { id },
 			});
 			setDeleteConfirmId(null);
-			setRerun((prev) => !prev);
+			refetchAction((prev) => !prev);
 		} catch (error) {
 			console.error("Error deleting log:", error);
 		}
@@ -116,7 +118,7 @@ export default function ActivityHistory({
 			});
 			setEditingId(null);
 			setEditForm({});
-			setRerun((prev) => !prev);
+			refetchAction((prev) => !prev);
 		} catch (error) {
 			console.error("Error updating log:", error);
 		}
@@ -132,7 +134,7 @@ export default function ActivityHistory({
 				)
 			);
 			setSelectedLogs([]);
-			setRerun((prev) => !prev);
+			refetchAction((prev) => !prev);
 		} catch (error) {
 			console.error("Error bulk deleting logs:", error);
 		}
@@ -154,7 +156,7 @@ export default function ActivityHistory({
 			setSelectedLogs([]);
 			setBulkEditMode(false);
 			setBulkEditForm({});
-			setRerun((prev) => !prev);
+			refetchAction((prev) => !prev);
 		} catch (error) {
 			console.error("Error bulk editing logs:", error);
 		}
@@ -799,7 +801,7 @@ export default function ActivityHistory({
 														<div className="space-y-2">
 															<DateTimePicker
 																value={editForm.start_time}
-																onChange={(date) =>
+																onChangeAction={(date) =>
 																	setEditForm({
 																		...editForm,
 																		start_time: date,
@@ -810,7 +812,7 @@ export default function ActivityHistory({
 															/>
 															<DateTimePicker
 																value={editForm.end_time}
-																onChange={(date) =>
+																onChangeAction={(date) =>
 																	setEditForm({
 																		...editForm,
 																		end_time: date,

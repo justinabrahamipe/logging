@@ -19,7 +19,7 @@ export default function Log() {
   const [runningLogData, setRunningLogData] = useState<{ data: LogType[] }>({
     data: [],
   });
-  const [rerun, setRerun] = useState<boolean>(false);
+  const [rerun, refetchAction] = useState<boolean>(false);
   const [snackbar, setSnackbar] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>("log");
   const [loading, setLoading] = useState<boolean>(true);
@@ -68,7 +68,7 @@ export default function Log() {
     const baseUrl = window.location.origin;
     try {
       await axios.post(`${baseUrl}/api/log`, newLog);
-      setRerun(prev => !prev);
+      refetchAction(prev => !prev);
       setSnackbar({ message: `Started "${activity.title}"`, type: 'info' });
       setTimeout(() => setSnackbar(null), 3000);
     } catch (error) {
@@ -88,7 +88,7 @@ export default function Log() {
         id: logId,
         end_time: endTime,
       });
-      setRerun(prev => !prev);
+      refetchAction(prev => !prev);
       setSnackbar({ message: `Stopped "${log?.activityTitle}"`, type: 'success' });
       setTimeout(() => setSnackbar(null), 3000);
     } catch (error) {
@@ -279,7 +279,7 @@ export default function Log() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
               >
-                <ActivityHistory data={logData.data} setRerun={setRerun} activities={activityData.data} onStop={handleStopActivity} />
+                <ActivityHistory data={logData.data} refetchAction={refetchAction} activities={activityData.data} onStop={handleStopActivity} />
               </motion.div>
             </motion.div>
             )}
