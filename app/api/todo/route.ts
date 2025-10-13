@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+export const maxDuration = 10;
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const data = await prisma.todo.findMany();
