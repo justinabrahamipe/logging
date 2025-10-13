@@ -10,7 +10,7 @@ export default function DeleteActivity({
   refetchAction,
 }: {
   data: ActivityType;
-  refetchAction: React.Dispatch<React.SetStateAction<boolean>>;
+  refetchAction?: () => void;
 }) {
   const [openModal, setOpenModal] = useState(false);
   const baseUrl = window.location.origin;
@@ -24,7 +24,7 @@ export default function DeleteActivity({
       })
       .then((response) => {
         console.log("Success:", response.data);
-        refetchAction((x: boolean) => !x);
+        if (refetchAction) refetchAction();
       });
     setOpenModal(false);
   }

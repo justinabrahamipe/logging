@@ -8,7 +8,7 @@ export default function ActivityCard({
   refetchAction,
 }: {
   data: ActivityType;
-  refetchAction: React.Dispatch<React.SetStateAction<boolean>>;
+  refetchAction?: () => void;
 }) {
   const IconComponent =
     HiIcons[data.icon as keyof typeof HiIcons] ||

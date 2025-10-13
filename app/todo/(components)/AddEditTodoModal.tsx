@@ -18,7 +18,7 @@ export default function AddEditActivityModal({
   children,
 }: {
   data?: TodoType;
-  refetchAction: React.Dispatch<React.SetStateAction<boolean>>;
+  refetchAction?: () => void;
   children?: React.ReactNode;
 }) {
   const [openModal, setOpenModal] = useState(false);
@@ -45,7 +45,7 @@ export default function AddEditActivityModal({
         .then((response) => {
           console.log("Success:", response.data);
           onCloseModal();
-          refetchAction((x: boolean) => !x);
+          if (refetchAction) refetchAction();
         })
         .catch((error) => {
           console.error(
@@ -63,7 +63,7 @@ export default function AddEditActivityModal({
         .then((response) => {
           console.log("Success:", response.data);
           onCloseModal();
-          refetchAction((x: boolean) => !x);
+          if (refetchAction) refetchAction();
         })
         .catch((error) => {
           console.error(
