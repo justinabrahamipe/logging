@@ -12,7 +12,9 @@ const nextConfig: NextConfig = {
 		serverActions: {
 			bodySizeLimit: '2mb',
 		},
+		optimizePackageImports: ['react-icons', 'framer-motion', 'luxon'],
 	},
+	swcMinify: true,
 };
 
 export default nextConfig;
