@@ -41,4 +41,4 @@ CREATE TABLE "Todo" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Activity_title_key" ON "Activity"("title");
+CREATE UNIQUE INDEX "Activity_title_key" ON "Activity" ("title");
