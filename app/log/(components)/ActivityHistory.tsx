@@ -7,6 +7,7 @@ import { FaTrash, FaEdit, FaSave, FaTimes, FaStop, FaCalendar, FaCheckSquare, Fa
 import axios from "axios";
 import { DayPicker } from "react-day-picker";
 import DateTimePicker from "@/app/(common)/DateTimePicker";
+import TagDropdown from "@/app/(components)/TagDropdown";
 import "react-day-picker/dist/style.css";
 
 interface ActivityHistoryProps {
@@ -529,13 +530,14 @@ export default function ActivityHistory({
 										onChange={(e) => setBulkEditForm({ ...bulkEditForm, comment: e.target.value })}
 										className="flex-1 min-w-[200px] px-4 py-2 text-sm rounded-lg border-2 border-white/30 bg-white/10 text-white placeholder-white/60 focus:outline-none focus:border-white/50 backdrop-blur-sm"
 									/>
-									<input
-										type="text"
-										placeholder="Tags (comma-separated)"
-										value={bulkEditForm.tags || ""}
-										onChange={(e) => setBulkEditForm({ ...bulkEditForm, tags: e.target.value })}
-										className="flex-1 min-w-[200px] px-4 py-2 text-sm rounded-lg border-2 border-white/30 bg-white/10 text-white placeholder-white/60 focus:outline-none focus:border-white/50 backdrop-blur-sm"
-									/>
+									<div className="flex-1 min-w-[200px]">
+										<TagDropdown
+											value={bulkEditForm.tags || ""}
+											onChange={(tags) => setBulkEditForm({ ...bulkEditForm, tags })}
+											allLogs={data}
+											isDarkBg={true}
+										/>
+									</div>
 									<motion.button
 										whileHover={{ scale: 1.05 }}
 										whileTap={{ scale: 0.95 }}
@@ -763,17 +765,15 @@ export default function ActivityHistory({
 												{/* Tags */}
 												<td className="px-6 py-4 hidden lg:table-cell">
 													{isEditing ? (
-														<input
-															type="text"
+														<TagDropdown
 															value={editForm.tags || ""}
-															onChange={(e) =>
+															onChange={(tags) =>
 																setEditForm({
 																	...editForm,
-																	tags: e.target.value,
+																	tags,
 																})
 															}
-															placeholder="Tags (comma-separated)"
-															className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+															allLogs={data}
 														/>
 													) : (
 														<div className="flex flex-wrap gap-1">

@@ -215,7 +215,12 @@ export default function Log() {
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: index * 0.05 }}
                       >
-                        <RunningActivity data={log} onStopAction={handleStopActivity} />
+                        <RunningActivity
+                          data={log}
+                          onStopAction={handleStopActivity}
+                          allLogs={logData.data}
+                          onUpdate={() => refetchAction(prev => !prev)}
+                        />
                       </motion.div>
                     ))}
                   </div>

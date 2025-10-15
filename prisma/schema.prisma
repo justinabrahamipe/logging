@@ -28,6 +28,8 @@ model Log {
     created_on       DateTime  @default(now())
     time_spent       Int?
     tags             String?
+    goalId           Int?
+    goalCount        Int?      // For count-based goals (e.g., pages read)
 }
 
 model Todo {
@@ -42,4 +44,27 @@ model Todo {
     importance       Int      @default(1)
     urgency          Int      @default(1)
     created_on       DateTime @default(now())
+}
+
+model Goal {
+    id                 Int      @id @default(autoincrement())
+    title              String
+    description        String?
+    goalType           String   // "limiting" or "achievement"
+    metricType         String   // "time" or "count"
+    targetValue        Float    // Target hours or count
+    currentValue       Float    @default(0)
+    periodType         String   // "week", "month", "3months", "6months", "year", "custom"
+    startDate          DateTime
+    endDate            DateTime
+    activityTitle      String?  // Optional: link to specific activity
+    activityCategory   String?
+    color              String?
+    icon               String?
+    created_on         DateTime @default(now())
+    isActive           Boolean  @default(true)
+    isRecurring        Boolean  @default(false)
+    recurrencePattern  String?  // "daily", "weekly", "work-weekly", "custom-weekly", "monthly", "custom-monthly", "quarterly", "yearly"
+    recurrenceConfig   String?  // JSON string for custom config: {"daysOfWeek": [1,3,5]} or {"dayOfMonth": 15}
+    parentGoalId       Int?     // Link to parent goal if this is a recurring instance
 }

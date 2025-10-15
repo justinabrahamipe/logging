@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { FaBullseye, FaClipboardList, FaTasks, FaMoon, FaSun, FaBars, FaTimes } from "react-icons/fa";
+import { FaBullseye, FaClipboardList, FaTasks, FaFlag, FaMoon, FaSun, FaBars, FaTimes } from "react-icons/fa";
 import { useState, useEffect } from "react";
 
 export default function Header() {
@@ -27,14 +27,12 @@ export default function Header() {
     { href: "/activities", label: "Activities", icon: FaBullseye },
     { href: "/log", label: "Log", icon: FaClipboardList },
     { href: "/todo", label: "Todo", icon: FaTasks },
+    { href: "/goals", label: "Goals", icon: FaFlag },
   ];
 
   return (
-    <motion.nav
-      initial={{ y: -100 }}
-      animate={{ y: 0 }}
-      className="sticky top-0 z-50 backdrop-blur-md bg-white/80 dark:bg-gray-900/80 border-b border-gray-200/50 dark:border-gray-700/50"
-    >
+    <nav className="sticky top-0 z-50 backdrop-blur-md bg-white/80 dark:bg-gray-900/80 border-b border-gray-200/50 dark:border-gray-700/50">
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
@@ -155,6 +153,6 @@ export default function Header() {
           </div>
         </motion.div>
       </div>
-    </motion.nav>
+    </nav>
   );
 }

@@ -6,14 +6,20 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const data = await prisma.todo.findMany();
+    const data = await prisma.todo.findMany({
+      orderBy: [
+        { done: 'asc' },        // Show incomplete todos first
+        { created_on: 'desc' }  // Then sort by newest
+      ]
+    });
     console.log("data", data);
-    return NextResponse.json({ data });
+    return NextResponse.json({ data }, { status: 200 });
   } catch (error: unknown) {
+    console.error("GET /api/todo error:", error);
     return NextResponse.json({
       error:
         error instanceof Error ? error.message : "An unknown error occurred",
-    });
+    }, { status: 500 });
   }
 }
 

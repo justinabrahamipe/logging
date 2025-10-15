@@ -423,7 +423,7 @@
 
 "@prisma/client@6.17.0":
   version "6.17.0"
-  resolved "https://registry.npmjs.org/@prisma/client/-/client-6.17.0.tgz"
+  resolved "https://registry.yarnpkg.com/@prisma/client/-/client-6.17.0.tgz#320e2e0b2fdc8a6b870e06197876ff2bebdcb1db"
   integrity sha512-b42mTLOdLEZ6e/igu8CLdccAUX9AwHknQQ1+pHOftnzDP2QoyZyFvcANqSLs5ockimFKJnV7Ljf+qrhNYf6oAg==
 
 "@prisma/config@6.17.0":

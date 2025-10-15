@@ -46,7 +46,9 @@ export async function POST(request: NextRequest) {
         start_time: body.start_time ? new Date(body.start_time) : new Date(),
         end_time: body.end_time ? new Date(body.end_time) : null,
         comment: body.comment || null,
-        time_spent: body.time_spent || null
+        time_spent: body.time_spent || null,
+        goalId: body.goalId ? parseInt(body.goalId) : null,
+        goalCount: body.goalCount ? parseInt(body.goalCount) : null
       }
     });
     console.log("Created log:", response);
@@ -85,6 +87,8 @@ export async function PUT(request: NextRequest) {
       activityIcon?: string;
       activityColor?: string | null;
       start_time?: Date;
+      goalId?: number | null;
+      goalCount?: number | null;
     } = {};
     if (body.end_time !== undefined) updateData.end_time = body.end_time ? new Date(body.end_time) : null;
     if (body.comment !== undefined) updateData.comment = body.comment;
@@ -95,6 +99,8 @@ export async function PUT(request: NextRequest) {
     if (body.activityIcon !== undefined) updateData.activityIcon = body.activityIcon;
     if (body.activityColor !== undefined) updateData.activityColor = body.activityColor;
     if (body.start_time !== undefined) updateData.start_time = new Date(body.start_time);
+    if (body.goalId !== undefined) updateData.goalId = body.goalId ? parseInt(body.goalId) : null;
+    if (body.goalCount !== undefined) updateData.goalCount = body.goalCount ? parseInt(body.goalCount) : null;
 
     const response = await prisma.log.update({
       where: { id: parseInt(id) },

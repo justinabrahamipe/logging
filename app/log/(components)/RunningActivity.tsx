@@ -3,22 +3,30 @@ import { DateTime } from "luxon";
 import * as HiIcons from "react-icons/hi";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { FaStop } from "react-icons/fa";
+import { FaStop, FaEdit, FaSave, FaTimes } from "react-icons/fa";
+import TagDropdown from "@/app/(components)/TagDropdown";
+import axios from "axios";
 
 interface RunningActivityProps {
   data: LogType;
   onStopAction: (logId: number) => void;
+  allLogs: LogType[];
+  onUpdate?: () => void;
 }
 
 export default function RunningActivity({
   data,
   onStopAction,
+  allLogs,
+  onUpdate,
 }: RunningActivityProps) {
   const IconComponent =
     HiIcons[data.activityIcon as keyof typeof HiIcons] ||
     HiIcons.HiOutlineQuestionMarkCircle;
   const [timeDiff, setTimeDiff] = useState("");
   const [isHovered, setIsHovered] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTags, setEditTags] = useState(data.tags || "");
 
   // Parse TODO info from comment
   const parseTodoInfo = (comment: string | null | undefined) => {
@@ -39,6 +47,25 @@ export default function RunningActivity({
 
   const todoInfo = parseTodoInfo(data.comment);
   const tags = parseTags(data.tags);
+
+  const handleSaveTags = async () => {
+    const baseUrl = window.location.origin;
+    try {
+      await axios.put(`${baseUrl}/api/log`, {
+        id: data.id,
+        tags: editTags,
+      });
+      setIsEditing(false);
+      onUpdate?.();
+    } catch (error) {
+      console.error("Error updating tags:", error);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditTags(data.tags || "");
+    setIsEditing(false);
+  };
 
   useEffect(() => {
     if (data?.start_time) {
@@ -98,7 +125,7 @@ export default function RunningActivity({
           </motion.button>
         </div>
       </div>
-      {(todoInfo || tags.length > 0) && (
+      {(todoInfo || tags.length > 0 || true) && (
         <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
           {todoInfo && (
             <>
@@ -121,18 +148,44 @@ export default function RunningActivity({
               )}
             </>
           )}
-          {tags.length > 0 && (
-            <div className={`flex flex-wrap gap-1 ${todoInfo ? 'mt-2' : ''}`}>
-              {tags.map((tag, idx) => (
-                <span
-                  key={idx}
-                  className="px-2 py-0.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-full"
+          <div className={`${todoInfo ? 'mt-2' : ''}`}>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">Tags:</span>
+              {!isEditing && (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
                 >
-                  #{tag}
-                </span>
-              ))}
+                  <FaEdit size={10} />
+                  {tags.length > 0 ? 'Edit' : 'Add'}
+                </button>
+              )}
             </div>
-          )}
+            {isEditing ? (
+              <div className="space-y-2">
+                <TagDropdown
+                  value={editTags}
+                  onChange={setEditTags}
+                  allLogs={allLogs}
+                  autoOpen={true}
+                  onClose={handleSaveTags}
+                />
+              </div>
+            ) : tags.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {tags.map((tag, idx) => (
+                  <span
+                    key={idx}
+                    className="px-2.5 py-1 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 text-xs font-semibold rounded-lg"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400 dark:text-gray-500 italic">No tags yet</p>
+            )}
+          </div>
         </div>
       )}
     </div>
