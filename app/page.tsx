@@ -3,8 +3,11 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { FaWallet, FaClock, FaCheckCircle, FaProjectDiagram, FaDumbbell, FaArrowRight, FaBullseye, FaClipboardList, FaTasks } from "react-icons/fa";
+import { useSession } from "next-auth/react";
 
 export default function Home() {
+  const { data: session, status } = useSession();
+
   const features = [
     { title: "Finance", icon: FaWallet },
     { title: "Time", icon: FaClock },
@@ -94,7 +97,7 @@ export default function Home() {
             variants={itemVariants}
             className="text-xl md:text-3xl text-white/90 mb-12 font-light max-w-3xl mx-auto"
           >
-            Track your life with purpose. Finance, time, tasks, projects, and exercise—all in one place.
+            Your life, quantified. Track what matters—from finances and time to tasks and exercise—all in one beautifully simple place.
           </motion.p>
 
           {/* Feature Pills */}
@@ -122,23 +125,25 @@ export default function Home() {
             variants={itemVariants}
             className="flex flex-col sm:flex-row gap-5 justify-center items-center"
           >
+            {status !== "authenticated" && (
+              <Link href="/login">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="bg-white text-gray-900 px-8 py-4 rounded-lg font-semibold text-lg min-w-[200px] shadow-xl hover:shadow-2xl transition-shadow flex items-center justify-center gap-2 group"
+                >
+                  Sign In
+                  <FaArrowRight className="group-hover:translate-x-1 transition-transform" />
+                </motion.button>
+              </Link>
+            )}
             <Link href="/activities">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="bg-white text-gray-900 px-8 py-4 rounded-lg font-semibold text-lg min-w-[200px] shadow-xl hover:shadow-2xl transition-shadow flex items-center justify-center gap-2 group"
-              >
-                Get Started
-                <FaArrowRight className="group-hover:translate-x-1 transition-transform" />
-              </motion.button>
-            </Link>
-            <Link href="/log">
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 className="bg-transparent border-2 border-white text-white px-8 py-4 rounded-lg font-semibold text-lg min-w-[200px] backdrop-blur-sm hover:bg-white/10 transition-colors"
               >
-                View Logs
+                {status === "authenticated" ? "Go to Dashboard" : "Learn More"}
               </motion.button>
             </Link>
           </motion.div>
