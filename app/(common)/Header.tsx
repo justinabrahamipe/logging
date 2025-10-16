@@ -2,21 +2,39 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion } from "framer-motion";
-import { FaBullseye, FaClipboardList, FaTasks, FaFlag, FaMoon, FaSun, FaBars, FaTimes } from "react-icons/fa";
-import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { FaBullseye, FaClipboardList, FaTasks, FaFlag, FaMoon, FaSun, FaBars, FaTimes, FaSignOutAlt, FaCog, FaUser } from "react-icons/fa";
+import { useState, useEffect, useRef } from "react";
+import { useSession, signOut } from "next-auth/react";
 
 export default function Header() {
   const [isDark, setIsDark] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
+  const { data: session, status } = useSession();
+  const profileMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMounted(true);
     const isDarkMode = document.documentElement.classList.contains("dark");
     setIsDark(isDarkMode);
   }, []);
+
+  // Close profile menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setIsProfileMenuOpen(false);
+      }
+    }
+
+    if (isProfileMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [isProfileMenuOpen]);
 
   const toggleTheme = () => {
     document.documentElement.classList.toggle("dark");
@@ -29,6 +47,39 @@ export default function Header() {
     { href: "/todo", label: "Todo", icon: FaTasks },
     { href: "/goals", label: "Goals", icon: FaFlag },
   ];
+
+  // Hide header on auth-related pages, or on homepage when not authenticated
+  const authPages = ["/login", "/verify-request", "/error"];
+  const isAuthPage = authPages.includes(pathname);
+  const isHomePage = pathname === "/";
+
+  // Hide on auth pages
+  if (isAuthPage) {
+    return null;
+  }
+
+  // Hide on homepage only if not authenticated
+  if (isHomePage && status === "unauthenticated") {
+    return null;
+  }
+
+  // Hide on all other pages if not authenticated
+  if (!isHomePage && status === "unauthenticated") {
+    return null;
+  }
+
+  const handleSignOut = () => {
+    signOut({ callbackUrl: "/" });
+  };
+
+  const getInitials = (name: string | null | undefined) => {
+    if (!name) return "U";
+    const parts = name.trim().split(" ");
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
 
   return (
     <nav className="sticky top-0 z-50 backdrop-blur-md bg-white/80 dark:bg-gray-900/80 border-b border-gray-200/50 dark:border-gray-700/50">
@@ -79,36 +130,111 @@ export default function Header() {
               );
             })}
 
-            {/* Theme Toggle */}
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={toggleTheme}
-              className="ml-2 p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-              aria-label="Toggle theme"
-            >
-              {mounted && (
-                <motion.div
-                  initial={false}
-                  animate={{ rotate: isDark ? 180 : 0 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  {isDark ? <FaSun className="text-lg" /> : <FaMoon className="text-lg" />}
-                </motion.div>
-              )}
-            </motion.button>
+            {/* Profile Menu */}
+            <div className="relative ml-2" ref={profileMenuRef}>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-300 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400 transition-colors"
+                aria-label="Open profile menu"
+              >
+                {session?.user?.image ? (
+                  <img
+                    src={session.user.image}
+                    alt={session.user.name || "Profile"}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                    <span className="text-white font-semibold text-sm">
+                      {getInitials(session?.user?.name)}
+                    </span>
+                  </div>
+                )}
+              </motion.button>
+
+              {/* Dropdown Menu */}
+              <AnimatePresence>
+                {isProfileMenuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-50"
+                  >
+                    {/* User Info */}
+                    <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                        {session?.user?.name || "User"}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                        {session?.user?.email || ""}
+                      </p>
+                    </div>
+
+                    {/* Menu Items */}
+                    <div className="py-2">
+                      <motion.button
+                        whileHover={{ backgroundColor: "rgba(59, 130, 246, 0.1)" }}
+                        onClick={toggleTheme}
+                        className="w-full px-4 py-2 text-left flex items-center gap-3 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                      >
+                        {mounted && (isDark ? <FaSun className="text-lg" /> : <FaMoon className="text-lg" />)}
+                        <span className="font-medium">{isDark ? "Light Mode" : "Dark Mode"}</span>
+                      </motion.button>
+
+                      <Link href="/preferences">
+                        <motion.button
+                          whileHover={{ backgroundColor: "rgba(59, 130, 246, 0.1)" }}
+                          onClick={() => setIsProfileMenuOpen(false)}
+                          className="w-full px-4 py-2 text-left flex items-center gap-3 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                        >
+                          <FaCog className="text-lg" />
+                          <span className="font-medium">Preferences</span>
+                        </motion.button>
+                      </Link>
+
+                      <motion.button
+                        whileHover={{ backgroundColor: "rgba(239, 68, 68, 0.1)" }}
+                        onClick={handleSignOut}
+                        className="w-full px-4 py-2 text-left flex items-center gap-3 text-gray-700 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                      >
+                        <FaSignOutAlt className="text-lg" />
+                        <span className="font-medium">Sign Out</span>
+                      </motion.button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
 
           {/* Mobile Menu Button */}
           <div className="md:hidden flex items-center gap-2">
+            {/* Profile Photo - Mobile */}
             <motion.button
               whileTap={{ scale: 0.95 }}
-              onClick={toggleTheme}
-              className="p-2 rounded-lg text-gray-700 dark:text-gray-300"
-              aria-label="Toggle theme"
+              onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+              className="w-8 h-8 rounded-full overflow-hidden border-2 border-gray-300 dark:border-gray-600"
+              aria-label="Profile"
             >
-              {mounted && (isDark ? <FaSun className="text-lg" /> : <FaMoon className="text-lg" />)}
+              {session?.user?.image ? (
+                <img
+                  src={session.user.image}
+                  alt={session.user.name || "Profile"}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                  <span className="text-white font-semibold text-xs">
+                    {getInitials(session?.user?.name)}
+                  </span>
+                </div>
+              )}
             </motion.button>
+
             <motion.button
               whileTap={{ scale: 0.95 }}
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -150,6 +276,64 @@ export default function Header() {
                 </Link>
               );
             })}
+
+            {/* User Info - Mobile */}
+            <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-300 dark:border-gray-600">
+                  {session?.user?.image ? (
+                    <img
+                      src={session.user.image}
+                      alt={session.user.name || "Profile"}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                      <span className="text-white font-semibold text-xs">
+                        {getInitials(session?.user?.name)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                    {session?.user?.name || "User"}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                    {session?.user?.email || ""}
+                  </p>
+                </div>
+              </div>
+
+              <motion.div
+                whileTap={{ scale: 0.98 }}
+                onClick={toggleTheme}
+                className="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer mb-2"
+              >
+                {mounted && (isDark ? <FaSun /> : <FaMoon />)}
+                <span className="font-medium">{isDark ? "Light Mode" : "Dark Mode"}</span>
+              </motion.div>
+
+              <Link href="/preferences">
+                <motion.div
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer mb-2"
+                >
+                  <FaCog />
+                  <span className="font-medium">Preferences</span>
+                </motion.div>
+              </Link>
+
+              <motion.div
+                whileTap={{ scale: 0.98 }}
+                onClick={handleSignOut}
+                className="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer"
+              >
+                <FaSignOutAlt />
+                <span className="font-medium">Sign Out</span>
+              </motion.div>
+            </div>
           </div>
         </motion.div>
       </div>

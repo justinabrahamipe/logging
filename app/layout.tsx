@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { ThemeModeScript } from "flowbite-react";
 import Header from "./(common)/Header";
+import { Providers } from "./providers";
+import { MuiThemeProvider } from "./theme-provider";
+import { auth } from "@/auth";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -19,21 +21,25 @@ export const metadata: Metadata = {
   description: "Log everything you do",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth();
+
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <ThemeModeScript />
-      </head>
+      <head />
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Header />
-        {children}
+        <MuiThemeProvider>
+          <Providers session={session}>
+            <Header />
+            {children}
+          </Providers>
+        </MuiThemeProvider>
       </body>
     </html>
   );
