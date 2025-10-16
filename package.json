@@ -5,10 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
-    "postinstall": "prisma generate --no-engine",
+    "postinstall": "prisma generate",
     "start": "next start",
-    "lint": "next lint",
-    "vercel-build": "prisma generate --no-engine && next build"
+    "lint": "next lint"
   },
   "dependencies": {
     "@prisma/client": "6.17.0",
