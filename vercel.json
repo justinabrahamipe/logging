@@ -1,8 +1,13 @@
 {
   "buildCommand": "npm run vercel-build",
+  "installCommand": "npm install",
+  "framework": "nextjs",
   "functions": {
     "app/api/**/*.ts": {
       "maxDuration": 10
     }
+  },
+  "env": {
+    "SKIP_ENV_VALIDATION": "1"
   }
 }
