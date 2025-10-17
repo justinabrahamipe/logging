@@ -5,7 +5,7 @@ import { auth } from "@/auth";
 export const maxDuration = 10;
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await auth();
 
@@ -16,18 +16,173 @@ export async function GET() {
       );
     }
 
+    const { searchParams } = new URL(request.url);
+    const limit = parseInt(searchParams.get('limit') || '50');
+    const offset = parseInt(searchParams.get('offset') || '0');
+    const search = searchParams.get('search') || '';
+
+    // Build where clause with search
+    const whereClause: any = {
+      userId: session.user.id
+    };
+
+    if (search.trim()) {
+      whereClause.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { phoneNumber: { contains: search, mode: 'insensitive' } },
+        { address: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+
+    // Get total count
+    const totalCount = await prisma.contact.count({
+      where: whereClause
+    });
+
     const contacts = await prisma.contact.findMany({
-      where: {
-        userId: session.user.id
-      },
+      where: whereClause,
       orderBy: {
         name: 'asc'
+      },
+      take: limit,
+      skip: offset
+    });
+
+    return NextResponse.json({
+      data: contacts,
+      pagination: {
+        total: totalCount,
+        limit,
+        offset,
+        hasMore: offset + contacts.length < totalCount
+      }
+    }, { status: 200 });
+  } catch (error) {
+    console.error("GET /api/contacts error:", error);
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error ? error.message : "An unknown error occurred",
+      },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const session = await auth();
+
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+
+    if (!body.name) {
+      return NextResponse.json(
+        { error: "Name is required" },
+        { status: 400 }
+      );
+    }
+
+    const contact = await prisma.contact.create({
+      data: {
+        userId: session.user.id,
+        name: body.name,
+        email: body.email || null,
+        phoneNumber: body.phoneNumber || null,
+        address: body.address || null,
+        birthday: body.birthday ? new Date(body.birthday) : null,
+        weddingAnniversary: body.weddingAnniversary ? new Date(body.weddingAnniversary) : null,
+        notes: body.notes || null,
+        photoUrl: body.photoUrl || null,
+        organization: body.organization || null,
+        jobTitle: body.jobTitle || null,
+      },
+    });
+
+    return NextResponse.json({ data: contact }, { status: 201 });
+  } catch (error) {
+    console.error("POST /api/contacts error:", error);
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error ? error.message : "An unknown error occurred",
+      },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const session = await auth();
+
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+
+    if (!body.id) {
+      return NextResponse.json(
+        { error: "Contact ID is required" },
+        { status: 400 }
+      );
+    }
+
+    if (!body.name) {
+      return NextResponse.json(
+        { error: "Name is required" },
+        { status: 400 }
+      );
+    }
+
+    // Check if contact exists and belongs to user
+    const existingContact = await prisma.contact.findFirst({
+      where: {
+        id: body.id,
+        userId: session.user.id
       }
     });
 
-    return NextResponse.json({ data: contacts }, { status: 200 });
+    if (!existingContact) {
+      return NextResponse.json(
+        { error: "Contact not found" },
+        { status: 404 }
+      );
+    }
+
+    const contact = await prisma.contact.update({
+      where: {
+        id: body.id,
+      },
+      data: {
+        name: body.name,
+        email: body.email || null,
+        phoneNumber: body.phoneNumber || null,
+        address: body.address || null,
+        birthday: body.birthday ? new Date(body.birthday) : null,
+        weddingAnniversary: body.weddingAnniversary ? new Date(body.weddingAnniversary) : null,
+        notes: body.notes || null,
+        photoUrl: body.photoUrl || null,
+        organization: body.organization || null,
+        jobTitle: body.jobTitle || null,
+        updatedAt: new Date()
+      },
+    });
+
+    return NextResponse.json({ data: contact }, { status: 200 });
   } catch (error) {
-    console.error("GET /api/contacts error:", error);
+    console.error("PUT /api/contacts error:", error);
     return NextResponse.json(
       {
         error:
@@ -58,19 +213,46 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const response = await prisma.contact.deleteMany({
+    // Find the contact first to get googleId
+    const contact = await prisma.contact.findFirst({
       where: {
         id: body.id,
-        userId: session.user.id // Ensure user can only delete their own contacts
-      },
+        userId: session.user.id
+      }
     });
 
-    if (response.count === 0) {
+    if (!contact) {
       return NextResponse.json(
         { error: "Contact not found" },
         { status: 404 }
       );
     }
+
+    // If contact has a googleId, add it to ignored list
+    if (contact.googleId) {
+      await prisma.ignoredContact.upsert({
+        where: {
+          userId_googleId: {
+            userId: session.user.id,
+            googleId: contact.googleId
+          }
+        },
+        update: {},
+        create: {
+          userId: session.user.id,
+          googleId: contact.googleId,
+          name: contact.name
+        }
+      });
+    }
+
+    // Delete the contact
+    const response = await prisma.contact.deleteMany({
+      where: {
+        id: body.id,
+        userId: session.user.id
+      },
+    });
 
     return NextResponse.json(response, { status: 200 });
   } catch (error) {

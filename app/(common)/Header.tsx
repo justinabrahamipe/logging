@@ -3,24 +3,43 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaBullseye, FaClipboardList, FaTasks, FaFlag, FaMoon, FaSun, FaBars, FaTimes, FaSignOutAlt, FaCog, FaUser, FaUsers } from "react-icons/fa";
+import { FaBullseye, FaClipboardList, FaTasks, FaFlag, FaBars, FaTimes, FaSignOutAlt, FaCog, FaUser, FaUsers } from "react-icons/fa";
 import { useState, useEffect, useRef } from "react";
 import { useSession, signOut } from "next-auth/react";
 
 export default function Header() {
-  const [isDark, setIsDark] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const [enabledFeatures, setEnabledFeatures] = useState({
+    todo: false,
+    goals: false,
+    people: false,
+  });
   const pathname = usePathname();
   const { data: session, status } = useSession();
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
+  // Fetch user preferences to determine enabled features
   useEffect(() => {
-    setMounted(true);
-    const isDarkMode = document.documentElement.classList.contains("dark");
-    setIsDark(isDarkMode);
-  }, []);
+    async function fetchPreferences() {
+      if (session?.user?.id) {
+        try {
+          const response = await fetch("/api/preferences");
+          if (response.ok) {
+            const data = await response.json();
+            setEnabledFeatures({
+              todo: data.enableTodo || false,
+              goals: data.enableGoals || false,
+              people: data.enablePeople || false,
+            });
+          }
+        } catch (error) {
+          console.error("Failed to fetch preferences:", error);
+        }
+      }
+    }
+    fetchPreferences();
+  }, [session]);
 
   // Close profile menu when clicking outside
   useEffect(() => {
@@ -36,18 +55,17 @@ export default function Header() {
     }
   }, [isProfileMenuOpen]);
 
-  const toggleTheme = () => {
-    document.documentElement.classList.toggle("dark");
-    setIsDark(!isDark);
-  };
-
-  const navItems = [
-    { href: "/activities", label: "Activities", icon: FaBullseye },
-    { href: "/log", label: "Log", icon: FaClipboardList },
-    { href: "/todo", label: "Todo", icon: FaTasks },
-    { href: "/goals", label: "Goals", icon: FaFlag },
-    { href: "/people", label: "People", icon: FaUsers },
+  // All possible nav items
+  const allNavItems = [
+    { href: "/activities", label: "Activities", icon: FaBullseye, enabled: true }, // Always enabled
+    { href: "/log", label: "Log", icon: FaClipboardList, enabled: true }, // Always enabled
+    { href: "/todo", label: "Todo", icon: FaTasks, enabled: enabledFeatures.todo },
+    { href: "/goals", label: "Goals", icon: FaFlag, enabled: enabledFeatures.goals },
+    { href: "/people", label: "People", icon: FaUsers, enabled: enabledFeatures.people },
   ];
+
+  // Filter to show only enabled features
+  const navItems = allNavItems.filter(item => item.enabled);
 
   // Hide header on auth-related pages, or on homepage when not authenticated
   const authPages = ["/login", "/verify-request", "/error"];
@@ -177,15 +195,6 @@ export default function Header() {
 
                     {/* Menu Items */}
                     <div className="py-2">
-                      <motion.button
-                        whileHover={{ backgroundColor: "rgba(59, 130, 246, 0.1)" }}
-                        onClick={toggleTheme}
-                        className="w-full px-4 py-2 text-left flex items-center gap-3 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                      >
-                        {mounted && (isDark ? <FaSun className="text-lg" /> : <FaMoon className="text-lg" />)}
-                        <span className="font-medium">{isDark ? "Light Mode" : "Dark Mode"}</span>
-                      </motion.button>
-
                       <Link href="/preferences">
                         <motion.button
                           whileHover={{ backgroundColor: "rgba(59, 130, 246, 0.1)" }}
@@ -305,15 +314,6 @@ export default function Header() {
                   </p>
                 </div>
               </div>
-
-              <motion.div
-                whileTap={{ scale: 0.98 }}
-                onClick={toggleTheme}
-                className="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer mb-2"
-              >
-                {mounted && (isDark ? <FaSun /> : <FaMoon />)}
-                <span className="font-medium">{isDark ? "Light Mode" : "Dark Mode"}</span>
-              </motion.div>
 
               <Link href="/preferences">
                 <motion.div

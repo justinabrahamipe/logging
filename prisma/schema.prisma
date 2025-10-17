@@ -118,14 +118,17 @@ model VerificationToken {
 }
 
 model UserPreferences {
-    id         Int      @id @default(autoincrement())
-    userId     String   @unique
-    user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-    theme      String   @default("light") // "light" or "dark" or "system"
-    timeFormat String   @default("12h")   // "12h" or "24h"
-    dateFormat String   @default("DD/MM/YYYY") // "DD/MM/YYYY", "MM/DD/YYYY", etc.
-    createdAt  DateTime @default(now())
-    updatedAt  DateTime @updatedAt
+    id          Int      @id @default(autoincrement())
+    userId      String   @unique
+    user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    theme       String   @default("light") // "light" or "dark" or "system"
+    timeFormat  String   @default("12h")   // "12h" or "24h"
+    dateFormat  String   @default("DD/MM/YYYY") // "DD/MM/YYYY", "MM/DD/YYYY", etc.
+    enableTodo  Boolean  @default(false)  // Enable Todo feature
+    enableGoals Boolean  @default(false)  // Enable Goals feature
+    enablePeople Boolean @default(false) // Enable People/Contacts feature
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
 }
 
 model Contact {
@@ -145,6 +148,17 @@ model Contact {
     lastSynced           DateTime  @default(now())
     createdAt            DateTime  @default(now())
     updatedAt            DateTime  @updatedAt
+
+    @@unique([userId, googleId])
+    @@index([userId])
+}
+
+model IgnoredContact {
+    id         Int      @id @default(autoincrement())
+    userId     String
+    googleId   String   // Google contact resource name to ignore
+    name       String?  // Store name for reference
+    createdAt  DateTime @default(now())
 
     @@unique([userId, googleId])
     @@index([userId])

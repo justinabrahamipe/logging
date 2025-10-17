@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { FaClock, FaCalendar, FaCheck, FaMoon, FaSun, FaDesktop } from "react-icons/fa";
+import { FaClock, FaCalendar, FaCheck, FaMoon, FaSun, FaDesktop, FaTasks, FaFlag, FaUsers, FaPuzzlePiece } from "react-icons/fa";
 import { Card } from "flowbite-react";
 import { useSession } from "next-auth/react";
+import { useTheme } from "@/components/ThemeProvider";
 
 type TimeFormat = "12h" | "24h";
 type DateFormat = "DD/MM/YYYY" | "MM/DD/YYYY" | "YYYY-MM-DD" | "DD-MM-YYYY" | "MM-DD-YYYY";
@@ -12,11 +13,20 @@ type Theme = "light" | "dark" | "system";
 
 export default function PreferencesPage() {
   const { data: session } = useSession();
-  const [theme, setTheme] = useState<Theme>("light");
+  const { theme, setTheme: setGlobalTheme } = useTheme();
+  const [localTheme, setLocalTheme] = useState<Theme>(theme);
   const [timeFormat, setTimeFormat] = useState<TimeFormat>("12h");
   const [dateFormat, setDateFormat] = useState<DateFormat>("DD/MM/YYYY");
+  const [enableTodo, setEnableTodo] = useState(false);
+  const [enableGoals, setEnableGoals] = useState(false);
+  const [enablePeople, setEnablePeople] = useState(false);
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  // Sync local theme with global theme
+  useEffect(() => {
+    setLocalTheme(theme);
+  }, [theme]);
 
   useEffect(() => {
     // Load preferences from API if authenticated, otherwise from localStorage
@@ -32,12 +42,12 @@ export default function PreferencesPage() {
       const response = await fetch("/api/preferences");
       if (response.ok) {
         const data = await response.json();
-        setTheme(data.theme || "light");
+        setLocalTheme(data.theme || "light");
         setTimeFormat(data.timeFormat || "12h");
         setDateFormat(data.dateFormat || "DD/MM/YYYY");
-
-        // Apply theme immediately
-        applyTheme(data.theme || "light");
+        setEnableTodo(data.enableTodo || false);
+        setEnableGoals(data.enableGoals || false);
+        setEnablePeople(data.enablePeople || false);
       }
     } catch (error) {
       console.error("Error fetching preferences:", error);
@@ -52,29 +62,10 @@ export default function PreferencesPage() {
     const savedTimeFormat = localStorage.getItem("timeFormat") as TimeFormat;
     const savedDateFormat = localStorage.getItem("dateFormat") as DateFormat;
 
-    if (savedTheme) {
-      setTheme(savedTheme);
-      applyTheme(savedTheme);
-    }
+    if (savedTheme) setLocalTheme(savedTheme);
     if (savedTimeFormat) setTimeFormat(savedTimeFormat);
     if (savedDateFormat) setDateFormat(savedDateFormat);
     setLoading(false);
-  };
-
-  const applyTheme = (themeValue: Theme) => {
-    if (themeValue === "dark") {
-      document.documentElement.classList.add("dark");
-    } else if (themeValue === "light") {
-      document.documentElement.classList.remove("dark");
-    } else if (themeValue === "system") {
-      // System theme
-      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      if (prefersDark) {
-        document.documentElement.classList.add("dark");
-      } else {
-        document.documentElement.classList.remove("dark");
-      }
-    }
   };
 
   const handleSave = async () => {
@@ -87,16 +78,23 @@ export default function PreferencesPage() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            theme,
+            theme: localTheme,
             timeFormat,
             dateFormat,
+            enableTodo,
+            enableGoals,
+            enablePeople,
           }),
         });
 
         if (response.ok) {
-          applyTheme(theme);
+          setGlobalTheme(localTheme);
           setSaved(true);
-          setTimeout(() => setSaved(false), 3000);
+          setTimeout(() => {
+            setSaved(false);
+            // Reload page to update navigation
+            window.location.reload();
+          }, 1500);
         } else {
           console.error("Failed to save preferences");
         }
@@ -105,10 +103,10 @@ export default function PreferencesPage() {
       }
     } else {
       // Save to localStorage
-      localStorage.setItem("theme", theme);
+      localStorage.setItem("theme", localTheme);
       localStorage.setItem("timeFormat", timeFormat);
       localStorage.setItem("dateFormat", dateFormat);
-      applyTheme(theme);
+      setGlobalTheme(localTheme);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     }
@@ -201,9 +199,9 @@ export default function PreferencesPage() {
                   key={option.value}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={() => setTheme(option.value)}
+                  onClick={() => setLocalTheme(option.value)}
                   className={`p-4 rounded-lg border-2 transition-all ${
-                    theme === option.value
+                    localTheme === option.value
                       ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20"
                       : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
                   }`}
@@ -217,12 +215,109 @@ export default function PreferencesPage() {
                         </span>
                       </div>
                     </div>
-                    {theme === option.value && (
+                    {localTheme === option.value && (
                       <FaCheck className="text-indigo-500" />
                     )}
                   </div>
                 </motion.button>
               ))}
+            </div>
+          </Card>
+
+          {/* Feature Selection */}
+          <Card>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                <FaPuzzlePiece className="text-2xl text-green-600 dark:text-green-400" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
+                  Features
+                </h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Choose which features to enable (Activities and Log are always enabled)
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {/* Todo Feature */}
+              <motion.div
+                whileHover={{ scale: 1.01 }}
+                onClick={() => setEnableTodo(!enableTodo)}
+                className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                  enableTodo
+                    ? "border-green-500 bg-green-50 dark:bg-green-900/20"
+                    : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <FaTasks className={`text-xl ${enableTodo ? "text-green-600 dark:text-green-400" : "text-gray-400"}`} />
+                    <div>
+                      <div className="font-semibold text-gray-900 dark:text-white">
+                        Todo
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        Manage your tasks and to-do lists
+                      </div>
+                    </div>
+                  </div>
+                  {enableTodo && <FaCheck className="text-green-500" />}
+                </div>
+              </motion.div>
+
+              {/* Goals Feature */}
+              <motion.div
+                whileHover={{ scale: 1.01 }}
+                onClick={() => setEnableGoals(!enableGoals)}
+                className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                  enableGoals
+                    ? "border-green-500 bg-green-50 dark:bg-green-900/20"
+                    : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <FaFlag className={`text-xl ${enableGoals ? "text-green-600 dark:text-green-400" : "text-gray-400"}`} />
+                    <div>
+                      <div className="font-semibold text-gray-900 dark:text-white">
+                        Goals
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        Set and track your personal goals
+                      </div>
+                    </div>
+                  </div>
+                  {enableGoals && <FaCheck className="text-green-500" />}
+                </div>
+              </motion.div>
+
+              {/* People Feature */}
+              <motion.div
+                whileHover={{ scale: 1.01 }}
+                onClick={() => setEnablePeople(!enablePeople)}
+                className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                  enablePeople
+                    ? "border-green-500 bg-green-50 dark:bg-green-900/20"
+                    : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <FaUsers className={`text-xl ${enablePeople ? "text-green-600 dark:text-green-400" : "text-gray-400"}`} />
+                    <div>
+                      <div className="font-semibold text-gray-900 dark:text-white">
+                        People
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        Manage your contacts and relationships
+                      </div>
+                    </div>
+                  </div>
+                  {enablePeople && <FaCheck className="text-green-500" />}
+                </div>
+              </motion.div>
             </div>
           </Card>
 

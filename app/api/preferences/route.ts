@@ -37,6 +37,9 @@ export async function GET() {
           theme: "light",
           timeFormat: "12h",
           dateFormat: "DD/MM/YYYY",
+          enableTodo: false,
+          enableGoals: false,
+          enablePeople: false,
         },
       });
     }
@@ -64,7 +67,7 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json();
-    const { theme, timeFormat, dateFormat } = body;
+    const { theme, timeFormat, dateFormat, enableTodo, enableGoals, enablePeople } = body;
 
     // Validate input
     const validThemes = ["light", "dark", "system"];
@@ -105,12 +108,18 @@ export async function PUT(request: Request) {
         ...(theme && { theme }),
         ...(timeFormat && { timeFormat }),
         ...(dateFormat && { dateFormat }),
+        ...(typeof enableTodo === "boolean" ? { enableTodo } : {}),
+        ...(typeof enableGoals === "boolean" ? { enableGoals } : {}),
+        ...(typeof enablePeople === "boolean" ? { enablePeople } : {}),
       },
       create: {
         userId: session.user.id,
         theme: theme || "light",
         timeFormat: timeFormat || "12h",
         dateFormat: dateFormat || "DD/MM/YYYY",
+        enableTodo: enableTodo ?? false,
+        enableGoals: enableGoals ?? false,
+        enablePeople: enablePeople ?? false,
       },
     });
 
