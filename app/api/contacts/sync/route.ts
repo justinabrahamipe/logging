@@ -33,7 +33,7 @@ export async function POST() {
 
     // Fetch contacts from Google People API
     const response = await fetch(
-      'https://people.googleapis.com/v1/people/me/connections?personFields=names,emailAddresses,phoneNumbers,photos,organizations&pageSize=1000',
+      'https://people.googleapis.com/v1/people/me/connections?personFields=names,emailAddresses,phoneNumbers,photos,organizations,addresses,birthdays,events&pageSize=1000',
       {
         headers: {
           Authorization: `Bearer ${account.access_token}`,
@@ -65,6 +65,42 @@ export async function POST() {
       const jobTitle = person.organizations?.[0]?.title;
       const googleId = person.resourceName;
 
+      // Extract address
+      const addressObj = person.addresses?.[0];
+      const address = addressObj ?
+        [
+          addressObj.streetAddress,
+          addressObj.city,
+          addressObj.region,
+          addressObj.postalCode,
+          addressObj.country
+        ].filter(Boolean).join(', ') :
+        null;
+
+      // Extract birthday
+      let birthday = null;
+      if (person.birthdays?.[0]?.date) {
+        const bd = person.birthdays[0].date;
+        // Google birthday might not have year
+        const year = bd.year || 1900; // Use 1900 as placeholder if year not provided
+        const month = bd.month || 1;
+        const day = bd.day || 1;
+        birthday = new Date(year, month - 1, day);
+      }
+
+      // Extract wedding anniversary
+      let weddingAnniversary = null;
+      const anniversaryEvent = person.events?.find(
+        (event: { type: string }) => event.type === 'anniversary'
+      );
+      if (anniversaryEvent?.date) {
+        const ad = anniversaryEvent.date;
+        const year = ad.year || 1900;
+        const month = ad.month || 1;
+        const day = ad.day || 1;
+        weddingAnniversary = new Date(year, month - 1, day);
+      }
+
       // Upsert contact (update if exists, create if not)
       const contact = await prisma.contact.upsert({
         where: {
@@ -80,6 +116,9 @@ export async function POST() {
           photoUrl,
           organization,
           jobTitle,
+          address,
+          birthday,
+          weddingAnniversary,
           lastSynced: new Date(),
           updatedAt: new Date()
         },
@@ -92,6 +131,9 @@ export async function POST() {
           photoUrl,
           organization,
           jobTitle,
+          address,
+          birthday,
+          weddingAnniversary,
           lastSynced: new Date()
         }
       });

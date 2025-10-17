@@ -17,6 +17,9 @@ interface Contact {
   organization?: string;
   jobTitle?: string;
   notes?: string;
+  address?: string;
+  birthday?: string;
+  weddingAnniversary?: string;
   lastSynced: string;
   createdAt: string;
   updatedAt: string;
@@ -155,76 +158,147 @@ export default function People() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.1 }}
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+            className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700"
           >
-            {contacts.map((contact: Contact, index: number) => (
-              <motion.div
-                key={contact.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-                className="relative group"
-              >
-                <div className="p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-200 dark:border-gray-700">
-                  <div className="flex flex-col items-center mb-4">
-                    {contact.photoUrl ? (
-                      <img
-                        src={contact.photoUrl}
-                        alt={contact.name}
-                        className="w-20 h-20 rounded-full object-cover mb-3 border-2 border-gray-200 dark:border-gray-700"
-                      />
-                    ) : (
-                      <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mb-3">
-                        <FaUser className="text-white text-3xl" />
-                      </div>
-                    )}
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white text-center">
-                      {contact.name}
-                    </h3>
-                  </div>
-
-                  <div className="space-y-2 mb-4">
-                    {contact.email && (
-                      <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                        <FaEnvelope className="flex-shrink-0 text-blue-500" />
-                        <span className="truncate">{contact.email}</span>
-                      </div>
-                    )}
-                    {contact.phoneNumber && (
-                      <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                        <FaPhone className="flex-shrink-0 text-green-500" />
-                        <span className="truncate">{contact.phoneNumber}</span>
-                      </div>
-                    )}
-                    {contact.organization && (
-                      <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                        <FaBriefcase className="flex-shrink-0 text-purple-500" />
-                        <div className="min-w-0">
-                          <div className="truncate">{contact.organization}</div>
-                          {contact.jobTitle && (
-                            <div className="truncate text-xs text-gray-500 dark:text-gray-500">
-                              {contact.jobTitle}
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-gray-900">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Name
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Email
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Phone
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Organization
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Address
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Birthday
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Anniversary
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  {contacts.map((contact: Contact, index: number) => (
+                    <motion.tr
+                      key={contact.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.02 }}
+                      className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          {contact.photoUrl ? (
+                            <img
+                              src={contact.photoUrl}
+                              alt={contact.name}
+                              className="w-10 h-10 rounded-full object-cover mr-3 border border-gray-200 dark:border-gray-700"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mr-3">
+                              <FaUser className="text-white text-sm" />
                             </div>
                           )}
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">
+                            {contact.name}
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <motion.button
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                      onClick={() => handleDelete(contact.id)}
-                      className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                      title="Delete contact"
-                    >
-                      <FaTrash />
-                    </motion.button>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {contact.email ? (
+                          <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                            <FaEnvelope className="mr-2 text-blue-500" />
+                            {contact.email}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 dark:text-gray-600">—</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {contact.phoneNumber ? (
+                          <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                            <FaPhone className="mr-2 text-green-500" />
+                            {contact.phoneNumber}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 dark:text-gray-600">—</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        {contact.organization ? (
+                          <div className="text-sm text-gray-600 dark:text-gray-400">
+                            <div className="flex items-center">
+                              <FaBriefcase className="mr-2 text-purple-500 flex-shrink-0" />
+                              <div className="min-w-0">
+                                <div className="font-medium">{contact.organization}</div>
+                                {contact.jobTitle && (
+                                  <div className="text-xs text-gray-500 dark:text-gray-500">
+                                    {contact.jobTitle}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 dark:text-gray-600">—</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        {contact.address ? (
+                          <div className="text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate" title={contact.address}>
+                            {contact.address}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 dark:text-gray-600">—</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {contact.birthday ? (
+                          <div className="text-sm text-gray-600 dark:text-gray-400">
+                            {new Date(contact.birthday).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 dark:text-gray-600">—</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {contact.weddingAnniversary ? (
+                          <div className="text-sm text-gray-600 dark:text-gray-400">
+                            {new Date(contact.weddingAnniversary).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 dark:text-gray-600">—</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <motion.button
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          onClick={() => handleDelete(contact.id)}
+                          className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                          title="Delete contact"
+                        >
+                          <FaTrash />
+                        </motion.button>
+                      </td>
+                    </motion.tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </motion.div>
         )}
       </div>

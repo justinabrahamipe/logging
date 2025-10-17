@@ -129,19 +129,22 @@ model UserPreferences {
 }
 
 model Contact {
-    id             Int      @id @default(autoincrement())
-    userId         String
-    googleId       String?  // Google contact resource name
-    name           String
-    email          String?
-    phoneNumber    String?
-    photoUrl       String?
-    organization   String?
-    jobTitle       String?
-    notes          String?
-    lastSynced     DateTime @default(now())
-    createdAt      DateTime @default(now())
-    updatedAt      DateTime @updatedAt
+    id                   Int       @id @default(autoincrement())
+    userId               String
+    googleId             String?   // Google contact resource name
+    name                 String
+    email                String?
+    phoneNumber          String?
+    photoUrl             String?
+    organization         String?
+    jobTitle             String?
+    notes                String?
+    address              String?   // Full address
+    birthday             DateTime? // Birthday
+    weddingAnniversary   DateTime? // Wedding anniversary
+    lastSynced           DateTime  @default(now())
+    createdAt            DateTime  @default(now())
+    updatedAt            DateTime  @updatedAt
 
     @@unique([userId, googleId])
     @@index([userId])
