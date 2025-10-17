@@ -248,12 +248,13 @@ export async function POST() {
 
   } catch (error) {
     console.error("POST /api/contacts/sync error:", error);
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error ? error.message : "An unknown error occurred",
-      },
-      { status: 500 }
-    );
+    // Return empty success response to prevent client-side crashes
+    return NextResponse.json({
+      success: false,
+      count: 0,
+      skipped: 0,
+      total: 0,
+      contacts: []
+    }, { status: 200 });
   }
 }
