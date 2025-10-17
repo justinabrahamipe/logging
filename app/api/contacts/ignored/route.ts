@@ -49,13 +49,15 @@ export async function GET(request: NextRequest) {
     }, { status: 200 });
   } catch (error) {
     console.error("GET /api/contacts/ignored error:", error);
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error ? error.message : "An unknown error occurred",
-      },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      data: [],
+      pagination: {
+        total: 0,
+        limit: 50,
+        offset: 0,
+        hasMore: false
+      }
+    }, { status: 200 });
   }
 }
 
@@ -100,12 +102,9 @@ export async function DELETE(request: NextRequest) {
     }, { status: 200 });
   } catch (error) {
     console.error("DELETE /api/contacts/ignored error:", error);
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error ? error.message : "An unknown error occurred",
-      },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      success: false,
+      message: "Failed to restore contact"
+    }, { status: 200 });
   }
 }

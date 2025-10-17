@@ -84,10 +84,10 @@ export async function DELETE(request: NextRequest) {
     console.error("DELETE /api/contacts/bulk error:", error);
     return NextResponse.json(
       {
-        error:
-          error instanceof Error ? error.message : "An unknown error occurred",
+        success: false,
+        deleted: 0
       },
-      { status: 500 }
+      { status: 200 }
     );
   }
 }
