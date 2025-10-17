@@ -97,29 +97,46 @@ export async function POST() {
     });
     const ignoredGoogleIds = new Set(ignoredContacts.map(ic => ic.googleId));
 
-    // Fetch contacts from Google People API (first 1000 only for performance)
-    const url = new URL('https://people.googleapis.com/v1/people/me/connections');
-    url.searchParams.set('personFields', 'names,emailAddresses,phoneNumbers,photos,organizations,addresses,birthdays,events');
-    url.searchParams.set('pageSize', '1000');
+    // Fetch all contacts from Google People API with pagination
+    let allConnections: any[] = [];
+    let pageToken: string | undefined;
+    let pageCount = 0;
+    const maxPages = 10; // Limit to 10 pages (10,000 contacts) to stay within timeout
 
-    const response = await fetch(url.toString(), {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
+    do {
+      const url = new URL('https://people.googleapis.com/v1/people/me/connections');
+      url.searchParams.set('personFields', 'names,emailAddresses,phoneNumbers,photos,organizations,addresses,birthdays,events');
+      url.searchParams.set('pageSize', '1000');
+      if (pageToken) {
+        url.searchParams.set('pageToken', pageToken);
+      }
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Google People API error:", response.status, errorText);
-      return NextResponse.json(
-        { error: "Failed to fetch contacts from Google" },
-        { status: response.status }
-      );
-    }
+      const response = await fetch(url.toString(), {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
 
-    const data = await response.json();
-    const connections = data.connections || [];
-    console.log(`[SYNC] Fetched ${connections.length} contacts from Google`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Google People API error:", response.status, errorText);
+        return NextResponse.json(
+          { error: "Failed to fetch contacts from Google" },
+          { status: response.status }
+        );
+      }
+
+      const data = await response.json();
+      const connections = data.connections || [];
+      allConnections = allConnections.concat(connections);
+      pageToken = data.nextPageToken;
+      pageCount++;
+
+      console.log(`[SYNC] Fetched page ${pageCount}: ${connections.length} contacts (total: ${allConnections.length})`);
+    } while (pageToken && pageCount < maxPages);
+
+    const connections = allConnections;
+    console.log(`[SYNC] Total fetched ${connections.length} contacts from Google across ${pageCount} pages`);
 
     // Process contacts in parallel batches for better performance
     let skippedCount = 0;
@@ -194,6 +211,8 @@ export async function POST() {
       count: savedContacts.length,
       skipped: skippedCount,
       total: connections.length,
+      hasMore: pageToken !== undefined,
+      pagesFetched: pageCount,
       contacts: savedContacts
     }, { status: 200 });
 
