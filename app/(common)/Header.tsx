@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaBullseye, FaClipboardList, FaTasks, FaFlag, FaMoon, FaSun, FaBars, FaTimes, FaSignOutAlt, FaCog, FaUser } from "react-icons/fa";
+import { FaBullseye, FaClipboardList, FaTasks, FaFlag, FaMoon, FaSun, FaBars, FaTimes, FaSignOutAlt, FaCog, FaUser, FaUsers } from "react-icons/fa";
 import { useState, useEffect, useRef } from "react";
 import { useSession, signOut } from "next-auth/react";
 
@@ -46,6 +46,7 @@ export default function Header() {
     { href: "/log", label: "Log", icon: FaClipboardList },
     { href: "/todo", label: "Todo", icon: FaTasks },
     { href: "/goals", label: "Goals", icon: FaFlag },
+    { href: "/people", label: "People", icon: FaUsers },
   ];
 
   // Hide header on auth-related pages, or on homepage when not authenticated
