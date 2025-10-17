@@ -2,7 +2,7 @@
 import axios from "axios";
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { FaSync, FaTrash, FaUser, FaPhone } from "react-icons/fa";
+import { FaSync, FaTrash, FaUser, FaPhone, FaSort, FaSortUp, FaSortDown } from "react-icons/fa";
 import DeleteDialog from "../(components)/DeleteDialog";
 import Snackbar from "../(components)/Snackbar";
 
@@ -25,12 +25,17 @@ interface Contact {
   updatedAt: string;
 }
 
+type SortField = 'name' | 'phoneNumber' | 'address' | 'birthday' | 'weddingAnniversary';
+type SortDirection = 'asc' | 'desc' | null;
+
 export default function People() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [syncing, setSyncing] = useState<boolean>(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [snackbar, setSnackbar] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [sortField, setSortField] = useState<SortField | null>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>(null);
 
   const fetchContacts = useCallback(async () => {
     setLoading(true);
@@ -100,6 +105,77 @@ export default function People() {
     setDeleteConfirmId(null);
   }, []);
 
+  const handleSort = useCallback((field: SortField) => {
+    if (sortField === field) {
+      // Toggle direction: asc -> desc -> null
+      if (sortDirection === 'asc') {
+        setSortDirection('desc');
+      } else if (sortDirection === 'desc') {
+        setSortDirection(null);
+        setSortField(null);
+      }
+    } else {
+      // New field, start with ascending
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  }, [sortField, sortDirection]);
+
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) {
+      return <FaSort className="ml-1 text-gray-400" />;
+    }
+    if (sortDirection === 'asc') {
+      return <FaSortUp className="ml-1 text-blue-600 dark:text-blue-400" />;
+    }
+    if (sortDirection === 'desc') {
+      return <FaSortDown className="ml-1 text-blue-600 dark:text-blue-400" />;
+    }
+    return <FaSort className="ml-1 text-gray-400" />;
+  };
+
+  // Sort contacts
+  const sortedContacts = useCallback(() => {
+    if (!sortField || !sortDirection) {
+      return contacts;
+    }
+
+    return [...contacts].sort((a, b) => {
+      let aValue: string | number | null = null;
+      let bValue: string | number | null = null;
+
+      switch (sortField) {
+        case 'name':
+          aValue = a.name?.toLowerCase() || '';
+          bValue = b.name?.toLowerCase() || '';
+          break;
+        case 'phoneNumber':
+          aValue = a.phoneNumber?.toLowerCase() || '';
+          bValue = b.phoneNumber?.toLowerCase() || '';
+          break;
+        case 'address':
+          aValue = a.address?.toLowerCase() || '';
+          bValue = b.address?.toLowerCase() || '';
+          break;
+        case 'birthday':
+          aValue = a.birthday ? new Date(a.birthday).getTime() : 0;
+          bValue = b.birthday ? new Date(b.birthday).getTime() : 0;
+          break;
+        case 'weddingAnniversary':
+          aValue = a.weddingAnniversary ? new Date(a.weddingAnniversary).getTime() : 0;
+          bValue = b.weddingAnniversary ? new Date(b.weddingAnniversary).getTime() : 0;
+          break;
+      }
+
+      if (aValue === null || aValue === '' || aValue === 0) return 1;
+      if (bValue === null || bValue === '' || bValue === 0) return -1;
+
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [contacts, sortField, sortDirection]);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-950 dark:to-gray-900 p-4 sm:p-8">
       <div className="max-w-7xl mx-auto">
@@ -164,20 +240,55 @@ export default function People() {
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-gray-50 dark:bg-gray-900">
                   <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Name
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors select-none"
+                      onClick={() => handleSort('name')}
+                    >
+                      <div className="flex items-center">
+                        Name
+                        {getSortIcon('name')}
+                      </div>
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Phone
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors select-none"
+                      onClick={() => handleSort('phoneNumber')}
+                    >
+                      <div className="flex items-center">
+                        Phone
+                        {getSortIcon('phoneNumber')}
+                      </div>
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Address
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors select-none"
+                      onClick={() => handleSort('address')}
+                    >
+                      <div className="flex items-center">
+                        Address
+                        {getSortIcon('address')}
+                      </div>
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Birthday
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors select-none"
+                      onClick={() => handleSort('birthday')}
+                    >
+                      <div className="flex items-center">
+                        Birthday
+                        {getSortIcon('birthday')}
+                      </div>
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Anniversary
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors select-none"
+                      onClick={() => handleSort('weddingAnniversary')}
+                    >
+                      <div className="flex items-center">
+                        Anniversary
+                        {getSortIcon('weddingAnniversary')}
+                      </div>
                     </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Actions
@@ -185,7 +296,7 @@ export default function People() {
                   </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  {contacts.map((contact: Contact, index: number) => (
+                  {sortedContacts().map((contact: Contact, index: number) => (
                     <motion.tr
                       key={contact.id}
                       initial={{ opacity: 0, y: 10 }}
