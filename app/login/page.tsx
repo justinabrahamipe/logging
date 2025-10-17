@@ -72,7 +72,14 @@ export default function LoginPage() {
             color="text.secondary"
             sx={{ display: "block", textAlign: "center", mt: 3 }}
           >
-            By signing in, you agree to our terms of service and privacy policy.
+            By signing in, you agree to our{" "}
+            <a href="/terms" className="text-blue-600 dark:text-blue-400 hover:underline">
+              terms of service
+            </a>{" "}
+            and{" "}
+            <a href="/privacy" className="text-blue-600 dark:text-blue-400 hover:underline">
+              privacy policy
+            </a>.
           </Typography>
         </CardContent>
       </Card>

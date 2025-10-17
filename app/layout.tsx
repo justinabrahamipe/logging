@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Header from "./(common)/Header";
+import Footer from "./(common)/Footer";
 import { Providers } from "./providers";
 import { MuiThemeProvider } from "./theme-provider";
 import { auth } from "@/auth";
@@ -32,12 +33,13 @@ export default async function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head />
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen`}
       >
         <MuiThemeProvider>
           <Providers session={session}>
             <Header />
-            {children}
+            <main className="flex-1">{children}</main>
+            <Footer />
           </Providers>
         </MuiThemeProvider>
       </body>
