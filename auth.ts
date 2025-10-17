@@ -42,6 +42,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     error: "/error",
   },
   callbacks: {
+    authorized({ auth, request: { nextUrl } }) {
+      const isLoggedIn = !!auth?.user;
+      const publicPaths = ["/", "/login", "/verify-request", "/error", "/privacy", "/terms"];
+      const isPublicPage = publicPaths.some(path => nextUrl.pathname === path || nextUrl.pathname.startsWith(path));
+
+      if (isPublicPage) return true;
+
+      return isLoggedIn;
+    },
     async session({ session, token }) {
       if (session.user && token.sub) {
         session.user.id = token.sub;
