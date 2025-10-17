@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 
-export const maxDuration = 10;
+export const maxDuration = 60; // Increased to 60 seconds for large contact lists
 export const dynamic = 'force-dynamic';
 
 export async function POST() {
