@@ -19,7 +19,7 @@ console.log('[AUTH] Prisma client initialized:', !!prisma);
 console.log('[AUTH] Prisma account model exists:', !!prisma?.account);
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  // adapter: PrismaAdapter(prisma), // Temporarily disabled until Prisma client is fixed
+  adapter: PrismaAdapter(prisma),
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID as string,
@@ -28,13 +28,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         params: {
           prompt: "consent",
           access_type: "offline",
-          response_type: "code"
+          response_type: "code",
+          scope: "openid email profile https://www.googleapis.com/auth/contacts.readonly"
         }
       }
     }),
   ],
   trustHost: true,
-  debug: true,
+  debug: false,
   pages: {
     signIn: "/login",
     verifyRequest: "/verify-request",
@@ -48,7 +49,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return session;
     },
     async jwt({ token, account, profile }) {
-      // On first sign in, add additional user info to the token
       if (account && profile) {
         token.id = profile.sub || token.sub;
       }
