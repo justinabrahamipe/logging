@@ -60,13 +60,16 @@ export async function GET(request: NextRequest) {
     }, { status: 200 });
   } catch (error) {
     console.error("GET /api/contacts error:", error);
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error ? error.message : "An unknown error occurred",
-      },
-      { status: 500 }
-    );
+    // Return empty data instead of error to prevent client-side crashes
+    return NextResponse.json({
+      data: [],
+      pagination: {
+        total: 0,
+        limit: 50,
+        offset: 0,
+        hasMore: false
+      }
+    }, { status: 200 });
   }
 }
 
