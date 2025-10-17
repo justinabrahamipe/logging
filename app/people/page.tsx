@@ -2,7 +2,7 @@
 import axios from "axios";
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { FaSync, FaTrash, FaUser, FaEnvelope, FaPhone, FaBriefcase } from "react-icons/fa";
+import { FaSync, FaTrash, FaUser, FaPhone } from "react-icons/fa";
 import DeleteDialog from "../(components)/DeleteDialog";
 import Snackbar from "../(components)/Snackbar";
 
@@ -168,13 +168,7 @@ export default function People() {
                       Name
                     </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Email
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Phone
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Organization
                     </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Address
@@ -218,39 +212,10 @@ export default function People() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {contact.email ? (
-                          <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                            <FaEnvelope className="mr-2 text-blue-500" />
-                            {contact.email}
-                          </div>
-                        ) : (
-                          <span className="text-gray-400 dark:text-gray-600">—</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
                         {contact.phoneNumber ? (
                           <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
                             <FaPhone className="mr-2 text-green-500" />
                             {contact.phoneNumber}
-                          </div>
-                        ) : (
-                          <span className="text-gray-400 dark:text-gray-600">—</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4">
-                        {contact.organization ? (
-                          <div className="text-sm text-gray-600 dark:text-gray-400">
-                            <div className="flex items-center">
-                              <FaBriefcase className="mr-2 text-purple-500 flex-shrink-0" />
-                              <div className="min-w-0">
-                                <div className="font-medium">{contact.organization}</div>
-                                {contact.jobTitle && (
-                                  <div className="text-xs text-gray-500 dark:text-gray-500">
-                                    {contact.jobTitle}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
                           </div>
                         ) : (
                           <span className="text-gray-400 dark:text-gray-600">—</span>
