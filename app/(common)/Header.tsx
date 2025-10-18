@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaBullseye, FaClipboardList, FaTasks, FaFlag, FaBars, FaTimes, FaSignOutAlt, FaCog, FaUser, FaUsers, FaMapMarkedAlt } from "react-icons/fa";
+import { FaBullseye, FaClipboardList, FaTasks, FaFlag, FaBars, FaTimes, FaSignOutAlt, FaCog, FaUser, FaUsers, FaMapMarkedAlt, FaBook } from "react-icons/fa";
 import { useState, useEffect, useRef } from "react";
 import { useSession, signOut } from "next-auth/react";
 
@@ -61,6 +61,7 @@ export default function Header() {
   const allNavItems = [
     { href: "/activities", label: "Activities", icon: FaBullseye, enabled: true }, // Always enabled
     { href: "/log", label: "Log", icon: FaClipboardList, enabled: true }, // Always enabled
+    { href: "/bible", label: "Bible", icon: FaBook, enabled: true }, // Always enabled
     { href: "/todo", label: "Todo", icon: FaTasks, enabled: enabledFeatures.todo },
     { href: "/goals", label: "Goals", icon: FaFlag, enabled: enabledFeatures.goals },
     { href: "/people", label: "People", icon: FaUsers, enabled: enabledFeatures.people },
