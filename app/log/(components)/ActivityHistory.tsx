@@ -54,6 +54,7 @@ export default function ActivityHistory({
 	const [selectedPlaces, setSelectedPlaces] = useState<Place[]>([]);
 	const [selectedTodo, setSelectedTodo] = useState<TodoType | null>(null);
 	const [selectedGoal, setSelectedGoal] = useState<GoalType | null>(null);
+	const [goalCount, setGoalCount] = useState<number | null>(null);
 	const [showTagsModal, setShowTagsModal] = useState(false);
 
 	// Close calendar when clicking outside
@@ -143,6 +144,7 @@ export default function ActivityHistory({
 		// Set selected todo and goal from the log
 		setSelectedTodo((log as any).todo || null);
 		setSelectedGoal((log as any).goal || null);
+		setGoalCount(log.goalCount || null);
 	};
 
 	const handleCancelEdit = () => {
@@ -152,6 +154,7 @@ export default function ActivityHistory({
 		setSelectedPlaces([]);
 		setSelectedTodo(null);
 		setSelectedGoal(null);
+		setGoalCount(null);
 	};
 
 	const handleSaveEdit = async () => {
@@ -174,6 +177,7 @@ export default function ActivityHistory({
 				tags: editForm.tags,
 				todoId: selectedTodo?.id || null,
 				goalId: selectedGoal?.id || null,
+				goalCount: goalCount || null,
 				contactIds: selectedContacts.map(c => c.id),
 				placeIds: selectedPlaces.map(p => p.id),
 			});
@@ -183,6 +187,7 @@ export default function ActivityHistory({
 			setSelectedPlaces([]);
 			setSelectedTodo(null);
 			setSelectedGoal(null);
+			setGoalCount(null);
 			refetchAction((prev) => !prev);
 		} catch (error) {
 			console.error("Error updating log:", error);
@@ -853,6 +858,11 @@ export default function ActivityHistory({
 																<span className="inline-flex items-center gap-1 px-2 py-0.5 bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400 text-xs rounded-full">
 																	<FaBullseye size={10} />
 																	{(log as any).goal.title}
+																	{log.goalCount && (
+																		<span className="ml-1 px-1.5 py-0.5 bg-pink-200 dark:bg-pink-800/50 rounded text-xs font-bold">
+																			{log.goalCount}
+																		</span>
+																	)}
 																</span>
 															)}
 
@@ -1160,6 +1170,22 @@ export default function ActivityHistory({
 											/>
 										)}
 									/>
+
+									{/* Goal Count Input - Only show if goal is selected */}
+									{selectedGoal && (
+										<div className="mt-2">
+											<TextField
+												size="small"
+												type="number"
+												label="Goal Count (optional)"
+												value={goalCount || ""}
+												onChange={(e) => setGoalCount(e.target.value ? parseInt(e.target.value) : null)}
+												placeholder="e.g., 3 for 3 chapters"
+												fullWidth
+												helperText="For count-based goals (chapters, reps, pages, etc.)"
+											/>
+										</div>
+									)}
 								</div>
 
 								{/* People */}

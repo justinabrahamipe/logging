@@ -42,12 +42,18 @@ export async function GET() {
         let currentValue = 0;
 
         // Get all logs associated with this goal
+        // Use a broader date range to account for timezone differences
+        const startDate = new Date(goal.startDate);
+        startDate.setHours(0, 0, 0, 0);
+        const endDate = new Date(goal.endDate);
+        endDate.setHours(23, 59, 59, 999);
+
         const logs = await prisma.log.findMany({
           where: {
             goalId: goal.id,
             start_time: {
-              gte: goal.startDate,
-              lte: goal.endDate
+              gte: startDate,
+              lte: endDate
             }
           }
         });
