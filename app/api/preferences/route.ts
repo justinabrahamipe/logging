@@ -40,6 +40,7 @@ export async function GET() {
           enableTodo: false,
           enableGoals: false,
           enablePeople: false,
+          enablePlaces: false,
         },
       });
     }
@@ -55,6 +56,7 @@ export async function GET() {
       enableTodo: false,
       enableGoals: false,
       enablePeople: false,
+      enablePlaces: false,
     });
   }
 }
@@ -73,7 +75,7 @@ export async function PUT(request: Request) {
     }
 
     body = await request.json();
-    const { theme, timeFormat, dateFormat, enableTodo, enableGoals, enablePeople } = body;
+    const { theme, timeFormat, dateFormat, enableTodo, enableGoals, enablePeople, enablePlaces } = body;
 
     // Validate input
     const validThemes = ["light", "dark", "system"];
@@ -117,6 +119,7 @@ export async function PUT(request: Request) {
         ...(typeof enableTodo === "boolean" ? { enableTodo } : {}),
         ...(typeof enableGoals === "boolean" ? { enableGoals } : {}),
         ...(typeof enablePeople === "boolean" ? { enablePeople } : {}),
+        ...(typeof enablePlaces === "boolean" ? { enablePlaces } : {}),
       },
       create: {
         userId: session.user.id,
@@ -126,6 +129,7 @@ export async function PUT(request: Request) {
         enableTodo: enableTodo ?? false,
         enableGoals: enableGoals ?? false,
         enablePeople: enablePeople ?? false,
+        enablePlaces: enablePlaces ?? false,
       },
     });
 
@@ -141,6 +145,7 @@ export async function PUT(request: Request) {
       enableTodo: body.enableTodo ?? false,
       enableGoals: body.enableGoals ?? false,
       enablePeople: body.enablePeople ?? false,
+      enablePlaces: body.enablePlaces ?? false,
     });
   }
 }

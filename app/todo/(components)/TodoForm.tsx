@@ -1,8 +1,22 @@
 "use client";
-import { useState, memo } from "react";
+import { useState, memo, useEffect } from "react";
 import { motion } from "framer-motion";
-import { FaSave, FaTimes } from "react-icons/fa";
+import { FaSave, FaTimes, FaUsers, FaMapMarkedAlt } from "react-icons/fa";
 import DatePicker from "@/app/(common)/DatePicker";
+import { Autocomplete, TextField, Chip } from "@mui/material";
+import axios from "axios";
+
+interface Contact {
+  id: number;
+  name: string;
+  photoUrl?: string;
+}
+
+interface Place {
+  id: number;
+  name: string;
+  address: string;
+}
 
 interface TodoFormProps {
   isEdit: boolean;
@@ -14,10 +28,49 @@ interface TodoFormProps {
 
 const TodoForm = memo(({ isEdit, initialData, onSaveAction, onCancelAction, activities }: TodoFormProps) => {
   const [localForm, setLocalForm] = useState(initialData);
+  const [allContacts, setAllContacts] = useState<Contact[]>([]);
+  const [allPlaces, setAllPlaces] = useState<Place[]>([]);
+  const [selectedContacts, setSelectedContacts] = useState<Contact[]>([]);
+  const [selectedPlaces, setSelectedPlaces] = useState<Place[]>([]);
+
+  // Fetch contacts and places
+  useEffect(() => {
+    const fetchData = async () => {
+      const baseUrl = window.location.origin;
+      try {
+        const [contactsRes, placesRes] = await Promise.all([
+          axios.get(`${baseUrl}/api/contacts?limit=1000`),
+          axios.get(`${baseUrl}/api/places?limit=1000`)
+        ]);
+        setAllContacts(contactsRes.data.data || []);
+        setAllPlaces(placesRes.data.data || []);
+      } catch (error) {
+        console.error("Error fetching contacts/places:", error);
+      }
+    };
+    fetchData();
+  }, []);
+
+  // Initialize selected contacts/places from initialData
+  useEffect(() => {
+    if (initialData.todoContacts && Array.isArray(initialData.todoContacts)) {
+      const contacts = initialData.todoContacts.map((tc: any) => tc.contact);
+      setSelectedContacts(contacts);
+    }
+    if (initialData.todoPlaces && Array.isArray(initialData.todoPlaces)) {
+      const places = initialData.todoPlaces.map((tp: any) => tp.place);
+      setSelectedPlaces(places);
+    }
+  }, [initialData]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSaveAction(localForm);
+    const dataToSubmit = {
+      ...localForm,
+      contactIds: selectedContacts.map(c => c.id),
+      placeIds: selectedPlaces.map(p => p.id)
+    };
+    onSaveAction(dataToSubmit);
   };
 
   const handleDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -163,6 +216,78 @@ const TodoForm = memo(({ isEdit, initialData, onSaveAction, onCancelAction, acti
               ))}
             </div>
           </div>
+        </div>
+
+        {/* People Selection */}
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <FaUsers className="text-blue-600 dark:text-blue-400" size={12} />
+            <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+              Tag People
+            </label>
+          </div>
+          <Autocomplete
+            multiple
+            size="small"
+            options={allContacts}
+            getOptionLabel={(option) => option.name}
+            value={selectedContacts}
+            onChange={(_, newValue) => setSelectedContacts(newValue)}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                placeholder="Select people"
+                size="small"
+                className="text-sm"
+              />
+            )}
+            renderTags={(value, getTagProps) =>
+              value.map((option, index) => (
+                <Chip
+                  {...getTagProps({ index })}
+                  key={option.id}
+                  label={option.name}
+                  size="small"
+                />
+              ))
+            }
+          />
+        </div>
+
+        {/* Places Selection */}
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <FaMapMarkedAlt className="text-green-600 dark:text-green-400" size={12} />
+            <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+              Tag Places
+            </label>
+          </div>
+          <Autocomplete
+            multiple
+            size="small"
+            options={allPlaces}
+            getOptionLabel={(option) => option.name}
+            value={selectedPlaces}
+            onChange={(_, newValue) => setSelectedPlaces(newValue)}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                placeholder="Select places"
+                size="small"
+                className="text-sm"
+              />
+            )}
+            renderTags={(value, getTagProps) =>
+              value.map((option, index) => (
+                <Chip
+                  {...getTagProps({ index })}
+                  key={option.id}
+                  label={option.name}
+                  size="small"
+                />
+              ))
+            }
+          />
         </div>
 
         <div className="flex gap-2">

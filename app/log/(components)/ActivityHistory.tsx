@@ -3,12 +3,25 @@ import { DateTime } from "luxon";
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import * as HiIcons from "react-icons/hi";
-import { FaTrash, FaEdit, FaSave, FaTimes, FaStop, FaCalendar, FaCheckSquare, FaSquare, FaClock } from "react-icons/fa";
+import { FaTrash, FaEdit, FaSave, FaTimes, FaStop, FaCalendar, FaCheckSquare, FaSquare, FaClock, FaUsers, FaMapMarkedAlt, FaTasks, FaBullseye } from "react-icons/fa";
 import axios from "axios";
 import { DayPicker } from "react-day-picker";
 import DateTimePicker from "@/app/(common)/DateTimePicker";
 import TagDropdown from "@/app/(components)/TagDropdown";
+import { Autocomplete, TextField, Chip } from "@mui/material";
 import "react-day-picker/dist/style.css";
+
+interface Contact {
+	id: number;
+	name: string;
+	photoUrl?: string;
+}
+
+interface Place {
+	id: number;
+	name: string;
+	address: string;
+}
 
 interface ActivityHistoryProps {
 	data: LogType[];
@@ -33,6 +46,15 @@ export default function ActivityHistory({
 	const [bulkEditForm, setBulkEditForm] = useState<{ comment?: string; tags?: string }>({});
 	const [showCalendar, setShowCalendar] = useState(false);
 	const calendarRef = useRef<HTMLDivElement>(null);
+	const [allContacts, setAllContacts] = useState<Contact[]>([]);
+	const [allPlaces, setAllPlaces] = useState<Place[]>([]);
+	const [allTodos, setAllTodos] = useState<TodoType[]>([]);
+	const [allGoals, setAllGoals] = useState<GoalType[]>([]);
+	const [selectedContacts, setSelectedContacts] = useState<Contact[]>([]);
+	const [selectedPlaces, setSelectedPlaces] = useState<Place[]>([]);
+	const [selectedTodo, setSelectedTodo] = useState<TodoType | null>(null);
+	const [selectedGoal, setSelectedGoal] = useState<GoalType | null>(null);
+	const [showTagsModal, setShowTagsModal] = useState(false);
 
 	// Close calendar when clicking outside
 	useEffect(() => {
@@ -50,6 +72,28 @@ export default function ActivityHistory({
 			document.removeEventListener('mousedown', handleClickOutside);
 		};
 	}, [showCalendar]);
+
+	// Fetch contacts, places, todos, and goals
+	useEffect(() => {
+		const fetchData = async () => {
+			const baseUrl = window.location.origin;
+			try {
+				const [contactsRes, placesRes, todosRes, goalsRes] = await Promise.all([
+					axios.get(`${baseUrl}/api/contacts?limit=1000`),
+					axios.get(`${baseUrl}/api/places?limit=1000`),
+					axios.get(`${baseUrl}/api/todo`),
+					axios.get(`${baseUrl}/api/goal`)
+				]);
+				setAllContacts(contactsRes.data.data || []);
+				setAllPlaces(placesRes.data.data || []);
+				setAllTodos(todosRes.data.data || []);
+				setAllGoals(goalsRes.data.data || []);
+			} catch (error) {
+				console.error("Error fetching data:", error);
+			}
+		};
+		fetchData();
+	}, []);
 
 	// Parse TODO info from comment
 	const parseTodoInfo = (comment: string | null | undefined) => {
@@ -91,11 +135,23 @@ export default function ActivityHistory({
 			tags: log.tags || "",
 			comment: log.comment || "",
 		});
+		// Set selected contacts and places from the log
+		const logContacts = log.logContacts?.map(lc => lc.contact) || [];
+		const logPlaces = log.logPlaces?.map(lp => lp.place) || [];
+		setSelectedContacts(logContacts);
+		setSelectedPlaces(logPlaces);
+		// Set selected todo and goal from the log
+		setSelectedTodo((log as any).todo || null);
+		setSelectedGoal((log as any).goal || null);
 	};
 
 	const handleCancelEdit = () => {
 		setEditingId(null);
 		setEditForm({});
+		setSelectedContacts([]);
+		setSelectedPlaces([]);
+		setSelectedTodo(null);
+		setSelectedGoal(null);
 	};
 
 	const handleSaveEdit = async () => {
@@ -116,9 +172,17 @@ export default function ActivityHistory({
 				start_time: editForm.start_time,
 				end_time: editForm.end_time,
 				tags: editForm.tags,
+				todoId: selectedTodo?.id || null,
+				goalId: selectedGoal?.id || null,
+				contactIds: selectedContacts.map(c => c.id),
+				placeIds: selectedPlaces.map(p => p.id),
 			});
 			setEditingId(null);
 			setEditForm({});
+			setSelectedContacts([]);
+			setSelectedPlaces([]);
+			setSelectedTodo(null);
+			setSelectedGoal(null);
 			refetchAction((prev) => !prev);
 		} catch (error) {
 			console.error("Error updating log:", error);
@@ -637,7 +701,7 @@ export default function ActivityHistory({
 													!isEditing && setHoveredLogId(log.id)
 												}
 												onMouseLeave={() => setHoveredLogId(null)}
-												className={`${!isEditing && "hover:bg-gray-50 dark:hover:bg-gray-900/30"} transition-colors ${isEditing && "bg-blue-50 dark:bg-blue-900/10"}`}
+												className={`group ${!isEditing && "hover:bg-gray-50 dark:hover:bg-gray-900/30"} transition-colors ${isEditing && "bg-blue-50 dark:bg-blue-900/10"}`}
 											>
 												{/* Checkbox */}
 												<td className="px-4 py-4">
@@ -764,35 +828,90 @@ export default function ActivityHistory({
 
 												{/* Tags */}
 												<td className="px-6 py-4 hidden lg:table-cell">
-													{isEditing ? (
-														<TagDropdown
-															value={editForm.tags || ""}
-															onChange={(tags) =>
-																setEditForm({
-																	...editForm,
-																	tags,
-																})
-															}
-															allLogs={data}
-														/>
-													) : (
-														<div className="flex flex-wrap gap-1">
-															{tags.length > 0 ? (
-																tags.map((tag, idx) => (
-																	<span
-																		key={idx}
-																		className="px-2 py-0.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-full"
-																	>
-																		#{tag}
-																	</span>
-																))
-															) : (
-																<span className="text-sm text-gray-400 italic">
-																	-
+													<div className="flex items-start gap-2">
+														<div className="flex-1 flex flex-wrap gap-1">
+															{/* Text Tags */}
+															{tags.map((tag, idx) => (
+																<span
+																	key={`tag-${idx}`}
+																	className="px-2 py-0.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-full"
+																>
+																	#{tag}
+																</span>
+															))}
+
+															{/* Todo Tag */}
+															{(log as any).todo && (
+																<span className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 text-xs rounded-full">
+																	<FaTasks size={10} />
+																	{(log as any).todo.title}
 																</span>
 															)}
+
+															{/* Goal Tag */}
+															{(log as any).goal && (
+																<span className="inline-flex items-center gap-1 px-2 py-0.5 bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400 text-xs rounded-full">
+																	<FaBullseye size={10} />
+																	{(log as any).goal.title}
+																</span>
+															)}
+
+															{/* People Tags */}
+															{log.logContacts?.map((lc) => (
+																<span
+																	key={`contact-${lc.id}`}
+																	className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs rounded-full"
+																>
+																	<FaUsers size={10} />
+																	{lc.contact.name}
+																</span>
+															))}
+
+															{/* Places Tags */}
+															{log.logPlaces?.map((lp) => (
+																<span
+																	key={`place-${lp.id}`}
+																	className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs rounded-full"
+																	title={lp.place.address}
+																>
+																	<FaMapMarkedAlt size={10} />
+																	{lp.place.name}
+																</span>
+															))}
+
+															{/* No tags placeholder */}
+															{tags.length === 0 &&
+															 !log.todo &&
+															 !log.goal &&
+															 (!log.logContacts || log.logContacts.length === 0) &&
+															 (!log.logPlaces || log.logPlaces.length === 0) && (
+																<span className="text-sm text-gray-400 italic">-</span>
+															)}
 														</div>
-													)}
+
+														{/* Edit Button */}
+														{isEditing ? (
+															<motion.button
+																whileHover={{ scale: 1.1 }}
+																whileTap={{ scale: 0.9 }}
+																onClick={() => setShowTagsModal(true)}
+																className="p-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex-shrink-0"
+																title="Edit tags"
+															>
+																<FaEdit size={12} />
+															</motion.button>
+														) : (
+															<motion.button
+																whileHover={{ scale: 1.1 }}
+																whileTap={{ scale: 0.9 }}
+																onClick={() => handleEdit(log)}
+																className="p-1.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-400 rounded-lg transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100"
+																title="Edit log"
+															>
+																<FaEdit size={12} />
+															</motion.button>
+														)}
+													</div>
 												</td>
 
 												{/* Time (Start & End) */}
@@ -926,6 +1045,236 @@ export default function ActivityHistory({
 					</div>
 				)}
 			</div>
+
+			{/* Tags Edit Modal */}
+			<AnimatePresence>
+				{showTagsModal && (
+					<motion.div
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						exit={{ opacity: 0 }}
+						className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+						onClick={() => setShowTagsModal(false)}
+					>
+						<motion.div
+							initial={{ scale: 0.9, opacity: 0 }}
+							animate={{ scale: 1, opacity: 1 }}
+							exit={{ scale: 0.9, opacity: 0 }}
+							onClick={(e) => e.stopPropagation()}
+							className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto"
+						>
+							<div className="flex items-center justify-between mb-6">
+								<h3 className="text-xl font-bold text-gray-900 dark:text-white">
+									Edit Tags
+								</h3>
+								<motion.button
+									whileHover={{ scale: 1.1 }}
+									whileTap={{ scale: 0.9 }}
+									onClick={() => setShowTagsModal(false)}
+									className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+								>
+									<FaTimes size={18} />
+								</motion.button>
+							</div>
+
+							<div className="space-y-4">
+								{/* Todo */}
+								<div>
+									<label className="flex items-center gap-2 mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+										<FaTasks className="text-purple-600 dark:text-purple-400" size={14} />
+										Todo
+									</label>
+									<Autocomplete
+										size="small"
+										options={allTodos}
+										getOptionLabel={(option) => option.title}
+										value={selectedTodo}
+										onChange={(_, newValue) => setSelectedTodo(newValue)}
+										renderOption={(props, option) => (
+											<li {...props} key={option.id}>
+												<div className="flex flex-col py-1">
+													<div className="flex items-center gap-2">
+														<span className="font-medium">{option.title}</span>
+														{option.done && (
+															<span className="px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs rounded">
+																Done
+															</span>
+														)}
+													</div>
+													{option.description && (
+														<span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1">
+															{option.description}
+														</span>
+													)}
+												</div>
+											</li>
+										)}
+										renderInput={(params) => (
+											<TextField
+												{...params}
+												placeholder="Select a todo"
+												size="small"
+											/>
+										)}
+									/>
+								</div>
+
+								{/* Goal */}
+								<div>
+									<label className="flex items-center gap-2 mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+										<FaBullseye className="text-pink-600 dark:text-pink-400" size={14} />
+										Goal
+									</label>
+									<Autocomplete
+										size="small"
+										options={allGoals}
+										getOptionLabel={(option) => option.title}
+										value={selectedGoal}
+										onChange={(_, newValue) => setSelectedGoal(newValue)}
+										renderOption={(props, option) => (
+											<li {...props} key={option.id}>
+												<div className="flex flex-col py-1">
+													<div className="flex items-center gap-2">
+														<span className="font-medium">{option.title}</span>
+														<span className={`px-1.5 py-0.5 text-xs rounded ${
+															option.goalType === 'limiting'
+																? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400'
+																: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+														}`}>
+															{option.goalType === 'limiting' ? 'Limiting' : 'Achievement'}
+														</span>
+													</div>
+													{option.description && (
+														<span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1">
+															{option.description}
+														</span>
+													)}
+												</div>
+											</li>
+										)}
+										renderInput={(params) => (
+											<TextField
+												{...params}
+												placeholder="Select a goal"
+												size="small"
+											/>
+										)}
+									/>
+								</div>
+
+								{/* People */}
+								<div>
+									<label className="flex items-center gap-2 mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+										<FaUsers className="text-blue-600 dark:text-blue-400" size={14} />
+										People
+									</label>
+									<Autocomplete
+										multiple
+										size="small"
+										options={allContacts}
+										getOptionLabel={(option) => option.name}
+										value={selectedContacts}
+										onChange={(_, newValue) => setSelectedContacts(newValue)}
+										renderOption={(props, option) => (
+											<li {...props} key={option.id}>
+												<div className="flex items-center gap-2 py-1">
+													{option.photoUrl ? (
+														<img
+															src={option.photoUrl}
+															alt={option.name}
+															className="w-8 h-8 rounded-full object-cover"
+														/>
+													) : (
+														<div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+															<span className="text-sm font-semibold text-blue-600 dark:text-blue-400">
+																{option.name.charAt(0).toUpperCase()}
+															</span>
+														</div>
+													)}
+													<span className="font-medium">{option.name}</span>
+												</div>
+											</li>
+										)}
+										renderInput={(params) => (
+											<TextField
+												{...params}
+												placeholder="Select people"
+												size="small"
+											/>
+										)}
+										renderTags={(value, getTagProps) =>
+											value.map((option, index) => (
+												<Chip
+													{...getTagProps({ index })}
+													key={option.id}
+													label={option.name}
+													size="small"
+												/>
+											))
+										}
+									/>
+								</div>
+
+								{/* Places */}
+								<div>
+									<label className="flex items-center gap-2 mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+										<FaMapMarkedAlt className="text-green-600 dark:text-green-400" size={14} />
+										Places
+									</label>
+									<Autocomplete
+										multiple
+										size="small"
+										options={allPlaces}
+										getOptionLabel={(option) => option.name}
+										value={selectedPlaces}
+										onChange={(_, newValue) => setSelectedPlaces(newValue)}
+										renderOption={(props, option) => (
+											<li {...props} key={option.id}>
+												<div className="flex flex-col py-1">
+													<span className="font-medium">{option.name}</span>
+													{option.address && (
+														<span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1">
+															{option.address}
+														</span>
+													)}
+												</div>
+											</li>
+										)}
+										renderInput={(params) => (
+											<TextField
+												{...params}
+												placeholder="Select places"
+												size="small"
+											/>
+										)}
+										renderTags={(value, getTagProps) =>
+											value.map((option, index) => (
+												<Chip
+													{...getTagProps({ index })}
+													key={option.id}
+													label={option.name}
+													size="small"
+												/>
+											))
+										}
+									/>
+								</div>
+							</div>
+
+							<div className="flex gap-3 mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+								<motion.button
+									whileHover={{ scale: 1.02 }}
+									whileTap={{ scale: 0.98 }}
+									onClick={() => setShowTagsModal(false)}
+									className="flex-1 px-4 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors"
+								>
+									Done
+								</motion.button>
+							</div>
+						</motion.div>
+					</motion.div>
+				)}
+			</AnimatePresence>
 
 			{/* Delete Confirmation Dialog */}
 			<AnimatePresence>

@@ -12,6 +12,8 @@ import {
 	FaTrash,
 	FaPlay,
 	FaStop,
+	FaUsers,
+	FaMapMarkedAlt,
 } from "react-icons/fa";
 import TodoForm from "./(components)/TodoForm";
 import Snackbar from "../(components)/Snackbar";
@@ -654,11 +656,11 @@ export default function TodoPage() {
 												</motion.button>
 											</div>
 
-											{/* Description and Activity - expands on hover */}
-											{(todo.description || todo.activityTitle) && (
+											{/* Description, Activity, and Tags - expands on hover */}
+											{(todo.description || todo.activityTitle || todo.todoContacts?.length > 0 || todo.todoPlaces?.length > 0) && (
 												<div
 													className={`overflow-hidden transition-all duration-300 ease-in-out ${
-														isHovered ? "max-h-20" : "max-h-0"
+														isHovered ? "max-h-32" : "max-h-0"
 													}`}
 												>
 													<div className="mt-1.5 ml-7 pr-2 space-y-0.5">
@@ -677,6 +679,42 @@ export default function TodoPage() {
 																	</span>
 																)}
 															</p>
+														)}
+
+														{/* People and Places Tags */}
+														{(todo.todoContacts?.length > 0 || todo.todoPlaces?.length > 0) && (
+															<div className="flex flex-wrap gap-2 pt-0.5">
+																{/* People */}
+																{todo.todoContacts && todo.todoContacts.length > 0 && (
+																	<div className="flex items-center gap-1 flex-wrap">
+																		<FaUsers className="text-blue-600 dark:text-blue-400" size={10} />
+																		{todo.todoContacts.map((tc: any) => (
+																			<span
+																				key={tc.id}
+																				className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs rounded-full"
+																			>
+																				{tc.contact.name}
+																			</span>
+																		))}
+																	</div>
+																)}
+
+																{/* Places */}
+																{todo.todoPlaces && todo.todoPlaces.length > 0 && (
+																	<div className="flex items-center gap-1 flex-wrap">
+																		<FaMapMarkedAlt className="text-green-600 dark:text-green-400" size={10} />
+																		{todo.todoPlaces.map((tp: any) => (
+																			<span
+																				key={tp.id}
+																				className="px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs rounded-full"
+																				title={tp.place.address}
+																			>
+																				{tp.place.name}
+																			</span>
+																		))}
+																	</div>
+																)}
+															</div>
 														)}
 													</div>
 												</div>

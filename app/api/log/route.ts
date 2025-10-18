@@ -7,6 +7,44 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     const data = await prisma.log.findMany({
+      include: {
+        todo: {
+          select: {
+            id: true,
+            title: true,
+            done: true
+          }
+        },
+        goal: {
+          select: {
+            id: true,
+            title: true,
+            goalType: true
+          }
+        },
+        logContacts: {
+          include: {
+            contact: {
+              select: {
+                id: true,
+                name: true,
+                photoUrl: true
+              }
+            }
+          }
+        },
+        logPlaces: {
+          include: {
+            place: {
+              select: {
+                id: true,
+                name: true,
+                address: true
+              }
+            }
+          }
+        }
+      },
       orderBy: {
         created_on: 'desc'
       }
@@ -37,7 +75,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const response = await prisma.log.create({
+    const log = await prisma.log.create({
       data: {
         activityTitle: body.activityTitle,
         activityCategory: body.activityCategory,
@@ -47,10 +85,78 @@ export async function POST(request: NextRequest) {
         end_time: body.end_time ? new Date(body.end_time) : null,
         comment: body.comment || null,
         time_spent: body.time_spent || null,
+        todoId: body.todoId ? parseInt(body.todoId) : null,
         goalId: body.goalId ? parseInt(body.goalId) : null,
-        goalCount: body.goalCount ? parseInt(body.goalCount) : null
+        goalCount: body.goalCount ? parseInt(body.goalCount) : null,
+        userId: body.userId || null
       }
     });
+
+    // Link contacts if provided
+    if (body.contactIds && Array.isArray(body.contactIds) && body.contactIds.length > 0) {
+      await prisma.logContact.createMany({
+        data: body.contactIds.map((contactId: number) => ({
+          logId: log.id,
+          contactId
+        })),
+        skipDuplicates: true
+      });
+    }
+
+    // Link places if provided
+    if (body.placeIds && Array.isArray(body.placeIds) && body.placeIds.length > 0) {
+      await prisma.logPlace.createMany({
+        data: body.placeIds.map((placeId: number) => ({
+          logId: log.id,
+          placeId
+        })),
+        skipDuplicates: true
+      });
+    }
+
+    // Fetch the complete log with relationships
+    const response = await prisma.log.findUnique({
+      where: { id: log.id },
+      include: {
+        todo: {
+          select: {
+            id: true,
+            title: true,
+            done: true
+          }
+        },
+        goal: {
+          select: {
+            id: true,
+            title: true,
+            goalType: true
+          }
+        },
+        logContacts: {
+          include: {
+            contact: {
+              select: {
+                id: true,
+                name: true,
+                photoUrl: true
+              }
+            }
+          }
+        },
+        logPlaces: {
+          include: {
+            place: {
+              select: {
+                id: true,
+                name: true,
+                address: true
+              }
+            }
+          }
+        }
+      }
+    });
+
     console.log("Created log:", response);
     return NextResponse.json(response, { status: 201 });
   } catch (error: unknown) {
@@ -87,6 +193,7 @@ export async function PUT(request: NextRequest) {
       activityIcon?: string;
       activityColor?: string | null;
       start_time?: Date;
+      todoId?: number | null;
       goalId?: number | null;
       goalCount?: number | null;
     } = {};
@@ -99,13 +206,96 @@ export async function PUT(request: NextRequest) {
     if (body.activityIcon !== undefined) updateData.activityIcon = body.activityIcon;
     if (body.activityColor !== undefined) updateData.activityColor = body.activityColor;
     if (body.start_time !== undefined) updateData.start_time = new Date(body.start_time);
+    if (body.todoId !== undefined) updateData.todoId = body.todoId ? parseInt(body.todoId) : null;
     if (body.goalId !== undefined) updateData.goalId = body.goalId ? parseInt(body.goalId) : null;
     if (body.goalCount !== undefined) updateData.goalCount = body.goalCount ? parseInt(body.goalCount) : null;
 
-    const response = await prisma.log.update({
+    await prisma.log.update({
       where: { id: parseInt(id) },
       data: updateData,
     });
+
+    // Update contacts if provided
+    if (body.contactIds !== undefined && Array.isArray(body.contactIds)) {
+      // Remove all existing contacts
+      await prisma.logContact.deleteMany({
+        where: { logId: parseInt(id) }
+      });
+
+      // Add new contacts
+      if (body.contactIds.length > 0) {
+        await prisma.logContact.createMany({
+          data: body.contactIds.map((contactId: number) => ({
+            logId: parseInt(id),
+            contactId
+          })),
+          skipDuplicates: true
+        });
+      }
+    }
+
+    // Update places if provided
+    if (body.placeIds !== undefined && Array.isArray(body.placeIds)) {
+      // Remove all existing places
+      await prisma.logPlace.deleteMany({
+        where: { logId: parseInt(id) }
+      });
+
+      // Add new places
+      if (body.placeIds.length > 0) {
+        await prisma.logPlace.createMany({
+          data: body.placeIds.map((placeId: number) => ({
+            logId: parseInt(id),
+            placeId
+          })),
+          skipDuplicates: true
+        });
+      }
+    }
+
+    // Fetch the updated log with relationships
+    const response = await prisma.log.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        todo: {
+          select: {
+            id: true,
+            title: true,
+            done: true
+          }
+        },
+        goal: {
+          select: {
+            id: true,
+            title: true,
+            goalType: true
+          }
+        },
+        logContacts: {
+          include: {
+            contact: {
+              select: {
+                id: true,
+                name: true,
+                photoUrl: true
+              }
+            }
+          }
+        },
+        logPlaces: {
+          include: {
+            place: {
+              select: {
+                id: true,
+                name: true,
+                address: true
+              }
+            }
+          }
+        }
+      }
+    });
+
     console.log("Updated log:", response);
     return NextResponse.json(response, { status: 200 });
   } catch (error: unknown) {

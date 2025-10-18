@@ -7,6 +7,30 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     const data = await prisma.goal.findMany({
+      include: {
+        goalContacts: {
+          include: {
+            contact: {
+              select: {
+                id: true,
+                name: true,
+                photoUrl: true
+              }
+            }
+          }
+        },
+        goalPlaces: {
+          include: {
+            place: {
+              select: {
+                id: true,
+                name: true,
+                address: true
+              }
+            }
+          }
+        }
+      },
       orderBy: {
         created_on: 'desc'
       }
@@ -107,7 +131,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const response = await prisma.goal.create({
+    const goal = await prisma.goal.create({
       data: {
         title: body.title,
         description: body.description || null,
@@ -129,6 +153,58 @@ export async function POST(request: NextRequest) {
         parentGoalId: body.parentGoalId || null
       } as any
     });
+
+    // Link contacts if provided
+    if (body.contactIds && Array.isArray(body.contactIds) && body.contactIds.length > 0) {
+      await prisma.goalContact.createMany({
+        data: body.contactIds.map((contactId: number) => ({
+          goalId: goal.id,
+          contactId
+        })),
+        skipDuplicates: true
+      });
+    }
+
+    // Link places if provided
+    if (body.placeIds && Array.isArray(body.placeIds) && body.placeIds.length > 0) {
+      await prisma.goalPlace.createMany({
+        data: body.placeIds.map((placeId: number) => ({
+          goalId: goal.id,
+          placeId
+        })),
+        skipDuplicates: true
+      });
+    }
+
+    // Fetch the complete goal with relationships
+    const response = await prisma.goal.findUnique({
+      where: { id: goal.id },
+      include: {
+        goalContacts: {
+          include: {
+            contact: {
+              select: {
+                id: true,
+                name: true,
+                photoUrl: true
+              }
+            }
+          }
+        },
+        goalPlaces: {
+          include: {
+            place: {
+              select: {
+                id: true,
+                name: true,
+                address: true
+              }
+            }
+          }
+        }
+      }
+    });
+
     return NextResponse.json(response, { status: 201 });
   } catch (error) {
     console.error("POST /api/goal error:", error);
@@ -154,9 +230,13 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const { id, ...updateData } = body;
+    const { id, contactIds, placeIds, ...updateData } = body;
 
     const data: any = { ...updateData };
+    // Remove contactIds and placeIds from updateData if they exist
+    delete data.contactIds;
+    delete data.placeIds;
+
     if (updateData.targetValue !== undefined) {
       data.targetValue = parseFloat(updateData.targetValue);
     }
@@ -174,9 +254,76 @@ export async function PUT(request: NextRequest) {
 
     console.log("PUT /api/goal - Data to update:", JSON.stringify(data, null, 2));
 
-    const response = await prisma.goal.update({
+    await prisma.goal.update({
       where: { id: parseInt(id) },
       data: data as any
+    });
+
+    // Update contacts if provided
+    if (contactIds !== undefined && Array.isArray(contactIds)) {
+      // Remove all existing contacts
+      await prisma.goalContact.deleteMany({
+        where: { goalId: parseInt(id) }
+      });
+
+      // Add new contacts
+      if (contactIds.length > 0) {
+        await prisma.goalContact.createMany({
+          data: contactIds.map((contactId: number) => ({
+            goalId: parseInt(id),
+            contactId
+          })),
+          skipDuplicates: true
+        });
+      }
+    }
+
+    // Update places if provided
+    if (placeIds !== undefined && Array.isArray(placeIds)) {
+      // Remove all existing places
+      await prisma.goalPlace.deleteMany({
+        where: { goalId: parseInt(id) }
+      });
+
+      // Add new places
+      if (placeIds.length > 0) {
+        await prisma.goalPlace.createMany({
+          data: placeIds.map((placeId: number) => ({
+            goalId: parseInt(id),
+            placeId
+          })),
+          skipDuplicates: true
+        });
+      }
+    }
+
+    // Fetch the updated goal with relationships
+    const response = await prisma.goal.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        goalContacts: {
+          include: {
+            contact: {
+              select: {
+                id: true,
+                name: true,
+                photoUrl: true
+              }
+            }
+          }
+        },
+        goalPlaces: {
+          include: {
+            place: {
+              select: {
+                id: true,
+                name: true,
+                address: true
+              }
+            }
+          }
+        }
+      }
     });
 
     console.log("PUT /api/goal - Update successful");
