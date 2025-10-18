@@ -18,7 +18,7 @@ model Activity {
 }
 
 model Log {
-    id               Int       @id @default(autoincrement())
+    id               Int          @id @default(autoincrement())
     comment          String?
     activityTitle    String
     activityCategory String
@@ -26,48 +26,62 @@ model Log {
     activityColor    String?
     start_time       DateTime?
     end_time         DateTime?
-    created_on       DateTime  @default(now())
+    created_on       DateTime     @default(now())
     time_spent       Int?
-    tags             String?
-    goalId           Int?
-    goalCount        Int?      // For count-based goals (e.g., pages read)
+    tags             String?      // Legacy text tags field
+    todoId           Int?         // Todo tagged in this log
+    todo             Todo?        @relation(fields: [todoId], references: [id], onDelete: SetNull)
+    goalId           Int?         // Goal tagged in this log
+    goal             Goal?        @relation(fields: [goalId], references: [id], onDelete: SetNull)
+    goalCount        Int?         // For count-based goals (e.g., pages read)
+    userId           String?
+    logContacts      LogContact[] // People tagged in this log
+    logPlaces        LogPlace[]   // Places tagged in this log
 }
 
 model Todo {
-    id               Int      @id @default(autoincrement())
+    id               Int           @id @default(autoincrement())
     title            String
     description      String?
     activityTitle    String?
     activityCategory String?
     deadline         String?
     work_date        String?
-    done             Boolean  @default(false)
-    importance       Int      @default(1)
-    urgency          Int      @default(1)
-    created_on       DateTime @default(now())
+    done             Boolean       @default(false)
+    importance       Int           @default(1)
+    urgency          Int           @default(1)
+    created_on       DateTime      @default(now())
+    userId           String?
+    todoContacts     TodoContact[] // People tagged in this todo
+    todoPlaces       TodoPlace[]   // Places tagged in this todo
+    logs             Log[]         // Logs that reference this todo
 }
 
 model Goal {
-    id                 Int      @id @default(autoincrement())
+    id                 Int           @id @default(autoincrement())
     title              String
     description        String?
-    goalType           String   // "limiting" or "achievement"
-    metricType         String   // "time" or "count"
-    targetValue        Float    // Target hours or count
-    currentValue       Float    @default(0)
-    periodType         String   // "week", "month", "3months", "6months", "year", "custom"
+    goalType           String        // "limiting" or "achievement"
+    metricType         String        // "time" or "count"
+    targetValue        Float         // Target hours or count
+    currentValue       Float         @default(0)
+    periodType         String        // "week", "month", "3months", "6months", "year", "custom"
     startDate          DateTime
     endDate            DateTime
-    activityTitle      String?  // Optional: link to specific activity
+    activityTitle      String?       // Optional: link to specific activity
     activityCategory   String?
     color              String?
     icon               String?
-    created_on         DateTime @default(now())
-    isActive           Boolean  @default(true)
-    isRecurring        Boolean  @default(false)
-    recurrencePattern  String?  // "daily", "weekly", "work-weekly", "custom-weekly", "monthly", "custom-monthly", "quarterly", "yearly"
-    recurrenceConfig   String?  // JSON string for custom config: {"daysOfWeek": [1,3,5]} or {"dayOfMonth": 15}
-    parentGoalId       Int?     // Link to parent goal if this is a recurring instance
+    created_on         DateTime      @default(now())
+    isActive           Boolean       @default(true)
+    isRecurring        Boolean       @default(false)
+    recurrencePattern  String?       // "daily", "weekly", "work-weekly", "custom-weekly", "monthly", "custom-monthly", "quarterly", "yearly"
+    recurrenceConfig   String?       // JSON string for custom config: {"daysOfWeek": [1,3,5]} or {"dayOfMonth": 15}
+    parentGoalId       Int?          // Link to parent goal if this is a recurring instance
+    userId             String?
+    goalContacts       GoalContact[] // People tagged in this goal
+    goalPlaces         GoalPlace[]   // Places tagged in this goal
+    logs               Log[]         // Logs that reference this goal
 }
 
 model User {
@@ -127,14 +141,15 @@ model UserPreferences {
     enableTodo  Boolean  @default(false)  // Enable Todo feature
     enableGoals Boolean  @default(false)  // Enable Goals feature
     enablePeople Boolean @default(false) // Enable People/Contacts feature
+    enablePlaces Boolean @default(false) // Enable Places feature
     createdAt   DateTime @default(now())
     updatedAt   DateTime @updatedAt
 }
 
 model Contact {
-    id                   Int       @id @default(autoincrement())
+    id                   Int            @id @default(autoincrement())
     userId               String
-    googleId             String?   // Google contact resource name
+    googleId             String?        // Google contact resource name
     name                 String
     email                String?
     phoneNumber          String?
@@ -142,12 +157,16 @@ model Contact {
     organization         String?
     jobTitle             String?
     notes                String?
-    address              String?   // Full address
-    birthday             DateTime? // Birthday
-    weddingAnniversary   DateTime? // Wedding anniversary
-    lastSynced           DateTime  @default(now())
-    createdAt            DateTime  @default(now())
-    updatedAt            DateTime  @updatedAt
+    address              String?        // Full address
+    birthday             DateTime?      // Birthday
+    weddingAnniversary   DateTime?      // Wedding anniversary
+    lastSynced           DateTime       @default(now())
+    createdAt            DateTime       @default(now())
+    updatedAt            DateTime       @updatedAt
+    placeContacts        PlaceContact[] // Places associated with this contact
+    logContacts          LogContact[]   // Logs where this contact is tagged
+    todoContacts         TodoContact[]  // Todos where this contact is tagged
+    goalContacts         GoalContact[]  // Goals where this contact is tagged
 
     @@unique([userId, googleId])
     @@index([userId])
@@ -162,4 +181,116 @@ model IgnoredContact {
 
     @@unique([userId, googleId])
     @@index([userId])
+}
+
+model Place {
+    id            Int            @id @default(autoincrement())
+    userId        String
+    name          String         // e.g., "Home", "John's house", "John and Sarah's house"
+    address       String         // Full address string
+    latitude      Float?         // Optional: for precise map links
+    longitude     Float?         // Optional: for precise map links
+    description   String?        // Optional notes about the place
+    category      String?        // e.g., "home", "work", "visited", "other"
+    createdAt     DateTime       @default(now())
+    updatedAt     DateTime       @updatedAt
+    placeContacts PlaceContact[] // Contacts associated with this place
+    logPlaces     LogPlace[]     // Logs where this place is tagged
+    todoPlaces    TodoPlace[]    // Todos where this place is tagged
+    goalPlaces    GoalPlace[]    // Goals where this place is tagged
+
+    @@index([userId])
+}
+
+model PlaceContact {
+    id        Int      @id @default(autoincrement())
+    placeId   Int
+    contactId Int
+    place     Place    @relation(fields: [placeId], references: [id], onDelete: Cascade)
+    contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+    createdAt DateTime @default(now())
+
+    @@unique([placeId, contactId])
+    @@index([placeId])
+    @@index([contactId])
+}
+
+// Junction tables for tagging people and places in logs, todos, and goals
+
+model LogContact {
+    id        Int      @id @default(autoincrement())
+    logId     Int
+    contactId Int
+    log       Log      @relation(fields: [logId], references: [id], onDelete: Cascade)
+    contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+    createdAt DateTime @default(now())
+
+    @@unique([logId, contactId])
+    @@index([logId])
+    @@index([contactId])
+}
+
+model LogPlace {
+    id        Int      @id @default(autoincrement())
+    logId     Int
+    placeId   Int
+    log       Log      @relation(fields: [logId], references: [id], onDelete: Cascade)
+    place     Place    @relation(fields: [placeId], references: [id], onDelete: Cascade)
+    createdAt DateTime @default(now())
+
+    @@unique([logId, placeId])
+    @@index([logId])
+    @@index([placeId])
+}
+
+model TodoContact {
+    id        Int      @id @default(autoincrement())
+    todoId    Int
+    contactId Int
+    todo      Todo     @relation(fields: [todoId], references: [id], onDelete: Cascade)
+    contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+    createdAt DateTime @default(now())
+
+    @@unique([todoId, contactId])
+    @@index([todoId])
+    @@index([contactId])
+}
+
+model TodoPlace {
+    id        Int      @id @default(autoincrement())
+    todoId    Int
+    placeId   Int
+    todo      Todo     @relation(fields: [todoId], references: [id], onDelete: Cascade)
+    place     Place    @relation(fields: [placeId], references: [id], onDelete: Cascade)
+    createdAt DateTime @default(now())
+
+    @@unique([todoId, placeId])
+    @@index([todoId])
+    @@index([placeId])
+}
+
+model GoalContact {
+    id        Int      @id @default(autoincrement())
+    goalId    Int
+    contactId Int
+    goal      Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+    contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+    createdAt DateTime @default(now())
+
+    @@unique([goalId, contactId])
+    @@index([goalId])
+    @@index([contactId])
+}
+
+model GoalPlace {
+    id        Int      @id @default(autoincrement())
+    goalId    Int
+    placeId   Int
+    goal      Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+    place     Place    @relation(fields: [placeId], references: [id], onDelete: Cascade)
+    createdAt DateTime @default(now())
+
+    @@unique([goalId, placeId])
+    @@index([goalId])
+    @@index([placeId])
 }

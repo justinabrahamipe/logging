@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { FaClock, FaCalendar, FaCheck, FaMoon, FaSun, FaDesktop, FaTasks, FaFlag, FaUsers, FaPuzzlePiece } from "react-icons/fa";
+import { FaClock, FaCalendar, FaCheck, FaMoon, FaSun, FaDesktop, FaTasks, FaFlag, FaUsers, FaPuzzlePiece, FaMapMarkedAlt } from "react-icons/fa";
 import { Card } from "flowbite-react";
 import { useSession } from "next-auth/react";
 import { useTheme } from "@/components/ThemeProvider";
@@ -20,6 +20,7 @@ export default function PreferencesPage() {
   const [enableTodo, setEnableTodo] = useState(false);
   const [enableGoals, setEnableGoals] = useState(false);
   const [enablePeople, setEnablePeople] = useState(false);
+  const [enablePlaces, setEnablePlaces] = useState(false);
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -48,6 +49,7 @@ export default function PreferencesPage() {
         setEnableTodo(data.enableTodo || false);
         setEnableGoals(data.enableGoals || false);
         setEnablePeople(data.enablePeople || false);
+        setEnablePlaces(data.enablePlaces || false);
       }
     } catch (error) {
       console.error("Error fetching preferences:", error);
@@ -84,6 +86,7 @@ export default function PreferencesPage() {
             enableTodo,
             enableGoals,
             enablePeople,
+            enablePlaces,
           }),
         });
 
@@ -316,6 +319,32 @@ export default function PreferencesPage() {
                     </div>
                   </div>
                   {enablePeople && <FaCheck className="text-green-500" />}
+                </div>
+              </motion.div>
+
+              {/* Places Feature */}
+              <motion.div
+                whileHover={{ scale: 1.01 }}
+                onClick={() => setEnablePlaces(!enablePlaces)}
+                className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                  enablePlaces
+                    ? "border-green-500 bg-green-50 dark:bg-green-900/20"
+                    : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <FaMapMarkedAlt className={`text-xl ${enablePlaces ? "text-green-600 dark:text-green-400" : "text-gray-400"}`} />
+                    <div>
+                      <div className="font-semibold text-gray-900 dark:text-white">
+                        Places
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        Track and manage places you visit
+                      </div>
+                    </div>
+                  </div>
+                  {enablePlaces && <FaCheck className="text-green-500" />}
                 </div>
               </motion.div>
             </div>

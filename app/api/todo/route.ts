@@ -7,6 +7,30 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     const data = await prisma.todo.findMany({
+      include: {
+        todoContacts: {
+          include: {
+            contact: {
+              select: {
+                id: true,
+                name: true,
+                photoUrl: true
+              }
+            }
+          }
+        },
+        todoPlaces: {
+          include: {
+            place: {
+              select: {
+                id: true,
+                name: true,
+                address: true
+              }
+            }
+          }
+        }
+      },
       orderBy: [
         { done: 'asc' },        // Show incomplete todos first
         { created_on: 'desc' }  // Then sort by newest
@@ -54,8 +78,59 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("Creating todo in database...");
-    const response = await prisma.todo.create({ data: todoData });
-    console.log("Todo created successfully:", response);
+    const todo = await prisma.todo.create({ data: todoData });
+    console.log("Todo created successfully:", todo);
+
+    // Link contacts if provided
+    if (body.contactIds && Array.isArray(body.contactIds) && body.contactIds.length > 0) {
+      await prisma.todoContact.createMany({
+        data: body.contactIds.map((contactId: number) => ({
+          todoId: todo.id,
+          contactId
+        })),
+        skipDuplicates: true
+      });
+    }
+
+    // Link places if provided
+    if (body.placeIds && Array.isArray(body.placeIds) && body.placeIds.length > 0) {
+      await prisma.todoPlace.createMany({
+        data: body.placeIds.map((placeId: number) => ({
+          todoId: todo.id,
+          placeId
+        })),
+        skipDuplicates: true
+      });
+    }
+
+    // Fetch the complete todo with relationships
+    const response = await prisma.todo.findUnique({
+      where: { id: todo.id },
+      include: {
+        todoContacts: {
+          include: {
+            contact: {
+              select: {
+                id: true,
+                name: true,
+                photoUrl: true
+              }
+            }
+          }
+        },
+        todoPlaces: {
+          include: {
+            place: {
+              select: {
+                id: true,
+                name: true,
+                address: true
+              }
+            }
+          }
+        }
+      }
+    });
 
     return NextResponse.json(response, { status: 201 });
   } catch (error: unknown) {
@@ -87,11 +162,80 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const { id, ...updateData } = body;
-    const response = await prisma.todo.update({
+    const { id, contactIds, placeIds, ...updateData } = body;
+
+    await prisma.todo.update({
       where: { id: Number(id) },
       data: updateData,
     });
+
+    // Update contacts if provided
+    if (contactIds !== undefined && Array.isArray(contactIds)) {
+      // Remove all existing contacts
+      await prisma.todoContact.deleteMany({
+        where: { todoId: Number(id) }
+      });
+
+      // Add new contacts
+      if (contactIds.length > 0) {
+        await prisma.todoContact.createMany({
+          data: contactIds.map((contactId: number) => ({
+            todoId: Number(id),
+            contactId
+          })),
+          skipDuplicates: true
+        });
+      }
+    }
+
+    // Update places if provided
+    if (placeIds !== undefined && Array.isArray(placeIds)) {
+      // Remove all existing places
+      await prisma.todoPlace.deleteMany({
+        where: { todoId: Number(id) }
+      });
+
+      // Add new places
+      if (placeIds.length > 0) {
+        await prisma.todoPlace.createMany({
+          data: placeIds.map((placeId: number) => ({
+            todoId: Number(id),
+            placeId
+          })),
+          skipDuplicates: true
+        });
+      }
+    }
+
+    // Fetch the updated todo with relationships
+    const response = await prisma.todo.findUnique({
+      where: { id: Number(id) },
+      include: {
+        todoContacts: {
+          include: {
+            contact: {
+              select: {
+                id: true,
+                name: true,
+                photoUrl: true
+              }
+            }
+          }
+        },
+        todoPlaces: {
+          include: {
+            place: {
+              select: {
+                id: true,
+                name: true,
+                address: true
+              }
+            }
+          }
+        }
+      }
+    });
+
     return NextResponse.json(response);
   } catch (error: unknown) {
     console.error("PUT error:", error);

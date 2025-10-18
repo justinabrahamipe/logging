@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaBullseye, FaClipboardList, FaTasks, FaFlag, FaBars, FaTimes, FaSignOutAlt, FaCog, FaUser, FaUsers } from "react-icons/fa";
+import { FaBullseye, FaClipboardList, FaTasks, FaFlag, FaBars, FaTimes, FaSignOutAlt, FaCog, FaUser, FaUsers, FaMapMarkedAlt } from "react-icons/fa";
 import { useState, useEffect, useRef } from "react";
 import { useSession, signOut } from "next-auth/react";
 
@@ -14,6 +14,7 @@ export default function Header() {
     todo: false,
     goals: false,
     people: false,
+    places: false,
   });
   const pathname = usePathname();
   const { data: session, status } = useSession();
@@ -31,6 +32,7 @@ export default function Header() {
               todo: data.enableTodo || false,
               goals: data.enableGoals || false,
               people: data.enablePeople || false,
+              places: data.enablePlaces || false,
             });
           }
         } catch (error) {
@@ -62,6 +64,7 @@ export default function Header() {
     { href: "/todo", label: "Todo", icon: FaTasks, enabled: enabledFeatures.todo },
     { href: "/goals", label: "Goals", icon: FaFlag, enabled: enabledFeatures.goals },
     { href: "/people", label: "People", icon: FaUsers, enabled: enabledFeatures.people },
+    { href: "/places", label: "Places", icon: FaMapMarkedAlt, enabled: enabledFeatures.places },
   ];
 
   // Filter to show only enabled features

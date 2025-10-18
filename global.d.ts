@@ -21,8 +21,35 @@ declare global {
     created_on?: Date | string | null;
     time_spent?: number | null;
     tags?: string | null;
+    todoId?: number | null;
     goalId?: number | null;
     goalCount?: number | null;
+    logContacts?: {
+      id: number;
+      contact: {
+        id: number;
+        name: string;
+        photoUrl?: string;
+      };
+    }[];
+    logPlaces?: {
+      id: number;
+      place: {
+        id: number;
+        name: string;
+        address: string;
+      };
+    }[];
+    todo?: {
+      id: number;
+      title: string;
+      done: boolean;
+    } | null;
+    goal?: {
+      id: number;
+      title: string;
+      goalType: string;
+    } | null;
   };
 
   type TodoType = {

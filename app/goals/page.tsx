@@ -2,7 +2,7 @@
 import axios from "axios";
 import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaPlus, FaEdit, FaTrash, FaBullseye, FaChartLine, FaCalendarAlt, FaClock, FaCheckCircle, FaTimes, FaTh, FaList, FaSort, FaSortUp, FaSortDown, FaRedoAlt, FaPlay, FaStop } from "react-icons/fa";
+import { FaPlus, FaEdit, FaTrash, FaBullseye, FaChartLine, FaCalendarAlt, FaClock, FaCheckCircle, FaTimes, FaTh, FaList, FaSort, FaSortUp, FaSortDown, FaRedoAlt, FaPlay, FaStop, FaUsers, FaMapMarkedAlt } from "react-icons/fa";
 import Snackbar from "../(components)/Snackbar";
 import DeleteDialog from "../(components)/DeleteDialog";
 import GoalForm from "./(components)/GoalForm";
@@ -737,6 +737,34 @@ export default function GoalsPage() {
                         </>
                       )}
                     </div>
+
+                    {/* People and Places Tags */}
+                    {(goal.goalContacts?.length > 0 || goal.goalPlaces?.length > 0) && (
+                      <div className="flex flex-wrap gap-1 mb-0.5">
+                        {/* People */}
+                        {goal.goalContacts && goal.goalContacts.length > 0 && (
+                          <div className="flex items-center gap-1 flex-wrap">
+                            <FaUsers className="text-blue-600 dark:text-blue-400" size={8} />
+                            {goal.goalContacts.map((gc: any) => (
+                              <span key={gc.id} className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-[9px] rounded-full">
+                                {gc.contact.name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {/* Places */}
+                        {goal.goalPlaces && goal.goalPlaces.length > 0 && (
+                          <div className="flex items-center gap-1 flex-wrap">
+                            <FaMapMarkedAlt className="text-green-600 dark:text-green-400" size={8} />
+                            {goal.goalPlaces.map((gp: any) => (
+                              <span key={gp.id} className="px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[9px] rounded-full" title={gp.place.address}>
+                                {gp.place.name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Progress Bar */}
                     <div className="mb-0.5">

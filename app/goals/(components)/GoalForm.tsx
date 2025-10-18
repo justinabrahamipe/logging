@@ -1,8 +1,22 @@
 "use client";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { FaSave, FaTimes, FaClock, FaHashtag, FaCalendarAlt } from "react-icons/fa";
+import { FaSave, FaTimes, FaClock, FaHashtag, FaCalendarAlt, FaUsers, FaMapMarkedAlt } from "react-icons/fa";
 import * as HiIcons from "react-icons/hi";
+import { Autocomplete, TextField, Chip } from "@mui/material";
+import axios from "axios";
+
+interface Contact {
+  id: number;
+  name: string;
+  photoUrl?: string;
+}
+
+interface Place {
+  id: number;
+  name: string;
+  address: string;
+}
 
 interface GoalFormProps {
   initialData?: GoalType;
@@ -22,6 +36,10 @@ export default function GoalForm({ initialData, onSaveAction, onCancelAction, ac
 
   const [openIconTray, setOpenIconTray] = useState(false);
   const [searchText, setSearchText] = useState("");
+  const [allContacts, setAllContacts] = useState<Contact[]>([]);
+  const [allPlaces, setAllPlaces] = useState<Place[]>([]);
+  const [selectedContacts, setSelectedContacts] = useState<Contact[]>([]);
+  const [selectedPlaces, setSelectedPlaces] = useState<Place[]>([]);
 
   const [formData, setFormData] = useState<GoalType>({
     title: initialData?.title || "",
@@ -65,6 +83,36 @@ export default function GoalForm({ initialData, onSaveAction, onCancelAction, ac
     }
     return 1;
   });
+
+  // Fetch contacts and places
+  useEffect(() => {
+    const fetchData = async () => {
+      const baseUrl = window.location.origin;
+      try {
+        const [contactsRes, placesRes] = await Promise.all([
+          axios.get(`${baseUrl}/api/contacts?limit=1000`),
+          axios.get(`${baseUrl}/api/places?limit=1000`)
+        ]);
+        setAllContacts(contactsRes.data.data || []);
+        setAllPlaces(placesRes.data.data || []);
+      } catch (error) {
+        console.error("Error fetching contacts/places:", error);
+      }
+    };
+    fetchData();
+  }, []);
+
+  // Initialize selected contacts/places from initialData
+  useEffect(() => {
+    if (initialData?.goalContacts && Array.isArray(initialData.goalContacts)) {
+      const contacts = initialData.goalContacts.map((gc: any) => gc.contact);
+      setSelectedContacts(contacts);
+    }
+    if (initialData?.goalPlaces && Array.isArray(initialData.goalPlaces)) {
+      const places = initialData.goalPlaces.map((gp: any) => gp.place);
+      setSelectedPlaces(places);
+    }
+  }, [initialData]);
 
   // Calculate end date based on period type
   useEffect(() => {
@@ -128,6 +176,8 @@ export default function GoalForm({ initialData, onSaveAction, onCancelAction, ac
       ...formData,
       targetValue: Number(formData.targetValue),
       recurrenceConfig,
+      contactIds: selectedContacts.map(c => c.id),
+      placeIds: selectedPlaces.map(p => p.id),
     });
   };
 
@@ -430,6 +480,78 @@ export default function GoalForm({ initialData, onSaveAction, onCancelAction, ac
             )}
           </div>
         )}
+
+        {/* People Selection */}
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <FaUsers className="text-blue-600 dark:text-blue-400" size={12} />
+            <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+              Tag People
+            </label>
+          </div>
+          <Autocomplete
+            multiple
+            size="small"
+            options={allContacts}
+            getOptionLabel={(option) => option.name}
+            value={selectedContacts}
+            onChange={(_, newValue) => setSelectedContacts(newValue)}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                placeholder="Select people"
+                size="small"
+                className="text-sm"
+              />
+            )}
+            renderTags={(value, getTagProps) =>
+              value.map((option, index) => (
+                <Chip
+                  {...getTagProps({ index })}
+                  key={option.id}
+                  label={option.name}
+                  size="small"
+                />
+              ))
+            }
+          />
+        </div>
+
+        {/* Places Selection */}
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <FaMapMarkedAlt className="text-green-600 dark:text-green-400" size={12} />
+            <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+              Tag Places
+            </label>
+          </div>
+          <Autocomplete
+            multiple
+            size="small"
+            options={allPlaces}
+            getOptionLabel={(option) => option.name}
+            value={selectedPlaces}
+            onChange={(_, newValue) => setSelectedPlaces(newValue)}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                placeholder="Select places"
+                size="small"
+                className="text-sm"
+              />
+            )}
+            renderTags={(value, getTagProps) =>
+              value.map((option, index) => (
+                <Chip
+                  {...getTagProps({ index })}
+                  key={option.id}
+                  label={option.name}
+                  size="small"
+                />
+              ))
+            }
+          />
+        </div>
 
         {/* Color */}
         <div>
