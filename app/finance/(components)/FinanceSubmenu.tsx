@@ -35,8 +35,8 @@ export default function FinanceSubmenu() {
       </div>
 
       {/* Submenu Navigation - Horizontal scroll on mobile */}
-      <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
-        <div className="flex gap-2 min-w-max md:min-w-0 md:flex-wrap pb-2 md:pb-0">
+      <div className="overflow-x-auto overflow-y-hidden -mx-4 px-4 md:mx-0 md:px-0">
+        <div className="flex gap-2 min-w-max md:min-w-0 md:flex-wrap">
           {financeMenuItems.map((item) => {
             const isActive = pathname === item.href || pathname?.startsWith(item.href + "/");
             return (
