@@ -2,14 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { FaClock, FaCalendar, FaCheck, FaMoon, FaSun, FaDesktop, FaTasks, FaFlag, FaUsers, FaPuzzlePiece, FaMapMarkedAlt, FaDollarSign, FaCog, FaSliders } from "react-icons/fa";
+import { FaClock, FaCalendar, FaCheck, FaMoon, FaSun, FaDesktop, FaTasks, FaFlag, FaUsers, FaCubes, FaMapMarkedAlt, FaDollarSign, FaCog, FaSlidersH, FaDatabase, FaTrash, FaDownload, FaExclamationTriangle, FaBullseye, FaClipboardList, FaBook } from "react-icons/fa";
 import { useSession } from "next-auth/react";
 import { useTheme } from "@/components/ThemeProvider";
+import { Snackbar, Alert as MuiAlert } from "@mui/material";
 
 type TimeFormat = "12h" | "24h";
 type DateFormat = "DD/MM/YYYY" | "MM/DD/YYYY" | "YYYY-MM-DD" | "DD-MM-YYYY" | "MM-DD-YYYY";
 type Theme = "light" | "dark" | "system";
-type SettingsTab = "preferences";
+type SettingsTab = "preferences" | "data";
 
 export default function SettingsPage() {
   const { data: session } = useSession();
@@ -24,7 +25,19 @@ export default function SettingsPage() {
   const [enablePlaces, setEnablePlaces] = useState(false);
   const [enableFinance, setEnableFinance] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: "success" | "error" | "warning" | "info";
+  }>({
+    open: false,
+    message: "",
+    severity: "info",
+  });
 
   // Sync local theme with global theme
   useEffect(() => {
@@ -41,6 +54,24 @@ export default function SettingsPage() {
   }, [session]);
 
   const fetchPreferences = async () => {
+    // Try to load from sessionStorage first for instant render
+    const cached = sessionStorage.getItem('userSettings');
+    if (cached) {
+      try {
+        const data = JSON.parse(cached);
+        setLocalTheme(data.theme || "light");
+        setTimeFormat(data.timeFormat || "12h");
+        setDateFormat(data.dateFormat || "DD/MM/YYYY");
+        setEnableTodo(data.enableTodo || false);
+        setEnableGoals(data.enableGoals || false);
+        setEnablePeople(data.enablePeople || false);
+        setEnablePlaces(data.enablePlaces || false);
+        setEnableFinance(data.enableFinance || false);
+      } catch (e) {
+        // Ignore parse errors
+      }
+    }
+
     try {
       const response = await fetch("/api/settings");
       if (response.ok) {
@@ -53,6 +84,8 @@ export default function SettingsPage() {
         setEnablePeople(data.enablePeople || false);
         setEnablePlaces(data.enablePlaces || false);
         setEnableFinance(data.enableFinance || false);
+        // Cache for next time
+        sessionStorage.setItem('userSettings', JSON.stringify(data));
       }
     } catch (error) {
       console.error("Error fetching settings:", error);
@@ -97,10 +130,40 @@ export default function SettingsPage() {
         if (response.ok) {
           setGlobalTheme(localTheme);
           setSaved(true);
+
+          // Update caches
+          const settingsData = {
+            theme: localTheme,
+            timeFormat,
+            dateFormat,
+            enableTodo,
+            enableGoals,
+            enablePeople,
+            enablePlaces,
+            enableFinance,
+          };
+          sessionStorage.setItem('userSettings', JSON.stringify(settingsData));
+          sessionStorage.setItem('enabledFeatures', JSON.stringify({
+            todo: enableTodo,
+            goals: enableGoals,
+            people: enablePeople,
+            places: enablePlaces,
+            finance: enableFinance,
+          }));
+
+          // Dispatch custom event to update header without reload
+          window.dispatchEvent(new CustomEvent('settingsUpdated', {
+            detail: {
+              enableTodo,
+              enableGoals,
+              enablePeople,
+              enablePlaces,
+              enableFinance,
+            }
+          }));
+
           setTimeout(() => {
             setSaved(false);
-            // Reload page to update navigation
-            window.location.reload();
           }, 1500);
         } else {
           console.error("Failed to save settings");
@@ -162,19 +225,83 @@ export default function SettingsPage() {
     { value: "system", label: "System", icon: FaDesktop },
   ];
 
-  const tabs = [
-    { id: "preferences" as SettingsTab, label: "Preferences", icon: FaSliders },
-  ];
+  const handleExportData = async (type: string) => {
+    setIsExporting(true);
+    try {
+      const response = await fetch(`/api/export/${type}`);
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${type}-export-${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        setSnackbar({
+          open: true,
+          message: `${type.charAt(0).toUpperCase() + type.slice(1)} data exported successfully!`,
+          severity: "success",
+        });
+      } else {
+        setSnackbar({
+          open: true,
+          message: `Failed to export ${type} data`,
+          severity: "error",
+        });
+      }
+    } catch (error) {
+      console.error(`Error exporting ${type} data:`, error);
+      setSnackbar({
+        open: true,
+        message: `Failed to export ${type} data`,
+        severity: "error",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
-  if (loading) {
-    return (
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-gray-600 dark:text-gray-400">Loading settings...</div>
-        </div>
-      </div>
-    );
-  }
+  const handleFactoryReset = async () => {
+    setIsResetting(true);
+    try {
+      const response = await fetch("/api/factory-reset", {
+        method: "POST",
+      });
+      if (response.ok) {
+        setSnackbar({
+          open: true,
+          message: "All data has been deleted successfully! Redirecting...",
+          severity: "success",
+        });
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 2000);
+      } else {
+        setSnackbar({
+          open: true,
+          message: "Failed to reset data. Please try again.",
+          severity: "error",
+        });
+      }
+    } catch (error) {
+      console.error("Error resetting data:", error);
+      setSnackbar({
+        open: true,
+        message: "Failed to reset data. Please try again.",
+        severity: "error",
+      });
+    } finally {
+      setIsResetting(false);
+      setShowResetConfirm(false);
+    }
+  };
+
+  const tabs = [
+    { id: "preferences" as SettingsTab, label: "Preferences", icon: FaSlidersH },
+    { id: "data" as SettingsTab, label: "Data Management", icon: FaDatabase },
+  ];
 
   return (
     <div className="container mx-auto px-4 py-4 md:py-8 max-w-4xl">
@@ -275,7 +402,7 @@ export default function SettingsPage() {
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 md:p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                  <FaPuzzlePiece className="text-2xl text-green-600 dark:text-green-400" />
+                  <FaCubes className="text-2xl text-green-600 dark:text-green-400" />
                 </div>
                 <div>
                   <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
@@ -535,7 +662,168 @@ export default function SettingsPage() {
             </motion.button>
           </div>
         )}
+
+        {/* Data Management Tab */}
+        {activeTab === "data" && (
+          <div className="space-y-4 md:space-y-6">
+            {/* Export Data Section */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 md:p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                  <FaDownload className="text-2xl text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
+                    Export Data
+                  </h2>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Download all your data as CSV files
+                  </p>
+                </div>
+              </div>
+
+              <p className="text-gray-700 dark:text-gray-300 mb-4">
+                Export your data to CSV format. Choose which data you want to export.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {[
+                  { type: "activities", label: "Activities", icon: FaBullseye },
+                  { type: "log", label: "Logs", icon: FaClipboardList },
+                  { type: "bible", label: "Bible Readings", icon: FaBook },
+                  { type: "todo", label: "Todos", icon: FaTasks },
+                  { type: "goals", label: "Goals", icon: FaFlag },
+                  { type: "people", label: "People", icon: FaUsers },
+                  { type: "places", label: "Places", icon: FaMapMarkedAlt },
+                  { type: "finance", label: "Finance", icon: FaDollarSign },
+                ].map(({ type, label, icon: Icon }) => (
+                  <motion.button
+                    key={type}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleExportData(type)}
+                    disabled={isExporting}
+                    className="px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    <Icon className="text-lg" />
+                    <span className="text-sm">{label}</span>
+                  </motion.button>
+                ))}
+              </div>
+            </div>
+
+            {/* Factory Reset Section */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-red-200 dark:border-red-900/50 p-4 md:p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                  <FaTrash className="text-2xl text-red-600 dark:text-red-400" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
+                    Factory Reset
+                  </h2>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Delete all data and generate sample data
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/30 rounded-lg p-4 mb-4">
+                <div className="flex items-start gap-2">
+                  <FaExclamationTriangle className="text-red-600 dark:text-red-400 mt-1 flex-shrink-0" />
+                  <div>
+                    <p className="font-semibold text-red-800 dark:text-red-300 mb-1">
+                      Warning: This action cannot be undone!
+                    </p>
+                    <p className="text-sm text-red-700 dark:text-red-400">
+                      This will permanently delete ALL your data including activities, logs, Bible readings,
+                      goals, todos, people, places, and finance records. Sample data will be generated for each page.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {!showResetConfirm ? (
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setShowResetConfirm(true)}
+                  className="w-full sm:w-auto px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-all flex items-center justify-center gap-2"
+                >
+                  <FaTrash /> Factory Reset
+                </motion.button>
+              ) : (
+                <div className="space-y-3">
+                  <p className="font-semibold text-gray-900 dark:text-white">
+                    Are you absolutely sure? Type "DELETE" to confirm:
+                  </p>
+                  <input
+                    type="text"
+                    id="confirmDelete"
+                    placeholder="Type DELETE to confirm"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                  <div className="flex gap-3">
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => {
+                        const input = document.getElementById("confirmDelete") as HTMLInputElement;
+                        if (input.value === "DELETE") {
+                          handleFactoryReset();
+                        } else {
+                          setSnackbar({
+                            open: true,
+                            message: "Please type DELETE to confirm",
+                            severity: "warning",
+                          });
+                        }
+                      }}
+                      disabled={isResetting}
+                      className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      {isResetting ? (
+                        <>
+                          <span className="animate-spin">⏳</span> Resetting...
+                        </>
+                      ) : (
+                        <>
+                          <FaTrash /> Confirm Reset
+                        </>
+                      )}
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setShowResetConfirm(false)}
+                      className="px-6 py-3 bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500 text-gray-900 dark:text-white font-semibold rounded-lg transition-all"
+                    >
+                      Cancel
+                    </motion.button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </motion.div>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <MuiAlert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ width: "100%" }}
+        >
+          {snackbar.message}
+        </MuiAlert>
+      </Snackbar>
     </div>
   );
 }

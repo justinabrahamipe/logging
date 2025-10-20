@@ -26,24 +26,54 @@ export default function Header() {
     async function fetchPreferences() {
       if (session?.user?.id) {
         try {
-          const response = await fetch("/api/preferences");
+          const response = await fetch("/api/settings");
           if (response.ok) {
             const data = await response.json();
-            setEnabledFeatures({
+            const features = {
               todo: data.enableTodo || false,
               goals: data.enableGoals || false,
               people: data.enablePeople || false,
               places: data.enablePlaces || false,
               finance: data.enableFinance || false,
-            });
+            };
+            setEnabledFeatures(features);
+            // Cache in sessionStorage for instant loading
+            sessionStorage.setItem('enabledFeatures', JSON.stringify(features));
           }
         } catch (error) {
-          console.error("Failed to fetch preferences:", error);
+          console.error("Failed to fetch settings:", error);
         }
       }
     }
+
+    // Try to load from cache first for instant render
+    const cached = sessionStorage.getItem('enabledFeatures');
+    if (cached) {
+      try {
+        setEnabledFeatures(JSON.parse(cached));
+      } catch (e) {
+        // Ignore parse errors
+      }
+    }
+
     fetchPreferences();
   }, [session]);
+
+  // Listen for settings updates from Settings page
+  useEffect(() => {
+    const handleSettingsUpdate = (event: CustomEvent) => {
+      setEnabledFeatures({
+        todo: event.detail.enableTodo || false,
+        goals: event.detail.enableGoals || false,
+        people: event.detail.enablePeople || false,
+        places: event.detail.enablePlaces || false,
+        finance: event.detail.enableFinance || false,
+      });
+    };
+
+    window.addEventListener('settingsUpdated', handleSettingsUpdate as EventListener);
+    return () => window.removeEventListener('settingsUpdated', handleSettingsUpdate as EventListener);
+  }, []);
 
   // Close profile menu when clicking outside
   useEffect(() => {
@@ -202,14 +232,14 @@ export default function Header() {
 
                     {/* Menu Items */}
                     <div className="py-2">
-                      <Link href="/preferences">
+                      <Link href="/settings">
                         <motion.button
                           whileHover={{ backgroundColor: "rgba(59, 130, 246, 0.1)" }}
                           onClick={() => setIsProfileMenuOpen(false)}
                           className="w-full px-4 py-2 text-left flex items-center gap-3 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                         >
                           <FaCog className="text-lg" />
-                          <span className="font-medium">Preferences</span>
+                          <span className="font-medium">Settings</span>
                         </motion.button>
                       </Link>
 
@@ -335,14 +365,14 @@ export default function Header() {
                 </div>
               </div>
 
-              <Link href="/preferences">
+              <Link href="/settings">
                 <motion.div
                   whileTap={{ scale: 0.98 }}
                   onClick={() => setIsMobileMenuOpen(false)}
                   className="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer mb-2"
                 >
                   <FaCog />
-                  <span className="font-medium">Preferences</span>
+                  <span className="font-medium">Settings</span>
                 </motion.div>
               </Link>
 
