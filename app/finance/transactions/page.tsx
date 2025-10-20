@@ -26,6 +26,16 @@ interface Place {
   address: string;
 }
 
+interface Category {
+  id: number;
+  name: string;
+  type: string;
+  description?: string;
+  color?: string;
+  icon?: string;
+  isDefault: boolean;
+}
+
 interface Transaction {
   id: number;
   fromAccountId?: number;
@@ -46,23 +56,15 @@ interface Transaction {
   createdAt: string;
 }
 
-const defaultCategories = {
-  expense: ["Food", "Transport", "Shopping", "Bills", "Entertainment", "Health", "Education", "Other"],
-  income: ["Salary", "Freelance", "Investment", "Gift", "Refund", "Other"],
-};
-
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [places, setPlaces] = useState<Place[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
-  const [expenseCategories, setExpenseCategories] = useState<string[]>(defaultCategories.expense);
-  const [incomeCategories, setIncomeCategories] = useState<string[]>(defaultCategories.income);
-  const [newCategory, setNewCategory] = useState("");
-  const [showCategoryInput, setShowCategoryInput] = useState(false);
   const [formData, setFormData] = useState({
     fromAccountId: "",
     toAccountId: "",
@@ -87,7 +89,7 @@ export default function TransactionsPage() {
       const baseUrl = window.location.origin;
 
       // Fetch all data with individual error handling
-      let accountsRes, transactionsRes, contactsRes, placesRes;
+      let accountsRes, transactionsRes, contactsRes, placesRes, categoriesRes;
 
       try {
         accountsRes = await axios.get(`${baseUrl}/api/finance/accounts`);
@@ -117,10 +119,18 @@ export default function TransactionsPage() {
         placesRes = { data: { data: [] } };
       }
 
+      try {
+        categoriesRes = await axios.get(`${baseUrl}/api/finance/categories`);
+      } catch (err) {
+        console.error("Error fetching categories:", err);
+        categoriesRes = { data: { data: [] } };
+      }
+
       setAccounts(accountsRes.data.data || []);
       setTransactions(transactionsRes.data.data || []);
       setContacts(contactsRes.data.data || []);
       setPlaces(placesRes.data.data || []);
+      setCategories(categoriesRes.data.data || []);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -168,30 +178,12 @@ export default function TransactionsPage() {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingTransaction(null);
-    setShowCategoryInput(false);
-    setNewCategory("");
-  };
-
-  const handleAddCategory = () => {
-    if (newCategory.trim()) {
-      if (formData.type === "expense") {
-        if (!expenseCategories.includes(newCategory.trim())) {
-          setExpenseCategories([...expenseCategories, newCategory.trim()]);
-          setFormData({ ...formData, category: newCategory.trim() });
-        }
-      } else if (formData.type === "income") {
-        if (!incomeCategories.includes(newCategory.trim())) {
-          setIncomeCategories([...incomeCategories, newCategory.trim()]);
-          setFormData({ ...formData, category: newCategory.trim() });
-        }
-      }
-      setNewCategory("");
-      setShowCategoryInput(false);
-    }
   };
 
   const getCurrentCategories = () => {
-    return formData.type === "expense" ? expenseCategories : incomeCategories;
+    return categories
+      .filter(cat => cat.type === formData.type)
+      .map(cat => cat.name);
   };
 
   const getSelectedAccount = (accountId: string) => {
@@ -627,56 +619,23 @@ export default function TransactionsPage() {
                         <label className="block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 md:mb-2">
                           Category
                         </label>
-                        {showCategoryInput ? (
-                          <div className="flex gap-1 md:gap-2">
-                            <input
-                              type="text"
-                              value={newCategory}
-                              onChange={(e) => setNewCategory(e.target.value)}
-                              onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), handleAddCategory())}
-                              placeholder="New category"
-                              className="flex-1 px-3 py-2.5 md:py-3 text-sm md:text-base rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                              autoFocus
-                            />
-                            <button
-                              type="button"
-                              onClick={handleAddCategory}
-                              className="px-3 md:px-4 py-2.5 md:py-3 bg-green-600 text-white rounded-lg text-sm md:text-base touch-target"
-                            >
-                              <FaCheck />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setShowCategoryInput(false);
-                                setNewCategory("");
-                              }}
-                              className="px-3 md:px-4 py-2.5 md:py-3 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm md:text-base touch-target"
-                            >
-                              <FaTimes />
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex gap-1 md:gap-2">
-                            <select
-                              value={formData.category}
-                              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                              className="flex-1 px-3 py-2.5 md:py-3 text-sm md:text-base rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                            >
-                              <option value="">Select</option>
-                              {getCurrentCategories().map((cat) => (
-                                <option key={cat} value={cat}>{cat}</option>
-                              ))}
-                            </select>
-                            <button
-                              type="button"
-                              onClick={() => setShowCategoryInput(true)}
-                              className="px-3 md:px-4 py-2.5 md:py-3 bg-blue-600 text-white rounded-lg text-sm md:text-base touch-target"
-                              title="Add new category"
-                            >
-                              <FaPlus />
-                            </button>
-                          </div>
+                        <select
+                          value={formData.category}
+                          onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                          className="w-full px-3 py-2.5 md:py-3 text-sm md:text-base rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        >
+                          <option value="">Select category</option>
+                          {getCurrentCategories().length === 0 && (
+                            <option disabled>No categories - add them in Categories tab</option>
+                          )}
+                          {getCurrentCategories().map((cat) => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
+                        </select>
+                        {getCurrentCategories().length === 0 && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            Add categories in the Categories tab first
+                          </p>
                         )}
                       </div>
                     )}
