@@ -171,34 +171,34 @@ export default function PreferencesPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <div className="container mx-auto px-4 py-4 md:py-8 max-w-4xl">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        <h1 className="text-4xl font-bold mb-8 text-gray-900 dark:text-white">
+        <h1 className="text-3xl md:text-4xl font-bold mb-6 md:mb-8 text-gray-900 dark:text-white">
           Preferences
         </h1>
 
-        <div className="space-y-6">
+        <div className="space-y-4 md:space-y-6">
           {/* Theme Preference */}
-          <Card>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-3 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
-                <FaMoon className="text-2xl text-indigo-600 dark:text-indigo-400" />
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 md:p-6">
+            <div className="flex items-center gap-2 md:gap-3 mb-3 md:mb-4">
+              <div className="p-2 md:p-3 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
+                <FaMoon className="text-xl md:text-2xl text-indigo-600 dark:text-indigo-400" />
               </div>
               <div>
-                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
+                <h2 className="text-lg md:text-2xl font-semibold text-gray-900 dark:text-white">
                   Theme
                 </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400">
                   Choose your preferred theme
                 </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
               {themeOptions.map((option) => (
                 <motion.button
                   key={option.value}
@@ -227,10 +227,10 @@ export default function PreferencesPage() {
                 </motion.button>
               ))}
             </div>
-          </Card>
+          </div>
 
           {/* Feature Selection */}
-          <Card>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 md:p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
                 <FaPuzzlePiece className="text-2xl text-green-600 dark:text-green-400" />
@@ -376,10 +376,10 @@ export default function PreferencesPage() {
                 </div>
               </motion.div>
             </div>
-          </Card>
+          </div>
 
           {/* Time Format Preference */}
-          <Card>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 md:p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
                 <FaClock className="text-2xl text-blue-600 dark:text-blue-400" />
@@ -423,10 +423,10 @@ export default function PreferencesPage() {
                 </motion.button>
               ))}
             </div>
-          </Card>
+          </div>
 
           {/* Date Format Preference */}
-          <Card>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 md:p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
                 <FaCalendar className="text-2xl text-purple-600 dark:text-purple-400" />
@@ -470,14 +470,14 @@ export default function PreferencesPage() {
                 </motion.button>
               ))}
             </div>
-          </Card>
+          </div>
 
           {/* Save Button */}
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={handleSave}
-            className={`w-full py-4 rounded-lg font-semibold text-lg transition-all ${
+            className={`w-full py-3 md:py-4 rounded-lg font-semibold text-base md:text-lg transition-all touch-target ${
               saved
                 ? "bg-green-500 hover:bg-green-600 text-white"
                 : "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
