@@ -500,10 +500,38 @@ export default function BiblePage() {
                       dateLabel = logDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                     }
 
+                    // Parse the first chapter from the comment
+                    const handleNavigate = () => {
+                      // Extract first book and chapter from comment (e.g., "Genesis 1" or "3 chapters: Genesis 1, Genesis 2")
+                      const match = log.comment.match(/([A-Za-z\s]+)\s+(\d+)/);
+                      if (match) {
+                        const bookName = match[1].trim();
+                        const chapterNum = parseInt(match[2]);
+
+                        // Find the book in ALL_BOOKS
+                        const book = ALL_BOOKS.find(b =>
+                          b.name.toLowerCase() === bookName.toLowerCase()
+                        );
+
+                        if (book && chapterNum <= book.chapters) {
+                          setSelectedBook(book);
+                          setSelectedChapter(chapterNum);
+                          // Stop any active speech
+                          if (window.speechSynthesis.speaking) {
+                            window.speechSynthesis.cancel();
+                            setIsSpeaking(false);
+                          }
+                        }
+                      }
+                    };
+
                     return (
-                      <div
+                      <motion.button
                         key={log.id}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800 whitespace-nowrap"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={handleNavigate}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded-lg border border-purple-200 dark:border-purple-800 whitespace-nowrap transition-colors cursor-pointer"
                       >
                         <span className="text-xs font-semibold text-purple-700 dark:text-purple-400">
                           {dateLabel}
@@ -516,7 +544,7 @@ export default function BiblePage() {
                             • {Math.round(log.duration / 60)}m
                           </span>
                         )}
-                      </div>
+                      </motion.button>
                     );
                   })}
                 </div>
