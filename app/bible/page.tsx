@@ -513,7 +513,10 @@ export default function BiblePage() {
                         textToParse = chaptersMatch[1];
                       }
 
-                      // Extract first book and chapter (e.g., "Genesis 1" or "1 Samuel 5")
+                      // Remove "Chapter" or "Chapters" keyword if present (e.g., "2 Timothy Chapter 1" -> "2 Timothy 1")
+                      textToParse = textToParse.replace(/\s+chapters?\s+/gi, ' ');
+
+                      // Extract first book and chapter (e.g., "Genesis 1" or "1 Samuel 5" or "2 Timothy 1")
                       // This regex captures book names with numbers like "1 Samuel" or "2 Kings"
                       const match = textToParse.match(/^(\d?\s?[A-Za-z\s]+?)\s+(\d+)/);
 
