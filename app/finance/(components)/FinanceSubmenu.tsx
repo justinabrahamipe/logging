@@ -6,8 +6,8 @@ import { motion } from "framer-motion";
 import { FaDollarSign, FaWallet, FaChartLine, FaExchangeAlt, FaTags, FaHandHoldingUsd } from "react-icons/fa";
 
 const financeMenuItems = [
-  { href: "/finance/accounts", label: "Accounts", icon: FaWallet },
   { href: "/finance/transactions", label: "Transactions", icon: FaExchangeAlt },
+  { href: "/finance/accounts", label: "Accounts", icon: FaWallet },
   { href: "/finance/categories", label: "Categories", icon: FaTags },
   { href: "/finance/debts", label: "Debts & Loans", icon: FaHandHoldingUsd },
   { href: "/finance/reports", label: "Reports", icon: FaChartLine },
