@@ -5,9 +5,10 @@ Your Next.js application has been successfully converted into a Progressive Web 
 ## What's Been Implemented
 
 ### 1. PWA Configuration
-- **next-pwa** package installed and configured in `next.config.ts`
+- **@ducanh2912/next-pwa** package installed (modern, actively maintained fork)
 - Service Worker automatically generated during build
 - PWA features disabled in development mode for easier debugging
+- Enhanced caching strategies and offline support
 
 ### 2. Web App Manifest (`public/manifest.json`)
 - App name: "Total Logger"
@@ -112,9 +113,10 @@ Create a fallback page for when users are offline and try to access uncached rou
 
 ## Resources
 
-- [next-pwa Documentation](https://github.com/shadowwalker/next-pwa)
+- [@ducanh2912/next-pwa Documentation](https://ducanh-next-pwa.vercel.app/)
+- [Original next-pwa (deprecated)](https://github.com/shadowwalker/next-pwa)
 - [PWA Best Practices](https://web.dev/progressive-web-apps/)
-- [Workbox Documentation](https://developers.google.com/web/tools/workbox)
+- [Workbox Documentation](https://developer.chrome.com/docs/workbox)
 
 ## Troubleshooting
 
@@ -136,7 +138,16 @@ Create a fallback page for when users are offline and try to access uncached rou
 
 ## Current Configuration
 
+**PWA Package:** `@ducanh2912/next-pwa` v10.2.9
 **Service Worker:** `/public/sw.js` (auto-generated)
+**SW Worker:** `/public/swe-worker-*.js` (auto-generated)
+**Workbox:** `/public/workbox-*.js` (auto-generated)
 **Manifest:** `/public/manifest.json`
-**Icons:** `/public/icons/icon-*.png`
+**Icons:** `/public/icons/icon-*.svg`
 **Config:** `next.config.ts`
+
+### Key Features Enabled:
+- `cacheOnFrontEndNav` - Cache pages during navigation
+- `aggressiveFrontEndNavCaching` - Aggressive caching for better offline experience
+- `reloadOnOnline` - Reload when connection returns
+- `swcMinify` - Use SWC for minification (faster builds)
