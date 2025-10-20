@@ -481,13 +481,10 @@ export default function BiblePage() {
               </div>
             )}
 
-            {/* Recent Reading History */}
+            {/* Recent Reading History - Horizontal Carousel */}
             {recentLogs.length > 0 && (
-              <div className="mt-4 p-3 md:p-4 bg-purple-50 dark:bg-purple-900/10 rounded-lg border border-purple-200 dark:border-purple-800">
-                <h3 className="text-xs md:text-sm font-semibold text-purple-900 dark:text-purple-300 mb-2">
-                  Recent Reading History
-                </h3>
-                <div className="space-y-1.5">
+              <div className="mt-3 overflow-x-auto overflow-y-hidden -mx-4 px-4 md:mx-0 md:px-0">
+                <div className="flex gap-2 min-w-max">
                   {recentLogs.map((log, index) => {
                     const logDate = new Date(log.start_time);
                     const today = new Date();
@@ -504,18 +501,19 @@ export default function BiblePage() {
                     }
 
                     return (
-                      <div key={log.id} className="flex items-center justify-between text-xs md:text-sm">
-                        <div className="flex items-center gap-2 min-w-0 flex-1">
-                          <span className="text-purple-700 dark:text-purple-400 font-medium flex-shrink-0">
-                            {dateLabel}:
-                          </span>
-                          <span className="text-gray-700 dark:text-gray-300 truncate">
-                            {log.comment}
-                          </span>
-                        </div>
+                      <div
+                        key={log.id}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800 whitespace-nowrap"
+                      >
+                        <span className="text-xs font-semibold text-purple-700 dark:text-purple-400">
+                          {dateLabel}
+                        </span>
+                        <span className="text-xs text-gray-700 dark:text-gray-300">
+                          {log.comment}
+                        </span>
                         {log.duration && (
-                          <span className="text-gray-500 dark:text-gray-400 text-xs ml-2 flex-shrink-0">
-                            {Math.round(log.duration / 60)}m
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            • {Math.round(log.duration / 60)}m
                           </span>
                         )}
                       </div>
