@@ -93,6 +93,14 @@ interface ChapterData {
   text: string;
 }
 
+interface ReadingLog {
+  id: number;
+  comment: string;
+  start_time: string;
+  end_time: string;
+  duration: number;
+}
+
 export default function BiblePage() {
   const [selectedBook, setSelectedBook] = useState(ALL_BOOKS[0]);
   const [selectedChapter, setSelectedChapter] = useState(1);
@@ -106,11 +114,13 @@ export default function BiblePage() {
   const [chaptersRead, setChaptersRead] = useState<string[]>([]); // Track chapters read during logging
   const [startingChapter, setStartingChapter] = useState<string>(""); // Track where logging started
   const [manualChapterCount, setManualChapterCount] = useState<number>(0); // Manual counter for chapters
+  const [recentLogs, setRecentLogs] = useState<ReadingLog[]>([]);
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
 
-  // Fetch Bible goals on mount
+  // Fetch Bible goals and recent logs on mount
   useEffect(() => {
     fetchBibleGoals();
+    fetchRecentLogs();
   }, []);
 
   const fetchBibleGoals = async () => {
@@ -128,6 +138,30 @@ export default function BiblePage() {
       setBibleGoals(bibleGoals);
     } catch (error) {
       console.error("Error fetching Bible goals:", error);
+    }
+  };
+
+  const fetchRecentLogs = async () => {
+    try {
+      const baseUrl = window.location.origin;
+      const response = await axios.get(`${baseUrl}/api/log`);
+      const logs = response.data.data || [];
+
+      // Filter for Bible Reading logs from last 7 days
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+      const bibleLogs = logs
+        .filter((log: any) =>
+          log.activityTitle === "Bible Reading" &&
+          log.comment &&
+          new Date(log.start_time) >= sevenDaysAgo
+        )
+        .slice(0, 7); // Limit to 7 most recent
+
+      setRecentLogs(bibleLogs);
+    } catch (error) {
+      console.error("Error fetching recent logs:", error);
     }
   };
 
@@ -234,6 +268,9 @@ export default function BiblePage() {
       setChaptersRead([]);
       setStartingChapter("");
       setManualChapterCount(0);
+
+      // Refresh recent logs to show the new entry
+      fetchRecentLogs();
     } catch (error) {
       console.error("Error stopping log:", error);
     }
@@ -441,6 +478,50 @@ export default function BiblePage() {
                     </span>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Recent Reading History */}
+            {recentLogs.length > 0 && (
+              <div className="mt-4 p-3 md:p-4 bg-purple-50 dark:bg-purple-900/10 rounded-lg border border-purple-200 dark:border-purple-800">
+                <h3 className="text-xs md:text-sm font-semibold text-purple-900 dark:text-purple-300 mb-2">
+                  Recent Reading History
+                </h3>
+                <div className="space-y-1.5">
+                  {recentLogs.map((log, index) => {
+                    const logDate = new Date(log.start_time);
+                    const today = new Date();
+                    const yesterday = new Date(today);
+                    yesterday.setDate(yesterday.getDate() - 1);
+
+                    let dateLabel = "";
+                    if (logDate.toDateString() === today.toDateString()) {
+                      dateLabel = "Today";
+                    } else if (logDate.toDateString() === yesterday.toDateString()) {
+                      dateLabel = "Yesterday";
+                    } else {
+                      dateLabel = logDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    }
+
+                    return (
+                      <div key={log.id} className="flex items-center justify-between text-xs md:text-sm">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <span className="text-purple-700 dark:text-purple-400 font-medium flex-shrink-0">
+                            {dateLabel}:
+                          </span>
+                          <span className="text-gray-700 dark:text-gray-300 truncate">
+                            {log.comment}
+                          </span>
+                        </div>
+                        {log.duration && (
+                          <span className="text-gray-500 dark:text-gray-400 text-xs ml-2 flex-shrink-0">
+                            {Math.round(log.duration / 60)}m
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
