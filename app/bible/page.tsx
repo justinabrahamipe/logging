@@ -502,18 +502,35 @@ export default function BiblePage() {
 
                     // Parse the first chapter from the comment
                     const handleNavigate = () => {
-                      // Extract first book and chapter from comment (e.g., "Genesis 1" or "3 chapters: Genesis 1, Genesis 2")
-                      const match = log.comment.match(/([A-Za-z\s]+)\s+(\d+)/);
+                      console.log('[Bible] Navigating from log comment:', log.comment);
+
+                      // Handle format: "3 chapters: Genesis 1, Genesis 2" or just "Genesis 1"
+                      let textToParse = log.comment;
+
+                      // Remove "X chapters:" prefix if present
+                      const chaptersMatch = textToParse.match(/^\d+\s+chapters?:\s*(.+)$/i);
+                      if (chaptersMatch) {
+                        textToParse = chaptersMatch[1];
+                      }
+
+                      // Extract first book and chapter (e.g., "Genesis 1" or "1 Samuel 5")
+                      // This regex captures book names with numbers like "1 Samuel" or "2 Kings"
+                      const match = textToParse.match(/^(\d?\s?[A-Za-z\s]+?)\s+(\d+)/);
+
                       if (match) {
                         const bookName = match[1].trim();
                         const chapterNum = parseInt(match[2]);
 
-                        // Find the book in ALL_BOOKS
+                        console.log('[Bible] Parsed:', { bookName, chapterNum });
+
+                        // Find the book in ALL_BOOKS (case-insensitive)
                         const book = ALL_BOOKS.find(b =>
                           b.name.toLowerCase() === bookName.toLowerCase()
                         );
 
-                        if (book && chapterNum <= book.chapters) {
+                        console.log('[Bible] Found book:', book?.name);
+
+                        if (book && chapterNum >= 1 && chapterNum <= book.chapters) {
                           setSelectedBook(book);
                           setSelectedChapter(chapterNum);
                           // Stop any active speech
@@ -521,7 +538,12 @@ export default function BiblePage() {
                             window.speechSynthesis.cancel();
                             setIsSpeaking(false);
                           }
+                          console.log('[Bible] Navigated to:', book.name, chapterNum);
+                        } else {
+                          console.log('[Bible] Navigation failed - invalid book or chapter');
                         }
+                      } else {
+                        console.log('[Bible] Failed to parse comment');
                       }
                     };
 
