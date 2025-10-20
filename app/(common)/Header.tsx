@@ -357,6 +357,8 @@ export default function Header() {
             </div>
           </div>
         </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </nav>
   );
