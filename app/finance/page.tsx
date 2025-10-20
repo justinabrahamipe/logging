@@ -1,63 +1,23 @@
 "use client";
 
-import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { FaDollarSign, FaWallet, FaChartLine, FaExchangeAlt } from "react-icons/fa";
+import { FaDollarSign, FaWallet, FaChartLine, FaExchangeAlt, FaTags, FaHandHoldingUsd } from "react-icons/fa";
+import FinanceSubmenu from "./(components)/FinanceSubmenu";
 
 const financeMenuItems = [
   { href: "/finance/accounts", label: "Accounts", icon: FaWallet },
   { href: "/finance/transactions", label: "Transactions", icon: FaExchangeAlt },
+  { href: "/finance/categories", label: "Categories", icon: FaTags },
+  { href: "/finance/debts", label: "Debts & Loans", icon: FaHandHoldingUsd },
   { href: "/finance/reports", label: "Reports", icon: FaChartLine },
 ];
 
 export default function FinancePage() {
-  const pathname = usePathname();
-
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950 py-8">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950 py-4 md:py-8">
       <div className="max-w-7xl mx-auto px-4">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg">
-              <FaDollarSign className="text-white text-2xl" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                Finance
-              </h1>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Track your financial activities</p>
-            </div>
-          </div>
-
-          {/* Submenu Navigation */}
-          <div className="flex gap-2 flex-wrap">
-            {financeMenuItems.map((item) => {
-              const isActive = pathname === item.href;
-              return (
-                <Link key={item.href} href={item.href}>
-                  <motion.div
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors ${
-                      isActive
-                        ? "bg-green-600 text-white shadow-lg"
-                        : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-green-500 dark:hover:border-green-500"
-                    }`}
-                  >
-                    <item.icon className="text-sm" />
-                    <span className="font-medium">{item.label}</span>
-                  </motion.div>
-                </Link>
-              );
-            })}
-          </div>
-        </motion.div>
+        <FinanceSubmenu />
 
         {/* Main Content */}
         <motion.div
