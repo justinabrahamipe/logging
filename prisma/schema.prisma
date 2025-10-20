@@ -132,41 +132,44 @@ model VerificationToken {
 }
 
 model UserPreferences {
-    id          Int      @id @default(autoincrement())
-    userId      String   @unique
-    user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-    theme       String   @default("light") // "light" or "dark" or "system"
-    timeFormat  String   @default("12h")   // "12h" or "24h"
-    dateFormat  String   @default("DD/MM/YYYY") // "DD/MM/YYYY", "MM/DD/YYYY", etc.
-    enableTodo  Boolean  @default(false)  // Enable Todo feature
-    enableGoals Boolean  @default(false)  // Enable Goals feature
-    enablePeople Boolean @default(false) // Enable People/Contacts feature
-    enablePlaces Boolean @default(false) // Enable Places feature
-    createdAt   DateTime @default(now())
-    updatedAt   DateTime @updatedAt
+    id           Int      @id @default(autoincrement())
+    userId       String   @unique
+    user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    theme        String   @default("light") // "light" or "dark" or "system"
+    timeFormat   String   @default("12h")   // "12h" or "24h"
+    dateFormat   String   @default("DD/MM/YYYY") // "DD/MM/YYYY", "MM/DD/YYYY", etc.
+    enableTodo   Boolean  @default(false)  // Enable Todo feature
+    enableGoals  Boolean  @default(false)  // Enable Goals feature
+    enablePeople Boolean  @default(false)  // Enable People/Contacts feature
+    enablePlaces Boolean  @default(false)  // Enable Places feature
+    enableFinance Boolean @default(false) // Enable Finance feature
+    createdAt    DateTime @default(now())
+    updatedAt    DateTime @updatedAt
 }
 
 model Contact {
-    id                   Int            @id @default(autoincrement())
-    userId               String
-    googleId             String?        // Google contact resource name
-    name                 String
-    email                String?
-    phoneNumber          String?
-    photoUrl             String?
-    organization         String?
-    jobTitle             String?
-    notes                String?
-    address              String?        // Full address
-    birthday             DateTime?      // Birthday
-    weddingAnniversary   DateTime?      // Wedding anniversary
-    lastSynced           DateTime       @default(now())
-    createdAt            DateTime       @default(now())
-    updatedAt            DateTime       @updatedAt
-    placeContacts        PlaceContact[] // Places associated with this contact
-    logContacts          LogContact[]   // Logs where this contact is tagged
-    todoContacts         TodoContact[]  // Todos where this contact is tagged
-    goalContacts         GoalContact[]  // Goals where this contact is tagged
+    id                          Int                         @id @default(autoincrement())
+    userId                      String
+    googleId                    String?                     // Google contact resource name
+    name                        String
+    email                       String?
+    phoneNumber                 String?
+    photoUrl                    String?
+    organization                String?
+    jobTitle                    String?
+    notes                       String?
+    address                     String?                     // Full address
+    birthday                    DateTime?                   // Birthday
+    weddingAnniversary          DateTime?                   // Wedding anniversary
+    lastSynced                  DateTime                    @default(now())
+    createdAt                   DateTime                    @default(now())
+    updatedAt                   DateTime                    @updatedAt
+    placeContacts               PlaceContact[]              // Places associated with this contact
+    logContacts                 LogContact[]                // Logs where this contact is tagged
+    todoContacts                TodoContact[]               // Todos where this contact is tagged
+    goalContacts                GoalContact[]               // Goals where this contact is tagged
+    financeTransactionContacts  FinanceTransactionContact[] // Finance transactions where this contact is tagged
+    financeDebts                FinanceDebt[]               // Debts/loans associated with this contact
 
     @@unique([userId, googleId])
     @@index([userId])
@@ -184,20 +187,21 @@ model IgnoredContact {
 }
 
 model Place {
-    id            Int            @id @default(autoincrement())
-    userId        String
-    name          String         // e.g., "Home", "John's house", "John and Sarah's house"
-    address       String         // Full address string
-    latitude      Float?         // Optional: for precise map links
-    longitude     Float?         // Optional: for precise map links
-    description   String?        // Optional notes about the place
-    category      String?        // e.g., "home", "work", "visited", "other"
-    createdAt     DateTime       @default(now())
-    updatedAt     DateTime       @updatedAt
-    placeContacts PlaceContact[] // Contacts associated with this place
-    logPlaces     LogPlace[]     // Logs where this place is tagged
-    todoPlaces    TodoPlace[]    // Todos where this place is tagged
-    goalPlaces    GoalPlace[]    // Goals where this place is tagged
+    id                      Int                      @id @default(autoincrement())
+    userId                  String
+    name                    String                   // e.g., "Home", "John's house", "John and Sarah's house"
+    address                 String                   // Full address string
+    latitude                Float?                   // Optional: for precise map links
+    longitude               Float?                   // Optional: for precise map links
+    description             String?                  // Optional notes about the place
+    category                String?                  // e.g., "home", "work", "visited", "other"
+    createdAt               DateTime                 @default(now())
+    updatedAt               DateTime                 @updatedAt
+    placeContacts           PlaceContact[]           // Contacts associated with this place
+    logPlaces               LogPlace[]               // Logs where this place is tagged
+    todoPlaces              TodoPlace[]              // Todos where this place is tagged
+    goalPlaces              GoalPlace[]              // Goals where this place is tagged
+    financeTransactionPlaces FinanceTransactionPlace[] // Finance transactions where this place is tagged
 
     @@index([userId])
 }
@@ -293,4 +297,114 @@ model GoalPlace {
     @@unique([goalId, placeId])
     @@index([goalId])
     @@index([placeId])
+}
+
+model FinanceAccount {
+    id                      Int                   @id @default(autoincrement())
+    userId                  String
+    name                    String                // e.g., "Chase Checking", "Amex Blue"
+    currency                String                // e.g., "USD", "EUR", "GBP"
+    type                    String                // "credit_card", "bank", "cash", "investment", "other"
+    balance                 Float                 @default(0) // Current balance
+    description             String?               // Optional notes
+    createdAt               DateTime              @default(now())
+    updatedAt               DateTime              @updatedAt
+    transactionsFrom        FinanceTransaction[]  @relation("FromAccount")
+    transactionsTo          FinanceTransaction[]  @relation("ToAccount")
+
+    @@index([userId])
+}
+
+model FinanceTransaction {
+    id                  Int       @id @default(autoincrement())
+    userId              String
+    fromAccountId       Int?      // Source account (null for income)
+    fromAccount         FinanceAccount? @relation("FromAccount", fields: [fromAccountId], references: [id], onDelete: Cascade)
+    toAccountId         Int?      // Destination account (null for expense)
+    toAccount           FinanceAccount? @relation("ToAccount", fields: [toAccountId], references: [id], onDelete: Cascade)
+    amount              Float     // Amount in the source currency
+    currency            String    // Currency of the transaction
+    exchangeRate        Float?    // Exchange rate if currencies differ
+    convertedAmount     Float?    // Amount in destination currency if different
+    type                String    // "income", "expense", "transfer"
+    category            String?   // Category for expense/income
+    description         String
+    isNeed              Boolean   @default(true) // true = need, false = want
+    transactionDate     DateTime  // Date of transaction
+    createdAt           DateTime  @default(now())
+    updatedAt           DateTime  @updatedAt
+    transactionContacts FinanceTransactionContact[]
+    transactionPlaces   FinanceTransactionPlace[]
+
+    @@index([userId])
+    @@index([fromAccountId])
+    @@index([toAccountId])
+    @@index([transactionDate])
+}
+
+model FinanceTransactionContact {
+    id            Int                @id @default(autoincrement())
+    transactionId Int
+    contactId     Int
+    transaction   FinanceTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+    contact       Contact            @relation(fields: [contactId], references: [id], onDelete: Cascade)
+    createdAt     DateTime           @default(now())
+
+    @@unique([transactionId, contactId])
+    @@index([transactionId])
+    @@index([contactId])
+}
+
+model FinanceTransactionPlace {
+    id            Int                @id @default(autoincrement())
+    transactionId Int
+    placeId       Int
+    transaction   FinanceTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+    place         Place              @relation(fields: [placeId], references: [id], onDelete: Cascade)
+    createdAt     DateTime           @default(now())
+
+    @@unique([transactionId, placeId])
+    @@index([transactionId])
+    @@index([placeId])
+}
+
+model FinanceCategory {
+    id          Int      @id @default(autoincrement())
+    userId      String
+    name        String
+    type        String   // "income" or "expense"
+    description String?
+    color       String?  // Optional color for UI
+    icon        String?  // Optional icon
+    isDefault   Boolean  @default(false) // System default categories
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    @@unique([userId, name, type])
+    @@index([userId])
+    @@index([type])
+}
+
+model FinanceDebt {
+    id              Int      @id @default(autoincrement())
+    userId          String
+    name            String   // e.g., "Credit Card Debt", "Car Loan"
+    type            String   // "debt" (you owe) or "loan" (someone owes you)
+    amount          Float    // Total amount
+    remainingAmount Float    // Remaining amount to pay/receive
+    currency        String   // e.g., "USD", "EUR"
+    interestRate    Float?   // Optional interest rate percentage
+    contactId       Int?     // Optional: person/institution associated
+    contact         Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+    description     String?
+    dueDate         DateTime? // Optional due date
+    startDate       DateTime  @default(now()) // When the debt/loan started
+    status          String    @default("active") // "active", "paid", "overdue"
+    createdAt       DateTime  @default(now())
+    updatedAt       DateTime  @updatedAt
+
+    @@index([userId])
+    @@index([type])
+    @@index([status])
+    @@index([contactId])
 }

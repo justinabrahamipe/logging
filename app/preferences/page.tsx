@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { FaClock, FaCalendar, FaCheck, FaMoon, FaSun, FaDesktop, FaTasks, FaFlag, FaUsers, FaPuzzlePiece, FaMapMarkedAlt } from "react-icons/fa";
-import { Card } from "flowbite-react";
+import { FaClock, FaCalendar, FaCheck, FaMoon, FaSun, FaDesktop, FaTasks, FaFlag, FaUsers, FaPuzzlePiece, FaMapMarkedAlt, FaDollarSign } from "react-icons/fa";
 import { useSession } from "next-auth/react";
 import { useTheme } from "@/components/ThemeProvider";
 
@@ -21,6 +20,7 @@ export default function PreferencesPage() {
   const [enableGoals, setEnableGoals] = useState(false);
   const [enablePeople, setEnablePeople] = useState(false);
   const [enablePlaces, setEnablePlaces] = useState(false);
+  const [enableFinance, setEnableFinance] = useState(false);
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -50,6 +50,7 @@ export default function PreferencesPage() {
         setEnableGoals(data.enableGoals || false);
         setEnablePeople(data.enablePeople || false);
         setEnablePlaces(data.enablePlaces || false);
+        setEnableFinance(data.enableFinance || false);
       }
     } catch (error) {
       console.error("Error fetching preferences:", error);
@@ -87,6 +88,7 @@ export default function PreferencesPage() {
             enableGoals,
             enablePeople,
             enablePlaces,
+            enableFinance,
           }),
         });
 
@@ -345,6 +347,32 @@ export default function PreferencesPage() {
                     </div>
                   </div>
                   {enablePlaces && <FaCheck className="text-green-500" />}
+                </div>
+              </motion.div>
+
+              {/* Finance Feature */}
+              <motion.div
+                whileHover={{ scale: 1.01 }}
+                onClick={() => setEnableFinance(!enableFinance)}
+                className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                  enableFinance
+                    ? "border-green-500 bg-green-50 dark:bg-green-900/20"
+                    : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <FaDollarSign className={`text-xl ${enableFinance ? "text-green-600 dark:text-green-400" : "text-gray-400"}`} />
+                    <div>
+                      <div className="font-semibold text-gray-900 dark:text-white">
+                        Finance
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        Track your financial activities
+                      </div>
+                    </div>
+                  </div>
+                  {enableFinance && <FaCheck className="text-green-500" />}
                 </div>
               </motion.div>
             </div>

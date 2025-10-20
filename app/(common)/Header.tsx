@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaBullseye, FaClipboardList, FaTasks, FaFlag, FaBars, FaTimes, FaSignOutAlt, FaCog, FaUser, FaUsers, FaMapMarkedAlt, FaBook } from "react-icons/fa";
+import { FaBullseye, FaClipboardList, FaTasks, FaFlag, FaBars, FaTimes, FaSignOutAlt, FaCog, FaUser, FaUsers, FaMapMarkedAlt, FaBook, FaDollarSign } from "react-icons/fa";
 import { useState, useEffect, useRef } from "react";
 import { useSession, signOut } from "next-auth/react";
 
@@ -15,6 +15,7 @@ export default function Header() {
     goals: false,
     people: false,
     places: false,
+    finance: false,
   });
   const pathname = usePathname();
   const { data: session, status } = useSession();
@@ -33,6 +34,7 @@ export default function Header() {
               goals: data.enableGoals || false,
               people: data.enablePeople || false,
               places: data.enablePlaces || false,
+              finance: data.enableFinance || false,
             });
           }
         } catch (error) {
@@ -66,6 +68,7 @@ export default function Header() {
     { href: "/goals", label: "Goals", icon: FaFlag, enabled: enabledFeatures.goals },
     { href: "/people", label: "People", icon: FaUsers, enabled: enabledFeatures.people },
     { href: "/places", label: "Places", icon: FaMapMarkedAlt, enabled: enabledFeatures.places },
+    { href: "/finance", label: "Finance", icon: FaDollarSign, enabled: enabledFeatures.finance },
   ];
 
   // Filter to show only enabled features
@@ -261,35 +264,48 @@ export default function Header() {
         </div>
 
         {/* Mobile Menu */}
-        <motion.div
-          initial={false}
-          animate={{
-            height: isMobileMenuOpen ? "auto" : 0,
-            opacity: isMobileMenuOpen ? 1 : 0,
-          }}
-          transition={{ duration: 0.3 }}
-          className="md:hidden overflow-hidden"
-        >
-          <div className="py-4 space-y-2">
-            {navItems.map((item) => {
-              const isActive = pathname === item.href;
-              return (
-                <Link key={item.href} href={item.href}>
-                  <motion.div
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                      isActive
-                        ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
-                        : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-                    }`}
-                  >
-                    <item.icon />
-                    <span className="font-medium">{item.label}</span>
-                  </motion.div>
-                </Link>
-              );
-            })}
+        <AnimatePresence>
+          {isMobileMenuOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2, ease: "easeInOut" }}
+              className="md:hidden overflow-hidden border-t border-gray-200 dark:border-gray-700"
+            >
+              <div className="py-3 space-y-1 max-h-[calc(100vh-4rem)] overflow-y-auto smooth-scroll">
+                {navItems.map((item, index) => {
+                  const isActive = pathname === item.href;
+                  return (
+                    <motion.div
+                      key={item.href}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                    >
+                      <Link href={item.href}>
+                        <motion.div
+                          whileTap={{ scale: 0.98 }}
+                          onClick={() => setIsMobileMenuOpen(false)}
+                          className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all active:bg-gray-100 dark:active:bg-gray-700 ${
+                            isActive
+                              ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 shadow-sm"
+                              : "text-gray-700 dark:text-gray-300"
+                          }`}
+                        >
+                          <item.icon className="text-lg flex-shrink-0" />
+                          <span className="font-medium text-base">{item.label}</span>
+                          {isActive && (
+                            <motion.div
+                              layoutId="mobileActiveIndicator"
+                              className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400"
+                            />
+                          )}
+                        </motion.div>
+                      </Link>
+                    </motion.div>
+                  );
+                })}
 
             {/* User Info - Mobile */}
             <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700">

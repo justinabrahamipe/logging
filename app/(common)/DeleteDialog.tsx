@@ -1,8 +1,8 @@
 "use client";
 
-import { Button, Modal } from "flowbite-react";
 import { useState } from "react";
 import { HiOutlineExclamationCircle, HiTrash } from "react-icons/hi";
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, IconButton } from "@mui/material";
 
 interface DeleteDialogProps {
   id: number;
@@ -24,35 +24,48 @@ export default function DeleteDialog({
   }
   return (
     <>
-      <HiTrash
-        size={iconSize || "24px"}
-        color="red"
+      <IconButton
         onClick={() => setOpenModal(true)}
-      />
-      <Modal
-        show={openModal}
-        size="md"
-        onClose={() => setOpenModal(false)}
-        popup
+        color="error"
+        size="small"
+        className="touch-target"
       >
-        <Modal.Header />
-        <Modal.Body>
-          <div className="text-center">
-            <HiOutlineExclamationCircle className="mx-auto mb-4 h-14 w-14 text-gray-400 dark:text-gray-200" />
-            <h3 className="mb-5 text-lg font-normal text-gray-500 dark:text-gray-400">
-              Are you sure you want to delete {itemToDelete}?
-            </h3>
-            <div className="flex justify-center gap-4">
-              <Button color="failure" onClick={handleDelete}>
-                {"Yes"}
-              </Button>
-              <Button color="gray" onClick={() => setOpenModal(false)}>
-                No
-              </Button>
-            </div>
-          </div>
-        </Modal.Body>
-      </Modal>
+        <HiTrash size={iconSize || "20px"} />
+      </IconButton>
+      <Dialog
+        open={openModal}
+        onClose={() => setOpenModal(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{
+          className: "rounded-xl sm:rounded-2xl"
+        }}
+      >
+        <DialogContent className="text-center pt-6 pb-4">
+          <HiOutlineExclamationCircle className="mx-auto mb-4 h-14 w-14 text-gray-400 dark:text-gray-200" />
+          <h3 className="mb-5 text-base md:text-lg font-normal text-gray-500 dark:text-gray-400">
+            Are you sure you want to delete {itemToDelete}?
+          </h3>
+        </DialogContent>
+        <DialogActions className="flex justify-center gap-2 md:gap-4 pb-4 px-4">
+          <Button
+            onClick={handleDelete}
+            variant="contained"
+            color="error"
+            className="px-4 md:px-6 py-2 md:py-2.5 text-sm md:text-base touch-target"
+          >
+            Yes
+          </Button>
+          <Button
+            onClick={() => setOpenModal(false)}
+            variant="outlined"
+            color="inherit"
+            className="px-4 md:px-6 py-2 md:py-2.5 text-sm md:text-base touch-target"
+          >
+            No
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 }

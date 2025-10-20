@@ -1,0 +1,247 @@
+import { NextResponse } from "next/server";
+import { auth } from "@/auth";
+import { prisma } from "@/lib/prisma";
+
+export const maxDuration = 10;
+export const dynamic = 'force-dynamic';
+
+// GET /api/finance/debts - Get all debts for user
+export async function GET() {
+  try {
+    const session = await auth();
+
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const debts = await prisma.financeDebt.findMany({
+      where: { userId: session.user.id },
+      include: {
+        contact: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phoneNumber: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return NextResponse.json({ data: debts });
+  } catch (error) {
+    console.error("Error fetching debts:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch debts" },
+      { status: 500 }
+    );
+  }
+}
+
+// POST /api/finance/debts - Create new debt
+export async function POST(request: Request) {
+  try {
+    const session = await auth();
+
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+    const {
+      name,
+      type,
+      amount,
+      remainingAmount,
+      currency,
+      interestRate,
+      contactId,
+      description,
+      dueDate,
+      startDate,
+      status
+    } = body;
+
+    // Validate required fields
+    if (!name || !type || amount === undefined || remainingAmount === undefined || !currency) {
+      return NextResponse.json(
+        { error: "Name, type, amount, remaining amount, and currency are required" },
+        { status: 400 }
+      );
+    }
+
+    // Validate type
+    const validTypes = ["debt", "loan"];
+    if (!validTypes.includes(type)) {
+      return NextResponse.json(
+        { error: "Invalid debt type" },
+        { status: 400 }
+      );
+    }
+
+    const debt = await prisma.financeDebt.create({
+      data: {
+        userId: session.user.id,
+        name,
+        type,
+        amount,
+        remainingAmount,
+        currency,
+        interestRate: interestRate || null,
+        contactId: contactId || null,
+        description: description || null,
+        dueDate: dueDate ? new Date(dueDate) : null,
+        startDate: startDate ? new Date(startDate) : new Date(),
+        status: status || "active",
+      },
+    });
+
+    return NextResponse.json(debt, { status: 201 });
+  } catch (error) {
+    console.error("Error creating debt:", error);
+    return NextResponse.json(
+      { error: "Failed to create debt" },
+      { status: 500 }
+    );
+  }
+}
+
+// PUT /api/finance/debts - Update debt
+export async function PUT(request: Request) {
+  try {
+    const session = await auth();
+
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+    const {
+      id,
+      name,
+      type,
+      amount,
+      remainingAmount,
+      currency,
+      interestRate,
+      contactId,
+      description,
+      dueDate,
+      startDate,
+      status
+    } = body;
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Debt ID is required" },
+        { status: 400 }
+      );
+    }
+
+    // Verify ownership
+    const existingDebt = await prisma.financeDebt.findFirst({
+      where: { id, userId: session.user.id },
+    });
+
+    if (!existingDebt) {
+      return NextResponse.json(
+        { error: "Debt not found or unauthorized" },
+        { status: 404 }
+      );
+    }
+
+    // Validate type if provided
+    if (type) {
+      const validTypes = ["debt", "loan"];
+      if (!validTypes.includes(type)) {
+        return NextResponse.json(
+          { error: "Invalid debt type" },
+          { status: 400 }
+        );
+      }
+    }
+
+    const debt = await prisma.financeDebt.update({
+      where: { id },
+      data: {
+        ...(name && { name }),
+        ...(type && { type }),
+        ...(amount !== undefined && { amount }),
+        ...(remainingAmount !== undefined && { remainingAmount }),
+        ...(currency && { currency }),
+        ...(interestRate !== undefined && { interestRate }),
+        ...(contactId !== undefined && { contactId }),
+        ...(description !== undefined && { description }),
+        ...(dueDate !== undefined && { dueDate: dueDate ? new Date(dueDate) : null }),
+        ...(startDate && { startDate: new Date(startDate) }),
+        ...(status && { status }),
+      },
+    });
+
+    return NextResponse.json(debt);
+  } catch (error) {
+    console.error("Error updating debt:", error);
+    return NextResponse.json(
+      { error: "Failed to update debt" },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE /api/finance/debts - Delete debt
+export async function DELETE(request: Request) {
+  try {
+    const session = await auth();
+
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Debt ID is required" },
+        { status: 400 }
+      );
+    }
+
+    // Verify ownership
+    const existingDebt = await prisma.financeDebt.findFirst({
+      where: { id: parseInt(id), userId: session.user.id },
+    });
+
+    if (!existingDebt) {
+      return NextResponse.json(
+        { error: "Debt not found or unauthorized" },
+        { status: 404 }
+      );
+    }
+
+    await prisma.financeDebt.delete({
+      where: { id: parseInt(id) },
+    });
+
+    return NextResponse.json({ message: "Debt deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting debt:", error);
+    return NextResponse.json(
+      { error: "Failed to delete debt" },
+      { status: 500 }
+    );
+  }
+}
