@@ -21,17 +21,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Total logger",
   description: "Log everything you do",
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 5,
-    userScalable: true,
-  },
   manifest: "/manifest.json",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#000000" },
-  ],
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -47,6 +37,17 @@ export const metadata: Metadata = {
       { url: "/icons/icon-180x180.svg", sizes: "180x180", type: "image/svg+xml" },
     ],
   },
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#000000" },
+  ],
 };
 
 export default async function RootLayout({
