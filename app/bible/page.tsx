@@ -348,7 +348,7 @@ export default function BiblePage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950 py-8">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950 py-4 md:py-8">
       <div className="max-w-7xl mx-auto px-4">
         {/* Header */}
         <motion.div
@@ -356,87 +356,93 @@ export default function BiblePage() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-                <FaBook className="text-white text-2xl" />
+          <div className="mb-4">
+            {/* Title Row */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2 md:gap-3 min-w-0">
+                <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
+                  <FaBook className="text-white text-lg md:text-2xl" />
+                </div>
+                <div className="min-w-0">
+                  <h1 className="text-xl md:text-3xl font-bold text-gray-900 dark:text-white truncate">
+                    Holy Bible
+                  </h1>
+                  <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 hidden sm:block">King James Version</p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                  Holy Bible
-                </h1>
-                <p className="text-sm text-gray-600 dark:text-gray-400">King James Version</p>
+
+              {/* Start/Stop Button */}
+              <div className="flex-shrink-0">
+                {!isLogging ? (
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={handleStartLogging}
+                    className="px-3 md:px-6 py-2 md:py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold shadow-lg flex items-center gap-2 text-sm md:text-base"
+                  >
+                    <FaPlay size={12} className="md:w-[14px]" />
+                    <span className="hidden sm:inline">Start Logging</span>
+                    <span className="sm:hidden">Start</span>
+                  </motion.button>
+                ) : (
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={handleStopLogging}
+                    className="px-3 md:px-6 py-2 md:py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold shadow-lg flex items-center gap-2 text-sm md:text-base"
+                  >
+                    <FaStop size={12} className="md:w-[14px]" />
+                    <span className="hidden sm:inline">Stop Logging</span>
+                    <span className="sm:hidden">Stop</span>
+                  </motion.button>
+                )}
               </div>
             </div>
 
-            {/* Logging Controls */}
-            <div className="flex items-center gap-3">
-              {isLogging && (
-                <>
-                  <div className="flex items-center gap-2 px-4 py-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
-                    <FaClock className="text-red-600 dark:text-red-400 animate-pulse" />
-                    <span className="text-sm font-mono font-bold text-red-600 dark:text-red-400">
-                      {elapsedTime}
-                    </span>
-                  </div>
-
-                  {/* Manual Chapter Counter with +/- buttons */}
-                  <div className="flex items-center gap-2 px-3 py-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                    <FaBook className="text-purple-600 dark:text-purple-400" size={14} />
-                    <motion.button
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                      onClick={() => setManualChapterCount(Math.max(0, manualChapterCount - 1))}
-                      className="w-6 h-6 flex items-center justify-center bg-purple-200 dark:bg-purple-800 hover:bg-purple-300 dark:hover:bg-purple-700 rounded-md transition-colors"
-                    >
-                      <FaMinus className="text-purple-700 dark:text-purple-300" size={10} />
-                    </motion.button>
-                    <span className="text-sm font-bold text-purple-700 dark:text-purple-400 min-w-[3rem] text-center">
-                      {manualChapterCount} {manualChapterCount === 1 ? 'Ch' : 'Chs'}
-                    </span>
-                    <motion.button
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                      onClick={() => setManualChapterCount(manualChapterCount + 1)}
-                      className="w-6 h-6 flex items-center justify-center bg-purple-200 dark:bg-purple-800 hover:bg-purple-300 dark:hover:bg-purple-700 rounded-md transition-colors"
-                    >
-                      <FaPlus className="text-purple-700 dark:text-purple-300" size={10} />
-                    </motion.button>
-                  </div>
-                </>
-              )}
-
-              {bibleGoals.length > 0 && (
-                <div className="hidden sm:flex items-center gap-2 px-3 py-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                  <FaBullseye className="text-purple-600 dark:text-purple-400" size={14} />
-                  <span className="text-xs font-medium text-purple-700 dark:text-purple-400">
-                    {bibleGoals.length} Goal{bibleGoals.length > 1 ? 's' : ''}
+            {/* Logging Controls Row (when logging) */}
+            {isLogging && (
+              <div className="flex flex-wrap items-center gap-2 md:gap-3">
+                <div className="flex items-center gap-2 px-3 md:px-4 py-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                  <FaClock className="text-red-600 dark:text-red-400 animate-pulse text-sm" />
+                  <span className="text-xs md:text-sm font-mono font-bold text-red-600 dark:text-red-400">
+                    {elapsedTime}
                   </span>
                 </div>
-              )}
 
-              {!isLogging ? (
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={handleStartLogging}
-                  className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold shadow-lg flex items-center gap-2"
-                >
-                  <FaPlay size={14} />
-                  Start Logging
-                </motion.button>
-              ) : (
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={handleStopLogging}
-                  className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold shadow-lg flex items-center gap-2"
-                >
-                  <FaStop size={14} />
-                  Stop Logging
-                </motion.button>
-              )}
-            </div>
+                {/* Manual Chapter Counter with +/- buttons */}
+                <div className="flex items-center gap-1.5 md:gap-2 px-2.5 md:px-3 py-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                  <FaBook className="text-purple-600 dark:text-purple-400" size={12} />
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => setManualChapterCount(Math.max(0, manualChapterCount - 1))}
+                    className="w-5 h-5 md:w-6 md:h-6 flex items-center justify-center bg-purple-200 dark:bg-purple-800 hover:bg-purple-300 dark:hover:bg-purple-700 rounded-md transition-colors"
+                  >
+                    <FaMinus className="text-purple-700 dark:text-purple-300" size={8} />
+                  </motion.button>
+                  <span className="text-xs md:text-sm font-bold text-purple-700 dark:text-purple-400 min-w-[2.5rem] md:min-w-[3rem] text-center">
+                    {manualChapterCount} <span className="hidden sm:inline">{manualChapterCount === 1 ? 'Ch' : 'Chs'}</span>
+                  </span>
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => setManualChapterCount(manualChapterCount + 1)}
+                    className="w-5 h-5 md:w-6 md:h-6 flex items-center justify-center bg-purple-200 dark:bg-purple-800 hover:bg-purple-300 dark:hover:bg-purple-700 rounded-md transition-colors"
+                  >
+                    <FaPlus className="text-purple-700 dark:text-purple-300" size={8} />
+                  </motion.button>
+                </div>
+
+                {bibleGoals.length > 0 && (
+                  <div className="flex items-center gap-2 px-2.5 md:px-3 py-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                    <FaBullseye className="text-purple-600 dark:text-purple-400" size={12} />
+                    <span className="text-xs font-medium text-purple-700 dark:text-purple-400">
+                      {bibleGoals.length} Goal{bibleGoals.length > 1 ? 's' : ''}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </motion.div>
 
