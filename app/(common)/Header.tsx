@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaBullseye, FaClipboardList, FaTasks, FaFlag, FaBars, FaTimes, FaSignOutAlt, FaCog, FaUser, FaUsers, FaMapMarkedAlt, FaBook, FaDollarSign } from "react-icons/fa";
+import { FaBullseye, FaClipboardList, FaTasks, FaFlag, FaBars, FaTimes, FaSignOutAlt, FaCog, FaUser, FaUsers, FaMapMarkedAlt, FaBook, FaDollarSign, FaDownload } from "react-icons/fa";
 import { useState, useEffect, useRef } from "react";
 import { useSession, signOut } from "next-auth/react";
 
@@ -17,6 +17,8 @@ export default function Header() {
     places: false,
     finance: false,
   });
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isInstallable, setIsInstallable] = useState(false);
   const pathname = usePathname();
   const { data: session, status } = useSession();
   const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -88,6 +90,36 @@ export default function Header() {
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [isProfileMenuOpen]);
+
+  // PWA Install Prompt
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setIsInstallable(true);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+
+    if (outcome === 'accepted') {
+      setIsInstallable(false);
+    }
+
+    setDeferredPrompt(null);
+    setIsProfileMenuOpen(false);
+    setIsMobileMenuOpen(false);
+  };
 
   // All possible nav items
   const allNavItems = [
@@ -232,6 +264,17 @@ export default function Header() {
 
                     {/* Menu Items */}
                     <div className="py-2">
+                      {isInstallable && (
+                        <motion.button
+                          whileHover={{ backgroundColor: "rgba(34, 197, 94, 0.1)" }}
+                          onClick={handleInstallClick}
+                          className="w-full px-4 py-2 text-left flex items-center gap-3 text-gray-700 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors"
+                        >
+                          <FaDownload className="text-lg" />
+                          <span className="font-medium">Install App</span>
+                        </motion.button>
+                      )}
+
                       <Link href="/settings">
                         <motion.button
                           whileHover={{ backgroundColor: "rgba(59, 130, 246, 0.1)" }}
@@ -364,6 +407,17 @@ export default function Header() {
                   </p>
                 </div>
               </div>
+
+              {isInstallable && (
+                <motion.div
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleInstallClick}
+                  className="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 cursor-pointer mb-2"
+                >
+                  <FaDownload />
+                  <span className="font-medium">Install App</span>
+                </motion.div>
+              )}
 
               <Link href="/settings">
                 <motion.div
