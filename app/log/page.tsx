@@ -20,21 +20,32 @@ export default function Log() {
     data: [],
   });
   const [rerun, refetchAction] = useState<boolean>(false);
+  const [refetchRunningLogs, setRefetchRunningLogs] = useState<boolean>(false);
   const [snackbar, setSnackbar] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>("log");
   const [loading, setLoading] = useState<boolean>(true);
 
+  // Fetch activities once on mount (they rarely change)
   useEffect(() => {
-    // Fetch activities and logs
-    const fetchData = async () => {
+    const fetchActivities = async () => {
+      const baseUrl = window.location.origin;
+      try {
+        const activitiesResponse = await axios.get(`${baseUrl}/api/activity`);
+        setActivityData(activitiesResponse.data);
+      } catch (error) {
+        console.error("Error fetching activities:", error);
+        setActivityData({ data: [] });
+      }
+    };
+    fetchActivities();
+  }, []);
+
+  // Fetch all logs when needed (for history tab or initial load)
+  useEffect(() => {
+    const fetchLogs = async () => {
       setLoading(true);
       const baseUrl = window.location.origin;
       try {
-        // Fetch activities
-        const activitiesResponse = await axios.get(`${baseUrl}/api/activity`);
-        setActivityData(activitiesResponse.data);
-
-        // Fetch logs
         const logsResponse = await axios.get(`${baseUrl}/api/log`);
         const filteredData = logsResponse.data.data.filter(
           (log: LogType) => !log.end_time
@@ -42,61 +53,189 @@ export default function Log() {
         setRunningLogData({ data: filteredData });
         setLogData({ data: logsResponse.data.data });
       } catch (error) {
-        console.error("Error fetching data:", error);
-        // Fallback to empty data
-        setActivityData({ data: [] });
+        console.error("Error fetching logs:", error);
         setLogData({ data: [] });
         setRunningLogData({ data: [] });
       } finally {
         setLoading(false);
       }
     };
-    fetchData();
+    fetchLogs();
   }, [rerun]);
 
+  // Fetch only running logs when they're updated (optimized)
+  useEffect(() => {
+    const fetchRunningLogs = async () => {
+      const baseUrl = window.location.origin;
+      try {
+        const logsResponse = await axios.get(`${baseUrl}/api/log`);
+        const filteredData = logsResponse.data.data.filter(
+          (log: LogType) => !log.end_time
+        );
+        setRunningLogData({ data: filteredData });
+        // Also update the full log data to keep it in sync
+        setLogData({ data: logsResponse.data.data });
+      } catch (error) {
+        console.error("Error fetching running logs:", error);
+      }
+    };
+    if (refetchRunningLogs) {
+      fetchRunningLogs();
+    }
+  }, [refetchRunningLogs]);
+
   const handleStartActivity = useCallback(async (activity: ActivityType) => {
-    const newLog = {
+    const startTime = new Date().toISOString();
+    // Create optimistic log entry with temporary ID
+    const tempId = -Date.now(); // Negative timestamp as temp ID
+    const optimisticLog: LogType = {
+      id: tempId,
       activityTitle: activity.title,
       activityCategory: activity.category,
       activityIcon: activity.icon,
       activityColor: activity.color || null,
-      start_time: new Date().toISOString(),
+      start_time: startTime,
       end_time: null,
       comment: "",
+      tags: null,
+      logContacts: [],
+      logPlaces: [],
+      goalCount: null,
     };
 
+    // Immediate UI update (optimistic)
+    setRunningLogData(prev => ({
+      data: [...prev.data, optimisticLog]
+    }));
+    setSnackbar({ message: `Started "${activity.title}"`, type: 'info' });
+    setTimeout(() => setSnackbar(null), 3000);
+
+    // API call in background
     const baseUrl = window.location.origin;
     try {
-      await axios.post(`${baseUrl}/api/log`, newLog);
-      refetchAction(prev => !prev);
-      setSnackbar({ message: `Started "${activity.title}"`, type: 'info' });
-      setTimeout(() => setSnackbar(null), 3000);
+      const response = await axios.post(`${baseUrl}/api/log`, {
+        activityTitle: activity.title,
+        activityCategory: activity.category,
+        activityIcon: activity.icon,
+        activityColor: activity.color || null,
+        start_time: startTime,
+        end_time: null,
+        comment: "",
+      });
+
+      // Replace temp log with real one from server
+      const realLog = response.data;
+      setRunningLogData(prev => ({
+        data: prev.data.map(log => log.id === tempId ? realLog : log)
+      }));
+      setLogData(prev => ({
+        data: [...prev.data, realLog]
+      }));
     } catch (error) {
       console.error("Error starting activity:", error);
+      // Rollback optimistic update
+      setRunningLogData(prev => ({
+        data: prev.data.filter(log => log.id !== tempId)
+      }));
       setSnackbar({ message: "Failed to start activity", type: 'error' });
       setTimeout(() => setSnackbar(null), 3000);
     }
   }, []);
 
   const handleStopActivity = useCallback(async (logId: number) => {
-    const log = logData.data.find(l => l.id === logId);
+    const log = runningLogData.data.find(l => l.id === logId);
+    if (!log) return;
+
+    // Check if this is a temporary ID (still being created on server)
+    if (logId < 0) {
+      setSnackbar({
+        message: 'Activity is still being saved, please wait a moment...',
+        type: 'info'
+      });
+      setTimeout(() => setSnackbar(null), 2000);
+      return;
+    }
+
     const endTime = new Date().toISOString();
 
+    // Immediate UI update (optimistic) - remove from running logs
+    setRunningLogData(prev => ({
+      data: prev.data.filter(l => l.id !== logId)
+    }));
+
+    // Update in main log data with end time
+    setLogData(prev => ({
+      data: prev.data.map(l =>
+        l.id === logId ? { ...l, end_time: endTime } : l
+      )
+    }));
+
+    setSnackbar({ message: `Stopped "${log.activityTitle}"`, type: 'success' });
+    setTimeout(() => setSnackbar(null), 3000);
+
+    // API call in background
     const baseUrl = window.location.origin;
     try {
       await axios.put(`${baseUrl}/api/log`, {
         id: logId,
         end_time: endTime,
       });
-      refetchAction(prev => !prev);
-      setSnackbar({ message: `Stopped "${log?.activityTitle}"`, type: 'success' });
-      setTimeout(() => setSnackbar(null), 3000);
+      // Success - optimistic update was correct, no action needed
     } catch (error) {
       console.error("Error stopping activity:", error);
+      // Rollback optimistic update
+      setRunningLogData(prev => ({
+        data: [...prev.data, log]
+      }));
+      setLogData(prev => ({
+        data: prev.data.map(l =>
+          l.id === logId ? { ...l, end_time: null } : l
+        )
+      }));
       setSnackbar({ message: "Failed to stop activity", type: 'error' });
       setTimeout(() => setSnackbar(null), 3000);
     }
-  }, [logData.data]);
+  }, [runningLogData.data]);
+
+  // Optimistic update handler for running activities
+  const handleOptimisticUpdate = useCallback(async (
+    logId: number,
+    updates: Partial<LogType>,
+    apiCall: () => Promise<any>
+  ) => {
+    // Store original log for rollback
+    const originalLog = runningLogData.data.find(l => l.id === logId);
+    if (!originalLog) return;
+
+    // Immediate UI update (optimistic)
+    setRunningLogData(prev => ({
+      data: prev.data.map(l =>
+        l.id === logId ? { ...l, ...updates } : l
+      )
+    }));
+
+    setLogData(prev => ({
+      data: prev.data.map(l =>
+        l.id === logId ? { ...l, ...updates } : l
+      )
+    }));
+
+    // API call in background
+    try {
+      await apiCall();
+      // Success - optimistic update was correct
+    } catch (error) {
+      console.error("Error updating log:", error);
+      // Rollback optimistic update
+      setRunningLogData(prev => ({
+        data: prev.data.map(l => l.id === logId ? originalLog : l)
+      }));
+      setLogData(prev => ({
+        data: prev.data.map(l => l.id === logId ? originalLog : l)
+      }));
+      throw error; // Re-throw so component can handle it
+    }
+  }, [runningLogData.data]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 p-4 sm:p-8">
@@ -210,7 +349,7 @@ export default function Log() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {runningLogData?.data?.map((log: LogType, index: number) => (
                       <motion.div
-                        key={log.id}
+                        key={`${log.start_time}-${log.activityTitle}`}
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: index * 0.05 }}
@@ -219,7 +358,8 @@ export default function Log() {
                           data={log}
                           onStopAction={handleStopActivity}
                           allLogs={logData.data}
-                          onUpdate={() => refetchAction(prev => !prev)}
+                          onUpdate={() => setRefetchRunningLogs(prev => !prev)}
+                          onOptimisticUpdate={handleOptimisticUpdate}
                         />
                       </motion.div>
                     ))}

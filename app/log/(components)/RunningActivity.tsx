@@ -2,7 +2,7 @@
 import { DateTime } from "luxon";
 import * as HiIcons from "react-icons/hi";
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { FaStop, FaEdit, FaSave, FaTimes, FaUsers, FaMapMarkedAlt, FaTasks, FaBullseye } from "react-icons/fa";
 import TagDropdown from "@/app/(components)/TagDropdown";
 import { Autocomplete, TextField, Chip } from "@mui/material";
@@ -25,6 +25,11 @@ interface RunningActivityProps {
   onStopAction: (logId: number) => void;
   allLogs: LogType[];
   onUpdate?: () => void;
+  onOptimisticUpdate?: (
+    logId: number,
+    updates: Partial<LogType>,
+    apiCall: () => Promise<any>
+  ) => Promise<void>;
 }
 
 export default function RunningActivity({
@@ -32,12 +37,14 @@ export default function RunningActivity({
   onStopAction,
   allLogs,
   onUpdate,
+  onOptimisticUpdate,
 }: RunningActivityProps) {
   const IconComponent =
     HiIcons[data.activityIcon as keyof typeof HiIcons] ||
     HiIcons.HiOutlineQuestionMarkCircle;
   const [timeDiff, setTimeDiff] = useState("");
   const [isHovered, setIsHovered] = useState(false);
+  const isTempActivity = data.id < 0; // Temporary activities have negative IDs
   const [showTagsModal, setShowTagsModal] = useState(false);
   const [editTags, setEditTags] = useState(data.tags || "");
   const [allContacts, setAllContacts] = useState<Contact[]>([]);
@@ -104,9 +111,20 @@ export default function RunningActivity({
   }, [data]);
 
   const handleSaveTags = async () => {
-    const baseUrl = window.location.origin;
-    try {
-      await axios.put(`${baseUrl}/api/log`, {
+    // Close modal immediately for instant feedback
+    setShowTagsModal(false);
+
+    if (onOptimisticUpdate) {
+      // Use optimistic update for instant UI feedback
+      const updates: Partial<LogType> = {
+        tags: editTags,
+        goalCount: goalCount,
+        // Note: We can't easily update the nested relations optimistically
+        // but the tags and goalCount are the most important for instant feedback
+      };
+
+      const baseUrl = window.location.origin;
+      const apiCall = () => axios.put(`${baseUrl}/api/log`, {
         id: data.id,
         tags: editTags,
         todoId: selectedTodo?.id || null,
@@ -115,10 +133,34 @@ export default function RunningActivity({
         contactIds: selectedContacts.map(c => c.id),
         placeIds: selectedPlaces.map(p => p.id),
       });
-      setShowTagsModal(false);
-      onUpdate?.();
-    } catch (error) {
-      console.error("Error updating tags:", error);
+
+      try {
+        await onOptimisticUpdate(data.id, updates, apiCall);
+        // After successful API call, do a full refetch to get the complete updated data
+        // including the relations (contacts, places, todo, goal)
+        onUpdate?.();
+      } catch (error) {
+        console.error("Error updating tags:", error);
+        alert("Failed to update tags. Please try again.");
+      }
+    } else {
+      // Fallback to old behavior if optimistic update not available
+      const baseUrl = window.location.origin;
+      try {
+        await axios.put(`${baseUrl}/api/log`, {
+          id: data.id,
+          tags: editTags,
+          todoId: selectedTodo?.id || null,
+          goalId: selectedGoal?.id || null,
+          goalCount: goalCount || null,
+          contactIds: selectedContacts.map(c => c.id),
+          placeIds: selectedPlaces.map(p => p.id),
+        });
+        onUpdate?.();
+      } catch (error) {
+        console.error("Error updating tags:", error);
+        alert("Failed to update tags. Please try again.");
+      }
     }
   };
 
@@ -145,10 +187,28 @@ export default function RunningActivity({
 
   return (
     <div
-      className="p-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm border-2 border-red-500 dark:border-red-400"
+      className={`p-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm border-2 transition-colors duration-300 ${
+        isTempActivity
+          ? 'border-yellow-500 dark:border-yellow-400'
+          : 'border-red-500 dark:border-red-400'
+      }`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
+      <AnimatePresence>
+        {isTempActivity && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="mb-2 flex items-center gap-2 text-xs text-yellow-600 dark:text-yellow-400 overflow-hidden"
+          >
+            <div className="w-3 h-3 border-2 border-yellow-600 dark:border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
+            <span>Saving...</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div className={`flex items-center justify-between gap-3 ${todoInfo ? 'mb-3' : ''}`}>
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <div
@@ -171,12 +231,22 @@ export default function RunningActivity({
             {data?.start_time ? timeDiff : "N/A"}
           </div>
           <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
+            whileHover={isTempActivity ? {} : { scale: 1.1 }}
+            whileTap={isTempActivity ? {} : { scale: 0.9 }}
             onClick={() => onStopAction(data.id)}
-            className="w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center"
+            disabled={isTempActivity}
+            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
+              isTempActivity
+                ? 'bg-gray-200 dark:bg-gray-700 cursor-not-allowed opacity-50'
+                : 'bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/50'
+            }`}
+            title={isTempActivity ? 'Activity is being saved...' : 'Stop activity'}
           >
-            <FaStop className="text-red-600 dark:text-red-400 text-sm" />
+            <FaStop className={`text-sm transition-colors duration-300 ${
+              isTempActivity
+                ? 'text-gray-400 dark:text-gray-500'
+                : 'text-red-600 dark:text-red-400'
+            }`} />
           </motion.button>
         </div>
       </div>
@@ -206,13 +276,15 @@ export default function RunningActivity({
           <div className={`${todoInfo ? 'mt-2' : ''}`}>
             <div className="flex items-center justify-between gap-2 mb-2">
               <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">Tags:</span>
-              <button
-                onClick={() => setShowTagsModal(true)}
-                className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
-              >
-                <FaEdit size={10} />
-                Edit
-              </button>
+              {!isTempActivity && (
+                <button
+                  onClick={() => setShowTagsModal(true)}
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                >
+                  <FaEdit size={10} />
+                  Edit
+                </button>
+              )}
             </div>
             <div className="flex flex-wrap gap-1">
               {/* Text Tags */}
