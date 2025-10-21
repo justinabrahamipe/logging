@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import withPWA from "@ducanh2912/next-pwa";
 
 const nextConfig: NextConfig = {
 	/* config options here */
@@ -23,12 +24,15 @@ const nextConfig: NextConfig = {
 		},
 		optimizePackageImports: ['react-icons', 'framer-motion', 'luxon', '@mui/material', '@mui/icons-material'],
 	},
-	// Enable SWC minification for faster builds
-	swcMinify: true,
 	// Enable React strict mode for better performance warnings
 	reactStrictMode: true,
 	// Optimize production builds
 	compress: true,
 };
 
-export default nextConfig;
+export default withPWA({
+	dest: "public",
+	disable: process.env.NODE_ENV === "development",
+	register: true,
+	skipWaiting: true,
+})(nextConfig);
