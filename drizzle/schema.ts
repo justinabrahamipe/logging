@@ -77,7 +77,7 @@ export const goals = sqliteTable('Goal', {
 
 // User table (lowercase for Auth.js compatibility)
 export const users = sqliteTable('user', {
-  id: text('id').primaryKey(),
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
   name: text('name'),
   email: text('email').notNull().unique(),
   emailVerified: integer('emailVerified', { mode: 'timestamp' }),
@@ -88,7 +88,7 @@ export const users = sqliteTable('user', {
 
 // Account table (lowercase for Auth.js compatibility)
 export const accounts = sqliteTable('account', {
-  id: text('id').primaryKey(),
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
   userId: text('userId').notNull().references(() => users.id, { onDelete: 'cascade' }),
   type: text('type').notNull(),
   provider: text('provider').notNull(),
@@ -107,7 +107,7 @@ export const accounts = sqliteTable('account', {
 
 // Session table (lowercase for Auth.js compatibility)
 export const sessions = sqliteTable('session', {
-  id: text('id').primaryKey(),
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
   sessionToken: text('sessionToken').notNull().unique(),
   userId: text('userId').notNull().references(() => users.id, { onDelete: 'cascade' }),
   expires: integer('expires', { mode: 'timestamp' }).notNull(),
