@@ -75,8 +75,8 @@ export const goals = sqliteTable('Goal', {
   userId: text('userId'),
 });
 
-// User table
-export const users = sqliteTable('User', {
+// User table (lowercase for Auth.js compatibility)
+export const users = sqliteTable('user', {
   id: text('id').primaryKey(),
   name: text('name'),
   email: text('email').notNull().unique(),
@@ -86,8 +86,8 @@ export const users = sqliteTable('User', {
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 });
 
-// Account table
-export const accounts = sqliteTable('Account', {
+// Account table (lowercase for Auth.js compatibility)
+export const accounts = sqliteTable('account', {
   id: text('id').primaryKey(),
   userId: text('userId').notNull().references(() => users.id, { onDelete: 'cascade' }),
   type: text('type').notNull(),
@@ -102,21 +102,21 @@ export const accounts = sqliteTable('Account', {
   sessionState: text('session_state'),
 }, (table) => ({
   providerProviderAccountIdUnique: unique().on(table.provider, table.providerAccountId),
-  userIdIdx: index('Account_userId_idx').on(table.userId),
+  userIdIdx: index('account_userId_idx').on(table.userId),
 }));
 
-// Session table
-export const sessions = sqliteTable('Session', {
+// Session table (lowercase for Auth.js compatibility)
+export const sessions = sqliteTable('session', {
   id: text('id').primaryKey(),
   sessionToken: text('sessionToken').notNull().unique(),
   userId: text('userId').notNull().references(() => users.id, { onDelete: 'cascade' }),
   expires: integer('expires', { mode: 'timestamp' }).notNull(),
 }, (table) => ({
-  userIdIdx: index('Session_userId_idx').on(table.userId),
+  userIdIdx: index('session_userId_idx').on(table.userId),
 }));
 
-// VerificationToken table
-export const verificationTokens = sqliteTable('VerificationToken', {
+// VerificationToken table (lowercase for Auth.js compatibility)
+export const verificationTokens = sqliteTable('verificationToken', {
   identifier: text('identifier').notNull(),
   token: text('token').notNull().unique(),
   expires: integer('expires', { mode: 'timestamp' }).notNull(),
