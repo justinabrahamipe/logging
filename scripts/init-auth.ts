@@ -17,7 +17,7 @@ const initAuthTables = async () => {
   const statements = [
     // Create user table first (no dependencies)
     `CREATE TABLE IF NOT EXISTS "user" (
-      "id" text PRIMARY KEY NOT NULL,
+      "id" text PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))) NOT NULL,
       "name" text,
       "email" text NOT NULL,
       "emailVerified" integer,
@@ -29,7 +29,7 @@ const initAuthTables = async () => {
 
     // Create account table (depends on user)
     `CREATE TABLE IF NOT EXISTS "account" (
-      "id" text PRIMARY KEY NOT NULL,
+      "id" text PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))) NOT NULL,
       "userId" text NOT NULL,
       "type" text NOT NULL,
       "provider" text NOT NULL,
@@ -48,7 +48,7 @@ const initAuthTables = async () => {
 
     // Create session table (depends on user)
     `CREATE TABLE IF NOT EXISTS "session" (
-      "id" text PRIMARY KEY NOT NULL,
+      "id" text PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))) NOT NULL,
       "sessionToken" text NOT NULL,
       "userId" text NOT NULL,
       "expires" integer NOT NULL,
