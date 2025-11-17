@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createManyIgnoreDuplicates } from "@/lib/prisma-utils";
 import { prisma } from "@/lib/prisma";
 
 export const maxDuration = 10;
@@ -94,24 +95,24 @@ export async function POST(request: NextRequest) {
 
     // Link contacts if provided
     if (body.contactIds && Array.isArray(body.contactIds) && body.contactIds.length > 0) {
-      await prisma.logContact.createMany({
-        data: body.contactIds.map((contactId: number) => ({
+      await createManyIgnoreDuplicates(
+        prisma.logContact,
+        body.contactIds.map((contactId: number) => ({
           logId: log.id,
           contactId
-        })),
-        skipDuplicates: true
-      });
+        }))
+      );
     }
 
     // Link places if provided
     if (body.placeIds && Array.isArray(body.placeIds) && body.placeIds.length > 0) {
-      await prisma.logPlace.createMany({
-        data: body.placeIds.map((placeId: number) => ({
+      await createManyIgnoreDuplicates(
+        prisma.logPlace,
+        body.placeIds.map((placeId: number) => ({
           logId: log.id,
           placeId
-        })),
-        skipDuplicates: true
-      });
+        }))
+      );
     }
 
     // Fetch the complete log with relationships
@@ -224,13 +225,13 @@ export async function PUT(request: NextRequest) {
 
       // Add new contacts
       if (body.contactIds.length > 0) {
-        await prisma.logContact.createMany({
-          data: body.contactIds.map((contactId: number) => ({
+        await createManyIgnoreDuplicates(
+          prisma.logContact,
+          body.contactIds.map((contactId: number) => ({
             logId: parseInt(id),
             contactId
-          })),
-          skipDuplicates: true
-        });
+          }))
+        );
       }
     }
 
@@ -243,13 +244,13 @@ export async function PUT(request: NextRequest) {
 
       // Add new places
       if (body.placeIds.length > 0) {
-        await prisma.logPlace.createMany({
-          data: body.placeIds.map((placeId: number) => ({
+        await createManyIgnoreDuplicates(
+          prisma.logPlace,
+          body.placeIds.map((placeId: number) => ({
             logId: parseInt(id),
             placeId
-          })),
-          skipDuplicates: true
-        });
+          }))
+        );
       }
     }
 

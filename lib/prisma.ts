@@ -1,4 +1,6 @@
 import { PrismaClient } from "@prisma/client";
+import { PrismaLibSQL } from "@prisma/adapter-libsql";
+import { createClient } from "@libsql/client/http";
 
 // PrismaClient is attached to the `global` object in development to prevent
 // exhausting your database connection limit.
@@ -6,33 +8,39 @@ import { PrismaClient } from "@prisma/client";
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient | undefined };
 
-// Clean the DATABASE_URL by removing channel_binding parameter
-// This is needed because Neon's Vercel integration adds it, but Prisma doesn't support it
-const getDatabaseUrl = () => {
-  const url = process.env.DATABASE_URL;
-  if (!url) {
-    console.error('DATABASE_URL is not defined in environment variables');
-    throw new Error('DATABASE_URL is not defined');
-  }
-
-  // Remove channel_binding parameter if present
-  return url.replace(/[&?]channel_binding=[^&]*/g, '');
-};
-
-// Initialize Prisma Client
+// Initialize Prisma Client with Turso adapter using HTTP (no WebSocket)
 let prismaInstance: PrismaClient;
 
 if (globalForPrisma.prisma) {
   prismaInstance = globalForPrisma.prisma;
 } else {
   try {
+    const databaseUrl = process.env.DATABASE_URL;
+    const authToken = process.env.DATABASE_AUTH_TOKEN;
+
+    if (!databaseUrl) {
+      console.error('DATABASE_URL is not defined in environment variables');
+      throw new Error('DATABASE_URL is not defined');
+    }
+
+    if (!authToken) {
+      console.error('DATABASE_AUTH_TOKEN is not defined in environment variables');
+      throw new Error('DATABASE_AUTH_TOKEN is not defined');
+    }
+
+    // Create libSQL client for Turso using HTTP protocol (avoids WebSocket/README.md issues)
+    const libsql = createClient({
+      url: databaseUrl,
+      authToken: authToken,
+    });
+
+    // Create Prisma adapter
+    const adapter = new PrismaLibSQL(libsql);
+
+    // Initialize Prisma Client with adapter
     prismaInstance = new PrismaClient({
+      adapter,
       log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
-      datasources: {
-        db: {
-          url: getDatabaseUrl(),
-        },
-      },
     });
 
     if (process.env.NODE_ENV !== "production") {

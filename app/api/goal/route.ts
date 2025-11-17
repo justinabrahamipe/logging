@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { createManyIgnoreDuplicates } from "@/lib/prisma-utils";
 
 export const maxDuration = 10;
 export const dynamic = 'force-dynamic';
@@ -162,24 +163,24 @@ export async function POST(request: NextRequest) {
 
     // Link contacts if provided
     if (body.contactIds && Array.isArray(body.contactIds) && body.contactIds.length > 0) {
-      await prisma.goalContact.createMany({
-        data: body.contactIds.map((contactId: number) => ({
+      await createManyIgnoreDuplicates(
+        prisma.goalContact,
+        body.contactIds.map((contactId: number) => ({
           goalId: goal.id,
           contactId
-        })),
-        skipDuplicates: true
-      });
+        }))
+      );
     }
 
     // Link places if provided
     if (body.placeIds && Array.isArray(body.placeIds) && body.placeIds.length > 0) {
-      await prisma.goalPlace.createMany({
-        data: body.placeIds.map((placeId: number) => ({
+      await createManyIgnoreDuplicates(
+        prisma.goalPlace,
+        body.placeIds.map((placeId: number) => ({
           goalId: goal.id,
           placeId
-        })),
-        skipDuplicates: true
-      });
+        }))
+      );
     }
 
     // Fetch the complete goal with relationships
@@ -274,13 +275,13 @@ export async function PUT(request: NextRequest) {
 
       // Add new contacts
       if (contactIds.length > 0) {
-        await prisma.goalContact.createMany({
-          data: contactIds.map((contactId: number) => ({
+        await createManyIgnoreDuplicates(
+          prisma.goalContact,
+          contactIds.map((contactId: number) => ({
             goalId: parseInt(id),
             contactId
-          })),
-          skipDuplicates: true
-        });
+          }))
+        );
       }
     }
 
@@ -293,13 +294,13 @@ export async function PUT(request: NextRequest) {
 
       // Add new places
       if (placeIds.length > 0) {
-        await prisma.goalPlace.createMany({
-          data: placeIds.map((placeId: number) => ({
+        await createManyIgnoreDuplicates(
+          prisma.goalPlace,
+          placeIds.map((placeId: number) => ({
             goalId: parseInt(id),
             placeId
-          })),
-          skipDuplicates: true
-        });
+          }))
+        );
       }
     }
 

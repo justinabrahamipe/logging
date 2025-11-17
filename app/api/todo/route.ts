@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createManyIgnoreDuplicates } from "@/lib/prisma-utils";
 import { prisma } from "@/lib/prisma";
 
 export const maxDuration = 10;
@@ -83,24 +84,24 @@ export async function POST(request: NextRequest) {
 
     // Link contacts if provided
     if (body.contactIds && Array.isArray(body.contactIds) && body.contactIds.length > 0) {
-      await prisma.todoContact.createMany({
-        data: body.contactIds.map((contactId: number) => ({
+      await createManyIgnoreDuplicates(
+        prisma.todoContact,
+        body.contactIds.map((contactId: number) => ({
           todoId: todo.id,
           contactId
-        })),
-        skipDuplicates: true
-      });
+        }))
+      );
     }
 
     // Link places if provided
     if (body.placeIds && Array.isArray(body.placeIds) && body.placeIds.length > 0) {
-      await prisma.todoPlace.createMany({
-        data: body.placeIds.map((placeId: number) => ({
+      await createManyIgnoreDuplicates(
+        prisma.todoPlace,
+        body.placeIds.map((placeId: number) => ({
           todoId: todo.id,
           placeId
-        })),
-        skipDuplicates: true
-      });
+        }))
+      );
     }
 
     // Fetch the complete todo with relationships
@@ -178,13 +179,13 @@ export async function PUT(request: NextRequest) {
 
       // Add new contacts
       if (contactIds.length > 0) {
-        await prisma.todoContact.createMany({
-          data: contactIds.map((contactId: number) => ({
+        await createManyIgnoreDuplicates(
+          prisma.todoContact,
+          contactIds.map((contactId: number) => ({
             todoId: Number(id),
             contactId
-          })),
-          skipDuplicates: true
-        });
+          }))
+        );
       }
     }
 
@@ -197,13 +198,13 @@ export async function PUT(request: NextRequest) {
 
       // Add new places
       if (placeIds.length > 0) {
-        await prisma.todoPlace.createMany({
-          data: placeIds.map((placeId: number) => ({
+        await createManyIgnoreDuplicates(
+          prisma.todoPlace,
+          placeIds.map((placeId: number) => ({
             todoId: Number(id),
             placeId
-          })),
-          skipDuplicates: true
-        });
+          }))
+        );
       }
     }
 

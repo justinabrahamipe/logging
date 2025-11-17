@@ -28,6 +28,21 @@ const nextConfig: NextConfig = {
 	reactStrictMode: true,
 	// Optimize production builds
 	compress: true,
+	// Configure server components external packages
+	serverExternalPackages: ['@libsql/client', '@prisma/adapter-libsql'],
+	// Webpack configuration to exclude problematic files
+	webpack: (config, { isServer }) => {
+		// Add rule to handle .md files as raw strings instead of trying to parse them
+		config.module.rules.push({
+			test: /\.md$/,
+			type: 'asset/resource',
+			generator: {
+				emit: false,
+			},
+		});
+
+		return config;
+	},
 };
 
 export default withPWA({

@@ -243,13 +243,22 @@ export async function POST(request: NextRequest) {
       });
 
       // Link all contacts to this place
-      await prisma.placeContact.createMany({
-        data: groupContacts.map(contact => ({
-          placeId: place.id,
-          contactId: contact.id
-        })),
-        skipDuplicates: true
-      });
+      // Note: SQLite doesn't support skipDuplicates in createMany, so we use individual creates
+      for (const contact of groupContacts) {
+        try {
+          await prisma.placeContact.create({
+            data: {
+              placeId: place.id,
+              contactId: contact.id
+            }
+          });
+        } catch (error: any) {
+          // Ignore duplicate errors (unique constraint violations)
+          if (!error.code || error.code !== 'P2002') {
+            throw error; // Re-throw if it's not a duplicate error
+          }
+        }
+      }
 
       created++;
     }

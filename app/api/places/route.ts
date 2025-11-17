@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createManyIgnoreDuplicates } from "@/lib/prisma-utils";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 
@@ -144,13 +145,13 @@ export async function POST(request: NextRequest) {
 
     // Link contacts if provided
     if (body.contactIds && Array.isArray(body.contactIds) && body.contactIds.length > 0) {
-      await prisma.placeContact.createMany({
-        data: body.contactIds.map((contactId: number) => ({
+      await createManyIgnoreDuplicates(
+        prisma.placeContact,
+        body.contactIds.map((contactId: number) => ({
           placeId: place.id,
           contactId
-        })),
-        skipDuplicates: true
-      });
+        }))
+      );
 
       // Fetch updated place with contacts
       const updatedPlace = await prisma.place.findUnique({
@@ -260,13 +261,13 @@ export async function PUT(request: NextRequest) {
 
       // Add new contacts
       if (body.contactIds.length > 0) {
-        await prisma.placeContact.createMany({
-          data: body.contactIds.map((contactId: number) => ({
+        await createManyIgnoreDuplicates(
+          prisma.placeContact,
+          body.contactIds.map((contactId: number) => ({
             placeId: body.id,
             contactId
-          })),
-          skipDuplicates: true
-        });
+          }))
+        );
       }
     }
 
