@@ -1,4 +1,4 @@
-CREATE TABLE `Account` (
+CREATE TABLE `account` (
 	`id` text PRIMARY KEY NOT NULL,
 	`userId` text NOT NULL,
 	`type` text NOT NULL,
@@ -11,11 +11,11 @@ CREATE TABLE `Account` (
 	`scope` text,
 	`id_token` text,
 	`session_state` text,
-	FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON UPDATE no action ON DELETE cascade
+	FOREIGN KEY (`userId`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE INDEX `Account_userId_idx` ON `Account` (`userId`);--> statement-breakpoint
-CREATE UNIQUE INDEX `Account_provider_providerAccountId_unique` ON `Account` (`provider`,`providerAccountId`);--> statement-breakpoint
+CREATE INDEX `account_userId_idx` ON `account` (`userId`);--> statement-breakpoint
+CREATE UNIQUE INDEX `account_provider_providerAccountId_unique` ON `account` (`provider`,`providerAccountId`);--> statement-breakpoint
 CREATE TABLE `Activity` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`icon` text DEFAULT '--' NOT NULL,
@@ -277,16 +277,16 @@ CREATE TABLE `Place` (
 );
 --> statement-breakpoint
 CREATE INDEX `Place_userId_idx` ON `Place` (`userId`);--> statement-breakpoint
-CREATE TABLE `Session` (
+CREATE TABLE `session` (
 	`id` text PRIMARY KEY NOT NULL,
 	`sessionToken` text NOT NULL,
 	`userId` text NOT NULL,
 	`expires` integer NOT NULL,
-	FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON UPDATE no action ON DELETE cascade
+	FOREIGN KEY (`userId`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `Session_sessionToken_unique` ON `Session` (`sessionToken`);--> statement-breakpoint
-CREATE INDEX `Session_userId_idx` ON `Session` (`userId`);--> statement-breakpoint
+CREATE UNIQUE INDEX `session_sessionToken_unique` ON `session` (`sessionToken`);--> statement-breakpoint
+CREATE INDEX `session_userId_idx` ON `session` (`userId`);--> statement-breakpoint
 CREATE TABLE `TodoContact` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`todoId` integer NOT NULL,
@@ -339,12 +339,12 @@ CREATE TABLE `UserPreferences` (
 	`enableFinance` integer DEFAULT false NOT NULL,
 	`createdAt` integer DEFAULT (unixepoch()) NOT NULL,
 	`updatedAt` integer DEFAULT (unixepoch()) NOT NULL,
-	FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON UPDATE no action ON DELETE cascade
+	FOREIGN KEY (`userId`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `UserPreferences_userId_unique` ON `UserPreferences` (`userId`);--> statement-breakpoint
 CREATE INDEX `UserPreferences_userId_idx` ON `UserPreferences` (`userId`);--> statement-breakpoint
-CREATE TABLE `User` (
+CREATE TABLE `user` (
 	`id` text PRIMARY KEY NOT NULL,
 	`name` text,
 	`email` text NOT NULL,
@@ -354,12 +354,12 @@ CREATE TABLE `User` (
 	`updatedAt` integer DEFAULT (unixepoch()) NOT NULL
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `User_email_unique` ON `User` (`email`);--> statement-breakpoint
-CREATE TABLE `VerificationToken` (
+CREATE UNIQUE INDEX `user_email_unique` ON `user` (`email`);--> statement-breakpoint
+CREATE TABLE `verificationToken` (
 	`identifier` text NOT NULL,
 	`token` text NOT NULL,
 	`expires` integer NOT NULL
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `VerificationToken_token_unique` ON `VerificationToken` (`token`);--> statement-breakpoint
-CREATE UNIQUE INDEX `VerificationToken_identifier_token_unique` ON `VerificationToken` (`identifier`,`token`);
+CREATE UNIQUE INDEX `verificationToken_token_unique` ON `verificationToken` (`token`);--> statement-breakpoint
+CREATE UNIQUE INDEX `verificationToken_identifier_token_unique` ON `verificationToken` (`identifier`,`token`);

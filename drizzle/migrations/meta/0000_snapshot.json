@@ -1,11 +1,11 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "2a829f20-4957-4711-9c53-60ffd66b6751",
+  "id": "d3a364f2-8ce0-4129-a66a-94f1b97f9f25",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
-    "Account": {
-      "name": "Account",
+    "account": {
+      "name": "account",
       "columns": {
         "id": {
           "name": "id",
@@ -93,15 +93,15 @@
         }
       },
       "indexes": {
-        "Account_userId_idx": {
-          "name": "Account_userId_idx",
+        "account_userId_idx": {
+          "name": "account_userId_idx",
           "columns": [
             "userId"
           ],
           "isUnique": false
         },
-        "Account_provider_providerAccountId_unique": {
-          "name": "Account_provider_providerAccountId_unique",
+        "account_provider_providerAccountId_unique": {
+          "name": "account_provider_providerAccountId_unique",
           "columns": [
             "provider",
             "providerAccountId"
@@ -110,10 +110,10 @@
         }
       },
       "foreignKeys": {
-        "Account_userId_User_id_fk": {
-          "name": "Account_userId_User_id_fk",
-          "tableFrom": "Account",
-          "tableTo": "User",
+        "account_userId_user_id_fk": {
+          "name": "account_userId_user_id_fk",
+          "tableFrom": "account",
+          "tableTo": "user",
           "columnsFrom": [
             "userId"
           ],
@@ -1952,8 +1952,8 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "Session": {
-      "name": "Session",
+    "session": {
+      "name": "session",
       "columns": {
         "id": {
           "name": "id",
@@ -1985,15 +1985,15 @@
         }
       },
       "indexes": {
-        "Session_sessionToken_unique": {
-          "name": "Session_sessionToken_unique",
+        "session_sessionToken_unique": {
+          "name": "session_sessionToken_unique",
           "columns": [
             "sessionToken"
           ],
           "isUnique": true
         },
-        "Session_userId_idx": {
-          "name": "Session_userId_idx",
+        "session_userId_idx": {
+          "name": "session_userId_idx",
           "columns": [
             "userId"
           ],
@@ -2001,10 +2001,10 @@
         }
       },
       "foreignKeys": {
-        "Session_userId_User_id_fk": {
-          "name": "Session_userId_User_id_fk",
-          "tableFrom": "Session",
-          "tableTo": "User",
+        "session_userId_user_id_fk": {
+          "name": "session_userId_user_id_fk",
+          "tableFrom": "session",
+          "tableTo": "user",
           "columnsFrom": [
             "userId"
           ],
@@ -2410,10 +2410,10 @@
         }
       },
       "foreignKeys": {
-        "UserPreferences_userId_User_id_fk": {
-          "name": "UserPreferences_userId_User_id_fk",
+        "UserPreferences_userId_user_id_fk": {
+          "name": "UserPreferences_userId_user_id_fk",
           "tableFrom": "UserPreferences",
-          "tableTo": "User",
+          "tableTo": "user",
           "columnsFrom": [
             "userId"
           ],
@@ -2428,8 +2428,8 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "User": {
-      "name": "User",
+    "user": {
+      "name": "user",
       "columns": {
         "id": {
           "name": "id",
@@ -2484,8 +2484,8 @@
         }
       },
       "indexes": {
-        "User_email_unique": {
-          "name": "User_email_unique",
+        "user_email_unique": {
+          "name": "user_email_unique",
           "columns": [
             "email"
           ],
@@ -2497,8 +2497,8 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "VerificationToken": {
-      "name": "VerificationToken",
+    "verificationToken": {
+      "name": "verificationToken",
       "columns": {
         "identifier": {
           "name": "identifier",
@@ -2523,15 +2523,15 @@
         }
       },
       "indexes": {
-        "VerificationToken_token_unique": {
-          "name": "VerificationToken_token_unique",
+        "verificationToken_token_unique": {
+          "name": "verificationToken_token_unique",
           "columns": [
             "token"
           ],
           "isUnique": true
         },
-        "VerificationToken_identifier_token_unique": {
-          "name": "VerificationToken_identifier_token_unique",
+        "verificationToken_identifier_token_unique": {
+          "name": "verificationToken_identifier_token_unique",
           "columns": [
             "identifier",
             "token"
