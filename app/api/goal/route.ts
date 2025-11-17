@@ -1,18 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { createManyIgnoreDuplicates } from "@/lib/prisma-utils";
+import { insertManyIgnoreDuplicates } from "@/lib/drizzle-utils";
+import { db, goals, goalContacts, goalPlaces, logs } from "@/lib/db";
+import { desc, eq, and, gte, lte } from "drizzle-orm";
 
 export const maxDuration = 10;
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const data = await prisma.goal.findMany({
-      include: {
+    const data = await db.query.goals.findMany({
+      orderBy: [desc(goals.createdOn)],
+      with: {
         goalContacts: {
-          include: {
+          with: {
             contact: {
-              select: {
+              columns: {
                 id: true,
                 name: true,
                 photoUrl: true
@@ -21,9 +23,9 @@ export async function GET() {
           }
         },
         goalPlaces: {
-          include: {
+          with: {
             place: {
-              select: {
+              columns: {
                 id: true,
                 name: true,
                 address: true
@@ -31,9 +33,6 @@ export async function GET() {
             }
           }
         }
-      },
-      orderBy: {
-        created_on: 'desc'
       }
     });
 
@@ -49,28 +48,26 @@ export async function GET() {
         const endDate = new Date(goal.endDate);
         endDate.setHours(23, 59, 59, 999);
 
-        const logs = await prisma.log.findMany({
-          where: {
-            goalId: goal.id,
-            start_time: {
-              gte: startDate,
-              lte: endDate
-            }
-          }
-        });
+        const goalLogs = await db.select().from(logs).where(
+          and(
+            eq(logs.goalId, goal.id),
+            gte(logs.startTime, startDate),
+            lte(logs.startTime, endDate)
+          )
+        );
 
         if (goal.metricType === 'time') {
           // Sum up time spent (in minutes, convert to hours)
-          currentValue = logs.reduce((sum, log) => {
-            if (log.start_time && log.end_time) {
-              const duration = new Date(log.end_time).getTime() - new Date(log.start_time).getTime();
+          currentValue = goalLogs.reduce((sum, log) => {
+            if (log.startTime && log.endTime) {
+              const duration = new Date(log.endTime).getTime() - new Date(log.startTime).getTime();
               return sum + (duration / (1000 * 60 * 60)); // Convert to hours
             }
             return sum;
           }, 0);
         } else if (goal.metricType === 'count') {
           // Sum up goalCount values
-          currentValue = logs.reduce((sum, log) => sum + (log.goalCount || 0), 0);
+          currentValue = goalLogs.reduce((sum, log) => sum + (log.goalCount || 0), 0);
         }
 
         // Calculate statistics
@@ -138,33 +135,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const goal = await prisma.goal.create({
-      data: {
-        title: body.title,
-        description: body.description || null,
-        goalType: body.goalType,
-        metricType: body.metricType,
-        targetValue: parseFloat(body.targetValue),
-        currentValue: 0,
-        periodType: body.periodType || 'custom',
-        startDate: new Date(body.startDate),
-        endDate: new Date(body.endDate),
-        activityTitle: body.activityTitle || null,
-        activityCategory: body.activityCategory || null,
-        color: body.color || null,
-        icon: body.icon || null,
-        isActive: body.isActive !== undefined ? body.isActive : true,
-        isRecurring: body.isRecurring || false,
-        recurrencePattern: body.recurrencePattern || null,
-        recurrenceConfig: body.recurrenceConfig || null,
-        parentGoalId: body.parentGoalId || null
-      } as any
-    });
+    const [goal] = await db.insert(goals).values({
+      title: body.title,
+      description: body.description || null,
+      goalType: body.goalType,
+      metricType: body.metricType,
+      targetValue: parseFloat(body.targetValue),
+      currentValue: 0,
+      periodType: body.periodType || 'custom',
+      startDate: new Date(body.startDate),
+      endDate: new Date(body.endDate),
+      activityTitle: body.activityTitle || null,
+      activityCategory: body.activityCategory || null,
+      color: body.color || null,
+      icon: body.icon || null,
+      isActive: body.isActive !== undefined ? body.isActive : true,
+      isRecurring: body.isRecurring || false,
+      recurrencePattern: body.recurrencePattern || null,
+      recurrenceConfig: body.recurrenceConfig || null,
+      parentGoalId: body.parentGoalId || null
+    }).returning();
 
     // Link contacts if provided
     if (body.contactIds && Array.isArray(body.contactIds) && body.contactIds.length > 0) {
-      await createManyIgnoreDuplicates(
-        prisma.goalContact,
+      await insertManyIgnoreDuplicates(
+        goalContacts,
         body.contactIds.map((contactId: number) => ({
           goalId: goal.id,
           contactId
@@ -174,8 +169,8 @@ export async function POST(request: NextRequest) {
 
     // Link places if provided
     if (body.placeIds && Array.isArray(body.placeIds) && body.placeIds.length > 0) {
-      await createManyIgnoreDuplicates(
-        prisma.goalPlace,
+      await insertManyIgnoreDuplicates(
+        goalPlaces,
         body.placeIds.map((placeId: number) => ({
           goalId: goal.id,
           placeId
@@ -184,13 +179,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch the complete goal with relationships
-    const response = await prisma.goal.findUnique({
-      where: { id: goal.id },
-      include: {
+    const response = await db.query.goals.findFirst({
+      where: eq(goals.id, goal.id),
+      with: {
         goalContacts: {
-          include: {
+          with: {
             contact: {
-              select: {
+              columns: {
                 id: true,
                 name: true,
                 photoUrl: true
@@ -199,9 +194,9 @@ export async function POST(request: NextRequest) {
           }
         },
         goalPlaces: {
-          include: {
+          with: {
             place: {
-              select: {
+              columns: {
                 id: true,
                 name: true,
                 address: true
@@ -261,22 +256,19 @@ export async function PUT(request: NextRequest) {
 
     console.log("PUT /api/goal - Data to update:", JSON.stringify(data, null, 2));
 
-    await prisma.goal.update({
-      where: { id: parseInt(id) },
-      data: data as any
-    });
+    await db.update(goals)
+      .set(data)
+      .where(eq(goals.id, parseInt(id)));
 
     // Update contacts if provided
     if (contactIds !== undefined && Array.isArray(contactIds)) {
       // Remove all existing contacts
-      await prisma.goalContact.deleteMany({
-        where: { goalId: parseInt(id) }
-      });
+      await db.delete(goalContacts).where(eq(goalContacts.goalId, parseInt(id)));
 
       // Add new contacts
       if (contactIds.length > 0) {
-        await createManyIgnoreDuplicates(
-          prisma.goalContact,
+        await insertManyIgnoreDuplicates(
+          goalContacts,
           contactIds.map((contactId: number) => ({
             goalId: parseInt(id),
             contactId
@@ -288,14 +280,12 @@ export async function PUT(request: NextRequest) {
     // Update places if provided
     if (placeIds !== undefined && Array.isArray(placeIds)) {
       // Remove all existing places
-      await prisma.goalPlace.deleteMany({
-        where: { goalId: parseInt(id) }
-      });
+      await db.delete(goalPlaces).where(eq(goalPlaces.goalId, parseInt(id)));
 
       // Add new places
       if (placeIds.length > 0) {
-        await createManyIgnoreDuplicates(
-          prisma.goalPlace,
+        await insertManyIgnoreDuplicates(
+          goalPlaces,
           placeIds.map((placeId: number) => ({
             goalId: parseInt(id),
             placeId
@@ -305,13 +295,13 @@ export async function PUT(request: NextRequest) {
     }
 
     // Fetch the updated goal with relationships
-    const response = await prisma.goal.findUnique({
-      where: { id: parseInt(id) },
-      include: {
+    const response = await db.query.goals.findFirst({
+      where: eq(goals.id, parseInt(id)),
+      with: {
         goalContacts: {
-          include: {
+          with: {
             contact: {
-              select: {
+              columns: {
                 id: true,
                 name: true,
                 photoUrl: true
@@ -320,9 +310,9 @@ export async function PUT(request: NextRequest) {
           }
         },
         goalPlaces: {
-          include: {
+          with: {
             place: {
-              select: {
+              columns: {
                 id: true,
                 name: true,
                 address: true
@@ -359,11 +349,11 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const response = await prisma.goal.delete({
-      where: { id: parseInt(body.id) }
-    });
+    const response = await db.delete(goals)
+      .where(eq(goals.id, parseInt(body.id)))
+      .returning();
 
-    return NextResponse.json(response, { status: 200 });
+    return NextResponse.json(response[0], { status: 200 });
   } catch (error) {
     console.error("DELETE /api/goal error:", error);
     return NextResponse.json(

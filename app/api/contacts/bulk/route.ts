@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { db, contacts, ignoredContacts } from "@/lib/db";
 import { auth } from "@/auth";
+import { eq, and, inArray } from "drizzle-orm";
 
 export const maxDuration = 10;
 export const dynamic = 'force-dynamic';
@@ -26,57 +27,52 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Find contacts to get their googleIds
-    const contacts = await prisma.contact.findMany({
-      where: {
-        id: {
-          in: body.ids
-        },
-        userId: session.user.id
-      },
-      select: {
-        id: true,
-        googleId: true,
-        name: true
-      }
-    });
+    const foundContacts = await db.select({
+      id: contacts.id,
+      googleId: contacts.googleId,
+      name: contacts.name
+    })
+    .from(contacts)
+    .where(and(
+      inArray(contacts.id, body.ids),
+      eq(contacts.userId, session.user.id)
+    ));
 
     // Add contacts with googleIds to ignored list
-    const contactsToIgnore = contacts.filter(c => c.googleId);
+    const contactsToIgnore = foundContacts.filter(c => c.googleId);
     if (contactsToIgnore.length > 0) {
-      await Promise.all(
-        contactsToIgnore.map(contact =>
-          prisma.ignoredContact.upsert({
-            where: {
-              userId_googleId: {
-                userId: session.user.id,
-                googleId: contact.googleId!
-              }
-            },
-            update: {},
-            create: {
-              userId: session.user.id,
-              googleId: contact.googleId!,
-              name: contact.name
-            }
-          })
-        )
-      );
+      for (const contact of contactsToIgnore) {
+        // Check if ignored contact already exists
+        const existingIgnored = await db.query.ignoredContacts.findFirst({
+          where: and(
+            eq(ignoredContacts.userId, session.user.id),
+            eq(ignoredContacts.googleId, contact.googleId!)
+          )
+        });
+
+        if (!existingIgnored) {
+          // Create new ignored contact
+          await db.insert(ignoredContacts).values({
+            userId: session.user.id,
+            googleId: contact.googleId!,
+            name: contact.name
+          });
+        }
+      }
     }
 
     // Delete the contacts
-    const response = await prisma.contact.deleteMany({
-      where: {
-        id: {
-          in: body.ids
-        },
-        userId: session.user.id
-      },
-    });
+    const deleted = await db.delete(contacts)
+      .where(and(
+        inArray(contacts.id, body.ids),
+        eq(contacts.userId, session.user.id)
+      ))
+      .returning();
 
     return NextResponse.json(
       {
         success: true,
-        deleted: response.count
+        deleted: deleted.length
       },
       { status: 200 }
     );

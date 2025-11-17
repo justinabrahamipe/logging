@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { db, contacts, ignoredContacts } from "@/lib/db";
 import { auth } from "@/auth";
+import { eq, and, or, like, asc } from "drizzle-orm";
 
 export const maxDuration = 10;
 export const dynamic = 'force-dynamic';
@@ -22,40 +23,34 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || '';
 
     // Build where clause with search
-    const whereClause: any = {
-      userId: session.user.id
-    };
+    let whereClause = eq(contacts.userId, session.user.id);
 
     if (search.trim()) {
-      whereClause.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } },
-        { phoneNumber: { contains: search, mode: 'insensitive' } },
-        { address: { contains: search, mode: 'insensitive' } }
-      ];
+      whereClause = and(
+        eq(contacts.userId, session.user.id),
+        or(
+          like(contacts.name, `%${search}%`),
+          like(contacts.email, `%${search}%`),
+          like(contacts.phoneNumber, `%${search}%`),
+          like(contacts.address, `%${search}%`)
+        )
+      ) as any;
     }
 
-    // Get total count
-    const totalCount = await prisma.contact.count({
-      where: whereClause
-    });
+    // Get all contacts with filter
+    const allContacts = await db.select().from(contacts).where(whereClause).orderBy(asc(contacts.name));
+    const totalCount = allContacts.length;
 
-    const contacts = await prisma.contact.findMany({
-      where: whereClause,
-      orderBy: {
-        name: 'asc'
-      },
-      take: limit,
-      skip: offset
-    });
+    // Apply pagination
+    const paginatedContacts = allContacts.slice(offset, offset + limit);
 
     return NextResponse.json({
-      data: contacts,
+      data: paginatedContacts,
       pagination: {
         total: totalCount,
         limit,
         offset,
-        hasMore: offset + contacts.length < totalCount
+        hasMore: offset + paginatedContacts.length < totalCount
       }
     }, { status: 200 });
   } catch (error) {
@@ -93,21 +88,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const contact = await prisma.contact.create({
-      data: {
-        userId: session.user.id,
-        name: body.name,
-        email: body.email || null,
-        phoneNumber: body.phoneNumber || null,
-        address: body.address || null,
-        birthday: body.birthday ? new Date(body.birthday) : null,
-        weddingAnniversary: body.weddingAnniversary ? new Date(body.weddingAnniversary) : null,
-        notes: body.notes || null,
-        photoUrl: body.photoUrl || null,
-        organization: body.organization || null,
-        jobTitle: body.jobTitle || null,
-      },
-    });
+    const [contact] = await db.insert(contacts).values({
+      userId: session.user.id,
+      name: body.name,
+      email: body.email || null,
+      phoneNumber: body.phoneNumber || null,
+      address: body.address || null,
+      birthday: body.birthday ? new Date(body.birthday) : null,
+      weddingAnniversary: body.weddingAnniversary ? new Date(body.weddingAnniversary) : null,
+      notes: body.notes || null,
+      photoUrl: body.photoUrl || null,
+      organization: body.organization || null,
+      jobTitle: body.jobTitle || null,
+    }).returning();
 
     return NextResponse.json({ data: contact }, { status: 201 });
   } catch (error) {
@@ -150,11 +143,11 @@ export async function PUT(request: NextRequest) {
     }
 
     // Check if contact exists and belongs to user
-    const existingContact = await prisma.contact.findFirst({
-      where: {
-        id: body.id,
-        userId: session.user.id
-      }
+    const existingContact = await db.query.contacts.findFirst({
+      where: and(
+        eq(contacts.id, body.id),
+        eq(contacts.userId, session.user.id)
+      )
     });
 
     if (!existingContact) {
@@ -164,11 +157,8 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const contact = await prisma.contact.update({
-      where: {
-        id: body.id,
-      },
-      data: {
+    const [contact] = await db.update(contacts)
+      .set({
         name: body.name,
         email: body.email || null,
         phoneNumber: body.phoneNumber || null,
@@ -180,8 +170,9 @@ export async function PUT(request: NextRequest) {
         organization: body.organization || null,
         jobTitle: body.jobTitle || null,
         updatedAt: new Date()
-      },
-    });
+      })
+      .where(eq(contacts.id, body.id))
+      .returning();
 
     return NextResponse.json({ data: contact }, { status: 200 });
   } catch (error) {
@@ -217,11 +208,11 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Find the contact first to get googleId
-    const contact = await prisma.contact.findFirst({
-      where: {
-        id: body.id,
-        userId: session.user.id
-      }
+    const contact = await db.query.contacts.findFirst({
+      where: and(
+        eq(contacts.id, body.id),
+        eq(contacts.userId, session.user.id)
+      )
     });
 
     if (!contact) {
@@ -233,31 +224,33 @@ export async function DELETE(request: NextRequest) {
 
     // If contact has a googleId, add it to ignored list
     if (contact.googleId) {
-      await prisma.ignoredContact.upsert({
-        where: {
-          userId_googleId: {
-            userId: session.user.id,
-            googleId: contact.googleId
-          }
-        },
-        update: {},
-        create: {
+      // Check if ignored contact already exists
+      const existingIgnored = await db.query.ignoredContacts.findFirst({
+        where: and(
+          eq(ignoredContacts.userId, session.user.id),
+          eq(ignoredContacts.googleId, contact.googleId)
+        )
+      });
+
+      if (!existingIgnored) {
+        // Create new ignored contact
+        await db.insert(ignoredContacts).values({
           userId: session.user.id,
           googleId: contact.googleId,
           name: contact.name
-        }
-      });
+        });
+      }
     }
 
     // Delete the contact
-    const response = await prisma.contact.deleteMany({
-      where: {
-        id: body.id,
-        userId: session.user.id
-      },
-    });
+    const deleted = await db.delete(contacts)
+      .where(and(
+        eq(contacts.id, body.id),
+        eq(contacts.userId, session.user.id)
+      ))
+      .returning();
 
-    return NextResponse.json(response, { status: 200 });
+    return NextResponse.json({ count: deleted.length }, { status: 200 });
   } catch (error) {
     console.error("DELETE /api/contacts error:", error);
     return NextResponse.json(

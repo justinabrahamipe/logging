@@ -1,25 +1,12 @@
 import NextAuth from "next-auth";
-import { PrismaAdapter } from "@auth/prisma-adapter";
+import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import Google from "next-auth/providers/google";
-import { PrismaClient } from "@prisma/client";
+import { db } from "@/lib/db";
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-};
-
-const prisma = globalForPrisma.prisma ?? new PrismaClient({
-  log: ['query', 'error', 'warn'],
-});
-
-if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prisma;
-}
-
-console.log('[AUTH] Prisma client initialized:', !!prisma);
-console.log('[AUTH] Prisma account model exists:', !!prisma?.account);
+console.log('[AUTH] Drizzle client initialized:', !!db);
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  adapter: PrismaAdapter(prisma),
+  adapter: DrizzleAdapter(db),
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID as string,

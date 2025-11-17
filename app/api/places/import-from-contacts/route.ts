@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { db, contacts, places, placeContacts } from "@/lib/db";
+import { insertManyIgnoreDuplicates } from "@/lib/drizzle-utils";
 import { auth } from "@/auth";
+import { eq, and, isNotNull, ne, asc } from "drizzle-orm";
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
@@ -161,20 +163,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Get all contacts with addresses
-    const contacts = await prisma.contact.findMany({
-      where: {
-        userId: session.user.id,
-        address: {
-          not: null,
-          not: ''
-        }
-      },
-      orderBy: {
-        name: 'asc'
-      }
-    });
+    const allContacts = await db.select().from(contacts).where(
+      and(
+        eq(contacts.userId, session.user.id),
+        isNotNull(contacts.address),
+        ne(contacts.address, '')
+      )
+    ).orderBy(asc(contacts.name));
 
-    if (contacts.length === 0) {
+    if (allContacts.length === 0) {
       return NextResponse.json({
         message: "No contacts with addresses found",
         created: 0,
@@ -183,9 +180,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Group contacts by normalized address
-    const addressGroups = new Map<string, typeof contacts>();
+    const addressGroups = new Map<string, typeof allContacts>();
 
-    for (const contact of contacts) {
+    for (const contact of allContacts) {
       if (!contact.address) continue;
 
       // Skip invalid addresses
@@ -220,45 +217,34 @@ export async function POST(request: NextRequest) {
       const placeName = generatePlaceName(groupContacts);
 
       // Check if place already exists with this address
-      const existingPlace = await prisma.place.findFirst({
-        where: {
-          userId: session.user.id,
-          address: address
-        }
-      });
+      const existingPlace = await db.select().from(places).where(
+        and(
+          eq(places.userId, session.user.id),
+          eq(places.address, address)
+        )
+      ).limit(1);
 
-      if (existingPlace) {
+      if (existingPlace.length > 0) {
         skipped++;
         continue;
       }
 
       // Create the place
-      const place = await prisma.place.create({
-        data: {
-          userId: session.user.id,
-          name: placeName,
-          address: address,
-          category: 'home', // Default to home
-        }
-      });
+      const [place] = await db.insert(places).values({
+        userId: session.user.id,
+        name: placeName,
+        address: address,
+        category: 'home', // Default to home
+      }).returning();
 
       // Link all contacts to this place
-      // Note: SQLite doesn't support skipDuplicates in createMany, so we use individual creates
-      for (const contact of groupContacts) {
-        try {
-          await prisma.placeContact.create({
-            data: {
-              placeId: place.id,
-              contactId: contact.id
-            }
-          });
-        } catch (error: any) {
-          // Ignore duplicate errors (unique constraint violations)
-          if (!error.code || error.code !== 'P2002') {
-            throw error; // Re-throw if it's not a duplicate error
-          }
-        }
-      }
+      await insertManyIgnoreDuplicates(
+        placeContacts,
+        groupContacts.map(contact => ({
+          placeId: place.id,
+          contactId: contact.id
+        }))
+      );
 
       created++;
     }
@@ -272,7 +258,7 @@ export async function POST(request: NextRequest) {
       message,
       created,
       skipped,
-      totalContacts: contacts.length
+      totalContacts: allContacts.length
     }, { status: 200 });
   } catch (error) {
     console.error("POST /api/places/import-from-contacts error:", error);

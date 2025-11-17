@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
+import { db, financeDebts } from "@/lib/db";
+import { eq, and, desc } from "drizzle-orm";
 
 export const maxDuration = 10;
 export const dynamic = 'force-dynamic';
@@ -17,11 +18,11 @@ export async function GET() {
       );
     }
 
-    const debts = await prisma.financeDebt.findMany({
-      where: { userId: session.user.id },
-      include: {
+    const debts = await db.query.financeDebts.findMany({
+      where: eq(financeDebts.userId, session.user.id),
+      with: {
         contact: {
-          select: {
+          columns: {
             id: true,
             name: true,
             email: true,
@@ -29,7 +30,7 @@ export async function GET() {
           },
         },
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: [desc(financeDebts.createdAt)],
     });
 
     return NextResponse.json({ data: debts });
@@ -86,22 +87,20 @@ export async function POST(request: Request) {
       );
     }
 
-    const debt = await prisma.financeDebt.create({
-      data: {
-        userId: session.user.id,
-        name,
-        type,
-        amount,
-        remainingAmount,
-        currency,
-        interestRate: interestRate || null,
-        contactId: contactId || null,
-        description: description || null,
-        dueDate: dueDate ? new Date(dueDate) : null,
-        startDate: startDate ? new Date(startDate) : new Date(),
-        status: status || "active",
-      },
-    });
+    const [debt] = await db.insert(financeDebts).values({
+      userId: session.user.id,
+      name,
+      type,
+      amount,
+      remainingAmount,
+      currency,
+      interestRate: interestRate || null,
+      contactId: contactId || null,
+      description: description || null,
+      dueDate: dueDate ? new Date(dueDate) : null,
+      startDate: startDate ? new Date(startDate) : new Date(),
+      status: status || "active",
+    }).returning();
 
     return NextResponse.json(debt, { status: 201 });
   } catch (error) {
@@ -149,8 +148,11 @@ export async function PUT(request: Request) {
     }
 
     // Verify ownership
-    const existingDebt = await prisma.financeDebt.findFirst({
-      where: { id, userId: session.user.id },
+    const existingDebt = await db.query.financeDebts.findFirst({
+      where: and(
+        eq(financeDebts.id, id),
+        eq(financeDebts.userId, session.user.id)
+      )
     });
 
     if (!existingDebt) {
@@ -171,22 +173,23 @@ export async function PUT(request: Request) {
       }
     }
 
-    const debt = await prisma.financeDebt.update({
-      where: { id },
-      data: {
-        ...(name && { name }),
-        ...(type && { type }),
-        ...(amount !== undefined && { amount }),
-        ...(remainingAmount !== undefined && { remainingAmount }),
-        ...(currency && { currency }),
-        ...(interestRate !== undefined && { interestRate }),
-        ...(contactId !== undefined && { contactId }),
-        ...(description !== undefined && { description }),
-        ...(dueDate !== undefined && { dueDate: dueDate ? new Date(dueDate) : null }),
-        ...(startDate && { startDate: new Date(startDate) }),
-        ...(status && { status }),
-      },
-    });
+    const updateData: any = {};
+    if (name) updateData.name = name;
+    if (type) updateData.type = type;
+    if (amount !== undefined) updateData.amount = amount;
+    if (remainingAmount !== undefined) updateData.remainingAmount = remainingAmount;
+    if (currency) updateData.currency = currency;
+    if (interestRate !== undefined) updateData.interestRate = interestRate;
+    if (contactId !== undefined) updateData.contactId = contactId;
+    if (description !== undefined) updateData.description = description;
+    if (dueDate !== undefined) updateData.dueDate = dueDate ? new Date(dueDate) : null;
+    if (startDate) updateData.startDate = new Date(startDate);
+    if (status) updateData.status = status;
+
+    const [debt] = await db.update(financeDebts)
+      .set(updateData)
+      .where(eq(financeDebts.id, id))
+      .returning();
 
     return NextResponse.json(debt);
   } catch (error) {
@@ -221,8 +224,11 @@ export async function DELETE(request: Request) {
     }
 
     // Verify ownership
-    const existingDebt = await prisma.financeDebt.findFirst({
-      where: { id: parseInt(id), userId: session.user.id },
+    const existingDebt = await db.query.financeDebts.findFirst({
+      where: and(
+        eq(financeDebts.id, parseInt(id)),
+        eq(financeDebts.userId, session.user.id)
+      )
     });
 
     if (!existingDebt) {
@@ -232,9 +238,8 @@ export async function DELETE(request: Request) {
       );
     }
 
-    await prisma.financeDebt.delete({
-      where: { id: parseInt(id) },
-    });
+    await db.delete(financeDebts)
+      .where(eq(financeDebts.id, parseInt(id)));
 
     return NextResponse.json({ message: "Debt deleted successfully" });
   } catch (error) {

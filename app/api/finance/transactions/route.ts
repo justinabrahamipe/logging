@@ -1,20 +1,17 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
+import { db, financeTransactions, financeAccounts, financeTransactionContacts, financeTransactionPlaces } from "@/lib/db";
+import { insertManyIgnoreDuplicates } from "@/lib/drizzle-utils";
+import { eq, desc, and, sql } from "drizzle-orm";
 
 export const maxDuration = 10;
 export const dynamic = 'force-dynamic';
 
 // Helper function to update account balances
 async function updateAccountBalance(accountId: number, amount: number) {
-  await prisma.financeAccount.update({
-    where: { id: accountId },
-    data: {
-      balance: {
-        increment: amount,
-      },
-    },
-  });
+  await db.update(financeAccounts)
+    .set({ balance: sql`${financeAccounts.balance} + ${amount}` })
+    .where(eq(financeAccounts.id, accountId));
 }
 
 // GET /api/finance/transactions - Get all transactions for user
@@ -29,15 +26,16 @@ export async function GET() {
       );
     }
 
-    const transactions = await prisma.financeTransaction.findMany({
-      where: { userId: session.user.id },
-      include: {
+    const transactions = await db.query.financeTransactions.findMany({
+      where: eq(financeTransactions.userId, session.user.id),
+      orderBy: [desc(financeTransactions.transactionDate)],
+      with: {
         fromAccount: true,
         toAccount: true,
         transactionContacts: {
-          include: {
+          with: {
             contact: {
-              select: {
+              columns: {
                 id: true,
                 name: true,
                 photoUrl: true,
@@ -46,9 +44,9 @@ export async function GET() {
           },
         },
         transactionPlaces: {
-          include: {
+          with: {
             place: {
-              select: {
+              columns: {
                 id: true,
                 name: true,
                 address: true,
@@ -57,7 +55,6 @@ export async function GET() {
           },
         },
       },
-      orderBy: { transactionDate: "desc" },
     });
 
     return NextResponse.json({ data: transactions });
@@ -117,46 +114,42 @@ export async function POST(request: Request) {
     }
 
     // Create transaction
-    const transaction = await prisma.financeTransaction.create({
-      data: {
-        userId: session.user.id,
-        fromAccountId: fromAccountId || null,
-        toAccountId: toAccountId || null,
-        amount,
-        currency,
-        exchangeRate: exchangeRate || null,
-        convertedAmount: convertedAmount || null,
-        type,
-        category: category || null,
-        description,
-        isNeed: isNeed ?? true,
-        transactionDate: new Date(transactionDate),
-        transactionContacts: contactIds && contactIds.length > 0 ? {
-          create: contactIds.map((contactId: number) => ({
-            contactId,
-          })),
-        } : undefined,
-        transactionPlaces: placeIds && placeIds.length > 0 ? {
-          create: placeIds.map((placeId: number) => ({
-            placeId,
-          })),
-        } : undefined,
-      },
-      include: {
-        fromAccount: true,
-        toAccount: true,
-        transactionContacts: {
-          include: {
-            contact: true,
-          },
-        },
-        transactionPlaces: {
-          include: {
-            place: true,
-          },
-        },
-      },
-    });
+    const [transaction] = await db.insert(financeTransactions).values({
+      userId: session.user.id,
+      fromAccountId: fromAccountId || null,
+      toAccountId: toAccountId || null,
+      amount,
+      currency,
+      exchangeRate: exchangeRate || null,
+      convertedAmount: convertedAmount || null,
+      type,
+      category: category || null,
+      description,
+      isNeed: isNeed ?? true,
+      transactionDate: new Date(transactionDate),
+    }).returning();
+
+    // Link contacts if provided
+    if (contactIds && contactIds.length > 0) {
+      await insertManyIgnoreDuplicates(
+        financeTransactionContacts,
+        contactIds.map((contactId: number) => ({
+          transactionId: transaction.id,
+          contactId,
+        }))
+      );
+    }
+
+    // Link places if provided
+    if (placeIds && placeIds.length > 0) {
+      await insertManyIgnoreDuplicates(
+        financeTransactionPlaces,
+        placeIds.map((placeId: number) => ({
+          transactionId: transaction.id,
+          placeId,
+        }))
+      );
+    }
 
     // Update account balances
     if (type === "expense" && fromAccountId) {
@@ -169,7 +162,26 @@ export async function POST(request: Request) {
       await updateAccountBalance(toAccountId, amountToAdd);
     }
 
-    return NextResponse.json(transaction, { status: 201 });
+    // Fetch the complete transaction with relationships
+    const fullTransaction = await db.query.financeTransactions.findFirst({
+      where: eq(financeTransactions.id, transaction.id),
+      with: {
+        fromAccount: true,
+        toAccount: true,
+        transactionContacts: {
+          with: {
+            contact: true,
+          },
+        },
+        transactionPlaces: {
+          with: {
+            place: true,
+          },
+        },
+      },
+    });
+
+    return NextResponse.json(fullTransaction, { status: 201 });
   } catch (error) {
     console.error("Error creating transaction:", error);
     return NextResponse.json(
@@ -217,8 +229,11 @@ export async function PUT(request: Request) {
     }
 
     // Get existing transaction to reverse balance changes
-    const existingTransaction = await prisma.financeTransaction.findFirst({
-      where: { id, userId: session.user.id },
+    const existingTransaction = await db.query.financeTransactions.findFirst({
+      where: and(
+        eq(financeTransactions.id, id),
+        eq(financeTransactions.userId, session.user.id)
+      ),
     });
 
     if (!existingTransaction) {
@@ -240,54 +255,46 @@ export async function PUT(request: Request) {
     }
 
     // Delete existing contacts and places
-    await prisma.financeTransactionContact.deleteMany({
-      where: { transactionId: id },
-    });
-    await prisma.financeTransactionPlace.deleteMany({
-      where: { transactionId: id },
-    });
+    await db.delete(financeTransactionContacts).where(eq(financeTransactionContacts.transactionId, id));
+    await db.delete(financeTransactionPlaces).where(eq(financeTransactionPlaces.transactionId, id));
 
     // Update transaction
-    const transaction = await prisma.financeTransaction.update({
-      where: { id },
-      data: {
-        fromAccountId: fromAccountId || null,
-        toAccountId: toAccountId || null,
+    await db.update(financeTransactions)
+      .set({
+        fromAccountId: fromAccountId !== undefined ? fromAccountId : existingTransaction.fromAccountId,
+        toAccountId: toAccountId !== undefined ? toAccountId : existingTransaction.toAccountId,
         amount: amount ?? existingTransaction.amount,
         currency: currency || existingTransaction.currency,
-        exchangeRate: exchangeRate || null,
-        convertedAmount: convertedAmount || null,
+        exchangeRate: exchangeRate !== undefined ? exchangeRate : existingTransaction.exchangeRate,
+        convertedAmount: convertedAmount !== undefined ? convertedAmount : existingTransaction.convertedAmount,
         type: type || existingTransaction.type,
         category: category !== undefined ? category : existingTransaction.category,
         description: description || existingTransaction.description,
         isNeed: isNeed ?? existingTransaction.isNeed,
         transactionDate: transactionDate ? new Date(transactionDate) : existingTransaction.transactionDate,
-        transactionContacts: contactIds && contactIds.length > 0 ? {
-          create: contactIds.map((contactId: number) => ({
-            contactId,
-          })),
-        } : undefined,
-        transactionPlaces: placeIds && placeIds.length > 0 ? {
-          create: placeIds.map((placeId: number) => ({
-            placeId,
-          })),
-        } : undefined,
-      },
-      include: {
-        fromAccount: true,
-        toAccount: true,
-        transactionContacts: {
-          include: {
-            contact: true,
-          },
-        },
-        transactionPlaces: {
-          include: {
-            place: true,
-          },
-        },
-      },
-    });
+      })
+      .where(eq(financeTransactions.id, id));
+
+    // Link new contacts and places
+    if (contactIds && contactIds.length > 0) {
+      await insertManyIgnoreDuplicates(
+        financeTransactionContacts,
+        contactIds.map((contactId: number) => ({
+          transactionId: id,
+          contactId,
+        }))
+      );
+    }
+
+    if (placeIds && placeIds.length > 0) {
+      await insertManyIgnoreDuplicates(
+        financeTransactionPlaces,
+        placeIds.map((placeId: number) => ({
+          transactionId: id,
+          placeId,
+        }))
+      );
+    }
 
     // Apply new balance changes
     const finalType = type || existingTransaction.type;
@@ -301,9 +308,28 @@ export async function PUT(request: Request) {
       await updateAccountBalance(finalToAccountId, finalAmount);
     } else if (finalType === "transfer" && finalFromAccountId && finalToAccountId) {
       await updateAccountBalance(finalFromAccountId, -finalAmount);
-      const amountToAdd = convertedAmount || finalAmount;
+      const amountToAdd = convertedAmount !== undefined ? convertedAmount : (existingTransaction.convertedAmount || finalAmount);
       await updateAccountBalance(finalToAccountId, amountToAdd);
     }
+
+    // Fetch the updated transaction with relationships
+    const transaction = await db.query.financeTransactions.findFirst({
+      where: eq(financeTransactions.id, id),
+      with: {
+        fromAccount: true,
+        toAccount: true,
+        transactionContacts: {
+          with: {
+            contact: true,
+          },
+        },
+        transactionPlaces: {
+          with: {
+            place: true,
+          },
+        },
+      },
+    });
 
     return NextResponse.json(transaction);
   } catch (error) {
@@ -338,8 +364,11 @@ export async function DELETE(request: Request) {
     }
 
     // Get existing transaction to reverse balance changes
-    const existingTransaction = await prisma.financeTransaction.findFirst({
-      where: { id: parseInt(id), userId: session.user.id },
+    const existingTransaction = await db.query.financeTransactions.findFirst({
+      where: and(
+        eq(financeTransactions.id, parseInt(id)),
+        eq(financeTransactions.userId, session.user.id)
+      ),
     });
 
     if (!existingTransaction) {
@@ -360,9 +389,7 @@ export async function DELETE(request: Request) {
       await updateAccountBalance(existingTransaction.toAccountId, -amountToSubtract);
     }
 
-    await prisma.financeTransaction.delete({
-      where: { id: parseInt(id) },
-    });
+    await db.delete(financeTransactions).where(eq(financeTransactions.id, parseInt(id)));
 
     return NextResponse.json({ message: "Transaction deleted successfully" });
   } catch (error) {

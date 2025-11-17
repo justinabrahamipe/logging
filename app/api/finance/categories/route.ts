@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
+import { db, financeCategories } from "@/lib/db";
+import { eq, and, asc } from "drizzle-orm";
 
 export const maxDuration = 10;
 export const dynamic = 'force-dynamic';
@@ -17,10 +18,10 @@ export async function GET() {
       );
     }
 
-    const categories = await prisma.financeCategory.findMany({
-      where: { userId: session.user.id },
-      orderBy: [{ type: "asc" }, { name: "asc" }],
-    });
+    const categories = await db.select()
+      .from(financeCategories)
+      .where(eq(financeCategories.userId, session.user.id))
+      .orderBy(asc(financeCategories.type), asc(financeCategories.name));
 
     return NextResponse.json({ data: categories });
   } catch (error) {
@@ -64,16 +65,14 @@ export async function POST(request: Request) {
       );
     }
 
-    const category = await prisma.financeCategory.create({
-      data: {
-        userId: session.user.id,
-        name,
-        type,
-        description: description || null,
-        color: color || null,
-        icon: icon || null,
-      },
-    });
+    const [category] = await db.insert(financeCategories).values({
+      userId: session.user.id,
+      name,
+      type,
+      description: description || null,
+      color: color || null,
+      icon: icon || null,
+    }).returning();
 
     return NextResponse.json(category, { status: 201 });
   } catch (error) {
@@ -108,8 +107,11 @@ export async function PUT(request: Request) {
     }
 
     // Verify ownership
-    const existingCategory = await prisma.financeCategory.findFirst({
-      where: { id, userId: session.user.id },
+    const existingCategory = await db.query.financeCategories.findFirst({
+      where: and(
+        eq(financeCategories.id, id),
+        eq(financeCategories.userId, session.user.id)
+      )
     });
 
     if (!existingCategory) {
@@ -130,16 +132,17 @@ export async function PUT(request: Request) {
       }
     }
 
-    const category = await prisma.financeCategory.update({
-      where: { id },
-      data: {
-        ...(name && { name }),
-        ...(type && { type }),
-        ...(description !== undefined && { description }),
-        ...(color !== undefined && { color }),
-        ...(icon !== undefined && { icon }),
-      },
-    });
+    const updateData: any = {};
+    if (name) updateData.name = name;
+    if (type) updateData.type = type;
+    if (description !== undefined) updateData.description = description;
+    if (color !== undefined) updateData.color = color;
+    if (icon !== undefined) updateData.icon = icon;
+
+    const [category] = await db.update(financeCategories)
+      .set(updateData)
+      .where(eq(financeCategories.id, id))
+      .returning();
 
     return NextResponse.json(category);
   } catch (error) {
@@ -174,8 +177,11 @@ export async function DELETE(request: Request) {
     }
 
     // Verify ownership
-    const existingCategory = await prisma.financeCategory.findFirst({
-      where: { id: parseInt(id), userId: session.user.id },
+    const existingCategory = await db.query.financeCategories.findFirst({
+      where: and(
+        eq(financeCategories.id, parseInt(id)),
+        eq(financeCategories.userId, session.user.id)
+      )
     });
 
     if (!existingCategory) {
@@ -185,9 +191,8 @@ export async function DELETE(request: Request) {
       );
     }
 
-    await prisma.financeCategory.delete({
-      where: { id: parseInt(id) },
-    });
+    await db.delete(financeCategories)
+      .where(eq(financeCategories.id, parseInt(id)));
 
     return NextResponse.json({ message: "Category deleted successfully" });
   } catch (error) {

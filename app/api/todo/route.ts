@@ -1,18 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createManyIgnoreDuplicates } from "@/lib/prisma-utils";
-import { prisma } from "@/lib/prisma";
+import { insertManyIgnoreDuplicates } from "@/lib/drizzle-utils";
+import { db, todos, todoContacts, todoPlaces } from "@/lib/db";
+import { asc, desc, eq } from "drizzle-orm";
 
 export const maxDuration = 10;
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const data = await prisma.todo.findMany({
-      include: {
+    const data = await db.query.todos.findMany({
+      orderBy: [asc(todos.done), desc(todos.createdOn)],
+      with: {
         todoContacts: {
-          include: {
+          with: {
             contact: {
-              select: {
+              columns: {
                 id: true,
                 name: true,
                 photoUrl: true
@@ -21,9 +23,9 @@ export async function GET() {
           }
         },
         todoPlaces: {
-          include: {
+          with: {
             place: {
-              select: {
+              columns: {
                 id: true,
                 name: true,
                 address: true
@@ -31,11 +33,7 @@ export async function GET() {
             }
           }
         }
-      },
-      orderBy: [
-        { done: 'asc' },        // Show incomplete todos first
-        { created_on: 'desc' }  // Then sort by newest
-      ]
+      }
     });
     console.log("data", data);
     return NextResponse.json({ data }, { status: 200 });
@@ -62,7 +60,7 @@ export async function POST(request: NextRequest) {
       activityTitle: body.activityTitle?.trim() || null,
       activityCategory: body.activityCategory?.trim() || null,
       deadline: body.deadline || null,
-      work_date: body.work_date || null,
+      workDate: body.work_date || null,
       importance: Number(body.importance) || 1,
       urgency: Number(body.urgency) || 1,
       done: Boolean(body.done),
@@ -79,13 +77,13 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("Creating todo in database...");
-    const todo = await prisma.todo.create({ data: todoData });
+    const [todo] = await db.insert(todos).values(todoData).returning();
     console.log("Todo created successfully:", todo);
 
     // Link contacts if provided
     if (body.contactIds && Array.isArray(body.contactIds) && body.contactIds.length > 0) {
-      await createManyIgnoreDuplicates(
-        prisma.todoContact,
+      await insertManyIgnoreDuplicates(
+        todoContacts,
         body.contactIds.map((contactId: number) => ({
           todoId: todo.id,
           contactId
@@ -95,8 +93,8 @@ export async function POST(request: NextRequest) {
 
     // Link places if provided
     if (body.placeIds && Array.isArray(body.placeIds) && body.placeIds.length > 0) {
-      await createManyIgnoreDuplicates(
-        prisma.todoPlace,
+      await insertManyIgnoreDuplicates(
+        todoPlaces,
         body.placeIds.map((placeId: number) => ({
           todoId: todo.id,
           placeId
@@ -105,13 +103,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch the complete todo with relationships
-    const response = await prisma.todo.findUnique({
-      where: { id: todo.id },
-      include: {
+    const response = await db.query.todos.findFirst({
+      where: eq(todos.id, todo.id),
+      with: {
         todoContacts: {
-          include: {
+          with: {
             contact: {
-              select: {
+              columns: {
                 id: true,
                 name: true,
                 photoUrl: true
@@ -120,9 +118,9 @@ export async function POST(request: NextRequest) {
           }
         },
         todoPlaces: {
-          include: {
+          with: {
             place: {
-              select: {
+              columns: {
                 id: true,
                 name: true,
                 address: true
@@ -163,24 +161,27 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const { id, contactIds, placeIds, ...updateData } = body;
+    const { id, contactIds, placeIds, work_date, ...updateData } = body;
 
-    await prisma.todo.update({
-      where: { id: Number(id) },
-      data: updateData,
-    });
+    // Convert work_date to workDate if present
+    const drizzleUpdateData: any = { ...updateData };
+    if (work_date !== undefined) {
+      drizzleUpdateData.workDate = work_date;
+    }
+
+    await db.update(todos)
+      .set(drizzleUpdateData)
+      .where(eq(todos.id, Number(id)));
 
     // Update contacts if provided
     if (contactIds !== undefined && Array.isArray(contactIds)) {
       // Remove all existing contacts
-      await prisma.todoContact.deleteMany({
-        where: { todoId: Number(id) }
-      });
+      await db.delete(todoContacts).where(eq(todoContacts.todoId, Number(id)));
 
       // Add new contacts
       if (contactIds.length > 0) {
-        await createManyIgnoreDuplicates(
-          prisma.todoContact,
+        await insertManyIgnoreDuplicates(
+          todoContacts,
           contactIds.map((contactId: number) => ({
             todoId: Number(id),
             contactId
@@ -192,14 +193,12 @@ export async function PUT(request: NextRequest) {
     // Update places if provided
     if (placeIds !== undefined && Array.isArray(placeIds)) {
       // Remove all existing places
-      await prisma.todoPlace.deleteMany({
-        where: { todoId: Number(id) }
-      });
+      await db.delete(todoPlaces).where(eq(todoPlaces.todoId, Number(id)));
 
       // Add new places
       if (placeIds.length > 0) {
-        await createManyIgnoreDuplicates(
-          prisma.todoPlace,
+        await insertManyIgnoreDuplicates(
+          todoPlaces,
           placeIds.map((placeId: number) => ({
             todoId: Number(id),
             placeId
@@ -209,13 +208,13 @@ export async function PUT(request: NextRequest) {
     }
 
     // Fetch the updated todo with relationships
-    const response = await prisma.todo.findUnique({
-      where: { id: Number(id) },
-      include: {
+    const response = await db.query.todos.findFirst({
+      where: eq(todos.id, Number(id)),
+      with: {
         todoContacts: {
-          include: {
+          with: {
             contact: {
-              select: {
+              columns: {
                 id: true,
                 name: true,
                 photoUrl: true
@@ -224,9 +223,9 @@ export async function PUT(request: NextRequest) {
           }
         },
         todoPlaces: {
-          include: {
+          with: {
             place: {
-              select: {
+              columns: {
                 id: true,
                 name: true,
                 address: true
@@ -253,10 +252,10 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const body = await request.json();
-    const response = await prisma.todo.deleteMany({
-      where: { id: body.id },
-    });
-    return NextResponse.json(response);
+    const response = await db.delete(todos)
+      .where(eq(todos.id, body.id))
+      .returning();
+    return NextResponse.json({ count: response.length });
   } catch (error: unknown) {
     return NextResponse.json({
       error:

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { db, accounts, ignoredContacts, contacts } from "@/lib/db";
 import { auth } from "@/auth";
+import { eq, and } from "drizzle-orm";
 
 export const maxDuration = 60; // Increased to 60 seconds for large contact lists
 export const dynamic = 'force-dynamic';
@@ -17,11 +18,11 @@ export async function POST() {
     }
 
     // Get the user's access token from the Account table
-    const account = await prisma.account.findFirst({
-      where: {
-        userId: session.user.id,
-        provider: "google"
-      }
+    const account = await db.query.accounts.findFirst({
+      where: and(
+        eq(accounts.userId, session.user.id),
+        eq(accounts.provider, "google")
+      )
     });
 
     if (!account) {
@@ -31,13 +32,13 @@ export async function POST() {
       );
     }
 
-    let accessToken = account.access_token;
+    let accessToken = account.accessToken;
 
     // Check if token is expired and refresh if needed
-    if (account.expires_at && account.expires_at < Math.floor(Date.now() / 1000)) {
+    if (account.expiresAt && account.expiresAt < Math.floor(Date.now() / 1000)) {
       console.log('[SYNC] Token expired, refreshing...');
 
-      if (!account.refresh_token) {
+      if (!account.refreshToken) {
         return NextResponse.json(
           { error: "Refresh token not available. Please sign out and sign in again." },
           { status: 401 }
@@ -52,7 +53,7 @@ export async function POST() {
           client_id: process.env.GOOGLE_CLIENT_ID!,
           client_secret: process.env.GOOGLE_CLIENT_SECRET!,
           grant_type: 'refresh_token',
-          refresh_token: account.refresh_token,
+          refresh_token: account.refreshToken,
         }),
       });
 
@@ -67,13 +68,12 @@ export async function POST() {
       const tokens = await tokenResponse.json();
 
       // Update the account with new tokens
-      await prisma.account.update({
-        where: { id: account.id },
-        data: {
-          access_token: tokens.access_token,
-          expires_at: Math.floor(Date.now() / 1000) + tokens.expires_in,
-        },
-      });
+      await db.update(accounts)
+        .set({
+          accessToken: tokens.access_token,
+          expiresAt: Math.floor(Date.now() / 1000) + tokens.expires_in,
+        })
+        .where(eq(accounts.id, account.id));
 
       accessToken = tokens.access_token;
       console.log('[SYNC] Token refreshed successfully');
@@ -87,15 +87,10 @@ export async function POST() {
     }
 
     // Fetch ignored contacts
-    const ignoredContacts = await prisma.ignoredContact.findMany({
-      where: {
-        userId: session.user.id
-      },
-      select: {
-        googleId: true
-      }
-    });
-    const ignoredGoogleIds = new Set(ignoredContacts.map(ic => ic.googleId));
+    const ignoredContactsList = await db.select({ googleId: ignoredContacts.googleId })
+      .from(ignoredContacts)
+      .where(eq(ignoredContacts.userId, session.user.id));
+    const ignoredGoogleIds = new Set(ignoredContactsList.map(ic => ic.googleId));
 
     // Fetch all contacts from Google People API with pagination
     let allConnections: any[] = [];
@@ -183,22 +178,34 @@ export async function POST() {
             weddingAnniversary = new Date(ad.year || 1900, (ad.month || 1) - 1, ad.day || 1);
           }
 
-          return prisma.contact.upsert({
-            where: {
-              userId_googleId: {
-                userId: session.user.id,
-                googleId: googleId || `temp-${Date.now()}-${Math.random()}`
-              }
-            },
-            update: {
-              name, email, phoneNumber, photoUrl, organization, jobTitle, address, birthday, weddingAnniversary,
-              lastSynced: new Date(), updatedAt: new Date()
-            },
-            create: {
-              userId: session.user.id, googleId, name, email, phoneNumber, photoUrl, organization, jobTitle,
-              address, birthday, weddingAnniversary, lastSynced: new Date()
-            }
+          // Check if contact exists
+          const existingContact = await db.query.contacts.findFirst({
+            where: and(
+              eq(contacts.userId, session.user!.id),
+              eq(contacts.googleId, googleId || `temp-${Date.now()}-${Math.random()}`)
+            )
           });
+
+          if (existingContact) {
+            // Update existing contact
+            const [updated] = await db.update(contacts)
+              .set({
+                name, email, phoneNumber, photoUrl, organization, jobTitle, address, birthday, weddingAnniversary,
+                lastSynced: new Date(), updatedAt: new Date()
+              })
+              .where(eq(contacts.id, existingContact.id))
+              .returning();
+            return updated;
+          } else {
+            // Create new contact
+            const [created] = await db.insert(contacts)
+              .values({
+                userId: session.user!.id, googleId, name, email, phoneNumber, photoUrl, organization, jobTitle,
+                address, birthday, weddingAnniversary, lastSynced: new Date()
+              })
+              .returning();
+            return created;
+          }
         })
       );
       savedContacts.push(...batchResults);

@@ -1,16 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { db, activities } from "@/lib/db";
+import { desc, eq } from "drizzle-orm";
 
 export const maxDuration = 10;
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const data = await prisma.activity.findMany({
-      orderBy: {
-        created_on: 'desc'
-      }
-    });
+    const data = await db.select().from(activities).orderBy(desc(activities.createdOn));
     return NextResponse.json({ data }, { status: 200 });
   } catch (error) {
     console.error("GET /api/activity error:", error);
@@ -36,14 +33,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const response = await prisma.activity.create({
-      data: {
-        title: body.title,
-        category: body.category,
-        icon: body.icon,
-        color: body.color || null
-      }
-    });
+    const [response] = await db.insert(activities).values({
+      title: body.title,
+      category: body.category,
+      icon: body.icon,
+      color: body.color || null
+    }).returning();
     return NextResponse.json(response, { status: 201 });
   } catch (error) {
     console.error("POST /api/activity error:", error);
@@ -68,24 +63,24 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const response = await prisma.activity.updateMany({
-      where: { title: oldTitle },
-      data: {
+    const updated = await db.update(activities)
+      .set({
         title: body.title,
         category: body.category,
         icon: body.icon,
         color: body.color || null
-      },
-    });
+      })
+      .where(eq(activities.title, oldTitle))
+      .returning();
 
-    if (response.count === 0) {
+    if (updated.length === 0) {
       return NextResponse.json(
         { error: "Activity not found" },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(response, { status: 200 });
+    return NextResponse.json({ count: updated.length }, { status: 200 });
   } catch (error) {
     console.error("PUT /api/activity error:", error);
     return NextResponse.json(
@@ -109,18 +104,18 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const response = await prisma.activity.deleteMany({
-      where: { title: body.title },
-    });
+    const deleted = await db.delete(activities)
+      .where(eq(activities.title, body.title))
+      .returning();
 
-    if (response.count === 0) {
+    if (deleted.length === 0) {
       return NextResponse.json(
         { error: "Activity not found" },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(response, { status: 200 });
+    return NextResponse.json({ count: deleted.length }, { status: 200 });
   } catch (error) {
     console.error("DELETE /api/activity error:", error);
     return NextResponse.json(

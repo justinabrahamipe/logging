@@ -1,16 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { PrismaClient } from "@prisma/client";
-
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
-
-const prisma = globalForPrisma.prisma ?? new PrismaClient();
-
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
-}
+import { db, userPreferences } from "@/lib/db";
+import { eq } from "drizzle-orm";
 
 // GET /api/preferences - Get user preferences
 export async function GET() {
@@ -25,25 +16,24 @@ export async function GET() {
     }
 
     // Try to get existing preferences
-    let preferences = await prisma.userPreferences.findUnique({
-      where: { userId: session.user.id },
+    let preferences = await db.query.userPreferences.findFirst({
+      where: eq(userPreferences.userId, session.user.id)
     });
 
     // If no preferences exist, create default ones
     if (!preferences) {
-      preferences = await prisma.userPreferences.create({
-        data: {
-          userId: session.user.id,
-          theme: "light",
-          timeFormat: "12h",
-          dateFormat: "DD/MM/YYYY",
-          enableTodo: false,
-          enableGoals: false,
-          enablePeople: false,
-          enablePlaces: false,
-          enableFinance: false,
-        },
-      });
+      const [created] = await db.insert(userPreferences).values({
+        userId: session.user.id,
+        theme: "light",
+        timeFormat: "12h",
+        dateFormat: "DD/MM/YYYY",
+        enableTodo: false,
+        enableGoals: false,
+        enablePeople: false,
+        enablePlaces: false,
+        enableFinance: false,
+      }).returning();
+      preferences = created;
     }
 
     return NextResponse.json(preferences);
@@ -111,20 +101,32 @@ export async function PUT(request: Request) {
       );
     }
 
-    // Update or create preferences
-    const preferences = await prisma.userPreferences.upsert({
-      where: { userId: session.user.id },
-      update: {
-        ...(theme && { theme }),
-        ...(timeFormat && { timeFormat }),
-        ...(dateFormat && { dateFormat }),
-        ...(typeof enableTodo === "boolean" ? { enableTodo } : {}),
-        ...(typeof enableGoals === "boolean" ? { enableGoals } : {}),
-        ...(typeof enablePeople === "boolean" ? { enablePeople } : {}),
-        ...(typeof enablePlaces === "boolean" ? { enablePlaces } : {}),
-        ...(typeof enableFinance === "boolean" ? { enableFinance } : {}),
-      },
-      create: {
+    // Check if preferences exist
+    const existing = await db.query.userPreferences.findFirst({
+      where: eq(userPreferences.userId, session.user.id)
+    });
+
+    let preferences;
+    if (existing) {
+      // Update existing preferences
+      const updateData: any = {};
+      if (theme) updateData.theme = theme;
+      if (timeFormat) updateData.timeFormat = timeFormat;
+      if (dateFormat) updateData.dateFormat = dateFormat;
+      if (typeof enableTodo === "boolean") updateData.enableTodo = enableTodo;
+      if (typeof enableGoals === "boolean") updateData.enableGoals = enableGoals;
+      if (typeof enablePeople === "boolean") updateData.enablePeople = enablePeople;
+      if (typeof enablePlaces === "boolean") updateData.enablePlaces = enablePlaces;
+      if (typeof enableFinance === "boolean") updateData.enableFinance = enableFinance;
+
+      const [updated] = await db.update(userPreferences)
+        .set(updateData)
+        .where(eq(userPreferences.userId, session.user.id))
+        .returning();
+      preferences = updated;
+    } else {
+      // Create new preferences
+      const [created] = await db.insert(userPreferences).values({
         userId: session.user.id,
         theme: theme || "light",
         timeFormat: timeFormat || "12h",
@@ -134,8 +136,9 @@ export async function PUT(request: Request) {
         enablePeople: enablePeople ?? false,
         enablePlaces: enablePlaces ?? false,
         enableFinance: enableFinance ?? false,
-      },
-    });
+      }).returning();
+      preferences = created;
+    }
 
     return NextResponse.json(preferences);
   } catch (error) {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
+import { db, financeTransactions, financeAccounts } from "@/lib/db";
+import { eq, gte } from "drizzle-orm";
 
 export const maxDuration = 10;
 export const dynamic = 'force-dynamic';
@@ -33,18 +34,18 @@ export async function GET() {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
     // Fetch all transactions for the user
-    const transactions = await prisma.financeTransaction.findMany({
-      where: {
-        userId: session.user.id,
-        transactionDate: {
-          gte: startOfMonth, // Get all from start of month
-        }
-      },
-    });
+    const transactions = await db.select().from(financeTransactions).where(
+      eq(financeTransactions.userId, session.user.id)
+    );
+
+    // Filter transactions from start of month onwards
+    const transactionsFromMonth = transactions.filter(
+      t => t.transactionDate && t.transactionDate >= startOfMonth
+    );
 
     // Calculate statistics
     const calculateStats = (filterDate: Date) => {
-      const filtered = transactions.filter(t => new Date(t.transactionDate) >= filterDate);
+      const filtered = transactionsFromMonth.filter(t => t.transactionDate && t.transactionDate >= filterDate);
 
       const income = filtered
         .filter(t => t.type === "income")
@@ -66,16 +67,13 @@ export async function GET() {
     const monthStats = calculateStats(startOfMonth);
 
     // Get account summaries
-    const accounts = await prisma.financeAccount.findMany({
-      where: { userId: session.user.id },
-      select: {
-        id: true,
-        name: true,
-        balance: true,
-        currency: true,
-        type: true,
-      },
-    });
+    const accounts = await db.select({
+      id: financeAccounts.id,
+      name: financeAccounts.name,
+      balance: financeAccounts.balance,
+      currency: financeAccounts.currency,
+      type: financeAccounts.type,
+    }).from(financeAccounts).where(eq(financeAccounts.userId, session.user.id));
 
     const totalBalance = accounts.reduce((sum, acc) => sum + acc.balance, 0);
 

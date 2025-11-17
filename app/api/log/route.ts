@@ -1,32 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createManyIgnoreDuplicates } from "@/lib/prisma-utils";
-import { prisma } from "@/lib/prisma";
+import { insertManyIgnoreDuplicates } from "@/lib/drizzle-utils";
+import { db, logs, todos, goals, contacts, places, logContacts, logPlaces } from "@/lib/db";
+import { desc, eq } from "drizzle-orm";
 
 export const maxDuration = 10;
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const data = await prisma.log.findMany({
-      include: {
+    const data = await db.query.logs.findMany({
+      orderBy: [desc(logs.createdOn)],
+      with: {
         todo: {
-          select: {
+          columns: {
             id: true,
             title: true,
             done: true
           }
         },
         goal: {
-          select: {
+          columns: {
             id: true,
             title: true,
             goalType: true
           }
         },
         logContacts: {
-          include: {
+          with: {
             contact: {
-              select: {
+              columns: {
                 id: true,
                 name: true,
                 photoUrl: true
@@ -35,9 +37,9 @@ export async function GET() {
           }
         },
         logPlaces: {
-          include: {
+          with: {
             place: {
-              select: {
+              columns: {
                 id: true,
                 name: true,
                 address: true
@@ -45,9 +47,6 @@ export async function GET() {
             }
           }
         }
-      },
-      orderBy: {
-        created_on: 'desc'
       }
     });
     return NextResponse.json({ data }, { status: 200 });
@@ -76,27 +75,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const log = await prisma.log.create({
-      data: {
-        activityTitle: body.activityTitle,
-        activityCategory: body.activityCategory,
-        activityIcon: body.activityIcon,
-        activityColor: body.activityColor || null,
-        start_time: body.start_time ? new Date(body.start_time) : new Date(),
-        end_time: body.end_time ? new Date(body.end_time) : null,
-        comment: body.comment || null,
-        time_spent: body.time_spent || null,
-        todoId: body.todoId ? parseInt(body.todoId) : null,
-        goalId: body.goalId ? parseInt(body.goalId) : null,
-        goalCount: body.goalCount ? parseInt(body.goalCount) : null,
-        userId: body.userId || null
-      }
-    });
+    const [log] = await db.insert(logs).values({
+      activityTitle: body.activityTitle,
+      activityCategory: body.activityCategory,
+      activityIcon: body.activityIcon,
+      activityColor: body.activityColor || null,
+      startTime: body.start_time ? new Date(body.start_time) : new Date(),
+      endTime: body.end_time ? new Date(body.end_time) : null,
+      comment: body.comment || null,
+      timeSpent: body.time_spent || null,
+      todoId: body.todoId ? parseInt(body.todoId) : null,
+      goalId: body.goalId ? parseInt(body.goalId) : null,
+      goalCount: body.goalCount ? parseInt(body.goalCount) : null,
+      userId: body.userId || null
+    }).returning();
 
     // Link contacts if provided
     if (body.contactIds && Array.isArray(body.contactIds) && body.contactIds.length > 0) {
-      await createManyIgnoreDuplicates(
-        prisma.logContact,
+      await insertManyIgnoreDuplicates(
+        logContacts,
         body.contactIds.map((contactId: number) => ({
           logId: log.id,
           contactId
@@ -106,8 +103,8 @@ export async function POST(request: NextRequest) {
 
     // Link places if provided
     if (body.placeIds && Array.isArray(body.placeIds) && body.placeIds.length > 0) {
-      await createManyIgnoreDuplicates(
-        prisma.logPlace,
+      await insertManyIgnoreDuplicates(
+        logPlaces,
         body.placeIds.map((placeId: number) => ({
           logId: log.id,
           placeId
@@ -116,27 +113,27 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch the complete log with relationships
-    const response = await prisma.log.findUnique({
-      where: { id: log.id },
-      include: {
+    const response = await db.query.logs.findFirst({
+      where: eq(logs.id, log.id),
+      with: {
         todo: {
-          select: {
+          columns: {
             id: true,
             title: true,
             done: true
           }
         },
         goal: {
-          select: {
+          columns: {
             id: true,
             title: true,
             goalType: true
           }
         },
         logContacts: {
-          include: {
+          with: {
             contact: {
-              select: {
+              columns: {
                 id: true,
                 name: true,
                 photoUrl: true
@@ -145,9 +142,9 @@ export async function POST(request: NextRequest) {
           }
         },
         logPlaces: {
-          include: {
+          with: {
             place: {
-              select: {
+              columns: {
                 id: true,
                 name: true,
                 address: true
@@ -184,49 +181,33 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const updateData: {
-      end_time?: Date | null;
-      comment?: string | null;
-      time_spent?: number | null;
-      tags?: string | null;
-      activityTitle?: string;
-      activityCategory?: string;
-      activityIcon?: string;
-      activityColor?: string | null;
-      start_time?: Date;
-      todoId?: number | null;
-      goalId?: number | null;
-      goalCount?: number | null;
-    } = {};
-    if (body.end_time !== undefined) updateData.end_time = body.end_time ? new Date(body.end_time) : null;
+    const updateData: any = {};
+    if (body.end_time !== undefined) updateData.endTime = body.end_time ? new Date(body.end_time) : null;
     if (body.comment !== undefined) updateData.comment = body.comment;
-    if (body.time_spent !== undefined) updateData.time_spent = body.time_spent;
+    if (body.time_spent !== undefined) updateData.timeSpent = body.time_spent;
     if (body.tags !== undefined) updateData.tags = body.tags;
     if (body.activityTitle !== undefined) updateData.activityTitle = body.activityTitle;
     if (body.activityCategory !== undefined) updateData.activityCategory = body.activityCategory;
     if (body.activityIcon !== undefined) updateData.activityIcon = body.activityIcon;
     if (body.activityColor !== undefined) updateData.activityColor = body.activityColor;
-    if (body.start_time !== undefined) updateData.start_time = new Date(body.start_time);
+    if (body.start_time !== undefined) updateData.startTime = new Date(body.start_time);
     if (body.todoId !== undefined) updateData.todoId = body.todoId ? parseInt(body.todoId) : null;
     if (body.goalId !== undefined) updateData.goalId = body.goalId ? parseInt(body.goalId) : null;
     if (body.goalCount !== undefined) updateData.goalCount = body.goalCount ? parseInt(body.goalCount) : null;
 
-    await prisma.log.update({
-      where: { id: parseInt(id) },
-      data: updateData,
-    });
+    await db.update(logs)
+      .set(updateData)
+      .where(eq(logs.id, parseInt(id)));
 
     // Update contacts if provided
     if (body.contactIds !== undefined && Array.isArray(body.contactIds)) {
       // Remove all existing contacts
-      await prisma.logContact.deleteMany({
-        where: { logId: parseInt(id) }
-      });
+      await db.delete(logContacts).where(eq(logContacts.logId, parseInt(id)));
 
       // Add new contacts
       if (body.contactIds.length > 0) {
-        await createManyIgnoreDuplicates(
-          prisma.logContact,
+        await insertManyIgnoreDuplicates(
+          logContacts,
           body.contactIds.map((contactId: number) => ({
             logId: parseInt(id),
             contactId
@@ -238,14 +219,12 @@ export async function PUT(request: NextRequest) {
     // Update places if provided
     if (body.placeIds !== undefined && Array.isArray(body.placeIds)) {
       // Remove all existing places
-      await prisma.logPlace.deleteMany({
-        where: { logId: parseInt(id) }
-      });
+      await db.delete(logPlaces).where(eq(logPlaces.logId, parseInt(id)));
 
       // Add new places
       if (body.placeIds.length > 0) {
-        await createManyIgnoreDuplicates(
-          prisma.logPlace,
+        await insertManyIgnoreDuplicates(
+          logPlaces,
           body.placeIds.map((placeId: number) => ({
             logId: parseInt(id),
             placeId
@@ -255,27 +234,27 @@ export async function PUT(request: NextRequest) {
     }
 
     // Fetch the updated log with relationships
-    const response = await prisma.log.findUnique({
-      where: { id: parseInt(id) },
-      include: {
+    const response = await db.query.logs.findFirst({
+      where: eq(logs.id, parseInt(id)),
+      with: {
         todo: {
-          select: {
+          columns: {
             id: true,
             title: true,
             done: true
           }
         },
         goal: {
-          select: {
+          columns: {
             id: true,
             title: true,
             goalType: true
           }
         },
         logContacts: {
-          include: {
+          with: {
             contact: {
-              select: {
+              columns: {
                 id: true,
                 name: true,
                 photoUrl: true
@@ -284,9 +263,9 @@ export async function PUT(request: NextRequest) {
           }
         },
         logPlaces: {
-          include: {
+          with: {
             place: {
-              select: {
+              columns: {
                 id: true,
                 name: true,
                 address: true
@@ -314,10 +293,10 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const body = await request.json();
-    const response = await prisma.log.deleteMany({
-      where: { id: body.id },
-    });
-    return NextResponse.json(response);
+    const deleted = await db.delete(logs)
+      .where(eq(logs.id, body.id))
+      .returning();
+    return NextResponse.json({ count: deleted.length });
   } catch (error: unknown) {
     return NextResponse.json({
       error:

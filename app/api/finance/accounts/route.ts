@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
+import { db, financeAccounts } from "@/lib/db";
+import { eq, and, desc } from "drizzle-orm";
 
 export const maxDuration = 10;
 export const dynamic = 'force-dynamic';
@@ -17,10 +18,10 @@ export async function GET() {
       );
     }
 
-    const accounts = await prisma.financeAccount.findMany({
-      where: { userId: session.user.id },
-      orderBy: { createdAt: "desc" },
-    });
+    const accounts = await db.select()
+      .from(financeAccounts)
+      .where(eq(financeAccounts.userId, session.user.id))
+      .orderBy(desc(financeAccounts.createdAt));
 
     return NextResponse.json({ data: accounts });
   } catch (error) {
@@ -64,16 +65,14 @@ export async function POST(request: Request) {
       );
     }
 
-    const account = await prisma.financeAccount.create({
-      data: {
-        userId: session.user.id,
-        name,
-        currency,
-        type,
-        balance: balance || 0,
-        description: description || null,
-      },
-    });
+    const [account] = await db.insert(financeAccounts).values({
+      userId: session.user.id,
+      name,
+      currency,
+      type,
+      balance: balance || 0,
+      description: description || null,
+    }).returning();
 
     return NextResponse.json(account, { status: 201 });
   } catch (error) {
@@ -108,8 +107,11 @@ export async function PUT(request: Request) {
     }
 
     // Verify ownership
-    const existingAccount = await prisma.financeAccount.findFirst({
-      where: { id, userId: session.user.id },
+    const existingAccount = await db.query.financeAccounts.findFirst({
+      where: and(
+        eq(financeAccounts.id, id),
+        eq(financeAccounts.userId, session.user.id)
+      )
     });
 
     if (!existingAccount) {
@@ -130,16 +132,17 @@ export async function PUT(request: Request) {
       }
     }
 
-    const account = await prisma.financeAccount.update({
-      where: { id },
-      data: {
-        ...(name && { name }),
-        ...(currency && { currency }),
-        ...(type && { type }),
-        ...(typeof balance === "number" && { balance }),
-        ...(description !== undefined && { description }),
-      },
-    });
+    const updateData: any = {};
+    if (name) updateData.name = name;
+    if (currency) updateData.currency = currency;
+    if (type) updateData.type = type;
+    if (typeof balance === "number") updateData.balance = balance;
+    if (description !== undefined) updateData.description = description;
+
+    const [account] = await db.update(financeAccounts)
+      .set(updateData)
+      .where(eq(financeAccounts.id, id))
+      .returning();
 
     return NextResponse.json(account);
   } catch (error) {
@@ -174,8 +177,11 @@ export async function DELETE(request: Request) {
     }
 
     // Verify ownership
-    const existingAccount = await prisma.financeAccount.findFirst({
-      where: { id: parseInt(id), userId: session.user.id },
+    const existingAccount = await db.query.financeAccounts.findFirst({
+      where: and(
+        eq(financeAccounts.id, parseInt(id)),
+        eq(financeAccounts.userId, session.user.id)
+      )
     });
 
     if (!existingAccount) {
@@ -185,9 +191,8 @@ export async function DELETE(request: Request) {
       );
     }
 
-    await prisma.financeAccount.delete({
-      where: { id: parseInt(id) },
-    });
+    await db.delete(financeAccounts)
+      .where(eq(financeAccounts.id, parseInt(id)));
 
     return NextResponse.json({ message: "Account deleted successfully" });
   } catch (error) {

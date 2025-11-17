@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createManyIgnoreDuplicates } from "@/lib/prisma-utils";
-import { prisma } from "@/lib/prisma";
+import { insertManyIgnoreDuplicates } from "@/lib/drizzle-utils";
+import { db, places, placeContacts } from "@/lib/db";
 import { auth } from "@/auth";
+import { eq, and, or, like, asc } from "drizzle-orm";
 
 export const maxDuration = 10;
 export const dynamic = 'force-dynamic';
@@ -24,34 +25,36 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category') || '';
 
     // Build where clause with search and filters
-    const whereClause: any = {
-      userId: session.user.id
-    };
+    const whereConditions: any[] = [eq(places.userId, session.user.id)];
 
     if (search.trim()) {
-      whereClause.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { address: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } }
-      ];
+      whereConditions.push(
+        or(
+          like(places.name, `%${search}%`),
+          like(places.address, `%${search}%`),
+          like(places.description, `%${search}%`)
+        )
+      );
     }
 
     if (category.trim()) {
-      whereClause.category = category;
+      whereConditions.push(eq(places.category, category));
     }
 
     // Get total count
-    const totalCount = await prisma.place.count({
-      where: whereClause
-    });
+    const allPlaces = await db.select().from(places).where(and(...whereConditions));
+    const totalCount = allPlaces.length;
 
-    const places = await prisma.place.findMany({
-      where: whereClause,
-      include: {
+    const placesData = await db.query.places.findMany({
+      where: and(...whereConditions),
+      orderBy: [asc(places.name)],
+      limit: limit,
+      offset: offset,
+      with: {
         placeContacts: {
-          include: {
+          with: {
             contact: {
-              select: {
+              columns: {
                 id: true,
                 name: true,
                 photoUrl: true
@@ -59,21 +62,16 @@ export async function GET(request: NextRequest) {
             }
           }
         }
-      },
-      orderBy: {
-        name: 'asc'
-      },
-      take: limit,
-      skip: offset
+      }
     });
 
     return NextResponse.json({
-      data: places,
+      data: placesData,
       pagination: {
         total: totalCount,
         limit,
         offset,
-        hasMore: offset + places.length < totalCount
+        hasMore: offset + placesData.length < totalCount
       }
     }, { status: 200 });
   } catch (error) {
@@ -118,21 +116,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const place = await prisma.place.create({
-      data: {
-        userId: session.user.id,
-        name: body.name,
-        address: body.address,
-        latitude: body.latitude || null,
-        longitude: body.longitude || null,
-        description: body.description || null,
-        category: body.category || null,
-      },
-      include: {
+    const [place] = await db.insert(places).values({
+      userId: session.user.id,
+      name: body.name,
+      address: body.address,
+      latitude: body.latitude || null,
+      longitude: body.longitude || null,
+      description: body.description || null,
+      category: body.category || null,
+    }).returning();
+
+    // Link contacts if provided
+    if (body.contactIds && Array.isArray(body.contactIds) && body.contactIds.length > 0) {
+      await insertManyIgnoreDuplicates(
+        placeContacts,
+        body.contactIds.map((contactId: number) => ({
+          placeId: place.id,
+          contactId
+        }))
+      );
+    }
+
+    // Fetch updated place with contacts
+    const updatedPlace = await db.query.places.findFirst({
+      where: eq(places.id, place.id),
+      with: {
         placeContacts: {
-          include: {
+          with: {
             contact: {
-              select: {
+              columns: {
                 id: true,
                 name: true,
                 photoUrl: true
@@ -143,38 +155,7 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // Link contacts if provided
-    if (body.contactIds && Array.isArray(body.contactIds) && body.contactIds.length > 0) {
-      await createManyIgnoreDuplicates(
-        prisma.placeContact,
-        body.contactIds.map((contactId: number) => ({
-          placeId: place.id,
-          contactId
-        }))
-      );
-
-      // Fetch updated place with contacts
-      const updatedPlace = await prisma.place.findUnique({
-        where: { id: place.id },
-        include: {
-          placeContacts: {
-            include: {
-              contact: {
-                select: {
-                  id: true,
-                  name: true,
-                  photoUrl: true
-                }
-              }
-            }
-          }
-        }
-      });
-
-      return NextResponse.json({ data: updatedPlace }, { status: 201 });
-    }
-
-    return NextResponse.json({ data: place }, { status: 201 });
+    return NextResponse.json({ data: updatedPlace }, { status: 201 });
   } catch (error) {
     console.error("POST /api/places error:", error);
     return NextResponse.json(
@@ -222,11 +203,11 @@ export async function PUT(request: NextRequest) {
     }
 
     // Check if place exists and belongs to user
-    const existingPlace = await prisma.place.findFirst({
-      where: {
-        id: body.id,
-        userId: session.user.id
-      }
+    const existingPlace = await db.query.places.findFirst({
+      where: and(
+        eq(places.id, body.id),
+        eq(places.userId, session.user.id)
+      )
     });
 
     if (!existingPlace) {
@@ -237,11 +218,8 @@ export async function PUT(request: NextRequest) {
     }
 
     // Update the place
-    const place = await prisma.place.update({
-      where: {
-        id: body.id,
-      },
-      data: {
+    await db.update(places)
+      .set({
         name: body.name,
         address: body.address,
         latitude: body.latitude || null,
@@ -249,20 +227,18 @@ export async function PUT(request: NextRequest) {
         description: body.description || null,
         category: body.category || null,
         updatedAt: new Date()
-      },
-    });
+      })
+      .where(eq(places.id, body.id));
 
     // Update contacts if provided
     if (body.contactIds !== undefined && Array.isArray(body.contactIds)) {
       // Remove all existing contacts
-      await prisma.placeContact.deleteMany({
-        where: { placeId: body.id }
-      });
+      await db.delete(placeContacts).where(eq(placeContacts.placeId, body.id));
 
       // Add new contacts
       if (body.contactIds.length > 0) {
-        await createManyIgnoreDuplicates(
-          prisma.placeContact,
+        await insertManyIgnoreDuplicates(
+          placeContacts,
           body.contactIds.map((contactId: number) => ({
             placeId: body.id,
             contactId
@@ -272,13 +248,13 @@ export async function PUT(request: NextRequest) {
     }
 
     // Fetch updated place with contacts
-    const updatedPlace = await prisma.place.findUnique({
-      where: { id: body.id },
-      include: {
+    const updatedPlace = await db.query.places.findFirst({
+      where: eq(places.id, body.id),
+      with: {
         placeContacts: {
-          include: {
+          with: {
             contact: {
-              select: {
+              columns: {
                 id: true,
                 name: true,
                 photoUrl: true
@@ -326,16 +302,19 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Delete the places (cascade will handle placeContacts)
-    const response = await prisma.place.deleteMany({
-      where: {
-        id: { in: ids },
-        userId: session.user.id
-      },
-    });
+    const response = await db.delete(places)
+      .where(
+        and(
+          eq(places.userId, session.user.id),
+          // For a single ID or multiple IDs, we need to handle differently
+          ids.length === 1 ? eq(places.id, ids[0]) : or(...ids.map((id: number) => eq(places.id, id)))
+        )
+      )
+      .returning();
 
     return NextResponse.json({
-      count: response.count,
-      message: `Successfully deleted ${response.count} place${response.count !== 1 ? 's' : ''}`
+      count: response.length,
+      message: `Successfully deleted ${response.length} place${response.length !== 1 ? 's' : ''}`
     }, { status: 200 });
   } catch (error) {
     console.error("DELETE /api/places error:", error);

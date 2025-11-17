@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { db, ignoredContacts } from "@/lib/db";
 import { auth } from "@/auth";
+import { eq, and, desc } from "drizzle-orm";
 
 export const maxDuration = 10;
 export const dynamic = 'force-dynamic';
@@ -20,31 +21,24 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = parseInt(searchParams.get('offset') || '0');
 
-    // Get total count
-    const totalCount = await prisma.ignoredContact.count({
-      where: {
-        userId: session.user.id
-      }
-    });
+    // Get all ignored contacts
+    const allIgnored = await db.select()
+      .from(ignoredContacts)
+      .where(eq(ignoredContacts.userId, session.user.id))
+      .orderBy(desc(ignoredContacts.createdAt));
 
-    const ignoredContacts = await prisma.ignoredContact.findMany({
-      where: {
-        userId: session.user.id
-      },
-      orderBy: {
-        createdAt: 'desc'
-      },
-      take: limit,
-      skip: offset
-    });
+    const totalCount = allIgnored.length;
+
+    // Apply pagination
+    const paginatedIgnored = allIgnored.slice(offset, offset + limit);
 
     return NextResponse.json({
-      data: ignoredContacts,
+      data: paginatedIgnored,
       pagination: {
         total: totalCount,
         limit,
         offset,
-        hasMore: offset + ignoredContacts.length < totalCount
+        hasMore: offset + paginatedIgnored.length < totalCount
       }
     }, { status: 200 });
   } catch (error) {
@@ -82,14 +76,14 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Remove from ignored list (restore)
-    const response = await prisma.ignoredContact.deleteMany({
-      where: {
-        googleId: body.googleId,
-        userId: session.user.id
-      },
-    });
+    const deleted = await db.delete(ignoredContacts)
+      .where(and(
+        eq(ignoredContacts.googleId, body.googleId),
+        eq(ignoredContacts.userId, session.user.id)
+      ))
+      .returning();
 
-    if (response.count === 0) {
+    if (deleted.length === 0) {
       return NextResponse.json(
         { error: "Ignored contact not found" },
         { status: 404 }
