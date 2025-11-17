@@ -22,7 +22,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   trustHost: true,
-  debug: false,
+  debug: true,
   pages: {
     signIn: "/login",
     verifyRequest: "/verify-request",
