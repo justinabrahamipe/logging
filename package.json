@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "yarn migrate && next build",
+    "build": "yarn drizzle-kit push && next build",
     "start": "next start",
     "lint": "next lint",
     "migrate": "npx tsx scripts/migrate.ts"
