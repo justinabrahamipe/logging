@@ -428,6 +428,10 @@ export default function TodoPage() {
 				if (filter === "active" && todo.done) return false;
 
 				if (dateFilter !== "all") {
+					// Show todos without dates in any date filter
+					const hasNoDate = !todo.work_date && !todo.deadline;
+					if (hasNoDate) return true;
+
 					const matchesWorkDate = isDateInRange(todo.work_date, dateFilter);
 					const matchesDeadline = isDateInRange(todo.deadline, dateFilter);
 					return matchesWorkDate || matchesDeadline;
