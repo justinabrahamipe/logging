@@ -39,46 +39,10 @@ const runMigrations = async () => {
     console.log('→ No migrations table found');
   }
 
-  // Check if any tables exist (to detect if we need baseline)
-  let tablesExist = false;
-  try {
-    const tables = await client.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '__%'");
-    tablesExist = tables.rows.length > 0;
-    if (tablesExist) {
-      console.log(`✓ Found ${tables.rows.length} existing tables`);
-    }
-  } catch {
-    console.log('→ Could not check existing tables');
-  }
-
-  // If tables exist but no migrations recorded, baseline ALL migrations
-  if (tablesExist && appliedMigrations.size === 0) {
-    console.log('\n→ Tables exist but no migrations recorded - running full baseline...');
-
-    await client.execute(`
-      CREATE TABLE IF NOT EXISTS "__drizzle_migrations" (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        hash TEXT NOT NULL,
-        created_at INTEGER
-      )
-    `);
-
-    for (const file of migrationFiles) {
-      const hash = file.replace('.sql', '');
-      await client.execute({
-        sql: 'INSERT INTO "__drizzle_migrations" (hash, created_at) VALUES (?, ?)',
-        args: [hash, Date.now()]
-      });
-      appliedMigrations.add(hash);
-      console.log(`  ✓ Baselined: ${file}`);
-    }
-    console.log('✓ Baseline complete!\n');
-  }
-
-  // If some migrations recorded but not all, baseline the missing ones
-  // (This handles partial state where tables exist from push but not all migrations recorded)
-  if (tablesExist && appliedMigrations.size > 0 && appliedMigrations.size < migrationFiles.length) {
-    console.log('\n→ Checking for missing migration records...');
+  // If some migrations are recorded but not all, baseline the missing ones
+  // This handles the case where tables were created via `push` and only some migrations recorded
+  if (appliedMigrations.size > 0 && appliedMigrations.size < migrationFiles.length) {
+    console.log(`\n→ Found ${migrationFiles.length - appliedMigrations.size} missing migration records - baselining...`);
 
     for (const file of migrationFiles) {
       const hash = file.replace('.sql', '');
@@ -88,8 +52,43 @@ const runMigrations = async () => {
           args: [hash, Date.now()]
         });
         appliedMigrations.add(hash);
-        console.log(`  ✓ Baselined missing: ${file}`);
+        console.log(`  ✓ Baselined: ${file}`);
       }
+    }
+    console.log('✓ Baseline complete!\n');
+  }
+
+  // If no migrations recorded at all, check if tables exist
+  if (appliedMigrations.size === 0) {
+    let tablesExist = false;
+    try {
+      const tables = await client.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '__%'");
+      tablesExist = tables.rows.length > 0;
+      if (tablesExist) {
+        console.log(`✓ Found ${tables.rows.length} existing tables - running full baseline...`);
+      }
+    } catch {
+      console.log('→ Could not check existing tables');
+    }
+
+    if (tablesExist) {
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS "__drizzle_migrations" (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          hash TEXT NOT NULL,
+          created_at INTEGER
+        )
+      `);
+
+      for (const file of migrationFiles) {
+        const hash = file.replace('.sql', '');
+        await client.execute({
+          sql: 'INSERT INTO "__drizzle_migrations" (hash, created_at) VALUES (?, ?)',
+          args: [hash, Date.now()]
+        });
+        console.log(`  ✓ Baselined: ${file}`);
+      }
+      console.log('✓ Full baseline complete!\n');
     }
   }
 
