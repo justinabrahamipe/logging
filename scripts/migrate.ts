@@ -85,22 +85,37 @@ const runMigrations = async () => {
   // First, ensure auth tables exist with proper schema (these are critical for the app to work)
   console.log('Checking auth tables...');
   try {
-    // Check if user table exists and has data
-    let hasUsers = false;
+    // Check if account table has proper schema (id column with default)
+    let needsRecreate = false;
     let userTableExists = false;
+
     try {
-      const userCount = await client.execute('SELECT COUNT(*) as count FROM "user"');
-      userTableExists = true;
-      hasUsers = (userCount.rows[0].count as number) > 0;
+      // Check if account table exists and has proper schema
+      const tableInfo = await client.execute('PRAGMA table_info("account")');
+      const idColumn = tableInfo.rows.find(r => r.name === 'id');
+
+      if (!idColumn) {
+        needsRecreate = true;
+        console.log('  → Account table missing or no id column');
+      } else if (!idColumn.dflt_value) {
+        needsRecreate = true;
+        console.log('  → Account table id column missing DEFAULT - needs recreation');
+      }
+
+      // Check if user table exists
+      try {
+        await client.execute('SELECT 1 FROM "user" LIMIT 1');
+        userTableExists = true;
+      } catch {
+        // User table doesn't exist
+      }
     } catch {
-      // Table doesn't exist
+      needsRecreate = true;
+      console.log('  → Account table does not exist');
     }
 
-    if (hasUsers) {
-      console.log('✓ Auth tables have existing users - keeping current schema');
-    } else {
-      // Safe to drop and recreate (no users to lose)
-      console.log('  → No existing users, recreating auth tables with proper schema...');
+    if (needsRecreate) {
+      console.log('  → Recreating auth tables with proper schema...');
 
       const dropStatements = DROP_AUTH_TABLES_SQL.split(';').filter(s => s.trim());
       for (const stmt of dropStatements) {
@@ -119,7 +134,9 @@ const runMigrations = async () => {
           await client.execute(stmt);
         }
       }
-      console.log('✓ Auth tables ready with proper schema');
+      console.log('✓ Auth tables recreated with proper schema');
+    } else {
+      console.log('✓ Auth tables have correct schema');
     }
   } catch (error) {
     console.error('Error setting up auth tables:', error);
