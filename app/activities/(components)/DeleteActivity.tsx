@@ -1,7 +1,7 @@
 "use client";
 
 import axios from "axios";
-import { Button, Modal } from "flowbite-react";
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button } from "@mui/material";
 import { useState } from "react";
 import { HiOutlineExclamationCircle, HiTrash } from "react-icons/hi";
 
@@ -13,48 +13,62 @@ export default function DeleteActivity({
   refetchAction?: () => void;
 }) {
   const [openModal, setOpenModal] = useState(false);
-  const baseUrl = window.location.origin;
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+
   function handleDelete() {
-    console.log("Deleting activity:", data?.title);
     axios
       .delete(`${baseUrl}/api/activity`, {
         data: {
           title: data?.title,
         },
       })
-      .then((response) => {
-        console.log("Success:", response.data);
+      .then(() => {
         if (refetchAction) refetchAction();
+      })
+      .catch((error) => {
+        console.error("Error deleting activity:", error);
       });
     setOpenModal(false);
   }
+
   return (
     <>
-      <HiTrash size="24px" color="red" onClick={() => setOpenModal(true)} />
-      <Modal
-        show={openModal}
-        size="md"
+      <HiTrash
+        size="24px"
+        className="cursor-pointer text-red-500 hover:text-red-600 transition-colors"
+        onClick={() => setOpenModal(true)}
+      />
+      <Dialog
+        open={openModal}
         onClose={() => setOpenModal(false)}
-        popup
+        maxWidth="xs"
+        fullWidth
       >
-        <Modal.Header />
-        <Modal.Body>
-          <div className="text-center">
+        <DialogTitle className="text-center">Delete Activity</DialogTitle>
+        <DialogContent>
+          <div className="text-center py-4">
             <HiOutlineExclamationCircle className="mx-auto mb-4 h-14 w-14 text-gray-400 dark:text-gray-200" />
-            <h3 className="mb-5 text-lg font-normal text-gray-500 dark:text-gray-400">
-              Are you sure you want to delete {data?.title}?
-            </h3>
-            <div className="flex justify-center gap-4">
-              <Button color="failure" onClick={handleDelete}>
-                {"Yes"}
-              </Button>
-              <Button color="gray" onClick={() => setOpenModal(false)}>
-                No
-              </Button>
-            </div>
+            <p className="text-lg text-gray-500 dark:text-gray-400">
+              Are you sure you want to delete <strong>{data?.title}</strong>?
+            </p>
           </div>
-        </Modal.Body>
-      </Modal>
+        </DialogContent>
+        <DialogActions className="justify-center gap-4 pb-4">
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleDelete}
+          >
+            Yes, Delete
+          </Button>
+          <Button
+            variant="outlined"
+            onClick={() => setOpenModal(false)}
+          >
+            Cancel
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 }

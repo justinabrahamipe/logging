@@ -48,6 +48,14 @@ export const todos = sqliteTable('Todo', {
   urgency: integer('urgency').notNull().default(1),
   createdOn: integer('created_on', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   userId: text('userId'),
+  // Recurring task fields
+  isRecurring: integer('isRecurring', { mode: 'boolean' }).default(false),
+  recurrencePattern: text('recurrencePattern'), // 'daily' | 'weekly' | 'monthly' | 'custom'
+  recurrenceInterval: integer('recurrenceInterval'), // For custom: every N days
+  recurrenceEndDate: text('recurrenceEndDate'), // End date for recurrence
+  recurrenceCount: integer('recurrenceCount'), // OR number of occurrences
+  workDateOffset: integer('workDateOffset'), // Days before deadline for work_date
+  recurrenceGroupId: text('recurrenceGroupId'), // Links all instances together
 });
 
 // Goal table
@@ -253,6 +261,18 @@ export const todoPlaces = sqliteTable('TodoPlace', {
   placeIdIdx: index('TodoPlace_placeId_idx').on(table.placeId),
 }));
 
+// TodoGoal junction table
+export const todoGoals = sqliteTable('TodoGoal', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  todoId: integer('todoId').notNull().references(() => todos.id, { onDelete: 'cascade' }),
+  goalId: integer('goalId').notNull().references(() => goals.id, { onDelete: 'cascade' }),
+  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+}, (table) => ({
+  todoIdGoalIdUnique: unique().on(table.todoId, table.goalId),
+  todoIdIdx: index('TodoGoal_todoId_idx').on(table.todoId),
+  goalIdIdx: index('TodoGoal_goalId_idx').on(table.goalId),
+}));
+
 // GoalContact junction table
 export const goalContacts = sqliteTable('GoalContact', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -400,12 +420,14 @@ export const todosRelations = relations(todos, ({ many }) => ({
   logs: many(logs),
   todoContacts: many(todoContacts),
   todoPlaces: many(todoPlaces),
+  todoGoals: many(todoGoals),
 }));
 
 export const goalsRelations = relations(goals, ({ many }) => ({
   logs: many(logs),
   goalContacts: many(goalContacts),
   goalPlaces: many(goalPlaces),
+  todoGoals: many(todoGoals),
 }));
 
 export const usersRelations = relations(users, ({ one, many }) => ({
@@ -504,6 +526,17 @@ export const todoPlacesRelations = relations(todoPlaces, ({ one }) => ({
   place: one(places, {
     fields: [todoPlaces.placeId],
     references: [places.id],
+  }),
+}));
+
+export const todoGoalsRelations = relations(todoGoals, ({ one }) => ({
+  todo: one(todos, {
+    fields: [todoGoals.todoId],
+    references: [todos.id],
+  }),
+  goal: one(goals, {
+    fields: [todoGoals.goalId],
+    references: [goals.id],
   }),
 }));
 

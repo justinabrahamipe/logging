@@ -63,6 +63,39 @@ declare global {
     urgency: number;
     done?: boolean;
     id?: number;
+    createdOn?: Date | string | null;
+    isRecurring?: boolean;
+    recurrencePattern?: string | null;
+    recurrenceInterval?: number | null;
+    recurrenceEndDate?: string | null;
+    recurrenceCount?: number | null;
+    workDateOffset?: number | null;
+    recurrenceGroupId?: string | null;
+    todoContacts?: {
+      id: number;
+      contact: {
+        id: number;
+        name: string;
+        photoUrl?: string;
+      };
+    }[];
+    todoPlaces?: {
+      id: number;
+      place: {
+        id: number;
+        name: string;
+        address: string;
+      };
+    }[];
+    todoGoals?: {
+      id: number;
+      goal: {
+        id: number;
+        title: string;
+        color?: string | null;
+        icon?: string | null;
+      };
+    }[];
   };
 
   type GoalType = {
@@ -92,6 +125,24 @@ declare global {
     recurrencePattern?: string | null;
     recurrenceConfig?: string | null;
     parentGoalId?: number | null;
+    contactIds?: number[];
+    placeIds?: number[];
+    goalContacts?: {
+      id: number;
+      contact: {
+        id: number;
+        name: string;
+        photoUrl?: string;
+      };
+    }[];
+    goalPlaces?: {
+      id: number;
+      place: {
+        id: number;
+        name: string;
+        address: string;
+      };
+    }[];
   };
 }
 

@@ -739,7 +739,7 @@ export default function GoalsPage() {
                     </div>
 
                     {/* People and Places Tags */}
-                    {(goal.goalContacts?.length > 0 || goal.goalPlaces?.length > 0) && (
+                    {((goal.goalContacts && goal.goalContacts.length > 0) || (goal.goalPlaces && goal.goalPlaces.length > 0)) && (
                       <div className="flex flex-wrap gap-1 mb-0.5">
                         {/* People */}
                         {goal.goalContacts && goal.goalContacts.length > 0 && (
