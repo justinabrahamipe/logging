@@ -5,10 +5,19 @@ import { createClient } from '@libsql/client';
 import * as fs from 'fs';
 import * as path from 'path';
 
+// Drop and recreate auth tables to ensure proper schema with defaults
+// These tables are empty if auth hasn't worked yet, safe to recreate
+const DROP_AUTH_TABLES_SQL = `
+DROP TABLE IF EXISTS "session";
+DROP TABLE IF EXISTS "account";
+DROP TABLE IF EXISTS "verificationToken";
+DROP TABLE IF EXISTS "user";
+`;
+
 const AUTH_TABLES_SQL = `
 -- User table
 CREATE TABLE IF NOT EXISTS "user" (
-  "id" text PRIMARY KEY NOT NULL,
+  "id" text PRIMARY KEY NOT NULL DEFAULT (lower(hex(randomblob(16)))),
   "name" text,
   "email" text NOT NULL,
   "emailVerified" integer,
@@ -20,7 +29,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS "user_email_unique" ON "user" ("email");
 
 -- Account table
 CREATE TABLE IF NOT EXISTS "account" (
-  "id" text PRIMARY KEY NOT NULL,
+  "id" text PRIMARY KEY NOT NULL DEFAULT (lower(hex(randomblob(16)))),
   "userId" text NOT NULL,
   "type" text NOT NULL,
   "provider" text NOT NULL,
@@ -39,7 +48,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS "account_provider_providerAccountId_unique" ON
 
 -- Session table
 CREATE TABLE IF NOT EXISTS "session" (
-  "id" text PRIMARY KEY NOT NULL,
+  "id" text PRIMARY KEY NOT NULL DEFAULT (lower(hex(randomblob(16)))),
   "sessionToken" text NOT NULL,
   "userId" text NOT NULL,
   "expires" integer NOT NULL,
@@ -73,18 +82,47 @@ const runMigrations = async () => {
 
   const db = drizzle(client);
 
-  // First, ensure auth tables exist (these are critical for the app to work)
-  console.log('Ensuring auth tables exist...');
+  // First, ensure auth tables exist with proper schema (these are critical for the app to work)
+  console.log('Checking auth tables...');
   try {
-    const statements = AUTH_TABLES_SQL.split(';').filter(s => s.trim());
-    for (const stmt of statements) {
-      if (stmt.trim()) {
-        await client.execute(stmt);
-      }
+    // Check if user table exists and has data
+    let hasUsers = false;
+    let userTableExists = false;
+    try {
+      const userCount = await client.execute('SELECT COUNT(*) as count FROM "user"');
+      userTableExists = true;
+      hasUsers = (userCount.rows[0].count as number) > 0;
+    } catch {
+      // Table doesn't exist
     }
-    console.log('✓ Auth tables ready');
+
+    if (hasUsers) {
+      console.log('✓ Auth tables have existing users - keeping current schema');
+    } else {
+      // Safe to drop and recreate (no users to lose)
+      console.log('  → No existing users, recreating auth tables with proper schema...');
+
+      const dropStatements = DROP_AUTH_TABLES_SQL.split(';').filter(s => s.trim());
+      for (const stmt of dropStatements) {
+        if (stmt.trim()) {
+          await client.execute(stmt);
+        }
+      }
+      if (userTableExists) {
+        console.log('  ✓ Dropped old auth tables');
+      }
+
+      // Create auth tables with proper defaults
+      const createStatements = AUTH_TABLES_SQL.split(';').filter(s => s.trim());
+      for (const stmt of createStatements) {
+        if (stmt.trim()) {
+          await client.execute(stmt);
+        }
+      }
+      console.log('✓ Auth tables ready with proper schema');
+    }
   } catch (error) {
-    console.error('Error creating auth tables:', error);
+    console.error('Error setting up auth tables:', error);
   }
 
   // Get migration files
