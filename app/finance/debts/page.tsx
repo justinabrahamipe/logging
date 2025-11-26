@@ -200,7 +200,7 @@ export default function DebtsPage() {
     try {
       const baseUrl = window.location.origin;
       await axios.delete(`${baseUrl}/api/finance/debts?id=${id}`);
-      fetchDebts();
+      fetchData();
     } catch (error) {
       console.error("Error deleting debt:", error);
     }
