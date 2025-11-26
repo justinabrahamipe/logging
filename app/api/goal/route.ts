@@ -1,48 +1,65 @@
 import { NextRequest, NextResponse } from "next/server";
-import { insertManyIgnoreDuplicates } from "@/lib/drizzle-utils";
-import { db, goals, goalContacts, goalPlaces, logs } from "@/lib/db";
-import { desc, eq, and, gte, lte } from "drizzle-orm";
+import { db, goals, logs, contacts, places } from "@/lib/db";
+import { desc, eq, and, gte, lte, inArray } from "drizzle-orm";
 
 export const maxDuration = 10;
 export const dynamic = 'force-dynamic';
+
+// Helper to parse contactIds string to array
+function parseContactIds(contactIds: string | null): number[] {
+  if (!contactIds) return [];
+  return contactIds.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+}
+
+// Helper to convert array to contactIds string
+function stringifyContactIds(ids: number[]): string | null {
+  if (!ids || ids.length === 0) return null;
+  return ids.join(',');
+}
+
+// Helper to fetch contacts by IDs
+async function fetchContacts(contactIds: number[]) {
+  if (contactIds.length === 0) return [];
+  const contactList = await db.select({
+    id: contacts.id,
+    name: contacts.name,
+    photoUrl: contacts.photoUrl
+  }).from(contacts).where(inArray(contacts.id, contactIds));
+  return contactList;
+}
+
+// Helper to fetch place by ID
+async function fetchPlace(placeId: number | null) {
+  if (!placeId) return null;
+  const [place] = await db.select({
+    id: places.id,
+    name: places.name,
+    address: places.address
+  }).from(places).where(eq(places.id, placeId));
+  return place || null;
+}
 
 export async function GET() {
   try {
     const data = await db.query.goals.findMany({
       orderBy: [desc(goals.createdOn)],
       with: {
-        goalContacts: {
-          with: {
-            contact: {
-              columns: {
-                id: true,
-                name: true,
-                photoUrl: true
-              }
-            }
-          }
-        },
-        goalPlaces: {
-          with: {
-            place: {
-              columns: {
-                id: true,
-                name: true,
-                address: true
-              }
-            }
+        place: {
+          columns: {
+            id: true,
+            name: true,
+            address: true
           }
         }
       }
     });
 
-    // Calculate current progress for each goal
+    // Calculate current progress for each goal and enrich with contacts
     const goalsWithProgress = await Promise.all(
       data.map(async (goal) => {
         let currentValue = 0;
 
         // Get all logs associated with this goal
-        // Use a broader date range to account for timezone differences
         const startDate = new Date(goal.startDate);
         startDate.setHours(0, 0, 0, 0);
         const endDate = new Date(goal.endDate);
@@ -57,20 +74,17 @@ export async function GET() {
         );
 
         if (goal.metricType === 'time') {
-          // Sum up time spent (in minutes, convert to hours)
           currentValue = goalLogs.reduce((sum, log) => {
             if (log.startTime && log.endTime) {
               const duration = new Date(log.endTime).getTime() - new Date(log.startTime).getTime();
-              return sum + (duration / (1000 * 60 * 60)); // Convert to hours
+              return sum + (duration / (1000 * 60 * 60));
             }
             return sum;
           }, 0);
         } else if (goal.metricType === 'count') {
-          // Sum up goalCount values
           currentValue = goalLogs.reduce((sum, log) => sum + (log.goalCount || 0), 0);
         }
 
-        // Calculate statistics
         const now = new Date();
         const totalDuration = goal.endDate.getTime() - goal.startDate.getTime();
         const elapsed = now.getTime() - goal.startDate.getTime();
@@ -79,23 +93,22 @@ export async function GET() {
         const percentElapsed = Math.min((elapsed / totalDuration) * 100, 100);
         const percentComplete = (currentValue / goal.targetValue) * 100;
 
-        // Calculate daily target to achieve goal
         let dailyTarget = 0;
         if (daysRemaining > 0 && currentValue < goal.targetValue) {
           dailyTarget = (goal.targetValue - currentValue) / daysRemaining;
         }
 
-        // For limiting goals: completed only if period ended AND stayed under limit
-        // For achievement goals: completed if target reached
         const isCompleted = goal.goalType === 'limiting'
           ? (now > goal.endDate && currentValue <= goal.targetValue)
           : currentValue >= goal.targetValue;
 
-        // For limiting goals: overdue if exceeded limit OR period ended with value over limit
-        // For achievement goals: overdue if period ended without reaching target
         const isOverdue = goal.goalType === 'limiting'
           ? currentValue > goal.targetValue
           : (now > goal.endDate && currentValue < goal.targetValue);
+
+        // Fetch contacts
+        const contactIdsList = parseContactIds(goal.contactIds);
+        const contactList = await fetchContacts(contactIdsList);
 
         return {
           ...goal,
@@ -105,7 +118,8 @@ export async function GET() {
           daysRemaining: Math.max(0, daysRemaining),
           dailyTarget,
           isCompleted,
-          isOverdue
+          isOverdue,
+          contacts: contactList
         };
       })
     );
@@ -127,13 +141,22 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    // Validate required fields
     if (!body.title || !body.goalType || !body.metricType || !body.targetValue || !body.startDate || !body.endDate) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
       );
     }
+
+    // Handle placeId - take first one if array provided
+    const placeId = Array.isArray(body.placeIds) && body.placeIds.length > 0
+      ? body.placeIds[0]
+      : (body.placeId || null);
+
+    // Handle contactIds - convert array to comma-separated string
+    const contactIds = Array.isArray(body.contactIds) && body.contactIds.length > 0
+      ? stringifyContactIds(body.contactIds)
+      : null;
 
     const [goal] = await db.insert(goals).values({
       title: body.title,
@@ -153,61 +176,30 @@ export async function POST(request: NextRequest) {
       isRecurring: body.isRecurring || false,
       recurrencePattern: body.recurrencePattern || null,
       recurrenceConfig: body.recurrenceConfig || null,
-      parentGoalId: body.parentGoalId || null
+      parentGoalId: body.parentGoalId || null,
+      placeId: placeId ? parseInt(placeId) : null,
+      contactIds
     }).returning();
-
-    // Link contacts if provided
-    if (body.contactIds && Array.isArray(body.contactIds) && body.contactIds.length > 0) {
-      await insertManyIgnoreDuplicates(
-        goalContacts,
-        body.contactIds.map((contactId: number) => ({
-          goalId: goal.id,
-          contactId
-        }))
-      );
-    }
-
-    // Link places if provided
-    if (body.placeIds && Array.isArray(body.placeIds) && body.placeIds.length > 0) {
-      await insertManyIgnoreDuplicates(
-        goalPlaces,
-        body.placeIds.map((placeId: number) => ({
-          goalId: goal.id,
-          placeId
-        }))
-      );
-    }
 
     // Fetch the complete goal with relationships
     const response = await db.query.goals.findFirst({
       where: eq(goals.id, goal.id),
       with: {
-        goalContacts: {
-          with: {
-            contact: {
-              columns: {
-                id: true,
-                name: true,
-                photoUrl: true
-              }
-            }
-          }
-        },
-        goalPlaces: {
-          with: {
-            place: {
-              columns: {
-                id: true,
-                name: true,
-                address: true
-              }
-            }
+        place: {
+          columns: {
+            id: true,
+            name: true,
+            address: true
           }
         }
       }
     });
 
-    return NextResponse.json(response, { status: 201 });
+    // Enrich with contacts
+    const contactIdsList = parseContactIds(response?.contactIds || null);
+    const contactList = await fetchContacts(contactIdsList);
+
+    return NextResponse.json({ ...response, contacts: contactList }, { status: 201 });
   } catch (error) {
     console.error("POST /api/goal error:", error);
     return NextResponse.json(
@@ -232,12 +224,9 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const { id, contactIds, placeIds, ...updateData } = body;
+    const { id, ...updateData } = body;
 
     const data: any = { ...updateData };
-    // Remove contactIds and placeIds from updateData if they exist
-    delete data.contactIds;
-    delete data.placeIds;
 
     if (updateData.targetValue !== undefined) {
       data.targetValue = parseFloat(updateData.targetValue);
@@ -247,84 +236,52 @@ export async function PUT(request: NextRequest) {
     }
     if (updateData.startDate) {
       data.startDate = new Date(updateData.startDate);
-      console.log("Converted startDate:", data.startDate);
     }
     if (updateData.endDate) {
       data.endDate = new Date(updateData.endDate);
-      console.log("Converted endDate:", data.endDate);
     }
 
-    console.log("PUT /api/goal - Data to update:", JSON.stringify(data, null, 2));
+    // Handle placeId - take first one if array provided
+    if (updateData.placeIds !== undefined) {
+      data.placeId = Array.isArray(updateData.placeIds) && updateData.placeIds.length > 0
+        ? parseInt(updateData.placeIds[0])
+        : null;
+      delete data.placeIds;
+    } else if (updateData.placeId !== undefined) {
+      data.placeId = updateData.placeId ? parseInt(updateData.placeId) : null;
+    }
+
+    // Handle contactIds - convert array to comma-separated string
+    if (updateData.contactIds !== undefined) {
+      data.contactIds = Array.isArray(updateData.contactIds) && updateData.contactIds.length > 0
+        ? stringifyContactIds(updateData.contactIds)
+        : null;
+    }
 
     await db.update(goals)
       .set(data)
       .where(eq(goals.id, parseInt(id)));
 
-    // Update contacts if provided
-    if (contactIds !== undefined && Array.isArray(contactIds)) {
-      // Remove all existing contacts
-      await db.delete(goalContacts).where(eq(goalContacts.goalId, parseInt(id)));
-
-      // Add new contacts
-      if (contactIds.length > 0) {
-        await insertManyIgnoreDuplicates(
-          goalContacts,
-          contactIds.map((contactId: number) => ({
-            goalId: parseInt(id),
-            contactId
-          }))
-        );
-      }
-    }
-
-    // Update places if provided
-    if (placeIds !== undefined && Array.isArray(placeIds)) {
-      // Remove all existing places
-      await db.delete(goalPlaces).where(eq(goalPlaces.goalId, parseInt(id)));
-
-      // Add new places
-      if (placeIds.length > 0) {
-        await insertManyIgnoreDuplicates(
-          goalPlaces,
-          placeIds.map((placeId: number) => ({
-            goalId: parseInt(id),
-            placeId
-          }))
-        );
-      }
-    }
-
     // Fetch the updated goal with relationships
     const response = await db.query.goals.findFirst({
       where: eq(goals.id, parseInt(id)),
       with: {
-        goalContacts: {
-          with: {
-            contact: {
-              columns: {
-                id: true,
-                name: true,
-                photoUrl: true
-              }
-            }
-          }
-        },
-        goalPlaces: {
-          with: {
-            place: {
-              columns: {
-                id: true,
-                name: true,
-                address: true
-              }
-            }
+        place: {
+          columns: {
+            id: true,
+            name: true,
+            address: true
           }
         }
       }
     });
 
+    // Enrich with contacts
+    const contactIdsList = parseContactIds(response?.contactIds || null);
+    const contactList = await fetchContacts(contactIdsList);
+
     console.log("PUT /api/goal - Update successful");
-    return NextResponse.json(response, { status: 200 });
+    return NextResponse.json({ ...response, contacts: contactList }, { status: 200 });
   } catch (error) {
     console.error("PUT /api/goal error:", error);
     console.error("Error details:", error instanceof Error ? error.stack : error);

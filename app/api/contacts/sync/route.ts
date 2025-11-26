@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db, accounts, ignoredContacts, contacts } from "@/lib/db";
+import { db, accounts, contacts } from "@/lib/db";
 import { auth } from "@/auth";
 import { eq, and } from "drizzle-orm";
 
@@ -16,6 +16,8 @@ export async function POST() {
         { status: 401 }
       );
     }
+
+    const userId = session.user.id;
 
     // Get the user's access token from the Account table
     const account = await db.query.accounts.findFirst({
@@ -86,11 +88,21 @@ export async function POST() {
       );
     }
 
-    // Fetch ignored contacts
-    const ignoredContactsList = await db.select({ googleId: ignoredContacts.googleId })
-      .from(ignoredContacts)
-      .where(eq(ignoredContacts.userId, session.user.id));
-    const ignoredGoogleIds = new Set(ignoredContactsList.map(ic => ic.googleId));
+    // Get all existing contacts (including ignored ones) to check status
+    const existingContacts = await db.select({
+      googleId: contacts.googleId,
+      isIgnored: contacts.isIgnored
+    })
+      .from(contacts)
+      .where(eq(contacts.userId, session.user.id));
+
+    // Build maps for quick lookup
+    const ignoredGoogleIds = new Set(
+      existingContacts.filter(c => c.isIgnored && c.googleId).map(c => c.googleId!)
+    );
+    const existingGoogleIds = new Set(
+      existingContacts.filter(c => c.googleId).map(c => c.googleId!)
+    );
 
     // Fetch all contacts from Google People API with pagination
     let allConnections: any[] = [];
@@ -133,7 +145,7 @@ export async function POST() {
     const connections = allConnections;
     console.log(`[SYNC] Total fetched ${connections.length} contacts from Google across ${pageCount} pages`);
 
-    // Process contacts in parallel batches for better performance
+    // Process contacts - skip ignored ones
     let skippedCount = 0;
     const contactsToSync = connections.filter((person: any) => {
       const googleId = person.resourceName;
@@ -179,29 +191,25 @@ export async function POST() {
           }
 
           // Check if contact exists
-          const existingContact = await db.query.contacts.findFirst({
-            where: and(
-              eq(contacts.userId, session.user!.id),
-              eq(contacts.googleId, googleId || `temp-${Date.now()}-${Math.random()}`)
-            )
-          });
-
-          if (existingContact) {
-            // Update existing contact
+          if (googleId && existingGoogleIds.has(googleId)) {
+            // Update existing contact (but preserve isIgnored status)
             const [updated] = await db.update(contacts)
               .set({
                 name, email, phoneNumber, photoUrl, organization, jobTitle, address, birthday, weddingAnniversary,
                 lastSynced: new Date(), updatedAt: new Date()
               })
-              .where(eq(contacts.id, existingContact.id))
+              .where(and(
+                eq(contacts.userId, userId),
+                eq(contacts.googleId, googleId)
+              ))
               .returning();
             return updated;
           } else {
             // Create new contact
             const [created] = await db.insert(contacts)
               .values({
-                userId: session.user!.id, googleId, name, email, phoneNumber, photoUrl, organization, jobTitle,
-                address, birthday, weddingAnniversary, lastSynced: new Date()
+                userId, googleId, name, email, phoneNumber, photoUrl, organization, jobTitle,
+                address, birthday, weddingAnniversary, isIgnored: false, lastSynced: new Date()
               })
               .returning();
             return created;

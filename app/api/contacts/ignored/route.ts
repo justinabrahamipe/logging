@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, ignoredContacts } from "@/lib/db";
+import { db, contacts } from "@/lib/db";
 import { auth } from "@/auth";
 import { eq, and, desc } from "drizzle-orm";
 
 export const maxDuration = 10;
 export const dynamic = 'force-dynamic';
 
+// GET - List all ignored contacts
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
@@ -23,9 +24,12 @@ export async function GET(request: NextRequest) {
 
     // Get all ignored contacts
     const allIgnored = await db.select()
-      .from(ignoredContacts)
-      .where(eq(ignoredContacts.userId, session.user.id))
-      .orderBy(desc(ignoredContacts.createdAt));
+      .from(contacts)
+      .where(and(
+        eq(contacts.userId, session.user.id),
+        eq(contacts.isIgnored, true)
+      ))
+      .orderBy(desc(contacts.createdAt));
 
     const totalCount = allIgnored.length;
 
@@ -55,6 +59,57 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// POST - Ignore a contact (set isIgnored = true)
+export async function POST(request: NextRequest) {
+  try {
+    const session = await auth();
+
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+
+    if (!body.id) {
+      return NextResponse.json(
+        { error: "Contact ID is required" },
+        { status: 400 }
+      );
+    }
+
+    // Set isIgnored = true
+    const updated = await db.update(contacts)
+      .set({ isIgnored: true, updatedAt: new Date() })
+      .where(and(
+        eq(contacts.id, body.id),
+        eq(contacts.userId, session.user.id)
+      ))
+      .returning();
+
+    if (updated.length === 0) {
+      return NextResponse.json(
+        { error: "Contact not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "Contact ignored"
+    }, { status: 200 });
+  } catch (error) {
+    console.error("POST /api/contacts/ignored error:", error);
+    return NextResponse.json({
+      success: false,
+      message: "Failed to ignore contact"
+    }, { status: 500 });
+  }
+}
+
+// DELETE - Restore an ignored contact (set isIgnored = false)
 export async function DELETE(request: NextRequest) {
   try {
     const session = await auth();
@@ -68,37 +123,38 @@ export async function DELETE(request: NextRequest) {
 
     const body = await request.json();
 
-    if (!body.googleId) {
+    if (!body.id) {
       return NextResponse.json(
-        { error: "Google ID is required" },
+        { error: "Contact ID is required" },
         { status: 400 }
       );
     }
 
-    // Remove from ignored list (restore)
-    const deleted = await db.delete(ignoredContacts)
+    // Set isIgnored = false
+    const updated = await db.update(contacts)
+      .set({ isIgnored: false, updatedAt: new Date() })
       .where(and(
-        eq(ignoredContacts.googleId, body.googleId),
-        eq(ignoredContacts.userId, session.user.id)
+        eq(contacts.id, body.id),
+        eq(contacts.userId, session.user.id)
       ))
       .returning();
 
-    if (deleted.length === 0) {
+    if (updated.length === 0) {
       return NextResponse.json(
-        { error: "Ignored contact not found" },
+        { error: "Contact not found" },
         { status: 404 }
       );
     }
 
     return NextResponse.json({
       success: true,
-      message: "Contact restored - will reappear on next sync"
+      message: "Contact restored"
     }, { status: 200 });
   } catch (error) {
     console.error("DELETE /api/contacts/ignored error:", error);
     return NextResponse.json({
       success: false,
       message: "Failed to restore contact"
-    }, { status: 200 });
+    }, { status: 500 });
   }
 }

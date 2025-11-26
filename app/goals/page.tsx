@@ -739,28 +739,26 @@ export default function GoalsPage() {
                     </div>
 
                     {/* People and Places Tags */}
-                    {((goal.goalContacts && goal.goalContacts.length > 0) || (goal.goalPlaces && goal.goalPlaces.length > 0)) && (
+                    {((goal.contacts && goal.contacts.length > 0) || goal.place) && (
                       <div className="flex flex-wrap gap-1 mb-0.5">
                         {/* People */}
-                        {goal.goalContacts && goal.goalContacts.length > 0 && (
+                        {goal.contacts && goal.contacts.length > 0 && (
                           <div className="flex items-center gap-1 flex-wrap">
                             <FaUsers className="text-blue-600 dark:text-blue-400" size={8} />
-                            {goal.goalContacts.map((gc: any) => (
-                              <span key={gc.id} className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-[9px] rounded-full">
-                                {gc.contact.name}
+                            {goal.contacts.map((contact: any) => (
+                              <span key={contact.id} className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-[9px] rounded-full">
+                                {contact.name}
                               </span>
                             ))}
                           </div>
                         )}
-                        {/* Places */}
-                        {goal.goalPlaces && goal.goalPlaces.length > 0 && (
+                        {/* Place */}
+                        {goal.place && (
                           <div className="flex items-center gap-1 flex-wrap">
                             <FaMapMarkedAlt className="text-green-600 dark:text-green-400" size={8} />
-                            {goal.goalPlaces.map((gp: any) => (
-                              <span key={gp.id} className="px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[9px] rounded-full" title={gp.place.address}>
-                                {gp.place.name}
-                              </span>
-                            ))}
+                            <span className="px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[9px] rounded-full" title={goal.place.address}>
+                              {goal.place.name}
+                            </span>
                           </div>
                         )}
                       </div>

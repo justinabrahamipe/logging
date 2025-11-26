@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, contacts, ignoredContacts } from "@/lib/db";
+import { db, contacts } from "@/lib/db";
 import { auth } from "@/auth";
 import { eq, and, inArray } from "drizzle-orm";
 
@@ -26,11 +26,10 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Find contacts to get their googleIds
+    // Find contacts to check which have googleIds
     const foundContacts = await db.select({
       id: contacts.id,
       googleId: contacts.googleId,
-      name: contacts.name
     })
     .from(contacts)
     .where(and(
@@ -38,41 +37,41 @@ export async function DELETE(request: NextRequest) {
       eq(contacts.userId, session.user.id)
     ));
 
-    // Add contacts with googleIds to ignored list
-    const contactsToIgnore = foundContacts.filter(c => c.googleId);
-    if (contactsToIgnore.length > 0) {
-      for (const contact of contactsToIgnore) {
-        // Check if ignored contact already exists
-        const existingIgnored = await db.query.ignoredContacts.findFirst({
-          where: and(
-            eq(ignoredContacts.userId, session.user.id),
-            eq(ignoredContacts.googleId, contact.googleId!)
-          )
-        });
+    // Separate contacts with googleIds (mark as ignored) from manual ones (delete)
+    const googleContactIds = foundContacts.filter(c => c.googleId).map(c => c.id);
+    const manualContactIds = foundContacts.filter(c => !c.googleId).map(c => c.id);
 
-        if (!existingIgnored) {
-          // Create new ignored contact
-          await db.insert(ignoredContacts).values({
-            userId: session.user.id,
-            googleId: contact.googleId!,
-            name: contact.name
-          });
-        }
-      }
+    let ignoredCount = 0;
+    let deletedCount = 0;
+
+    // Mark Google contacts as ignored (so they won't reappear on sync)
+    if (googleContactIds.length > 0) {
+      await db.update(contacts)
+        .set({ isIgnored: true, updatedAt: new Date() })
+        .where(and(
+          inArray(contacts.id, googleContactIds),
+          eq(contacts.userId, session.user.id)
+        ));
+      ignoredCount = googleContactIds.length;
     }
 
-    // Delete the contacts
-    const deleted = await db.delete(contacts)
-      .where(and(
-        inArray(contacts.id, body.ids),
-        eq(contacts.userId, session.user.id)
-      ))
-      .returning();
+    // Actually delete manual contacts
+    if (manualContactIds.length > 0) {
+      const deleted = await db.delete(contacts)
+        .where(and(
+          inArray(contacts.id, manualContactIds),
+          eq(contacts.userId, session.user.id)
+        ))
+        .returning();
+      deletedCount = deleted.length;
+    }
 
     return NextResponse.json(
       {
         success: true,
-        deleted: deleted.length
+        deleted: deletedCount,
+        ignored: ignoredCount,
+        total: ignoredCount + deletedCount
       },
       { status: 200 }
     );

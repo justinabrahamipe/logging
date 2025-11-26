@@ -9,7 +9,7 @@ import axios from "axios";
 interface Contact {
   id: number;
   name: string;
-  photoUrl?: string;
+  photoUrl?: string | null;
 }
 
 interface Place {
@@ -21,8 +21,8 @@ interface Place {
 interface Goal {
   id: number;
   title: string;
-  color?: string;
-  icon?: string;
+  color?: string | null;
+  icon?: string | null;
 }
 
 interface TodoFormProps {
@@ -72,17 +72,14 @@ const TodoForm = memo(({ isEdit, initialData, onSaveAction, onCancelAction, acti
 
   // Initialize selected contacts/places/goals from initialData
   useEffect(() => {
-    if (initialData.todoContacts && Array.isArray(initialData.todoContacts)) {
-      const contacts = initialData.todoContacts.map((tc: any) => tc.contact);
-      setSelectedContacts(contacts);
+    if (initialData.contacts && Array.isArray(initialData.contacts)) {
+      setSelectedContacts(initialData.contacts);
     }
-    if (initialData.todoPlaces && Array.isArray(initialData.todoPlaces)) {
-      const places = initialData.todoPlaces.map((tp: any) => tp.place);
-      setSelectedPlaces(places);
+    if (initialData.place) {
+      setSelectedPlaces([initialData.place]);
     }
-    if (initialData.todoGoals && Array.isArray(initialData.todoGoals)) {
-      const goals = initialData.todoGoals.map((tg: any) => tg.goal);
-      setSelectedGoals(goals);
+    if (initialData.goal) {
+      setSelectedGoals([initialData.goal]);
     }
   }, [initialData]);
 
@@ -91,8 +88,8 @@ const TodoForm = memo(({ isEdit, initialData, onSaveAction, onCancelAction, acti
     const dataToSubmit: any = {
       ...localForm,
       contactIds: selectedContacts.map(c => c.id),
-      placeIds: selectedPlaces.map(p => p.id),
-      goalIds: selectedGoals.map(g => g.id)
+      placeId: selectedPlaces.length > 0 ? selectedPlaces[0].id : null,
+      goalId: selectedGoals.length > 0 ? selectedGoals[0].id : null,
     };
 
     // Add recurring task data if enabled

@@ -241,8 +241,8 @@ export default function TodoPage() {
 
 			const baseUrl = window.location.origin;
 			try {
-				// Only send necessary fields, exclude createdOn, todoContacts, todoPlaces
-				const { createdOn, todoContacts, todoPlaces, ...updateData } = todo;
+				// Only send necessary fields, exclude createdOn, contacts, place
+				const { createdOn, contacts, place, ...updateData } = todo as any;
 				await axios.put(`${baseUrl}/api/todo`, {
 					...updateData,
 					done: newStatus,
@@ -273,8 +273,8 @@ export default function TodoPage() {
 	const handleSaveEdit = useCallback(async (formData: TodoType) => {
 		const baseUrl = window.location.origin;
 		try {
-			// Exclude createdOn, todoContacts, todoPlaces from PUT request
-			const { createdOn, todoContacts, todoPlaces, ...updateData } = formData;
+			// Exclude createdOn, contacts, place from PUT request
+			const { createdOn, contacts, place, ...updateData } = formData as any;
 			await axios.put(`${baseUrl}/api/todo`, updateData);
 			setEditingId(null);
 			setEditFormData({} as TodoType);
@@ -728,7 +728,7 @@ export default function TodoPage() {
 													</div>
 
 													{/* Description, Activity, and Tags - expands on hover */}
-													{(todo.description || todo.activityTitle || (todo.todoContacts && todo.todoContacts.length > 0) || (todo.todoPlaces && todo.todoPlaces.length > 0)) && (
+													{(todo.description || todo.activityTitle || (todo.contacts && todo.contacts.length > 0) || todo.place) && (
 														<div
 															className={`overflow-hidden transition-all duration-300 ease-in-out ${
 																isHovered ? "max-h-32" : "max-h-0"
@@ -753,34 +753,31 @@ export default function TodoPage() {
 																)}
 
 																{/* People and Places Tags */}
-																{((todo.todoContacts && todo.todoContacts.length > 0) || (todo.todoPlaces && todo.todoPlaces.length > 0)) && (
+																{((todo.contacts && todo.contacts.length > 0) || todo.place) && (
 																	<div className="flex flex-wrap gap-2 pt-0.5">
-																		{todo.todoContacts && todo.todoContacts.length > 0 && (
+																		{todo.contacts && todo.contacts.length > 0 && (
 																			<div className="flex items-center gap-1 flex-wrap">
 																				<FaUsers className="text-blue-600 dark:text-blue-400" size={10} />
-																				{todo.todoContacts.map((tc: any) => (
+																				{todo.contacts.map((contact: any) => (
 																					<span
-																						key={tc.id}
+																						key={contact.id}
 																						className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs rounded-full"
 																					>
-																						{tc.contact.name}
+																						{contact.name}
 																					</span>
 																				))}
 																			</div>
 																		)}
 
-																		{todo.todoPlaces && todo.todoPlaces.length > 0 && (
+																		{todo.place && (
 																			<div className="flex items-center gap-1 flex-wrap">
 																				<FaMapMarkedAlt className="text-green-600 dark:text-green-400" size={10} />
-																				{todo.todoPlaces.map((tp: any) => (
-																					<span
-																						key={tp.id}
-																						className="px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs rounded-full"
-																						title={tp.place.address}
-																					>
-																						{tp.place.name}
-																					</span>
-																				))}
+																				<span
+																					className="px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs rounded-full"
+																					title={todo.place.address}
+																				>
+																					{todo.place.name}
+																				</span>
 																			</div>
 																		)}
 																	</div>
