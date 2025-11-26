@@ -15,6 +15,20 @@
       "when": 1764151329478,
       "tag": "0001_moaning_red_hulk",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1764174349065,
+      "tag": "0002_simplify-schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1764175903600,
+      "tag": "0003_remove-ignored-contact-table",
+      "breakpoints": true
     }
   ]
 }

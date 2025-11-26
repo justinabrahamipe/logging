@@ -14,7 +14,7 @@ import "react-day-picker/dist/style.css";
 interface Contact {
 	id: number;
 	name: string;
-	photoUrl?: string;
+	photoUrl?: string | null;
 }
 
 interface Place {
@@ -137,10 +137,8 @@ export default function ActivityHistory({
 			comment: log.comment || "",
 		});
 		// Set selected contacts and places from the log
-		const logContacts = log.logContacts?.map(lc => lc.contact) || [];
-		const logPlaces = log.logPlaces?.map(lp => lp.place) || [];
-		setSelectedContacts(logContacts);
-		setSelectedPlaces(logPlaces);
+		setSelectedContacts(log.contacts || []);
+		setSelectedPlaces(log.place ? [log.place] : []);
 		// Set selected todo and goal from the log
 		setSelectedTodo((log as any).todo || null);
 		setSelectedGoal((log as any).goal || null);
@@ -867,34 +865,33 @@ export default function ActivityHistory({
 															)}
 
 															{/* People Tags */}
-															{log.logContacts?.map((lc) => (
+															{log.contacts?.map((contact) => (
 																<span
-																	key={`contact-${lc.id}`}
+																	key={`contact-${contact.id}`}
 																	className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs rounded-full"
 																>
 																	<FaUsers size={10} />
-																	{lc.contact.name}
+																	{contact.name}
 																</span>
 															))}
 
-															{/* Places Tags */}
-															{log.logPlaces?.map((lp) => (
+															{/* Place Tag */}
+															{log.place && (
 																<span
-																	key={`place-${lp.id}`}
 																	className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs rounded-full"
-																	title={lp.place.address}
+																	title={log.place.address}
 																>
 																	<FaMapMarkedAlt size={10} />
-																	{lp.place.name}
+																	{log.place.name}
 																</span>
-															))}
+															)}
 
 															{/* No tags placeholder */}
 															{tags.length === 0 &&
 															 !log.todo &&
 															 !log.goal &&
-															 (!log.logContacts || log.logContacts.length === 0) &&
-															 (!log.logPlaces || log.logPlaces.length === 0) && (
+															 (!log.contacts || log.contacts.length === 0) &&
+															 !log.place && (
 																<span className="text-sm text-gray-400 italic">-</span>
 															)}
 														</div>

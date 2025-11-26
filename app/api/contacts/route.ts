@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, contacts, ignoredContacts } from "@/lib/db";
+import { db, contacts } from "@/lib/db";
 import { auth } from "@/auth";
 import { eq, and, or, like, asc } from "drizzle-orm";
 
@@ -21,24 +21,33 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = parseInt(searchParams.get('offset') || '0');
     const search = searchParams.get('search') || '';
+    const includeIgnored = searchParams.get('includeIgnored') === 'true';
 
-    // Build where clause with search
-    let whereClause = eq(contacts.userId, session.user.id);
+    // Build where conditions
+    const conditions: any[] = [eq(contacts.userId, session.user.id)];
+
+    // Filter out ignored contacts by default
+    if (!includeIgnored) {
+      conditions.push(eq(contacts.isIgnored, false));
+    }
 
     if (search.trim()) {
-      whereClause = and(
-        eq(contacts.userId, session.user.id),
+      conditions.push(
         or(
           like(contacts.name, `%${search}%`),
           like(contacts.email, `%${search}%`),
           like(contacts.phoneNumber, `%${search}%`),
           like(contacts.address, `%${search}%`)
         )
-      ) as any;
+      );
     }
 
     // Get all contacts with filter
-    const allContacts = await db.select().from(contacts).where(whereClause).orderBy(asc(contacts.name));
+    const allContacts = await db.select()
+      .from(contacts)
+      .where(and(...conditions))
+      .orderBy(asc(contacts.name));
+
     const totalCount = allContacts.length;
 
     // Apply pagination
@@ -207,7 +216,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Find the contact first to get googleId
+    // Find the contact first
     const contact = await db.query.contacts.findFirst({
       where: and(
         eq(contacts.id, body.id),
@@ -222,27 +231,20 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // If contact has a googleId, add it to ignored list
+    // If contact has a googleId, mark as ignored instead of deleting
+    // This prevents it from being re-imported on next sync
     if (contact.googleId) {
-      // Check if ignored contact already exists
-      const existingIgnored = await db.query.ignoredContacts.findFirst({
-        where: and(
-          eq(ignoredContacts.userId, session.user.id),
-          eq(ignoredContacts.googleId, contact.googleId)
-        )
-      });
+      await db.update(contacts)
+        .set({ isIgnored: true, updatedAt: new Date() })
+        .where(eq(contacts.id, body.id));
 
-      if (!existingIgnored) {
-        // Create new ignored contact
-        await db.insert(ignoredContacts).values({
-          userId: session.user.id,
-          googleId: contact.googleId,
-          name: contact.name
-        });
-      }
+      return NextResponse.json({
+        count: 1,
+        message: "Contact hidden (will not reappear on sync)"
+      }, { status: 200 });
     }
 
-    // Delete the contact
+    // For manually added contacts (no googleId), actually delete
     const deleted = await db.delete(contacts)
       .where(and(
         eq(contacts.id, body.id),

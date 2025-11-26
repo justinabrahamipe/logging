@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, contacts, places, placeContacts } from "@/lib/db";
-import { insertManyIgnoreDuplicates } from "@/lib/drizzle-utils";
+import { db, contacts, places } from "@/lib/db";
 import { auth } from "@/auth";
 import { eq, and, isNotNull, ne, asc } from "drizzle-orm";
 
@@ -230,21 +229,12 @@ export async function POST(request: NextRequest) {
       }
 
       // Create the place
-      const [place] = await db.insert(places).values({
+      await db.insert(places).values({
         userId: session.user.id,
         name: placeName,
         address: address,
         category: 'home', // Default to home
       }).returning();
-
-      // Link all contacts to this place
-      await insertManyIgnoreDuplicates(
-        placeContacts,
-        groupContacts.map(contact => ({
-          placeId: place.id,
-          contactId: contact.id
-        }))
-      );
 
       created++;
     }

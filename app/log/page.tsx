@@ -98,8 +98,8 @@ export default function Log() {
       end_time: null,
       comment: "",
       tags: null,
-      logContacts: [],
-      logPlaces: [],
+      contacts: [],
+      place: null,
       goalCount: null,
     };
 

@@ -9,7 +9,7 @@ import axios from "axios";
 interface Contact {
   id: number;
   name: string;
-  photoUrl?: string;
+  photoUrl?: string | null;
 }
 
 interface Place {
@@ -104,13 +104,11 @@ export default function GoalForm({ initialData, onSaveAction, onCancelAction, ac
 
   // Initialize selected contacts/places from initialData
   useEffect(() => {
-    if (initialData?.goalContacts && Array.isArray(initialData.goalContacts)) {
-      const contacts = initialData.goalContacts.map((gc: any) => gc.contact);
-      setSelectedContacts(contacts);
+    if (initialData?.contacts && Array.isArray(initialData.contacts)) {
+      setSelectedContacts(initialData.contacts);
     }
-    if (initialData?.goalPlaces && Array.isArray(initialData.goalPlaces)) {
-      const places = initialData.goalPlaces.map((gp: any) => gp.place);
-      setSelectedPlaces(places);
+    if (initialData?.place) {
+      setSelectedPlaces([initialData.place]);
     }
   }, [initialData]);
 
@@ -176,8 +174,8 @@ export default function GoalForm({ initialData, onSaveAction, onCancelAction, ac
       ...formData,
       targetValue: Number(formData.targetValue),
       recurrenceConfig,
-      contactIds: selectedContacts.map(c => c.id),
-      placeIds: selectedPlaces.map(p => p.id),
+      contactIds: selectedContacts.map(c => c.id) as unknown as string,
+      placeId: selectedPlaces.length > 0 ? selectedPlaces[0].id : null,
     });
   };
 

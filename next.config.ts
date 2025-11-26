@@ -49,5 +49,6 @@ export default withPWA({
 	dest: "public",
 	disable: process.env.NODE_ENV === "development",
 	register: true,
+	// @ts-expect-error skipWaiting is a valid workbox option
 	skipWaiting: true,
 })(nextConfig);

@@ -161,32 +161,52 @@ const runMigrations = async () => {
     console.log('→ No migrations table found');
   }
 
-  // If some migrations are recorded but not all, baseline the missing ones
+  // If some migrations are recorded but not all, run the pending ones
   if (appliedMigrations.size > 0 && appliedMigrations.size < migrationFiles.length) {
-    console.log(`\n→ Found ${migrationFiles.length - appliedMigrations.size} missing migration records - baselining...`);
+    console.log(`\n→ Found ${migrationFiles.length - appliedMigrations.size} pending migrations - running them...`);
 
     for (const file of migrationFiles) {
       const hash = file.replace('.sql', '');
       if (!appliedMigrations.has(hash)) {
+        console.log(`  → Running: ${file}`);
+        const sqlContent = fs.readFileSync(path.join(migrationsDir, file), 'utf-8');
+        const statements = sqlContent.split('--> statement-breakpoint').map(s => s.trim()).filter(s => s);
+
+        for (const stmt of statements) {
+          if (stmt) {
+            try {
+              await client.execute(stmt);
+            } catch (err: any) {
+              // Ignore "table doesn't exist" errors for DROP TABLE
+              if (stmt.toUpperCase().startsWith('DROP TABLE') && err.message?.includes('no such table')) {
+                console.log(`    (Table already dropped, skipping)`);
+              } else {
+                throw err;
+              }
+            }
+          }
+        }
+
+        // Record the migration as applied
         await client.execute({
           sql: 'INSERT INTO "__drizzle_migrations" (hash, created_at) VALUES (?, ?)',
           args: [hash, Date.now()]
         });
         appliedMigrations.add(hash);
-        console.log(`  ✓ Baselined: ${file}`);
+        console.log(`  ✓ Completed: ${file}`);
       }
     }
-    console.log('✓ Baseline complete!\n');
+    console.log('✓ Pending migrations complete!\n');
   }
 
-  // If no migrations recorded at all, check if tables exist and baseline
+  // If no migrations recorded at all, check if tables exist
   if (appliedMigrations.size === 0) {
     let tablesExist = false;
     try {
       const tables = await client.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '__%'");
       tablesExist = tables.rows.length > 0;
       if (tablesExist) {
-        console.log(`✓ Found ${tables.rows.length} existing tables - running full baseline...`);
+        console.log(`✓ Found ${tables.rows.length} existing tables`);
       }
     } catch {
       console.log('→ Could not check existing tables');
@@ -201,15 +221,54 @@ const runMigrations = async () => {
         )
       `);
 
-      for (const file of migrationFiles) {
-        const hash = file.replace('.sql', '');
+      // Baseline the first migration (initial schema) since tables exist
+      // Then run any subsequent migrations
+      const firstMigration = migrationFiles[0];
+      if (firstMigration) {
+        const hash = firstMigration.replace('.sql', '');
         await client.execute({
           sql: 'INSERT INTO "__drizzle_migrations" (hash, created_at) VALUES (?, ?)',
           args: [hash, Date.now()]
         });
-        console.log(`  ✓ Baselined: ${file}`);
+        appliedMigrations.add(hash);
+        console.log(`  ✓ Baselined initial schema: ${firstMigration}`);
       }
-      console.log('✓ Full baseline complete!\n');
+
+      // Run remaining migrations
+      for (let i = 1; i < migrationFiles.length; i++) {
+        const file = migrationFiles[i];
+        const hash = file.replace('.sql', '');
+
+        console.log(`  → Running: ${file}`);
+        const sqlContent = fs.readFileSync(path.join(migrationsDir, file), 'utf-8');
+        const statements = sqlContent.split('--> statement-breakpoint').map(s => s.trim()).filter(s => s);
+
+        for (const stmt of statements) {
+          if (stmt) {
+            try {
+              await client.execute(stmt);
+            } catch (err: any) {
+              // Ignore "table doesn't exist" errors for DROP TABLE
+              if (stmt.toUpperCase().startsWith('DROP TABLE') && err.message?.includes('no such table')) {
+                console.log(`    (Table already dropped, skipping)`);
+              // Ignore "duplicate column" errors for ALTER TABLE ADD
+              } else if (stmt.toUpperCase().includes('ADD') && err.message?.includes('duplicate column')) {
+                console.log(`    (Column already exists, skipping)`);
+              } else {
+                throw err;
+              }
+            }
+          }
+        }
+
+        await client.execute({
+          sql: 'INSERT INTO "__drizzle_migrations" (hash, created_at) VALUES (?, ?)',
+          args: [hash, Date.now()]
+        });
+        appliedMigrations.add(hash);
+        console.log(`  ✓ Completed: ${file}`);
+      }
+      console.log('✓ Migration setup complete!\n');
     }
   }
 

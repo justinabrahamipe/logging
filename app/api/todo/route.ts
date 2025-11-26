@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { insertManyIgnoreDuplicates } from "@/lib/drizzle-utils";
-import { db, todos, todoContacts, todoPlaces, todoGoals, logs, activities } from "@/lib/db";
-import { asc, desc, eq, type InferSelectModel } from "drizzle-orm";
+import { db, todos, logs, activities, contacts, places, goals } from "@/lib/db";
+import { asc, desc, eq, inArray, type InferSelectModel } from "drizzle-orm";
 import { generateRecurrenceDeadlines, calculateWorkDate, generateRecurrenceGroupId } from "@/lib/recurrence-utils";
 
 type Todo = InferSelectModel<typeof todos>;
@@ -9,48 +8,66 @@ type Todo = InferSelectModel<typeof todos>;
 export const maxDuration = 10;
 export const dynamic = 'force-dynamic';
 
+// Helper to parse contactIds string to array
+function parseContactIds(contactIds: string | null): number[] {
+  if (!contactIds) return [];
+  return contactIds.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+}
+
+// Helper to convert array to contactIds string
+function stringifyContactIds(ids: number[]): string | null {
+  if (!ids || ids.length === 0) return null;
+  return ids.join(',');
+}
+
+// Helper to fetch contacts by IDs
+async function fetchContacts(contactIds: number[]) {
+  if (contactIds.length === 0) return [];
+  const contactList = await db.select({
+    id: contacts.id,
+    name: contacts.name,
+    photoUrl: contacts.photoUrl
+  }).from(contacts).where(inArray(contacts.id, contactIds));
+  return contactList;
+}
+
+// Helper to enrich todo with contacts
+async function enrichTodo(todo: any) {
+  const contactIdsList = parseContactIds(todo.contactIds);
+  const contactList = await fetchContacts(contactIdsList);
+  return {
+    ...todo,
+    contacts: contactList
+  };
+}
+
 export async function GET() {
   try {
     const data = await db.query.todos.findMany({
       orderBy: [asc(todos.done), desc(todos.createdOn)],
       with: {
-        todoContacts: {
-          with: {
-            contact: {
-              columns: {
-                id: true,
-                name: true,
-                photoUrl: true
-              }
-            }
+        place: {
+          columns: {
+            id: true,
+            name: true,
+            address: true
           }
         },
-        todoPlaces: {
-          with: {
-            place: {
-              columns: {
-                id: true,
-                name: true,
-                address: true
-              }
-            }
-          }
-        },
-        todoGoals: {
-          with: {
-            goal: {
-              columns: {
-                id: true,
-                title: true,
-                color: true,
-                icon: true
-              }
-            }
+        goal: {
+          columns: {
+            id: true,
+            title: true,
+            color: true,
+            icon: true
           }
         }
       }
     });
-    return NextResponse.json({ data }, { status: 200 });
+
+    // Enrich with contacts
+    const enrichedData = await Promise.all(data.map(enrichTodo));
+
+    return NextResponse.json({ data: enrichedData }, { status: 200 });
   } catch (error: unknown) {
     console.error("GET /api/todo error:", error);
     return NextResponse.json({
@@ -79,6 +96,21 @@ export async function POST(request: NextRequest) {
     const recurrenceEndDate = body.recurrenceEndDate || null;
     const recurrenceCount = body.recurrenceCount ? Number(body.recurrenceCount) : undefined;
     const workDateOffset = body.workDateOffset ? Number(body.workDateOffset) : 0;
+
+    // Handle placeId - take first one if array provided
+    const placeId = Array.isArray(body.placeIds) && body.placeIds.length > 0
+      ? parseInt(body.placeIds[0])
+      : (body.placeId ? parseInt(body.placeId) : null);
+
+    // Handle contactIds - convert array to comma-separated string
+    const contactIds = Array.isArray(body.contactIds) && body.contactIds.length > 0
+      ? stringifyContactIds(body.contactIds)
+      : null;
+
+    // Handle goalId - take first one if array provided
+    const goalId = Array.isArray(body.goalIds) && body.goalIds.length > 0
+      ? parseInt(body.goalIds[0])
+      : (body.goalId ? parseInt(body.goalId) : null);
 
     const createdTodos: Todo[] = [];
 
@@ -114,34 +146,16 @@ export async function POST(request: NextRequest) {
           recurrenceCount,
           workDateOffset,
           recurrenceGroupId: groupId,
+          placeId,
+          contactIds,
+          goalId,
         };
 
         const [todo] = await db.insert(todos).values(todoData).returning();
-
-        // Link contacts, places, goals to each instance
-        if (body.contactIds?.length > 0) {
-          await insertManyIgnoreDuplicates(
-            todoContacts,
-            body.contactIds.map((contactId: number) => ({ todoId: todo.id, contactId }))
-          );
-        }
-        if (body.placeIds?.length > 0) {
-          await insertManyIgnoreDuplicates(
-            todoPlaces,
-            body.placeIds.map((placeId: number) => ({ todoId: todo.id, placeId }))
-          );
-        }
-        if (body.goalIds?.length > 0) {
-          await insertManyIgnoreDuplicates(
-            todoGoals,
-            body.goalIds.map((goalId: number) => ({ todoId: todo.id, goalId }))
-          );
-        }
-
         createdTodos.push(todo);
       }
     } else {
-      // Single todo creation (existing logic)
+      // Single todo creation
       const todoData = {
         title,
         description: body.description?.trim() || null,
@@ -152,43 +166,12 @@ export async function POST(request: NextRequest) {
         importance: Number(body.importance) || 1,
         urgency: Number(body.urgency) || 1,
         done: Boolean(body.done),
+        placeId,
+        contactIds,
+        goalId,
       };
 
       const [todo] = await db.insert(todos).values(todoData).returning();
-
-      // Link contacts if provided
-      if (body.contactIds && Array.isArray(body.contactIds) && body.contactIds.length > 0) {
-        await insertManyIgnoreDuplicates(
-          todoContacts,
-          body.contactIds.map((contactId: number) => ({
-            todoId: todo.id,
-            contactId
-          }))
-        );
-      }
-
-      // Link places if provided
-      if (body.placeIds && Array.isArray(body.placeIds) && body.placeIds.length > 0) {
-        await insertManyIgnoreDuplicates(
-          todoPlaces,
-          body.placeIds.map((placeId: number) => ({
-            todoId: todo.id,
-            placeId
-          }))
-        );
-      }
-
-      // Link goals if provided
-      if (body.goalIds && Array.isArray(body.goalIds) && body.goalIds.length > 0) {
-        await insertManyIgnoreDuplicates(
-          todoGoals,
-          body.goalIds.map((goalId: number) => ({
-            todoId: todo.id,
-            goalId
-          }))
-        );
-      }
-
       createdTodos.push(todo);
     }
 
@@ -199,47 +182,31 @@ export async function POST(request: NextRequest) {
     const response = await db.query.todos.findFirst({
       where: eq(todos.id, primaryTodo.id),
       with: {
-        todoContacts: {
-          with: {
-            contact: {
-              columns: {
-                id: true,
-                name: true,
-                photoUrl: true
-              }
-            }
+        place: {
+          columns: {
+            id: true,
+            name: true,
+            address: true
           }
         },
-        todoPlaces: {
-          with: {
-            place: {
-              columns: {
-                id: true,
-                name: true,
-                address: true
-              }
-            }
-          }
-        },
-        todoGoals: {
-          with: {
-            goal: {
-              columns: {
-                id: true,
-                title: true,
-                color: true,
-                icon: true
-              }
-            }
+        goal: {
+          columns: {
+            id: true,
+            title: true,
+            color: true,
+            icon: true
           }
         }
       }
     });
 
+    // Enrich with contacts
+    const enrichedResponse = await enrichTodo(response);
+
     // Include count of created todos for recurring tasks
     const result = isRecurring
-      ? { ...response, recurringCount: createdTodos.length }
-      : response;
+      ? { ...enrichedResponse, recurringCount: createdTodos.length }
+      : enrichedResponse;
 
     return NextResponse.json(result, { status: 201 });
   } catch (error: unknown) {
@@ -264,7 +231,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const { id, contactIds, placeIds, goalIds, work_date, ...updateData } = body;
+    const { id, work_date, ...updateData } = body;
 
     // Convert work_date to workDate if present
     const drizzleUpdateData: Record<string, unknown> = { ...updateData };
@@ -272,60 +239,36 @@ export async function PUT(request: NextRequest) {
       drizzleUpdateData.workDate = work_date;
     }
 
+    // Handle placeId - take first one if array provided
+    if (updateData.placeIds !== undefined) {
+      drizzleUpdateData.placeId = Array.isArray(updateData.placeIds) && updateData.placeIds.length > 0
+        ? parseInt(updateData.placeIds[0])
+        : null;
+      delete drizzleUpdateData.placeIds;
+    } else if (updateData.placeId !== undefined) {
+      drizzleUpdateData.placeId = updateData.placeId ? parseInt(updateData.placeId) : null;
+    }
+
+    // Handle contactIds - convert array to comma-separated string
+    if (updateData.contactIds !== undefined) {
+      drizzleUpdateData.contactIds = Array.isArray(updateData.contactIds) && updateData.contactIds.length > 0
+        ? stringifyContactIds(updateData.contactIds)
+        : null;
+    }
+
+    // Handle goalId - take first one if array provided
+    if (updateData.goalIds !== undefined) {
+      drizzleUpdateData.goalId = Array.isArray(updateData.goalIds) && updateData.goalIds.length > 0
+        ? parseInt(updateData.goalIds[0])
+        : null;
+      delete drizzleUpdateData.goalIds;
+    } else if (updateData.goalId !== undefined) {
+      drizzleUpdateData.goalId = updateData.goalId ? parseInt(updateData.goalId) : null;
+    }
+
     await db.update(todos)
       .set(drizzleUpdateData)
       .where(eq(todos.id, Number(id)));
-
-    // Update contacts if provided
-    if (contactIds !== undefined && Array.isArray(contactIds)) {
-      // Remove all existing contacts
-      await db.delete(todoContacts).where(eq(todoContacts.todoId, Number(id)));
-
-      // Add new contacts
-      if (contactIds.length > 0) {
-        await insertManyIgnoreDuplicates(
-          todoContacts,
-          contactIds.map((contactId: number) => ({
-            todoId: Number(id),
-            contactId
-          }))
-        );
-      }
-    }
-
-    // Update places if provided
-    if (placeIds !== undefined && Array.isArray(placeIds)) {
-      // Remove all existing places
-      await db.delete(todoPlaces).where(eq(todoPlaces.todoId, Number(id)));
-
-      // Add new places
-      if (placeIds.length > 0) {
-        await insertManyIgnoreDuplicates(
-          todoPlaces,
-          placeIds.map((placeId: number) => ({
-            todoId: Number(id),
-            placeId
-          }))
-        );
-      }
-    }
-
-    // Update goals if provided
-    if (goalIds !== undefined && Array.isArray(goalIds)) {
-      // Remove all existing goals
-      await db.delete(todoGoals).where(eq(todoGoals.todoId, Number(id)));
-
-      // Add new goals
-      if (goalIds.length > 0) {
-        await insertManyIgnoreDuplicates(
-          todoGoals,
-          goalIds.map((goalId: number) => ({
-            todoId: Number(id),
-            goalId
-          }))
-        );
-      }
-    }
 
     // Create log entry when completing a todo with an activity
     if (body.done === true && body.activityTitle) {
@@ -351,7 +294,6 @@ export async function PUT(request: NextRequest) {
         }
       } catch (logError) {
         console.error("Error creating log for completed todo:", logError);
-        // Don't fail the todo update if log creation fails
       }
     }
 
@@ -359,44 +301,28 @@ export async function PUT(request: NextRequest) {
     const response = await db.query.todos.findFirst({
       where: eq(todos.id, Number(id)),
       with: {
-        todoContacts: {
-          with: {
-            contact: {
-              columns: {
-                id: true,
-                name: true,
-                photoUrl: true
-              }
-            }
+        place: {
+          columns: {
+            id: true,
+            name: true,
+            address: true
           }
         },
-        todoPlaces: {
-          with: {
-            place: {
-              columns: {
-                id: true,
-                name: true,
-                address: true
-              }
-            }
-          }
-        },
-        todoGoals: {
-          with: {
-            goal: {
-              columns: {
-                id: true,
-                title: true,
-                color: true,
-                icon: true
-              }
-            }
+        goal: {
+          columns: {
+            id: true,
+            title: true,
+            color: true,
+            icon: true
           }
         }
       }
     });
 
-    return NextResponse.json(response);
+    // Enrich with contacts
+    const enrichedResponse = await enrichTodo(response);
+
+    return NextResponse.json(enrichedResponse);
   } catch (error: unknown) {
     console.error("PUT /api/todo error:", error);
     return NextResponse.json(

@@ -1,17 +1,49 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { db, financeTransactions, financeAccounts, financeTransactionContacts, financeTransactionPlaces } from "@/lib/db";
-import { insertManyIgnoreDuplicates } from "@/lib/drizzle-utils";
-import { eq, desc, and, sql } from "drizzle-orm";
+import { db, financeTransactions, financeAccounts, contacts, places } from "@/lib/db";
+import { eq, desc, and, sql, inArray } from "drizzle-orm";
 
 export const maxDuration = 10;
 export const dynamic = 'force-dynamic';
+
+// Helper to parse contactIds string to array
+function parseContactIds(contactIds: string | null): number[] {
+  if (!contactIds) return [];
+  return contactIds.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+}
+
+// Helper to convert array to contactIds string
+function stringifyContactIds(ids: number[]): string | null {
+  if (!ids || ids.length === 0) return null;
+  return ids.join(',');
+}
+
+// Helper to fetch contacts by IDs
+async function fetchContacts(contactIds: number[]) {
+  if (contactIds.length === 0) return [];
+  const contactList = await db.select({
+    id: contacts.id,
+    name: contacts.name,
+    photoUrl: contacts.photoUrl
+  }).from(contacts).where(inArray(contacts.id, contactIds));
+  return contactList;
+}
 
 // Helper function to update account balances
 async function updateAccountBalance(accountId: number, amount: number) {
   await db.update(financeAccounts)
     .set({ balance: sql`${financeAccounts.balance} + ${amount}` })
     .where(eq(financeAccounts.id, accountId));
+}
+
+// Helper to enrich transaction with contacts
+async function enrichTransaction(transaction: any) {
+  const contactIdsList = parseContactIds(transaction.contactIds);
+  const contactList = await fetchContacts(contactIdsList);
+  return {
+    ...transaction,
+    contacts: contactList
+  };
 }
 
 // GET /api/finance/transactions - Get all transactions for user
@@ -32,32 +64,20 @@ export async function GET() {
       with: {
         fromAccount: true,
         toAccount: true,
-        transactionContacts: {
-          with: {
-            contact: {
-              columns: {
-                id: true,
-                name: true,
-                photoUrl: true,
-              },
-            },
-          },
-        },
-        transactionPlaces: {
-          with: {
-            place: {
-              columns: {
-                id: true,
-                name: true,
-                address: true,
-              },
-            },
+        place: {
+          columns: {
+            id: true,
+            name: true,
+            address: true,
           },
         },
       },
     });
 
-    return NextResponse.json({ data: transactions });
+    // Enrich with contacts
+    const enrichedTransactions = await Promise.all(transactions.map(enrichTransaction));
+
+    return NextResponse.json({ data: enrichedTransactions });
   } catch (error) {
     console.error("Error fetching transactions:", error);
     return NextResponse.json(
@@ -94,6 +114,7 @@ export async function POST(request: Request) {
       transactionDate,
       contactIds,
       placeIds,
+      placeId: directPlaceId,
     } = body;
 
     // Validate required fields
@@ -113,6 +134,16 @@ export async function POST(request: Request) {
       );
     }
 
+    // Handle placeId - take first one if array provided
+    const placeId = Array.isArray(placeIds) && placeIds.length > 0
+      ? parseInt(placeIds[0])
+      : (directPlaceId ? parseInt(directPlaceId) : null);
+
+    // Handle contactIds - convert array to comma-separated string
+    const contactIdsStr = Array.isArray(contactIds) && contactIds.length > 0
+      ? stringifyContactIds(contactIds)
+      : null;
+
     // Create transaction
     const [transaction] = await db.insert(financeTransactions).values({
       userId: session.user.id,
@@ -127,29 +158,9 @@ export async function POST(request: Request) {
       description,
       isNeed: isNeed ?? true,
       transactionDate: new Date(transactionDate),
+      placeId,
+      contactIds: contactIdsStr,
     }).returning();
-
-    // Link contacts if provided
-    if (contactIds && contactIds.length > 0) {
-      await insertManyIgnoreDuplicates(
-        financeTransactionContacts,
-        contactIds.map((contactId: number) => ({
-          transactionId: transaction.id,
-          contactId,
-        }))
-      );
-    }
-
-    // Link places if provided
-    if (placeIds && placeIds.length > 0) {
-      await insertManyIgnoreDuplicates(
-        financeTransactionPlaces,
-        placeIds.map((placeId: number) => ({
-          transactionId: transaction.id,
-          placeId,
-        }))
-      );
-    }
 
     // Update account balances
     if (type === "expense" && fromAccountId) {
@@ -168,20 +179,14 @@ export async function POST(request: Request) {
       with: {
         fromAccount: true,
         toAccount: true,
-        transactionContacts: {
-          with: {
-            contact: true,
-          },
-        },
-        transactionPlaces: {
-          with: {
-            place: true,
-          },
-        },
+        place: true,
       },
     });
 
-    return NextResponse.json(fullTransaction, { status: 201 });
+    // Enrich with contacts
+    const enrichedTransaction = await enrichTransaction(fullTransaction);
+
+    return NextResponse.json(enrichedTransaction, { status: 201 });
   } catch (error) {
     console.error("Error creating transaction:", error);
     return NextResponse.json(
@@ -219,6 +224,7 @@ export async function PUT(request: Request) {
       transactionDate,
       contactIds,
       placeIds,
+      placeId: directPlaceId,
     } = body;
 
     if (!id) {
@@ -254,9 +260,23 @@ export async function PUT(request: Request) {
       await updateAccountBalance(existingTransaction.toAccountId, -oldAmountToSubtract);
     }
 
-    // Delete existing contacts and places
-    await db.delete(financeTransactionContacts).where(eq(financeTransactionContacts.transactionId, id));
-    await db.delete(financeTransactionPlaces).where(eq(financeTransactionPlaces.transactionId, id));
+    // Handle placeId - take first one if array provided
+    let placeId = existingTransaction.placeId;
+    if (placeIds !== undefined) {
+      placeId = Array.isArray(placeIds) && placeIds.length > 0
+        ? parseInt(placeIds[0])
+        : null;
+    } else if (directPlaceId !== undefined) {
+      placeId = directPlaceId ? parseInt(directPlaceId) : null;
+    }
+
+    // Handle contactIds - convert array to comma-separated string
+    let contactIdsStr = existingTransaction.contactIds;
+    if (contactIds !== undefined) {
+      contactIdsStr = Array.isArray(contactIds) && contactIds.length > 0
+        ? stringifyContactIds(contactIds)
+        : null;
+    }
 
     // Update transaction
     await db.update(financeTransactions)
@@ -272,29 +292,10 @@ export async function PUT(request: Request) {
         description: description || existingTransaction.description,
         isNeed: isNeed ?? existingTransaction.isNeed,
         transactionDate: transactionDate ? new Date(transactionDate) : existingTransaction.transactionDate,
+        placeId,
+        contactIds: contactIdsStr,
       })
       .where(eq(financeTransactions.id, id));
-
-    // Link new contacts and places
-    if (contactIds && contactIds.length > 0) {
-      await insertManyIgnoreDuplicates(
-        financeTransactionContacts,
-        contactIds.map((contactId: number) => ({
-          transactionId: id,
-          contactId,
-        }))
-      );
-    }
-
-    if (placeIds && placeIds.length > 0) {
-      await insertManyIgnoreDuplicates(
-        financeTransactionPlaces,
-        placeIds.map((placeId: number) => ({
-          transactionId: id,
-          placeId,
-        }))
-      );
-    }
 
     // Apply new balance changes
     const finalType = type || existingTransaction.type;
@@ -318,20 +319,14 @@ export async function PUT(request: Request) {
       with: {
         fromAccount: true,
         toAccount: true,
-        transactionContacts: {
-          with: {
-            contact: true,
-          },
-        },
-        transactionPlaces: {
-          with: {
-            place: true,
-          },
-        },
+        place: true,
       },
     });
 
-    return NextResponse.json(transaction);
+    // Enrich with contacts
+    const enrichedTransaction = await enrichTransaction(transaction);
+
+    return NextResponse.json(enrichedTransaction);
   } catch (error) {
     console.error("Error updating transaction:", error);
     return NextResponse.json(

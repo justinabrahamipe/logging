@@ -9,6 +9,18 @@ declare global {
     color?: string | null;
   };
 
+  type ContactBasic = {
+    id: number;
+    name: string;
+    photoUrl?: string | null;
+  };
+
+  type PlaceBasic = {
+    id: number;
+    name: string;
+    address: string;
+  };
+
   type LogType = {
     id: number;
     comment?: string | null;
@@ -24,22 +36,10 @@ declare global {
     todoId?: number | null;
     goalId?: number | null;
     goalCount?: number | null;
-    logContacts?: {
-      id: number;
-      contact: {
-        id: number;
-        name: string;
-        photoUrl?: string;
-      };
-    }[];
-    logPlaces?: {
-      id: number;
-      place: {
-        id: number;
-        name: string;
-        address: string;
-      };
-    }[];
+    placeId?: number | null;
+    contactIds?: string | null;
+    contacts?: ContactBasic[];
+    place?: PlaceBasic | null;
     todo?: {
       id: number;
       title: string;
@@ -71,31 +71,17 @@ declare global {
     recurrenceCount?: number | null;
     workDateOffset?: number | null;
     recurrenceGroupId?: string | null;
-    todoContacts?: {
+    placeId?: number | null;
+    contactIds?: string | null;
+    goalId?: number | null;
+    contacts?: ContactBasic[];
+    place?: PlaceBasic | null;
+    goal?: {
       id: number;
-      contact: {
-        id: number;
-        name: string;
-        photoUrl?: string;
-      };
-    }[];
-    todoPlaces?: {
-      id: number;
-      place: {
-        id: number;
-        name: string;
-        address: string;
-      };
-    }[];
-    todoGoals?: {
-      id: number;
-      goal: {
-        id: number;
-        title: string;
-        color?: string | null;
-        icon?: string | null;
-      };
-    }[];
+      title: string;
+      color?: string | null;
+      icon?: string | null;
+    } | null;
   };
 
   type GoalType = {
@@ -125,24 +111,10 @@ declare global {
     recurrencePattern?: string | null;
     recurrenceConfig?: string | null;
     parentGoalId?: number | null;
-    contactIds?: number[];
-    placeIds?: number[];
-    goalContacts?: {
-      id: number;
-      contact: {
-        id: number;
-        name: string;
-        photoUrl?: string;
-      };
-    }[];
-    goalPlaces?: {
-      id: number;
-      place: {
-        id: number;
-        name: string;
-        address: string;
-      };
-    }[];
+    placeId?: number | null;
+    contactIds?: string | null;
+    contacts?: ContactBasic[];
+    place?: PlaceBasic | null;
   };
 }
 

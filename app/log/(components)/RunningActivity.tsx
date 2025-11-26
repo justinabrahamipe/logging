@@ -11,7 +11,7 @@ import axios from "axios";
 interface Contact {
   id: number;
   name: string;
-  photoUrl?: string;
+  photoUrl?: string | null;
 }
 
 interface Place {
@@ -101,10 +101,8 @@ export default function RunningActivity({
 
   // Initialize selected tags from log data
   useEffect(() => {
-    const logContacts = data.logContacts?.map(lc => lc.contact) || [];
-    const logPlaces = data.logPlaces?.map(lp => lp.place) || [];
-    setSelectedContacts(logContacts);
-    setSelectedPlaces(logPlaces);
+    setSelectedContacts(data.contacts || []);
+    setSelectedPlaces(data.place ? [data.place] : []);
     setSelectedTodo((data as any).todo || null);
     setSelectedGoal((data as any).goal || null);
     setGoalCount(data.goalCount || null);

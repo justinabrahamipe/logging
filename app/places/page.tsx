@@ -8,20 +8,6 @@ import Snackbar from "../(components)/Snackbar";
 import AddressInput from "../(components)/AddressInput";
 import { Dialog, DialogContent, DialogTitle, TextField, Button, MenuItem } from "@mui/material";
 
-interface Contact {
-  id: number;
-  name: string;
-  photoUrl?: string;
-}
-
-interface PlaceContact {
-  id: number;
-  placeId: number;
-  contactId: number;
-  contact: Contact;
-  createdAt: string;
-}
-
 interface Place {
   id: number;
   userId: string;
@@ -33,7 +19,6 @@ interface Place {
   category?: string;
   createdAt: string;
   updatedAt: string;
-  placeContacts: PlaceContact[];
 }
 
 type ViewMode = 'table' | 'cards' | 'map';
@@ -44,40 +29,6 @@ const getGoogleMapsUrl = (address: string, lat?: number, lon?: number) => {
     return `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`;
   }
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
-};
-
-// Helper function to extract first name, skipping salutations
-const getFirstName = (fullName: string): string => {
-  const salutations = ['mr', 'mrs', 'ms', 'miss', 'dr', 'prof', 'professor', 'sir', 'dame', 'lord', 'lady', 'rev', 'reverend', 'fr', 'father', 'sr', 'br', 'brother', 'sister'];
-  const parts = fullName.trim().split(/\s+/);
-
-  if (parts.length === 0) return '';
-
-  // Check if first part is a salutation (with or without period)
-  const firstPart = parts[0].toLowerCase().replace(/\./g, '');
-  if (salutations.includes(firstPart) && parts.length > 1) {
-    return parts[1];
-  }
-
-  return parts[0];
-};
-
-// Helper function to generate smart names from contacts (using first names)
-const generatePlaceName = (contacts: PlaceContact[]) => {
-  if (contacts.length === 0) return '';
-  if (contacts.length === 1) {
-    const firstName = getFirstName(contacts[0].contact.name);
-    return `${firstName}'s house`;
-  }
-  if (contacts.length === 2) {
-    const firstName1 = getFirstName(contacts[0].contact.name);
-    const firstName2 = getFirstName(contacts[1].contact.name);
-    return `${firstName1} and ${firstName2}'s house`;
-  }
-  // For 3+ people, use first two names + "and others"
-  const firstName1 = getFirstName(contacts[0].contact.name);
-  const firstName2 = getFirstName(contacts[1].contact.name);
-  return `${firstName1}, ${firstName2}, and ${contacts.length - 2} others' house`;
 };
 
 export default function Places() {
@@ -475,9 +426,6 @@ export default function Places() {
                           Address
                         </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                          People
-                        </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                           Category
                         </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -510,24 +458,6 @@ export default function Places() {
                           <td className="px-6 py-4">
                             <div className="text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate">
                               {place.address}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex -space-x-2">
-                              {place.placeContacts.slice(0, 3).map((pc) => (
-                                <div
-                                  key={pc.id}
-                                  className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center border-2 border-white dark:border-gray-800 text-white text-xs font-medium"
-                                  title={pc.contact.name}
-                                >
-                                  {pc.contact.name.charAt(0)}
-                                </div>
-                              ))}
-                              {place.placeContacts.length > 3 && (
-                                <div className="w-8 h-8 rounded-full bg-gray-400 dark:bg-gray-600 flex items-center justify-center border-2 border-white dark:border-gray-800 text-white text-xs font-medium">
-                                  +{place.placeContacts.length - 3}
-                                </div>
-                              )}
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -607,22 +537,6 @@ export default function Places() {
                         </p>
                       )}
 
-                      {place.placeContacts.length > 0 && (
-                        <div className="mb-4">
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">People:</p>
-                          <div className="flex flex-wrap gap-2">
-                            {place.placeContacts.map((pc) => (
-                              <span
-                                key={pc.id}
-                                className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full"
-                              >
-                                {pc.contact.name}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
                       <div className="flex gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
                         <a
                           href={getGoogleMapsUrl(place.address, place.latitude, place.longitude)}
@@ -683,18 +597,6 @@ export default function Places() {
                         <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
                           {place.address}
                         </p>
-                        {place.placeContacts.length > 0 && (
-                          <div className="flex flex-wrap gap-2">
-                            {place.placeContacts.map((pc) => (
-                              <span
-                                key={pc.id}
-                                className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full"
-                              >
-                                {pc.contact.name}
-                              </span>
-                            ))}
-                          </div>
-                        )}
                       </div>
                       <div className="flex gap-2 ml-4">
                         <a

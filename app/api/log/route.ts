@@ -1,10 +1,55 @@
 import { NextRequest, NextResponse } from "next/server";
-import { insertManyIgnoreDuplicates } from "@/lib/drizzle-utils";
-import { db, logs, todos, goals, contacts, places, logContacts, logPlaces } from "@/lib/db";
-import { desc, eq } from "drizzle-orm";
+import { db, logs, contacts, places } from "@/lib/db";
+import { desc, eq, inArray } from "drizzle-orm";
 
 export const maxDuration = 10;
 export const dynamic = 'force-dynamic';
+
+// Helper to parse contactIds string to array
+function parseContactIds(contactIds: string | null): number[] {
+  if (!contactIds) return [];
+  return contactIds.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+}
+
+// Helper to convert array to contactIds string
+function stringifyContactIds(ids: number[]): string | null {
+  if (!ids || ids.length === 0) return null;
+  return ids.join(',');
+}
+
+// Helper to fetch contacts by IDs
+async function fetchContacts(contactIds: number[]) {
+  if (contactIds.length === 0) return [];
+  const contactList = await db.select({
+    id: contacts.id,
+    name: contacts.name,
+    photoUrl: contacts.photoUrl
+  }).from(contacts).where(inArray(contacts.id, contactIds));
+  return contactList;
+}
+
+// Helper to fetch place by ID
+async function fetchPlace(placeId: number | null) {
+  if (!placeId) return null;
+  const [place] = await db.select({
+    id: places.id,
+    name: places.name,
+    address: places.address
+  }).from(places).where(eq(places.id, placeId));
+  return place || null;
+}
+
+// Helper to enrich log with contacts and place
+async function enrichLog(log: any) {
+  const contactIds = parseContactIds(log.contactIds);
+  const contactList = await fetchContacts(contactIds);
+  const place = await fetchPlace(log.placeId);
+  return {
+    ...log,
+    contacts: contactList,
+    place
+  };
+}
 
 export async function GET() {
   try {
@@ -25,31 +70,27 @@ export async function GET() {
             goalType: true
           }
         },
-        logContacts: {
-          with: {
-            contact: {
-              columns: {
-                id: true,
-                name: true,
-                photoUrl: true
-              }
-            }
-          }
-        },
-        logPlaces: {
-          with: {
-            place: {
-              columns: {
-                id: true,
-                name: true,
-                address: true
-              }
-            }
+        place: {
+          columns: {
+            id: true,
+            name: true,
+            address: true
           }
         }
       }
     });
-    return NextResponse.json({ data }, { status: 200 });
+
+    // Enrich with contacts
+    const enrichedData = await Promise.all(data.map(async (log) => {
+      const contactIds = parseContactIds(log.contactIds);
+      const contactList = await fetchContacts(contactIds);
+      return {
+        ...log,
+        contacts: contactList
+      };
+    }));
+
+    return NextResponse.json({ data: enrichedData }, { status: 200 });
   } catch (error: unknown) {
     console.error("GET /api/log error:", error);
     return NextResponse.json(
@@ -75,6 +116,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Handle placeId - take first one if array provided
+    const placeId = Array.isArray(body.placeIds) && body.placeIds.length > 0
+      ? body.placeIds[0]
+      : (body.placeId || null);
+
+    // Handle contactIds - convert array to comma-separated string
+    const contactIds = Array.isArray(body.contactIds) && body.contactIds.length > 0
+      ? stringifyContactIds(body.contactIds)
+      : null;
+
     const [log] = await db.insert(logs).values({
       activityTitle: body.activityTitle,
       activityCategory: body.activityCategory,
@@ -87,30 +138,10 @@ export async function POST(request: NextRequest) {
       todoId: body.todoId ? parseInt(body.todoId) : null,
       goalId: body.goalId ? parseInt(body.goalId) : null,
       goalCount: body.goalCount ? parseInt(body.goalCount) : null,
-      userId: body.userId || null
+      userId: body.userId || null,
+      placeId: placeId ? parseInt(placeId) : null,
+      contactIds
     }).returning();
-
-    // Link contacts if provided
-    if (body.contactIds && Array.isArray(body.contactIds) && body.contactIds.length > 0) {
-      await insertManyIgnoreDuplicates(
-        logContacts,
-        body.contactIds.map((contactId: number) => ({
-          logId: log.id,
-          contactId
-        }))
-      );
-    }
-
-    // Link places if provided
-    if (body.placeIds && Array.isArray(body.placeIds) && body.placeIds.length > 0) {
-      await insertManyIgnoreDuplicates(
-        logPlaces,
-        body.placeIds.map((placeId: number) => ({
-          logId: log.id,
-          placeId
-        }))
-      );
-    }
 
     // Fetch the complete log with relationships
     const response = await db.query.logs.findFirst({
@@ -130,33 +161,21 @@ export async function POST(request: NextRequest) {
             goalType: true
           }
         },
-        logContacts: {
-          with: {
-            contact: {
-              columns: {
-                id: true,
-                name: true,
-                photoUrl: true
-              }
-            }
-          }
-        },
-        logPlaces: {
-          with: {
-            place: {
-              columns: {
-                id: true,
-                name: true,
-                address: true
-              }
-            }
+        place: {
+          columns: {
+            id: true,
+            name: true,
+            address: true
           }
         }
       }
     });
 
-    console.log("Created log:", response);
-    return NextResponse.json(response, { status: 201 });
+    // Enrich with contacts
+    const enrichedResponse = await enrichLog(response);
+
+    console.log("Created log:", enrichedResponse);
+    return NextResponse.json(enrichedResponse, { status: 201 });
   } catch (error: unknown) {
     console.error("POST /api/log error:", error);
     return NextResponse.json(
@@ -195,43 +214,25 @@ export async function PUT(request: NextRequest) {
     if (body.goalId !== undefined) updateData.goalId = body.goalId ? parseInt(body.goalId) : null;
     if (body.goalCount !== undefined) updateData.goalCount = body.goalCount ? parseInt(body.goalCount) : null;
 
+    // Handle placeId - take first one if array provided
+    if (body.placeIds !== undefined) {
+      updateData.placeId = Array.isArray(body.placeIds) && body.placeIds.length > 0
+        ? parseInt(body.placeIds[0])
+        : null;
+    } else if (body.placeId !== undefined) {
+      updateData.placeId = body.placeId ? parseInt(body.placeId) : null;
+    }
+
+    // Handle contactIds - convert array to comma-separated string
+    if (body.contactIds !== undefined) {
+      updateData.contactIds = Array.isArray(body.contactIds) && body.contactIds.length > 0
+        ? stringifyContactIds(body.contactIds)
+        : null;
+    }
+
     await db.update(logs)
       .set(updateData)
       .where(eq(logs.id, parseInt(id)));
-
-    // Update contacts if provided
-    if (body.contactIds !== undefined && Array.isArray(body.contactIds)) {
-      // Remove all existing contacts
-      await db.delete(logContacts).where(eq(logContacts.logId, parseInt(id)));
-
-      // Add new contacts
-      if (body.contactIds.length > 0) {
-        await insertManyIgnoreDuplicates(
-          logContacts,
-          body.contactIds.map((contactId: number) => ({
-            logId: parseInt(id),
-            contactId
-          }))
-        );
-      }
-    }
-
-    // Update places if provided
-    if (body.placeIds !== undefined && Array.isArray(body.placeIds)) {
-      // Remove all existing places
-      await db.delete(logPlaces).where(eq(logPlaces.logId, parseInt(id)));
-
-      // Add new places
-      if (body.placeIds.length > 0) {
-        await insertManyIgnoreDuplicates(
-          logPlaces,
-          body.placeIds.map((placeId: number) => ({
-            logId: parseInt(id),
-            placeId
-          }))
-        );
-      }
-    }
 
     // Fetch the updated log with relationships
     const response = await db.query.logs.findFirst({
@@ -251,33 +252,21 @@ export async function PUT(request: NextRequest) {
             goalType: true
           }
         },
-        logContacts: {
-          with: {
-            contact: {
-              columns: {
-                id: true,
-                name: true,
-                photoUrl: true
-              }
-            }
-          }
-        },
-        logPlaces: {
-          with: {
-            place: {
-              columns: {
-                id: true,
-                name: true,
-                address: true
-              }
-            }
+        place: {
+          columns: {
+            id: true,
+            name: true,
+            address: true
           }
         }
       }
     });
 
-    console.log("Updated log:", response);
-    return NextResponse.json(response, { status: 200 });
+    // Enrich with contacts
+    const enrichedResponse = await enrichLog(response);
+
+    console.log("Updated log:", enrichedResponse);
+    return NextResponse.json(enrichedResponse, { status: 200 });
   } catch (error: unknown) {
     console.error("PUT /api/log error:", error);
     return NextResponse.json(

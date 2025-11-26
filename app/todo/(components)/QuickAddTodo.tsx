@@ -115,9 +115,9 @@ const QuickAddTodo = memo(({ onAddAction, activities }: QuickAddTodoProps) => {
 			deadline: stickyForm.deadline,
 			activityTitle: stickyForm.activityTitle,
 			activityCategory: stickyForm.activityCategory,
-			contactIds: selectedContacts.map((c) => c.id),
-			placeIds: selectedPlaces.map((p) => p.id),
-			goalIds: selectedGoals.map((g) => g.id),
+			contactIds: selectedContacts.map((c) => c.id) as unknown as string,
+			placeId: selectedPlaces.length > 0 ? selectedPlaces[0].id : null,
+			goalId: selectedGoals.length > 0 ? selectedGoals[0].id : null,
 		} as TodoType;
 
 		if (isRecurring && stickyForm.deadline) {

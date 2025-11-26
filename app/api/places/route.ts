@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { insertManyIgnoreDuplicates } from "@/lib/drizzle-utils";
-import { db, places, placeContacts } from "@/lib/db";
+import { db, places } from "@/lib/db";
 import { auth } from "@/auth";
 import { eq, and, or, like, asc } from "drizzle-orm";
 
@@ -50,19 +49,6 @@ export async function GET(request: NextRequest) {
       orderBy: [asc(places.name)],
       limit: limit,
       offset: offset,
-      with: {
-        placeContacts: {
-          with: {
-            contact: {
-              columns: {
-                id: true,
-                name: true,
-                photoUrl: true
-              }
-            }
-          }
-        }
-      }
     });
 
     return NextResponse.json({
@@ -126,36 +112,7 @@ export async function POST(request: NextRequest) {
       category: body.category || null,
     }).returning();
 
-    // Link contacts if provided
-    if (body.contactIds && Array.isArray(body.contactIds) && body.contactIds.length > 0) {
-      await insertManyIgnoreDuplicates(
-        placeContacts,
-        body.contactIds.map((contactId: number) => ({
-          placeId: place.id,
-          contactId
-        }))
-      );
-    }
-
-    // Fetch updated place with contacts
-    const updatedPlace = await db.query.places.findFirst({
-      where: eq(places.id, place.id),
-      with: {
-        placeContacts: {
-          with: {
-            contact: {
-              columns: {
-                id: true,
-                name: true,
-                photoUrl: true
-              }
-            }
-          }
-        }
-      }
-    });
-
-    return NextResponse.json({ data: updatedPlace }, { status: 201 });
+    return NextResponse.json({ data: place }, { status: 201 });
   } catch (error) {
     console.error("POST /api/places error:", error);
     return NextResponse.json(
@@ -218,7 +175,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Update the place
-    await db.update(places)
+    const [updatedPlace] = await db.update(places)
       .set({
         name: body.name,
         address: body.address,
@@ -228,42 +185,8 @@ export async function PUT(request: NextRequest) {
         category: body.category || null,
         updatedAt: new Date()
       })
-      .where(eq(places.id, body.id));
-
-    // Update contacts if provided
-    if (body.contactIds !== undefined && Array.isArray(body.contactIds)) {
-      // Remove all existing contacts
-      await db.delete(placeContacts).where(eq(placeContacts.placeId, body.id));
-
-      // Add new contacts
-      if (body.contactIds.length > 0) {
-        await insertManyIgnoreDuplicates(
-          placeContacts,
-          body.contactIds.map((contactId: number) => ({
-            placeId: body.id,
-            contactId
-          }))
-        );
-      }
-    }
-
-    // Fetch updated place with contacts
-    const updatedPlace = await db.query.places.findFirst({
-      where: eq(places.id, body.id),
-      with: {
-        placeContacts: {
-          with: {
-            contact: {
-              columns: {
-                id: true,
-                name: true,
-                photoUrl: true
-              }
-            }
-          }
-        }
-      }
-    });
+      .where(eq(places.id, body.id))
+      .returning();
 
     return NextResponse.json({ data: updatedPlace }, { status: 200 });
   } catch (error) {
@@ -301,12 +224,11 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Delete the places (cascade will handle placeContacts)
+    // Delete the places
     const response = await db.delete(places)
       .where(
         and(
           eq(places.userId, session.user.id),
-          // For a single ID or multiple IDs, we need to handle differently
           ids.length === 1 ? eq(places.id, ids[0]) : or(...ids.map((id: number) => eq(places.id, id)))
         )
       )

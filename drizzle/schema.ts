@@ -29,9 +29,12 @@ export const logs = sqliteTable('Log', {
   goalId: integer('goalId').references(() => goals.id, { onDelete: 'set null' }),
   goalCount: integer('goalCount'),
   userId: text('userId'),
+  placeId: integer('placeId'),
+  contactIds: text('contactIds'),
 }, (table) => ({
   todoIdIdx: index('Log_todoId_idx').on(table.todoId),
   goalIdIdx: index('Log_goalId_idx').on(table.goalId),
+  placeIdIdx: index('Log_placeId_idx').on(table.placeId),
 }));
 
 // Todo table
@@ -56,7 +59,13 @@ export const todos = sqliteTable('Todo', {
   recurrenceCount: integer('recurrenceCount'), // OR number of occurrences
   workDateOffset: integer('workDateOffset'), // Days before deadline for work_date
   recurrenceGroupId: text('recurrenceGroupId'), // Links all instances together
-});
+  placeId: integer('placeId'),
+  contactIds: text('contactIds'),
+  goalId: integer('goalId'),
+}, (table) => ({
+  placeIdIdx: index('Todo_placeId_idx').on(table.placeId),
+  goalIdIdx: index('Todo_goalId_idx').on(table.goalId),
+}));
 
 // Goal table
 export const goals = sqliteTable('Goal', {
@@ -81,7 +90,11 @@ export const goals = sqliteTable('Goal', {
   recurrenceConfig: text('recurrenceConfig'),
   parentGoalId: integer('parentGoalId'),
   userId: text('userId'),
-});
+  placeId: integer('placeId'),
+  contactIds: text('contactIds'),
+}, (table) => ({
+  placeIdIdx: index('Goal_placeId_idx').on(table.placeId),
+}));
 
 // User table (lowercase for Auth.js compatibility)
 export const users = sqliteTable('user', {
@@ -165,24 +178,13 @@ export const contacts = sqliteTable('Contact', {
   address: text('address'),
   birthday: integer('birthday', { mode: 'timestamp' }),
   weddingAnniversary: integer('weddingAnniversary', { mode: 'timestamp' }),
+  isIgnored: integer('isIgnored', { mode: 'boolean' }).notNull().default(false),
   lastSynced: integer('lastSynced', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
   userIdGoogleIdUnique: unique().on(table.userId, table.googleId),
   userIdIdx: index('Contact_userId_idx').on(table.userId),
-}));
-
-// IgnoredContact table
-export const ignoredContacts = sqliteTable('IgnoredContact', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  userId: text('userId').notNull(),
-  googleId: text('googleId').notNull(),
-  name: text('name'),
-  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
-}, (table) => ({
-  userIdGoogleIdUnique: unique().on(table.userId, table.googleId),
-  userIdIdx: index('IgnoredContact_userId_idx').on(table.userId),
 }));
 
 // Place table
@@ -199,102 +201,6 @@ export const places = sqliteTable('Place', {
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
   userIdIdx: index('Place_userId_idx').on(table.userId),
-}));
-
-// PlaceContact junction table
-export const placeContacts = sqliteTable('PlaceContact', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  placeId: integer('placeId').notNull().references(() => places.id, { onDelete: 'cascade' }),
-  contactId: integer('contactId').notNull().references(() => contacts.id, { onDelete: 'cascade' }),
-  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
-}, (table) => ({
-  placeIdContactIdUnique: unique().on(table.placeId, table.contactId),
-  placeIdIdx: index('PlaceContact_placeId_idx').on(table.placeId),
-  contactIdIdx: index('PlaceContact_contactId_idx').on(table.contactId),
-}));
-
-// LogContact junction table
-export const logContacts = sqliteTable('LogContact', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  logId: integer('logId').notNull().references(() => logs.id, { onDelete: 'cascade' }),
-  contactId: integer('contactId').notNull().references(() => contacts.id, { onDelete: 'cascade' }),
-  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
-}, (table) => ({
-  logIdContactIdUnique: unique().on(table.logId, table.contactId),
-  logIdIdx: index('LogContact_logId_idx').on(table.logId),
-  contactIdIdx: index('LogContact_contactId_idx').on(table.contactId),
-}));
-
-// LogPlace junction table
-export const logPlaces = sqliteTable('LogPlace', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  logId: integer('logId').notNull().references(() => logs.id, { onDelete: 'cascade' }),
-  placeId: integer('placeId').notNull().references(() => places.id, { onDelete: 'cascade' }),
-  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
-}, (table) => ({
-  logIdPlaceIdUnique: unique().on(table.logId, table.placeId),
-  logIdIdx: index('LogPlace_logId_idx').on(table.logId),
-  placeIdIdx: index('LogPlace_placeId_idx').on(table.placeId),
-}));
-
-// TodoContact junction table
-export const todoContacts = sqliteTable('TodoContact', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  todoId: integer('todoId').notNull().references(() => todos.id, { onDelete: 'cascade' }),
-  contactId: integer('contactId').notNull().references(() => contacts.id, { onDelete: 'cascade' }),
-  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
-}, (table) => ({
-  todoIdContactIdUnique: unique().on(table.todoId, table.contactId),
-  todoIdIdx: index('TodoContact_todoId_idx').on(table.todoId),
-  contactIdIdx: index('TodoContact_contactId_idx').on(table.contactId),
-}));
-
-// TodoPlace junction table
-export const todoPlaces = sqliteTable('TodoPlace', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  todoId: integer('todoId').notNull().references(() => todos.id, { onDelete: 'cascade' }),
-  placeId: integer('placeId').notNull().references(() => places.id, { onDelete: 'cascade' }),
-  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
-}, (table) => ({
-  todoIdPlaceIdUnique: unique().on(table.todoId, table.placeId),
-  todoIdIdx: index('TodoPlace_todoId_idx').on(table.todoId),
-  placeIdIdx: index('TodoPlace_placeId_idx').on(table.placeId),
-}));
-
-// TodoGoal junction table
-export const todoGoals = sqliteTable('TodoGoal', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  todoId: integer('todoId').notNull().references(() => todos.id, { onDelete: 'cascade' }),
-  goalId: integer('goalId').notNull().references(() => goals.id, { onDelete: 'cascade' }),
-  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
-}, (table) => ({
-  todoIdGoalIdUnique: unique().on(table.todoId, table.goalId),
-  todoIdIdx: index('TodoGoal_todoId_idx').on(table.todoId),
-  goalIdIdx: index('TodoGoal_goalId_idx').on(table.goalId),
-}));
-
-// GoalContact junction table
-export const goalContacts = sqliteTable('GoalContact', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  goalId: integer('goalId').notNull().references(() => goals.id, { onDelete: 'cascade' }),
-  contactId: integer('contactId').notNull().references(() => contacts.id, { onDelete: 'cascade' }),
-  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
-}, (table) => ({
-  goalIdContactIdUnique: unique().on(table.goalId, table.contactId),
-  goalIdIdx: index('GoalContact_goalId_idx').on(table.goalId),
-  contactIdIdx: index('GoalContact_contactId_idx').on(table.contactId),
-}));
-
-// GoalPlace junction table
-export const goalPlaces = sqliteTable('GoalPlace', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  goalId: integer('goalId').notNull().references(() => goals.id, { onDelete: 'cascade' }),
-  placeId: integer('placeId').notNull().references(() => places.id, { onDelete: 'cascade' }),
-  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
-}, (table) => ({
-  goalIdPlaceIdUnique: unique().on(table.goalId, table.placeId),
-  goalIdIdx: index('GoalPlace_goalId_idx').on(table.goalId),
-  placeIdIdx: index('GoalPlace_placeId_idx').on(table.placeId),
 }));
 
 // FinanceAccount table
@@ -329,35 +235,14 @@ export const financeTransactions = sqliteTable('FinanceTransaction', {
   transactionDate: integer('transactionDate', { mode: 'timestamp' }).notNull(),
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+  placeId: integer('placeId'),
+  contactIds: text('contactIds'),
 }, (table) => ({
   userIdIdx: index('FinanceTransaction_userId_idx').on(table.userId),
   fromAccountIdIdx: index('FinanceTransaction_fromAccountId_idx').on(table.fromAccountId),
   toAccountIdIdx: index('FinanceTransaction_toAccountId_idx').on(table.toAccountId),
   transactionDateIdx: index('FinanceTransaction_transactionDate_idx').on(table.transactionDate),
-}));
-
-// FinanceTransactionContact junction table
-export const financeTransactionContacts = sqliteTable('FinanceTransactionContact', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  transactionId: integer('transactionId').notNull().references(() => financeTransactions.id, { onDelete: 'cascade' }),
-  contactId: integer('contactId').notNull().references(() => contacts.id, { onDelete: 'cascade' }),
-  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
-}, (table) => ({
-  transactionIdContactIdUnique: unique().on(table.transactionId, table.contactId),
-  transactionIdIdx: index('FinanceTransactionContact_transactionId_idx').on(table.transactionId),
-  contactIdIdx: index('FinanceTransactionContact_contactId_idx').on(table.contactId),
-}));
-
-// FinanceTransactionPlace junction table
-export const financeTransactionPlaces = sqliteTable('FinanceTransactionPlace', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  transactionId: integer('transactionId').notNull().references(() => financeTransactions.id, { onDelete: 'cascade' }),
-  placeId: integer('placeId').notNull().references(() => places.id, { onDelete: 'cascade' }),
-  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
-}, (table) => ({
-  transactionIdPlaceIdUnique: unique().on(table.transactionId, table.placeId),
-  transactionIdIdx: index('FinanceTransactionPlace_transactionId_idx').on(table.transactionId),
-  placeIdIdx: index('FinanceTransactionPlace_placeId_idx').on(table.placeId),
+  placeIdIdx: index('FinanceTransaction_placeId_idx').on(table.placeId),
 }));
 
 // FinanceCategory table
@@ -403,7 +288,7 @@ export const financeDebts = sqliteTable('FinanceDebt', {
 }));
 
 // Relations
-export const logsRelations = relations(logs, ({ one, many }) => ({
+export const logsRelations = relations(logs, ({ one }) => ({
   todo: one(todos, {
     fields: [logs.todoId],
     references: [todos.id],
@@ -412,22 +297,31 @@ export const logsRelations = relations(logs, ({ one, many }) => ({
     fields: [logs.goalId],
     references: [goals.id],
   }),
-  logContacts: many(logContacts),
-  logPlaces: many(logPlaces),
+  place: one(places, {
+    fields: [logs.placeId],
+    references: [places.id],
+  }),
 }));
 
-export const todosRelations = relations(todos, ({ many }) => ({
+export const todosRelations = relations(todos, ({ one, many }) => ({
   logs: many(logs),
-  todoContacts: many(todoContacts),
-  todoPlaces: many(todoPlaces),
-  todoGoals: many(todoGoals),
+  place: one(places, {
+    fields: [todos.placeId],
+    references: [places.id],
+  }),
+  goal: one(goals, {
+    fields: [todos.goalId],
+    references: [goals.id],
+  }),
 }));
 
-export const goalsRelations = relations(goals, ({ many }) => ({
+export const goalsRelations = relations(goals, ({ one, many }) => ({
   logs: many(logs),
-  goalContacts: many(goalContacts),
-  goalPlaces: many(goalPlaces),
-  todoGoals: many(todoGoals),
+  todos: many(todos),
+  place: one(places, {
+    fields: [goals.placeId],
+    references: [places.id],
+  }),
 }));
 
 export const usersRelations = relations(users, ({ one, many }) => ({
@@ -458,108 +352,14 @@ export const userPreferencesRelations = relations(userPreferences, ({ one }) => 
 }));
 
 export const contactsRelations = relations(contacts, ({ many }) => ({
-  placeContacts: many(placeContacts),
-  logContacts: many(logContacts),
-  todoContacts: many(todoContacts),
-  goalContacts: many(goalContacts),
-  financeTransactionContacts: many(financeTransactionContacts),
   financeDebts: many(financeDebts),
 }));
 
 export const placesRelations = relations(places, ({ many }) => ({
-  placeContacts: many(placeContacts),
-  logPlaces: many(logPlaces),
-  todoPlaces: many(todoPlaces),
-  goalPlaces: many(goalPlaces),
-  financeTransactionPlaces: many(financeTransactionPlaces),
-}));
-
-export const placeContactsRelations = relations(placeContacts, ({ one }) => ({
-  place: one(places, {
-    fields: [placeContacts.placeId],
-    references: [places.id],
-  }),
-  contact: one(contacts, {
-    fields: [placeContacts.contactId],
-    references: [contacts.id],
-  }),
-}));
-
-export const logContactsRelations = relations(logContacts, ({ one }) => ({
-  log: one(logs, {
-    fields: [logContacts.logId],
-    references: [logs.id],
-  }),
-  contact: one(contacts, {
-    fields: [logContacts.contactId],
-    references: [contacts.id],
-  }),
-}));
-
-export const logPlacesRelations = relations(logPlaces, ({ one }) => ({
-  log: one(logs, {
-    fields: [logPlaces.logId],
-    references: [logs.id],
-  }),
-  place: one(places, {
-    fields: [logPlaces.placeId],
-    references: [places.id],
-  }),
-}));
-
-export const todoContactsRelations = relations(todoContacts, ({ one }) => ({
-  todo: one(todos, {
-    fields: [todoContacts.todoId],
-    references: [todos.id],
-  }),
-  contact: one(contacts, {
-    fields: [todoContacts.contactId],
-    references: [contacts.id],
-  }),
-}));
-
-export const todoPlacesRelations = relations(todoPlaces, ({ one }) => ({
-  todo: one(todos, {
-    fields: [todoPlaces.todoId],
-    references: [todos.id],
-  }),
-  place: one(places, {
-    fields: [todoPlaces.placeId],
-    references: [places.id],
-  }),
-}));
-
-export const todoGoalsRelations = relations(todoGoals, ({ one }) => ({
-  todo: one(todos, {
-    fields: [todoGoals.todoId],
-    references: [todos.id],
-  }),
-  goal: one(goals, {
-    fields: [todoGoals.goalId],
-    references: [goals.id],
-  }),
-}));
-
-export const goalContactsRelations = relations(goalContacts, ({ one }) => ({
-  goal: one(goals, {
-    fields: [goalContacts.goalId],
-    references: [goals.id],
-  }),
-  contact: one(contacts, {
-    fields: [goalContacts.contactId],
-    references: [contacts.id],
-  }),
-}));
-
-export const goalPlacesRelations = relations(goalPlaces, ({ one }) => ({
-  goal: one(goals, {
-    fields: [goalPlaces.goalId],
-    references: [goals.id],
-  }),
-  place: one(places, {
-    fields: [goalPlaces.placeId],
-    references: [places.id],
-  }),
+  logs: many(logs),
+  todos: many(todos),
+  goals: many(goals),
+  financeTransactions: many(financeTransactions),
 }));
 
 export const financeAccountsRelations = relations(financeAccounts, ({ many }) => ({
@@ -567,7 +367,7 @@ export const financeAccountsRelations = relations(financeAccounts, ({ many }) =>
   transactionsTo: many(financeTransactions, { relationName: 'toAccount' }),
 }));
 
-export const financeTransactionsRelations = relations(financeTransactions, ({ one, many }) => ({
+export const financeTransactionsRelations = relations(financeTransactions, ({ one }) => ({
   fromAccount: one(financeAccounts, {
     fields: [financeTransactions.fromAccountId],
     references: [financeAccounts.id],
@@ -578,28 +378,8 @@ export const financeTransactionsRelations = relations(financeTransactions, ({ on
     references: [financeAccounts.id],
     relationName: 'toAccount',
   }),
-  transactionContacts: many(financeTransactionContacts),
-  transactionPlaces: many(financeTransactionPlaces),
-}));
-
-export const financeTransactionContactsRelations = relations(financeTransactionContacts, ({ one }) => ({
-  transaction: one(financeTransactions, {
-    fields: [financeTransactionContacts.transactionId],
-    references: [financeTransactions.id],
-  }),
-  contact: one(contacts, {
-    fields: [financeTransactionContacts.contactId],
-    references: [contacts.id],
-  }),
-}));
-
-export const financeTransactionPlacesRelations = relations(financeTransactionPlaces, ({ one }) => ({
-  transaction: one(financeTransactions, {
-    fields: [financeTransactionPlaces.transactionId],
-    references: [financeTransactions.id],
-  }),
   place: one(places, {
-    fields: [financeTransactionPlaces.placeId],
+    fields: [financeTransactions.placeId],
     references: [places.id],
   }),
 }));
