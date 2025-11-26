@@ -272,6 +272,33 @@ const runMigrations = async () => {
     }
   }
 
+  // Ensure Todo table has recurring columns (may be missing if migrations partially failed)
+  console.log('Checking Todo table columns...');
+  try {
+    const todoInfo = await client.execute('PRAGMA table_info("Todo")');
+    const columns = new Set(todoInfo.rows.map(r => r.name as string));
+
+    const requiredColumns = [
+      { name: 'isRecurring', sql: 'ALTER TABLE `Todo` ADD `isRecurring` integer DEFAULT false' },
+      { name: 'recurrencePattern', sql: 'ALTER TABLE `Todo` ADD `recurrencePattern` text' },
+      { name: 'recurrenceInterval', sql: 'ALTER TABLE `Todo` ADD `recurrenceInterval` integer' },
+      { name: 'recurrenceEndDate', sql: 'ALTER TABLE `Todo` ADD `recurrenceEndDate` text' },
+      { name: 'recurrenceCount', sql: 'ALTER TABLE `Todo` ADD `recurrenceCount` integer' },
+      { name: 'workDateOffset', sql: 'ALTER TABLE `Todo` ADD `workDateOffset` integer' },
+      { name: 'recurrenceGroupId', sql: 'ALTER TABLE `Todo` ADD `recurrenceGroupId` text' },
+    ];
+
+    for (const col of requiredColumns) {
+      if (!columns.has(col.name)) {
+        console.log(`  → Adding missing column: ${col.name}`);
+        await client.execute(col.sql);
+      }
+    }
+    console.log('✓ Todo table columns verified');
+  } catch (error) {
+    console.error('Error checking Todo columns:', error);
+  }
+
   // Now run migrations (will skip already-applied ones)
   console.log('Running migrations...');
 
