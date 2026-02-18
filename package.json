@@ -17,7 +17,6 @@
     "@libsql/client": "^0.15.15",
     "@mui/icons-material": "^7.3.4",
     "@mui/material": "^7.3.4",
-    "axios": "^1.7.9",
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.3",
     "drizzle-kit": "^0.31.7",

@@ -3,79 +3,18 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaBullseye, FaClipboardList, FaTasks, FaFlag, FaBars, FaTimes, FaSignOutAlt, FaCog, FaUser, FaUsers, FaMapMarkedAlt, FaBook, FaDollarSign, FaDownload } from "react-icons/fa";
+import { FaBolt, FaCalendarCheck, FaColumns, FaTasks, FaBars, FaTimes, FaSignOutAlt, FaCog, FaDownload } from "react-icons/fa";
 import { useState, useEffect, useRef } from "react";
 import { useSession, signOut } from "next-auth/react";
 
 export default function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
-  const [enabledFeatures, setEnabledFeatures] = useState({
-    todo: false,
-    goals: false,
-    people: false,
-    places: false,
-    finance: false,
-  });
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstallable, setIsInstallable] = useState(false);
   const pathname = usePathname();
   const { data: session, status } = useSession();
   const profileMenuRef = useRef<HTMLDivElement>(null);
-
-  // Fetch user preferences to determine enabled features
-  useEffect(() => {
-    async function fetchPreferences() {
-      if (session?.user?.id) {
-        try {
-          const response = await fetch("/api/settings");
-          if (response.ok) {
-            const data = await response.json();
-            const features = {
-              todo: data.enableTodo || false,
-              goals: data.enableGoals || false,
-              people: data.enablePeople || false,
-              places: data.enablePlaces || false,
-              finance: data.enableFinance || false,
-            };
-            setEnabledFeatures(features);
-            // Cache in sessionStorage for instant loading
-            sessionStorage.setItem('enabledFeatures', JSON.stringify(features));
-          }
-        } catch (error) {
-          console.error("Failed to fetch settings:", error);
-        }
-      }
-    }
-
-    // Try to load from cache first for instant render
-    const cached = sessionStorage.getItem('enabledFeatures');
-    if (cached) {
-      try {
-        setEnabledFeatures(JSON.parse(cached));
-      } catch (e) {
-        // Ignore parse errors
-      }
-    }
-
-    fetchPreferences();
-  }, [session]);
-
-  // Listen for settings updates from Settings page
-  useEffect(() => {
-    const handleSettingsUpdate = (event: CustomEvent) => {
-      setEnabledFeatures({
-        todo: event.detail.enableTodo || false,
-        goals: event.detail.enableGoals || false,
-        people: event.detail.enablePeople || false,
-        places: event.detail.enablePlaces || false,
-        finance: event.detail.enableFinance || false,
-      });
-    };
-
-    window.addEventListener('settingsUpdated', handleSettingsUpdate as EventListener);
-    return () => window.removeEventListener('settingsUpdated', handleSettingsUpdate as EventListener);
-  }, []);
 
   // Close profile menu when clicking outside
   useEffect(() => {
@@ -121,40 +60,20 @@ export default function Header() {
     setIsMobileMenuOpen(false);
   };
 
-  // All possible nav items
-  const allNavItems = [
-    { href: "/activities", label: "Activities", icon: FaBullseye, enabled: true }, // Always enabled
-    { href: "/log", label: "Log", icon: FaClipboardList, enabled: true }, // Always enabled
-    { href: "/bible", label: "Bible", icon: FaBook, enabled: true }, // Always enabled
-    { href: "/todo", label: "Todo", icon: FaTasks, enabled: enabledFeatures.todo },
-    { href: "/goals", label: "Goals", icon: FaFlag, enabled: enabledFeatures.goals },
-    { href: "/people", label: "People", icon: FaUsers, enabled: enabledFeatures.people },
-    { href: "/places", label: "Places", icon: FaMapMarkedAlt, enabled: enabledFeatures.places },
-    { href: "/finance", label: "Finance", icon: FaDollarSign, enabled: enabledFeatures.finance },
+  const navItems = [
+    { href: "/dashboard", label: "Dashboard", icon: FaBolt },
+    { href: "/today", label: "Today", icon: FaCalendarCheck },
+    { href: "/pillars", label: "Pillars", icon: FaColumns },
+    { href: "/tasks", label: "Tasks", icon: FaTasks },
   ];
 
-  // Filter to show only enabled features
-  const navItems = allNavItems.filter(item => item.enabled);
-
-  // Hide header on auth-related pages, or on homepage when not authenticated
   const authPages = ["/login", "/verify-request", "/error"];
   const isAuthPage = authPages.includes(pathname);
   const isHomePage = pathname === "/";
 
-  // Hide on auth pages
-  if (isAuthPage) {
-    return null;
-  }
-
-  // Hide on homepage only if not authenticated
-  if (isHomePage && status === "unauthenticated") {
-    return null;
-  }
-
-  // Hide on all other pages if not authenticated
-  if (!isHomePage && status === "unauthenticated") {
-    return null;
-  }
+  if (isAuthPage) return null;
+  if (isHomePage && status === "unauthenticated") return null;
+  if (!isHomePage && status === "unauthenticated") return null;
 
   const handleSignOut = () => {
     signOut({ callbackUrl: "/" });
@@ -181,10 +100,10 @@ export default function Header() {
               className="flex items-center gap-2 cursor-pointer"
             >
               <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center shadow-lg">
-                <span className="text-white font-bold text-lg">L</span>
+                <span className="text-white font-bold text-lg">T</span>
               </div>
               <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                Total Logger
+                TotalLogger
               </span>
             </motion.div>
           </Link>
@@ -252,7 +171,6 @@ export default function Header() {
                     transition={{ duration: 0.2 }}
                     className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-50"
                   >
-                    {/* User Info */}
                     <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
                       <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
                         {session?.user?.name || "User"}
@@ -262,7 +180,6 @@ export default function Header() {
                       </p>
                     </div>
 
-                    {/* Menu Items */}
                     <div className="py-2">
                       {isInstallable && (
                         <motion.button
@@ -303,7 +220,6 @@ export default function Header() {
 
           {/* Mobile Menu Button */}
           <div className="md:hidden flex items-center gap-2">
-            {/* Profile Photo - Mobile */}
             <motion.button
               whileTap={{ scale: 0.95 }}
               onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}

@@ -2,40 +2,40 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { FaWallet, FaClock, FaCheckCircle, FaProjectDiagram, FaDumbbell, FaArrowRight, FaBullseye, FaClipboardList, FaTasks } from "react-icons/fa";
+import { FaBolt, FaFire, FaTrophy, FaTasks, FaColumns, FaArrowRight } from "react-icons/fa";
 import { useSession } from "next-auth/react";
 
 export default function Home() {
   const { data: session, status } = useSession();
 
   const features = [
-    { title: "Finance", icon: FaWallet },
-    { title: "Time", icon: FaClock },
-    { title: "Tasks", icon: FaCheckCircle },
-    { title: "Projects", icon: FaProjectDiagram },
-    { title: "Exercise", icon: FaDumbbell },
+    { title: "Score", icon: FaBolt },
+    { title: "Streaks", icon: FaFire },
+    { title: "Levels", icon: FaTrophy },
+    { title: "Tasks", icon: FaTasks },
+    { title: "Pillars", icon: FaColumns },
   ];
 
   const quickAccess = [
     {
-      title: "Activities",
-      description: "Manage your logging categories",
-      icon: FaBullseye,
-      href: "/activities",
+      title: "Dashboard",
+      description: "See your daily score and progress",
+      icon: FaBolt,
+      href: "/dashboard",
       color: "from-blue-500 to-cyan-500"
     },
     {
-      title: "Logs",
-      description: "View and analyze your entries",
-      icon: FaClipboardList,
-      href: "/log",
+      title: "Today's Tasks",
+      description: "Complete your daily checklist",
+      icon: FaTasks,
+      href: "/today",
       color: "from-purple-500 to-pink-500"
     },
     {
-      title: "Todo",
-      description: "Track your tasks and goals",
-      icon: FaTasks,
-      href: "/todo",
+      title: "Manage Pillars",
+      description: "Configure your life areas",
+      icon: FaColumns,
+      href: "/pillars",
       color: "from-orange-500 to-red-500"
     },
   ];
@@ -91,13 +91,13 @@ export default function Home() {
             variants={itemVariants}
             className="text-6xl md:text-8xl font-bold text-white mb-6 tracking-tight"
           >
-            Log Everything
+            Level Up Your Life
           </motion.h1>
           <motion.p
             variants={itemVariants}
             className="text-xl md:text-3xl text-white/90 mb-12 font-light max-w-3xl mx-auto"
           >
-            Your life, quantified. Track what matters—from finances and time to tasks and exercise—all in one beautifully simple place.
+            Turn your daily habits into a game. Score points, build streaks, level up — and become the best version of yourself.
           </motion.p>
 
           {/* Feature Pills */}
@@ -137,7 +137,7 @@ export default function Home() {
                 </motion.button>
               </Link>
             )}
-            <Link href="/activities">
+            <Link href="/dashboard">
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -172,7 +172,6 @@ export default function Home() {
                   whileHover={{ y: -8, scale: 1.02 }}
                   className="relative p-8 bg-white dark:bg-gray-800 rounded-2xl shadow-lg hover:shadow-2xl transition-all overflow-hidden group"
                 >
-                  {/* Gradient overlay on hover */}
                   <div className={`absolute inset-0 bg-gradient-to-br ${item.color} opacity-0 group-hover:opacity-10 transition-opacity`}></div>
 
                   <div className="relative z-10">

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { FaClock, FaCalendar, FaCheck, FaMoon, FaSun, FaDesktop, FaTasks, FaFlag, FaUsers, FaCubes, FaMapMarkedAlt, FaDollarSign, FaCog, FaSlidersH, FaDatabase, FaTrash, FaDownload, FaExclamationTriangle, FaBullseye, FaClipboardList, FaBook } from "react-icons/fa";
+import { FaClock, FaCalendar, FaCheck, FaMoon, FaSun, FaDesktop, FaCog, FaSlidersH, FaDatabase, FaTrash, FaDownload, FaExclamationTriangle, FaBolt, FaTasks, FaColumns } from "react-icons/fa";
 import { useSession } from "next-auth/react";
 import { useTheme } from "@/components/ThemeProvider";
 import { Snackbar, Alert as MuiAlert } from "@mui/material";
@@ -19,11 +19,8 @@ export default function SettingsPage() {
   const [localTheme, setLocalTheme] = useState<Theme>(theme);
   const [timeFormat, setTimeFormat] = useState<TimeFormat>("12h");
   const [dateFormat, setDateFormat] = useState<DateFormat>("DD/MM/YYYY");
-  const [enableTodo, setEnableTodo] = useState(false);
-  const [enableGoals, setEnableGoals] = useState(false);
-  const [enablePeople, setEnablePeople] = useState(false);
-  const [enablePlaces, setEnablePlaces] = useState(false);
-  const [enableFinance, setEnableFinance] = useState(false);
+  const [weekdayPassThreshold, setWeekdayPassThreshold] = useState(70);
+  const [weekendPassThreshold, setWeekendPassThreshold] = useState(70);
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -39,13 +36,11 @@ export default function SettingsPage() {
     severity: "info",
   });
 
-  // Sync local theme with global theme
   useEffect(() => {
     setLocalTheme(theme);
   }, [theme]);
 
   useEffect(() => {
-    // Load preferences from API if authenticated, otherwise from localStorage
     if (session?.user?.id) {
       fetchPreferences();
     } else {
@@ -54,7 +49,6 @@ export default function SettingsPage() {
   }, [session]);
 
   const fetchPreferences = async () => {
-    // Try to load from sessionStorage first for instant render
     const cached = sessionStorage.getItem('userSettings');
     if (cached) {
       try {
@@ -62,14 +56,9 @@ export default function SettingsPage() {
         setLocalTheme(data.theme || "light");
         setTimeFormat(data.timeFormat || "12h");
         setDateFormat(data.dateFormat || "DD/MM/YYYY");
-        setEnableTodo(data.enableTodo || false);
-        setEnableGoals(data.enableGoals || false);
-        setEnablePeople(data.enablePeople || false);
-        setEnablePlaces(data.enablePlaces || false);
-        setEnableFinance(data.enableFinance || false);
-      } catch (e) {
-        // Ignore parse errors
-      }
+        setWeekdayPassThreshold(data.weekdayPassThreshold ?? 70);
+        setWeekendPassThreshold(data.weekendPassThreshold ?? 70);
+      } catch (e) {}
     }
 
     try {
@@ -79,12 +68,8 @@ export default function SettingsPage() {
         setLocalTheme(data.theme || "light");
         setTimeFormat(data.timeFormat || "12h");
         setDateFormat(data.dateFormat || "DD/MM/YYYY");
-        setEnableTodo(data.enableTodo || false);
-        setEnableGoals(data.enableGoals || false);
-        setEnablePeople(data.enablePeople || false);
-        setEnablePlaces(data.enablePlaces || false);
-        setEnableFinance(data.enableFinance || false);
-        // Cache for next time
+        setWeekdayPassThreshold(data.weekdayPassThreshold ?? 70);
+        setWeekendPassThreshold(data.weekendPassThreshold ?? 70);
         sessionStorage.setItem('userSettings', JSON.stringify(data));
       }
     } catch (error) {
@@ -108,22 +93,16 @@ export default function SettingsPage() {
 
   const handleSave = async () => {
     if (session?.user?.id) {
-      // Save to database via API
       try {
         const response = await fetch("/api/settings", {
           method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             theme: localTheme,
             timeFormat,
             dateFormat,
-            enableTodo,
-            enableGoals,
-            enablePeople,
-            enablePlaces,
-            enableFinance,
+            weekdayPassThreshold,
+            weekendPassThreshold,
           }),
         });
 
@@ -131,48 +110,21 @@ export default function SettingsPage() {
           setGlobalTheme(localTheme);
           setSaved(true);
 
-          // Update caches
           const settingsData = {
             theme: localTheme,
             timeFormat,
             dateFormat,
-            enableTodo,
-            enableGoals,
-            enablePeople,
-            enablePlaces,
-            enableFinance,
+            weekdayPassThreshold,
+            weekendPassThreshold,
           };
           sessionStorage.setItem('userSettings', JSON.stringify(settingsData));
-          sessionStorage.setItem('enabledFeatures', JSON.stringify({
-            todo: enableTodo,
-            goals: enableGoals,
-            people: enablePeople,
-            places: enablePlaces,
-            finance: enableFinance,
-          }));
 
-          // Dispatch custom event to update header without reload
-          window.dispatchEvent(new CustomEvent('settingsUpdated', {
-            detail: {
-              enableTodo,
-              enableGoals,
-              enablePeople,
-              enablePlaces,
-              enableFinance,
-            }
-          }));
-
-          setTimeout(() => {
-            setSaved(false);
-          }, 1500);
-        } else {
-          console.error("Failed to save settings");
+          setTimeout(() => setSaved(false), 1500);
         }
       } catch (error) {
         console.error("Error saving settings:", error);
       }
     } else {
-      // Save to localStorage
       localStorage.setItem("theme", localTheme);
       localStorage.setItem("timeFormat", timeFormat);
       localStorage.setItem("dateFormat", dateFormat);
@@ -197,27 +149,16 @@ export default function SettingsPage() {
     const year = now.getFullYear();
 
     switch (format) {
-      case "DD/MM/YYYY":
-        return `${day}/${month}/${year}`;
-      case "MM/DD/YYYY":
-        return `${month}/${day}/${year}`;
-      case "YYYY-MM-DD":
-        return `${year}-${month}-${day}`;
-      case "DD-MM-YYYY":
-        return `${day}-${month}-${year}`;
-      case "MM-DD-YYYY":
-        return `${month}-${day}-${year}`;
+      case "DD/MM/YYYY": return `${day}/${month}/${year}`;
+      case "MM/DD/YYYY": return `${month}/${day}/${year}`;
+      case "YYYY-MM-DD": return `${year}-${month}-${day}`;
+      case "DD-MM-YYYY": return `${day}-${month}-${year}`;
+      case "MM-DD-YYYY": return `${month}-${day}-${year}`;
     }
   };
 
   const timeOptions: TimeFormat[] = ["12h", "24h"];
-  const dateOptions: DateFormat[] = [
-    "DD/MM/YYYY",
-    "MM/DD/YYYY",
-    "YYYY-MM-DD",
-    "DD-MM-YYYY",
-    "MM-DD-YYYY"
-  ];
+  const dateOptions: DateFormat[] = ["DD/MM/YYYY", "MM/DD/YYYY", "YYYY-MM-DD", "DD-MM-YYYY", "MM-DD-YYYY"];
 
   const themeOptions: { value: Theme; label: string; icon: typeof FaMoon }[] = [
     { value: "light", label: "Light", icon: FaSun },
@@ -239,25 +180,13 @@ export default function SettingsPage() {
         a.click();
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
-        setSnackbar({
-          open: true,
-          message: `${type.charAt(0).toUpperCase() + type.slice(1)} data exported successfully!`,
-          severity: "success",
-        });
+        setSnackbar({ open: true, message: `${type.charAt(0).toUpperCase() + type.slice(1)} data exported successfully!`, severity: "success" });
       } else {
-        setSnackbar({
-          open: true,
-          message: `Failed to export ${type} data`,
-          severity: "error",
-        });
+        setSnackbar({ open: true, message: `Failed to export ${type} data`, severity: "error" });
       }
     } catch (error) {
       console.error(`Error exporting ${type} data:`, error);
-      setSnackbar({
-        open: true,
-        message: `Failed to export ${type} data`,
-        severity: "error",
-      });
+      setSnackbar({ open: true, message: `Failed to export ${type} data`, severity: "error" });
     } finally {
       setIsExporting(false);
     }
@@ -266,32 +195,16 @@ export default function SettingsPage() {
   const handleFactoryReset = async () => {
     setIsResetting(true);
     try {
-      const response = await fetch("/api/factory-reset", {
-        method: "POST",
-      });
+      const response = await fetch("/api/factory-reset", { method: "POST" });
       if (response.ok) {
-        setSnackbar({
-          open: true,
-          message: "All data has been deleted successfully! Redirecting...",
-          severity: "success",
-        });
-        setTimeout(() => {
-          window.location.href = "/";
-        }, 2000);
+        setSnackbar({ open: true, message: "All data has been reset and default data seeded! Redirecting...", severity: "success" });
+        setTimeout(() => { window.location.href = "/dashboard"; }, 2000);
       } else {
-        setSnackbar({
-          open: true,
-          message: "Failed to reset data. Please try again.",
-          severity: "error",
-        });
+        setSnackbar({ open: true, message: "Failed to reset data. Please try again.", severity: "error" });
       }
     } catch (error) {
       console.error("Error resetting data:", error);
-      setSnackbar({
-        open: true,
-        message: "Failed to reset data. Please try again.",
-        severity: "error",
-      });
+      setSnackbar({ open: true, message: "Failed to reset data. Please try again.", severity: "error" });
     } finally {
       setIsResetting(false);
       setShowResetConfirm(false);
@@ -316,9 +229,7 @@ export default function SettingsPage() {
             <FaCog className="text-white text-xl md:text-2xl" />
           </div>
           <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
-              Settings
-            </h1>
+            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">Settings</h1>
             <p className="text-sm text-gray-600 dark:text-gray-400 hidden sm:block">Manage your application preferences</p>
           </div>
         </div>
@@ -358,12 +269,8 @@ export default function SettingsPage() {
                   <FaMoon className="text-xl md:text-2xl text-indigo-600 dark:text-indigo-400" />
                 </div>
                 <div>
-                  <h2 className="text-lg md:text-2xl font-semibold text-gray-900 dark:text-white">
-                    Theme
-                  </h2>
-                  <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400">
-                    Choose your preferred theme
-                  </p>
+                  <h2 className="text-lg md:text-2xl font-semibold text-gray-900 dark:text-white">Theme</h2>
+                  <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400">Choose your preferred theme</p>
                 </div>
               </div>
 
@@ -384,182 +291,63 @@ export default function SettingsPage() {
                       <div className="text-left">
                         <div className="flex items-center gap-2">
                           <option.icon className="text-lg text-indigo-600 dark:text-indigo-400" />
-                          <span className="font-semibold text-gray-900 dark:text-white">
-                            {option.label}
-                          </span>
+                          <span className="font-semibold text-gray-900 dark:text-white">{option.label}</span>
                         </div>
                       </div>
-                      {localTheme === option.value && (
-                        <FaCheck className="text-indigo-500" />
-                      )}
+                      {localTheme === option.value && <FaCheck className="text-indigo-500" />}
                     </div>
                   </motion.button>
                 ))}
               </div>
             </div>
 
-            {/* Feature Selection */}
+            {/* Pass Thresholds */}
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 md:p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                  <FaCubes className="text-2xl text-green-600 dark:text-green-400" />
+                <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+                  <FaBolt className="text-2xl text-orange-600 dark:text-orange-400" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
-                    Features
-                  </h2>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Choose which features to enable (Activities and Log are always enabled)
-                  </p>
+                  <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Score Thresholds</h2>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Minimum score to count as a passing day</p>
                 </div>
               </div>
 
-              <div className="space-y-3">
-                {/* Todo Feature */}
-                <motion.div
-                  whileHover={{ scale: 1.01 }}
-                  onClick={() => setEnableTodo(!enableTodo)}
-                  className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${
-                    enableTodo
-                      ? "border-green-500 bg-green-50 dark:bg-green-900/20"
-                      : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <FaTasks className={`text-xl ${enableTodo ? "text-green-600 dark:text-green-400" : "text-gray-400"}`} />
-                      <div>
-                        <div className="font-semibold text-gray-900 dark:text-white">
-                          Todo
-                        </div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400">
-                          Manage your tasks and to-do lists
-                        </div>
-                      </div>
-                    </div>
-                    {enableTodo && <FaCheck className="text-green-500" />}
-                  </div>
-                </motion.div>
-
-                {/* Goals Feature */}
-                <motion.div
-                  whileHover={{ scale: 1.01 }}
-                  onClick={() => setEnableGoals(!enableGoals)}
-                  className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${
-                    enableGoals
-                      ? "border-green-500 bg-green-50 dark:bg-green-900/20"
-                      : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <FaFlag className={`text-xl ${enableGoals ? "text-green-600 dark:text-green-400" : "text-gray-400"}`} />
-                      <div>
-                        <div className="font-semibold text-gray-900 dark:text-white">
-                          Goals
-                        </div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400">
-                          Set and track your personal goals
-                        </div>
-                      </div>
-                    </div>
-                    {enableGoals && <FaCheck className="text-green-500" />}
-                  </div>
-                </motion.div>
-
-                {/* People Feature */}
-                <motion.div
-                  whileHover={{ scale: 1.01 }}
-                  onClick={() => setEnablePeople(!enablePeople)}
-                  className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${
-                    enablePeople
-                      ? "border-green-500 bg-green-50 dark:bg-green-900/20"
-                      : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <FaUsers className={`text-xl ${enablePeople ? "text-green-600 dark:text-green-400" : "text-gray-400"}`} />
-                      <div>
-                        <div className="font-semibold text-gray-900 dark:text-white">
-                          People
-                        </div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400">
-                          Manage your contacts and relationships
-                        </div>
-                      </div>
-                    </div>
-                    {enablePeople && <FaCheck className="text-green-500" />}
-                  </div>
-                </motion.div>
-
-                {/* Places Feature */}
-                <motion.div
-                  whileHover={{ scale: 1.01 }}
-                  onClick={() => setEnablePlaces(!enablePlaces)}
-                  className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${
-                    enablePlaces
-                      ? "border-green-500 bg-green-50 dark:bg-green-900/20"
-                      : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <FaMapMarkedAlt className={`text-xl ${enablePlaces ? "text-green-600 dark:text-green-400" : "text-gray-400"}`} />
-                      <div>
-                        <div className="font-semibold text-gray-900 dark:text-white">
-                          Places
-                        </div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400">
-                          Track and manage places you visit
-                        </div>
-                      </div>
-                    </div>
-                    {enablePlaces && <FaCheck className="text-green-500" />}
-                  </div>
-                </motion.div>
-
-                {/* Finance Feature */}
-                <motion.div
-                  whileHover={{ scale: 1.01 }}
-                  onClick={() => setEnableFinance(!enableFinance)}
-                  className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${
-                    enableFinance
-                      ? "border-green-500 bg-green-50 dark:bg-green-900/20"
-                      : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <FaDollarSign className={`text-xl ${enableFinance ? "text-green-600 dark:text-green-400" : "text-gray-400"}`} />
-                      <div>
-                        <div className="font-semibold text-gray-900 dark:text-white">
-                          Finance
-                        </div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400">
-                          Track your financial activities
-                        </div>
-                      </div>
-                    </div>
-                    {enableFinance && <FaCheck className="text-green-500" />}
-                  </div>
-                </motion.div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Weekday Pass (%)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={weekdayPassThreshold}
+                    onChange={e => setWeekdayPassThreshold(parseInt(e.target.value) || 0)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Weekend Pass (%)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={weekendPassThreshold}
+                    onChange={e => setWeekendPassThreshold(parseInt(e.target.value) || 0)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Time Format Preference */}
+            {/* Time Format */}
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 md:p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
                   <FaClock className="text-2xl text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
-                    Time Format
-                  </h2>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Choose how you want time to be displayed
-                  </p>
+                  <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Time Format</h2>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Choose how you want time to be displayed</p>
                 </div>
               </div>
 
@@ -578,35 +366,25 @@ export default function SettingsPage() {
                   >
                     <div className="flex items-center justify-between">
                       <div className="text-left">
-                        <div className="font-semibold text-gray-900 dark:text-white">
-                          {option === "12h" ? "12-Hour" : "24-Hour"}
-                        </div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                          {getExampleTime(option)}
-                        </div>
+                        <div className="font-semibold text-gray-900 dark:text-white">{option === "12h" ? "12-Hour" : "24-Hour"}</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">{getExampleTime(option)}</div>
                       </div>
-                      {timeFormat === option && (
-                        <FaCheck className="text-blue-500" />
-                      )}
+                      {timeFormat === option && <FaCheck className="text-blue-500" />}
                     </div>
                   </motion.button>
                 ))}
               </div>
             </div>
 
-            {/* Date Format Preference */}
+            {/* Date Format */}
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 md:p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
                   <FaCalendar className="text-2xl text-purple-600 dark:text-purple-400" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
-                    Date Format
-                  </h2>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Choose how you want dates to be displayed
-                  </p>
+                  <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Date Format</h2>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Choose how you want dates to be displayed</p>
                 </div>
               </div>
 
@@ -625,16 +403,10 @@ export default function SettingsPage() {
                   >
                     <div className="flex items-center justify-between">
                       <div className="text-left">
-                        <div className="font-semibold text-gray-900 dark:text-white">
-                          {option}
-                        </div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                          {getExampleDate(option)}
-                        </div>
+                        <div className="font-semibold text-gray-900 dark:text-white">{option}</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">{getExampleDate(option)}</div>
                       </div>
-                      {dateFormat === option && (
-                        <FaCheck className="text-purple-500" />
-                      )}
+                      {dateFormat === option && <FaCheck className="text-purple-500" />}
                     </div>
                   </motion.button>
                 ))}
@@ -666,36 +438,23 @@ export default function SettingsPage() {
         {/* Data Management Tab */}
         {activeTab === "data" && (
           <div className="space-y-4 md:space-y-6">
-            {/* Export Data Section */}
+            {/* Export Data */}
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 md:p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
                   <FaDownload className="text-2xl text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
-                    Export Data
-                  </h2>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Download all your data as CSV files
-                  </p>
+                  <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Export Data</h2>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Download your data as CSV files</p>
                 </div>
               </div>
 
-              <p className="text-gray-700 dark:text-gray-300 mb-4">
-                Export your data to CSV format. Choose which data you want to export.
-              </p>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {[
-                  { type: "activities", label: "Activities", icon: FaBullseye },
-                  { type: "log", label: "Logs", icon: FaClipboardList },
-                  { type: "bible", label: "Bible Readings", icon: FaBook },
-                  { type: "todo", label: "Todos", icon: FaTasks },
-                  { type: "goals", label: "Goals", icon: FaFlag },
-                  { type: "people", label: "People", icon: FaUsers },
-                  { type: "places", label: "Places", icon: FaMapMarkedAlt },
-                  { type: "finance", label: "Finance", icon: FaDollarSign },
+                  { type: "pillars", label: "Pillars", icon: FaColumns },
+                  { type: "tasks", label: "Tasks", icon: FaTasks },
+                  { type: "completions", label: "Completions", icon: FaCheck },
                 ].map(({ type, label, icon: Icon }) => (
                   <motion.button
                     key={type}
@@ -712,19 +471,15 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            {/* Factory Reset Section */}
+            {/* Factory Reset */}
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-red-200 dark:border-red-900/50 p-4 md:p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">
                   <FaTrash className="text-2xl text-red-600 dark:text-red-400" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
-                    Factory Reset
-                  </h2>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Delete all data and generate sample data
-                  </p>
+                  <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Factory Reset</h2>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Delete all data and seed defaults</p>
                 </div>
               </div>
 
@@ -732,12 +487,10 @@ export default function SettingsPage() {
                 <div className="flex items-start gap-2">
                   <FaExclamationTriangle className="text-red-600 dark:text-red-400 mt-1 flex-shrink-0" />
                   <div>
-                    <p className="font-semibold text-red-800 dark:text-red-300 mb-1">
-                      Warning: This action cannot be undone!
-                    </p>
+                    <p className="font-semibold text-red-800 dark:text-red-300 mb-1">Warning: This action cannot be undone!</p>
                     <p className="text-sm text-red-700 dark:text-red-400">
-                      This will permanently delete ALL your data including activities, logs, Bible readings,
-                      goals, todos, people, places, and finance records. Sample data will be generated for each page.
+                      This will permanently delete ALL your data including pillars, tasks, completions,
+                      and scores. Default pillars and tasks will be re-created.
                     </p>
                   </div>
                 </div>
@@ -755,12 +508,12 @@ export default function SettingsPage() {
               ) : (
                 <div className="space-y-3">
                   <p className="font-semibold text-gray-900 dark:text-white">
-                    Are you absolutely sure? Type "DELETE" to confirm:
+                    Are you absolutely sure? Type &quot;DELETE&quot; to confirm:
                   </p>
                   <input
                     type="text"
                     id="confirmDelete"
-                    placeholder="Type DELETE to confirm"
+                    placeholder='Type DELETE to confirm'
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
                   <div className="flex gap-3">
@@ -772,25 +525,13 @@ export default function SettingsPage() {
                         if (input.value === "DELETE") {
                           handleFactoryReset();
                         } else {
-                          setSnackbar({
-                            open: true,
-                            message: "Please type DELETE to confirm",
-                            severity: "warning",
-                          });
+                          setSnackbar({ open: true, message: "Please type DELETE to confirm", severity: "warning" });
                         }
                       }}
                       disabled={isResetting}
                       className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                     >
-                      {isResetting ? (
-                        <>
-                          <span className="animate-spin">⏳</span> Resetting...
-                        </>
-                      ) : (
-                        <>
-                          <FaTrash /> Confirm Reset
-                        </>
-                      )}
+                      {isResetting ? (<><span className="animate-spin">&#9203;</span> Resetting...</>) : (<><FaTrash /> Confirm Reset</>)}
                     </motion.button>
                     <motion.button
                       whileHover={{ scale: 1.02 }}
@@ -808,7 +549,6 @@ export default function SettingsPage() {
         )}
       </motion.div>
 
-      {/* Snackbar for notifications */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}

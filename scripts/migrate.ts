@@ -5,8 +5,6 @@ import { createClient } from '@libsql/client';
 import * as fs from 'fs';
 import * as path from 'path';
 
-// Drop and recreate auth tables to ensure proper schema with defaults
-// These tables are empty if auth hasn't worked yet, safe to recreate
 const DROP_AUTH_TABLES_SQL = `
 DROP TABLE IF EXISTS "session";
 DROP TABLE IF EXISTS "account";
@@ -82,40 +80,26 @@ const runMigrations = async () => {
 
   const db = drizzle(client);
 
-  // First, ensure auth tables exist with proper schema (these are critical for the app to work)
+  // First, ensure auth tables exist with proper schema
   console.log('Checking auth tables...');
   try {
-    // Check if account table has proper schema (id column with default)
     let needsRecreate = false;
-    let userTableExists = false;
 
     try {
-      // Check if account table exists and has proper schema
       const tableInfo = await client.execute('PRAGMA table_info("account")');
       const idColumn = tableInfo.rows.find(r => r.name === 'id');
 
       if (!idColumn) {
         needsRecreate = true;
-        console.log('  → Account table missing or no id column');
       } else if (!idColumn.dflt_value) {
         needsRecreate = true;
-        console.log('  → Account table id column missing DEFAULT - needs recreation');
-      }
-
-      // Check if user table exists
-      try {
-        await client.execute('SELECT 1 FROM "user" LIMIT 1');
-        userTableExists = true;
-      } catch {
-        // User table doesn't exist
       }
     } catch {
       needsRecreate = true;
-      console.log('  → Account table does not exist');
     }
 
     if (needsRecreate) {
-      console.log('  → Recreating auth tables with proper schema...');
+      console.log('  -> Recreating auth tables with proper schema...');
 
       const dropStatements = DROP_AUTH_TABLES_SQL.split(';').filter(s => s.trim());
       for (const stmt of dropStatements) {
@@ -123,20 +107,16 @@ const runMigrations = async () => {
           await client.execute(stmt);
         }
       }
-      if (userTableExists) {
-        console.log('  ✓ Dropped old auth tables');
-      }
 
-      // Create auth tables with proper defaults
       const createStatements = AUTH_TABLES_SQL.split(';').filter(s => s.trim());
       for (const stmt of createStatements) {
         if (stmt.trim()) {
           await client.execute(stmt);
         }
       }
-      console.log('✓ Auth tables recreated with proper schema');
+      console.log('Auth tables recreated with proper schema');
     } else {
-      console.log('✓ Auth tables have correct schema');
+      console.log('Auth tables have correct schema');
     }
   } catch (error) {
     console.error('Error setting up auth tables:', error);
@@ -156,19 +136,19 @@ const runMigrations = async () => {
   try {
     const result = await client.execute('SELECT hash FROM "__drizzle_migrations"');
     result.rows.forEach(r => appliedMigrations.add(r.hash as string));
-    console.log(`✓ ${appliedMigrations.size} migrations already applied`);
+    console.log(`${appliedMigrations.size} migrations already applied`);
   } catch {
-    console.log('→ No migrations table found');
+    console.log('No migrations table found');
   }
 
   // If some migrations are recorded but not all, run the pending ones
   if (appliedMigrations.size > 0 && appliedMigrations.size < migrationFiles.length) {
-    console.log(`\n→ Found ${migrationFiles.length - appliedMigrations.size} pending migrations - running them...`);
+    console.log(`\nFound ${migrationFiles.length - appliedMigrations.size} pending migrations - running them...`);
 
     for (const file of migrationFiles) {
       const hash = file.replace('.sql', '');
       if (!appliedMigrations.has(hash)) {
-        console.log(`  → Running: ${file}`);
+        console.log(`  -> Running: ${file}`);
         const sqlContent = fs.readFileSync(path.join(migrationsDir, file), 'utf-8');
         const statements = sqlContent.split('--> statement-breakpoint').map(s => s.trim()).filter(s => s);
 
@@ -177,9 +157,14 @@ const runMigrations = async () => {
             try {
               await client.execute(stmt);
             } catch (err: any) {
-              // Ignore "table doesn't exist" errors for DROP TABLE
               if (stmt.toUpperCase().startsWith('DROP TABLE') && err.message?.includes('no such table')) {
                 console.log(`    (Table already dropped, skipping)`);
+              } else if (stmt.toUpperCase().includes('DROP COLUMN') && err.message?.includes('no such column')) {
+                console.log(`    (Column already dropped, skipping)`);
+              } else if (stmt.toUpperCase().includes('ADD') && err.message?.includes('duplicate column')) {
+                console.log(`    (Column already exists, skipping)`);
+              } else if (err.message?.includes('already exists')) {
+                console.log(`    (Already exists, skipping)`);
               } else {
                 throw err;
               }
@@ -187,16 +172,15 @@ const runMigrations = async () => {
           }
         }
 
-        // Record the migration as applied
         await client.execute({
           sql: 'INSERT INTO "__drizzle_migrations" (hash, created_at) VALUES (?, ?)',
           args: [hash, Date.now()]
         });
         appliedMigrations.add(hash);
-        console.log(`  ✓ Completed: ${file}`);
+        console.log(`  Done: ${file}`);
       }
     }
-    console.log('✓ Pending migrations complete!\n');
+    console.log('Pending migrations complete!\n');
   }
 
   // If no migrations recorded at all, check if tables exist
@@ -206,10 +190,10 @@ const runMigrations = async () => {
       const tables = await client.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '__%'");
       tablesExist = tables.rows.length > 0;
       if (tablesExist) {
-        console.log(`✓ Found ${tables.rows.length} existing tables`);
+        console.log(`Found ${tables.rows.length} existing tables`);
       }
     } catch {
-      console.log('→ Could not check existing tables');
+      console.log('Could not check existing tables');
     }
 
     if (tablesExist) {
@@ -221,8 +205,6 @@ const runMigrations = async () => {
         )
       `);
 
-      // Baseline the first migration (initial schema) since tables exist
-      // Then run any subsequent migrations
       const firstMigration = migrationFiles[0];
       if (firstMigration) {
         const hash = firstMigration.replace('.sql', '');
@@ -231,15 +213,14 @@ const runMigrations = async () => {
           args: [hash, Date.now()]
         });
         appliedMigrations.add(hash);
-        console.log(`  ✓ Baselined initial schema: ${firstMigration}`);
+        console.log(`  Baselined initial schema: ${firstMigration}`);
       }
 
-      // Run remaining migrations
       for (let i = 1; i < migrationFiles.length; i++) {
         const file = migrationFiles[i];
         const hash = file.replace('.sql', '');
 
-        console.log(`  → Running: ${file}`);
+        console.log(`  -> Running: ${file}`);
         const sqlContent = fs.readFileSync(path.join(migrationsDir, file), 'utf-8');
         const statements = sqlContent.split('--> statement-breakpoint').map(s => s.trim()).filter(s => s);
 
@@ -248,12 +229,14 @@ const runMigrations = async () => {
             try {
               await client.execute(stmt);
             } catch (err: any) {
-              // Ignore "table doesn't exist" errors for DROP TABLE
               if (stmt.toUpperCase().startsWith('DROP TABLE') && err.message?.includes('no such table')) {
                 console.log(`    (Table already dropped, skipping)`);
-              // Ignore "duplicate column" errors for ALTER TABLE ADD
+              } else if (stmt.toUpperCase().includes('DROP COLUMN') && err.message?.includes('no such column')) {
+                console.log(`    (Column already dropped, skipping)`);
               } else if (stmt.toUpperCase().includes('ADD') && err.message?.includes('duplicate column')) {
                 console.log(`    (Column already exists, skipping)`);
+              } else if (err.message?.includes('already exists')) {
+                console.log(`    (Already exists, skipping)`);
               } else {
                 throw err;
               }
@@ -266,37 +249,10 @@ const runMigrations = async () => {
           args: [hash, Date.now()]
         });
         appliedMigrations.add(hash);
-        console.log(`  ✓ Completed: ${file}`);
+        console.log(`  Done: ${file}`);
       }
-      console.log('✓ Migration setup complete!\n');
+      console.log('Migration setup complete!\n');
     }
-  }
-
-  // Ensure Todo table has recurring columns (may be missing if migrations partially failed)
-  console.log('Checking Todo table columns...');
-  try {
-    const todoInfo = await client.execute('PRAGMA table_info("Todo")');
-    const columns = new Set(todoInfo.rows.map(r => r.name as string));
-
-    const requiredColumns = [
-      { name: 'isRecurring', sql: 'ALTER TABLE `Todo` ADD `isRecurring` integer DEFAULT false' },
-      { name: 'recurrencePattern', sql: 'ALTER TABLE `Todo` ADD `recurrencePattern` text' },
-      { name: 'recurrenceInterval', sql: 'ALTER TABLE `Todo` ADD `recurrenceInterval` integer' },
-      { name: 'recurrenceEndDate', sql: 'ALTER TABLE `Todo` ADD `recurrenceEndDate` text' },
-      { name: 'recurrenceCount', sql: 'ALTER TABLE `Todo` ADD `recurrenceCount` integer' },
-      { name: 'workDateOffset', sql: 'ALTER TABLE `Todo` ADD `workDateOffset` integer' },
-      { name: 'recurrenceGroupId', sql: 'ALTER TABLE `Todo` ADD `recurrenceGroupId` text' },
-    ];
-
-    for (const col of requiredColumns) {
-      if (!columns.has(col.name)) {
-        console.log(`  → Adding missing column: ${col.name}`);
-        await client.execute(col.sql);
-      }
-    }
-    console.log('✓ Todo table columns verified');
-  } catch (error) {
-    console.error('Error checking Todo columns:', error);
   }
 
   // Now run migrations (will skip already-applied ones)
@@ -304,10 +260,10 @@ const runMigrations = async () => {
 
   try {
     await migrate(db, { migrationsFolder: './drizzle/migrations' });
-    console.log('✓ Migrations completed successfully!');
+    console.log('Migrations completed successfully!');
     process.exit(0);
   } catch (error) {
-    console.error('✗ Migration failed:', error);
+    console.error('Migration failed:', error);
     process.exit(1);
   }
 };

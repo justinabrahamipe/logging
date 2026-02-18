@@ -7,7 +7,7 @@ export default function TermsOfService() {
             Terms of Service
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mb-8">
-            Last updated: October 17, 2025
+            Last updated: February 18, 2026
           </p>
 
           <div className="space-y-6 text-gray-700 dark:text-gray-300">
@@ -26,14 +26,14 @@ export default function TermsOfService() {
                 2. Description of Service
               </h2>
               <p>
-                Total Logger is a personal productivity and activity tracking application that allows you to:
+                Total Logger is a life gamification and productivity application that allows you to:
               </p>
               <ul className="list-disc list-inside space-y-2 ml-4 mt-2">
-                <li>Log and track your activities and time spent</li>
-                <li>Set and monitor goals</li>
-                <li>Manage todos and tasks</li>
-                <li>Sync and manage contacts from your Google account</li>
-                <li>View analytics and insights about your activities</li>
+                <li>Define life pillars and set weighted priorities</li>
+                <li>Create and track daily tasks with various completion types</li>
+                <li>Earn points, XP, and level up based on daily performance</li>
+                <li>Track streaks and monitor progress over time</li>
+                <li>View daily action scores and pillar breakdowns</li>
               </ul>
             </section>
 
@@ -60,12 +60,9 @@ export default function TermsOfService() {
                 4. Google Account Integration
               </h2>
               <p>
-                By connecting your Google account, you grant Total Logger permission to:
+                By connecting your Google account, you grant Total Logger permission to access your basic
+                profile information (name, email, profile picture) for authentication purposes.
               </p>
-              <ul className="list-disc list-inside space-y-2 ml-4 mt-2">
-                <li>Access your basic profile information (name, email, profile picture)</li>
-                <li>Read and sync your Google contacts</li>
-              </ul>
               <p className="mt-2">
                 You can revoke these permissions at any time through your{" "}
                 <a
@@ -99,7 +96,7 @@ export default function TermsOfService() {
               </h2>
               <p>
                 You retain all rights to the data you create and store in Total Logger. We claim no ownership
-                over your logs, activities, goals, todos, or synced contacts. You can export or delete your
+                over your pillars, tasks, scores, or any other data. You can export or delete your
                 data at any time.
               </p>
             </section>
@@ -120,7 +117,7 @@ export default function TermsOfService() {
                 8. Disclaimer of Warranties
               </h2>
               <p>
-                Total Logger is provided "as is" and "as available" without warranties of any kind, either
+                Total Logger is provided &quot;as is&quot; and &quot;as available&quot; without warranties of any kind, either
                 express or implied. We do not warrant that the service will be uninterrupted, secure, or error-free.
               </p>
             </section>
@@ -166,17 +163,7 @@ export default function TermsOfService() {
 
             <section>
               <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-3">
-                12. Governing Law
-              </h2>
-              <p>
-                These Terms of Service shall be governed by and construed in accordance with the laws of your
-                jurisdiction, without regard to its conflict of law provisions.
-              </p>
-            </section>
-
-            <section>
-              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-3">
-                13. Contact Information
+                12. Contact Information
               </h2>
               <p>
                 If you have any questions about these Terms of Service, please contact us at:
@@ -191,16 +178,6 @@ export default function TermsOfService() {
                 </a>
               </p>
             </section>
-
-            <section>
-              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-3">
-                14. Entire Agreement
-              </h2>
-              <p>
-                These Terms of Service, together with our Privacy Policy, constitute the entire agreement
-                between you and Total Logger regarding the use of our service.
-              </p>
-            </section>
           </div>
 
           <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
@@ -208,7 +185,7 @@ export default function TermsOfService() {
               href="/"
               className="text-blue-600 dark:text-blue-400 hover:underline"
             >
-              ← Back to Total Logger
+              &larr; Back to Total Logger
             </a>
           </div>
         </div>
