@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { db, tasks, taskCompletions } from "@/lib/db";
-import { eq, and } from "drizzle-orm";
+import { db, tasks, taskCompletions, activityLog } from "@/lib/db";
+import { eq, and, desc } from "drizzle-orm";
 import { calculateTaskScore } from "@/lib/scoring";
 
 export async function POST(request: Request) {
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
   const completionValue = value ?? (task.completionType === 'checkbox' ? (isCompleted ? 1 : 0) : 0);
 
   const pointsEarned = calculateTaskScore(
-    { id: task.id, pillarId: task.pillarId, completionType: task.completionType, target: task.target, importance: task.importance, basePoints: task.basePoints },
+    { id: task.id, pillarId: task.pillarId, completionType: task.completionType, target: task.target, importance: task.importance, basePoints: task.basePoints, flexibilityRule: task.flexibilityRule, limitValue: task.limitValue },
     { taskId: task.id, completed: isCompleted, value: completionValue }
   );
 
@@ -40,6 +40,9 @@ export async function POST(request: Request) {
     .select()
     .from(taskCompletions)
     .where(and(eq(taskCompletions.taskId, taskId), eq(taskCompletions.date, date)));
+
+  const previousValue = existing?.value ?? null;
+  const pointsBefore = existing?.pointsEarned ?? 0;
 
   let result;
   if (existing) {
@@ -64,6 +67,32 @@ export async function POST(request: Request) {
       completedAt: isCompleted ? new Date() : null,
     }).returning();
   }
+
+  // Determine action type
+  let action = 'complete';
+  if (existing) {
+    if (completionValue > (previousValue ?? 0)) action = 'add';
+    else if (completionValue < (previousValue ?? 0)) action = 'subtract';
+    else action = 'adjust';
+  }
+
+  // Determine source
+  const source = task.completionType === 'duration' ? 'timer' : 'manual';
+
+  // Insert activity log entry
+  await db.insert(activityLog).values({
+    userId: session.user.id,
+    taskId: task.id,
+    pillarId: task.pillarId,
+    action,
+    previousValue: previousValue,
+    newValue: completionValue,
+    delta: completionValue - (previousValue ?? 0),
+    pointsBefore,
+    pointsAfter: pointsEarned,
+    pointsDelta: pointsEarned - pointsBefore,
+    source,
+  });
 
   return NextResponse.json(result);
 }

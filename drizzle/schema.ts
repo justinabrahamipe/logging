@@ -86,7 +86,7 @@ export const pillars = sqliteTable('Pillar', {
 // Tasks table
 export const tasks = sqliteTable('Task', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  pillarId: integer('pillarId').notNull().references(() => pillars.id, { onDelete: 'cascade' }),
+  pillarId: integer('pillarId').references(() => pillars.id, { onDelete: 'set null' }),
   userId: text('userId').notNull(),
   name: text('name').notNull(),
   completionType: text('completionType').notNull().default('checkbox'), // checkbox|count|duration|numeric|percentage
@@ -160,6 +160,29 @@ export const userStats = sqliteTable('UserStats', {
 }));
 
 
+// ActivityLog table
+export const activityLog = sqliteTable('ActivityLog', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: text('userId').notNull(),
+  timestamp: integer('timestamp', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+  taskId: integer('taskId').references(() => tasks.id, { onDelete: 'set null' }),
+  pillarId: integer('pillarId').references(() => pillars.id, { onDelete: 'set null' }),
+  action: text('action').notNull(), // complete | reverse | adjust | add | subtract
+  previousValue: real('previousValue'),
+  newValue: real('newValue'),
+  delta: real('delta'),
+  pointsBefore: real('pointsBefore'),
+  pointsAfter: real('pointsAfter'),
+  pointsDelta: real('pointsDelta'),
+  source: text('source').notNull().default('manual'), // manual | timer | auto
+  reversalOf: integer('reversalOf'),
+  note: text('note'),
+}, (table) => ({
+  userIdIdx: index('ActivityLog_userId_idx').on(table.userId),
+  taskIdIdx: index('ActivityLog_taskId_idx').on(table.taskId),
+  timestampIdx: index('ActivityLog_timestamp_idx').on(table.timestamp),
+}));
+
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
   preferences: one(userPreferences),
@@ -204,6 +227,17 @@ export const taskCompletionsRelations = relations(taskCompletions, ({ one }) => 
   task: one(tasks, {
     fields: [taskCompletions.taskId],
     references: [tasks.id],
+  }),
+}));
+
+export const activityLogRelations = relations(activityLog, ({ one }) => ({
+  task: one(tasks, {
+    fields: [activityLog.taskId],
+    references: [tasks.id],
+  }),
+  pillar: one(pillars, {
+    fields: [activityLog.pillarId],
+    references: [pillars.id],
   }),
 }));
 

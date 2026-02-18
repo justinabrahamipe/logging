@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaBolt, FaCalendarCheck, FaColumns, FaTasks, FaBars, FaTimes, FaSignOutAlt, FaCog, FaDownload } from "react-icons/fa";
+import { FaBolt, FaColumns, FaTasks, FaBars, FaTimes, FaSignOutAlt, FaCog, FaDownload, FaHistory } from "react-icons/fa";
 import { useState, useEffect, useRef } from "react";
 import { useSession, signOut } from "next-auth/react";
 
@@ -62,9 +62,9 @@ export default function Header() {
 
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: FaBolt },
-    { href: "/today", label: "Today", icon: FaCalendarCheck },
-    { href: "/pillars", label: "Pillars", icon: FaColumns },
     { href: "/tasks", label: "Tasks", icon: FaTasks },
+    { href: "/activity", label: "Activity", icon: FaHistory },
+    { href: "/pillars", label: "Pillars", icon: FaColumns },
   ];
 
   const authPages = ["/login", "/verify-request", "/error"];

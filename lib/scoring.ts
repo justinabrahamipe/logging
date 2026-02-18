@@ -8,6 +8,8 @@ interface TaskForScoring {
   target: number | null;
   importance: string;
   basePoints: number;
+  flexibilityRule?: string;
+  limitValue?: number | null;
 }
 
 interface CompletionForScoring {
@@ -29,12 +31,20 @@ export function calculateTaskScore(task: TaskForScoring, completion: CompletionF
     return completion.completed ? task.basePoints * multiplier : 0;
   }
 
-  if (task.completionType === 'limit_avoid' || task.completionType === 'percentage') {
-    // For percentage type, value is 0-100
-    if (task.completionType === 'percentage') {
-      const pct = Math.min((completion.value || 0), 100) / 100;
-      return task.basePoints * multiplier * pct;
+  // Limit/Avoid scoring: under limit = full points, over = negative proportional
+  if (task.flexibilityRule === 'limit_avoid' && task.limitValue != null && task.limitValue > 0) {
+    const val = completion.value || 0;
+    if (val <= task.limitValue) {
+      return task.basePoints * multiplier;
     }
+    // Over limit: negative points proportional to how much over
+    const overRatio = (val - task.limitValue) / task.limitValue;
+    return -task.basePoints * multiplier * Math.min(overRatio, 1);
+  }
+
+  if (task.completionType === 'percentage') {
+    const pct = Math.min((completion.value || 0), 100) / 100;
+    return task.basePoints * multiplier * pct;
   }
 
   // For count, duration, numeric — score based on progress toward target
