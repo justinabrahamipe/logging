@@ -106,13 +106,20 @@ Pillars are life areas that tasks belong to. Users can customize pillars, weight
 | Weight validation | Auto-fill remaining % to last pillar |
 
 ### Rules
-- Minimum 1 pillar required
+- Pillars are optional — tasks can exist without a pillar ("No Pillar" group)
 - Weights auto-fill (no manual 100% calculation needed)
 - Archived pillars retain historical data
 
 ---
 
 ## 4. Tasks System
+
+### Overview
+Single unified `/tasks` page with two views:
+- **Today** (default) — shows today's tasks with completion UI (checkbox, count, timer, etc.) and score summary bar
+- **All** — shows all tasks for CRUD management without completion controls
+
+Tasks can optionally belong to a pillar. Each task row has a 3-dot menu for edit, duplicate, and delete.
 
 ### 4.1 Completion Types
 
@@ -146,6 +153,7 @@ Pillars are life areas that tasks belong to. Users can customize pillars, weight
 - **Daily** - Every day
 - **Weekly** - Once per week
 - **Custom days** - e.g., Mon/Tue/Thu/Fri (like gym schedule)
+- **Ad-hoc** - One-time task, only appears on the day it was created
 
 ### 4.5 Weekend Handling
 
@@ -473,26 +481,26 @@ interface Pillar {
 // Tasks
 interface Task {
   id: string;
-  pillarId: string;
+  pillarId?: string;  // Optional — tasks can exist without a pillar
   userId: string;
   name: string;
-  
+
   // Type
   completionType: 'checkbox' | 'count' | 'duration' | 'numeric' | 'percentage';
   target?: number;
   unit?: string;
-  
+
   // Flexibility
   flexibilityRule: 'must_today' | 'window' | 'limit_avoid' | 'carryover';
   windowStart?: number;
   windowEnd?: number;
   limitValue?: number;
-  
+
   // Importance
   importance: 'high' | 'medium' | 'low';
-  
+
   // Frequency
-  frequency: 'daily' | 'weekly' | 'custom';
+  frequency: 'daily' | 'weekly' | 'custom' | 'adhoc';
   customDays?: number[];
   isWeekendTask: boolean;
   
@@ -612,57 +620,61 @@ interface Reward {
 
 ## 14. Build Phases
 
-### Phase 1: Core Foundation (Week 1-2)
-- [ ] Pillar CRUD (create, edit, archive, reorder)
-- [ ] Task CRUD with all completion types
-- [ ] Basic daily checklist UI
-- [ ] Simple scoring calculation
-- [ ] Daily score display
+### Phase 1: Core Foundation — DONE
+- [x] Pillar CRUD (create, edit, archive, reorder)
+- [x] Task CRUD with all completion types
+- [x] Unified Tasks page (Today filter with completion UI + All filter for management)
+- [x] Simple scoring calculation
+- [x] Daily score display
+- [x] Ad-hoc (one-time) tasks
+- [x] Optional pillar (tasks can exist without a pillar)
+- [x] Task actions via 3-dot menu (edit, duplicate, delete)
 
-### Phase 2: Completion & Logging (Week 3-4)
-- [ ] All completion type UIs (checkbox, count, duration timer, numeric, percentage)
-- [ ] Flexibility rules (must today, window, limit/avoid, carryover)
-- [ ] Immutable activity log
-- [ ] Undo/reversal functionality
-- [ ] Log viewing (day, filter, search)
+### Phase 2: Completion & Logging — DONE
+- [x] All completion type UIs (checkbox, count, duration timer, numeric, percentage)
+- [x] Flexibility rules (must today, window, limit/avoid, carryover)
+- [x] Immutable activity log
+- [x] Undo/reversal functionality
+- [x] Log viewing (day, filter, search) — Activity page
 
-### Phase 3: Streaks & Visualization (Week 5-6)
-- [ ] Streak calculation
+### Phase 3: Streaks & Visualization
+- [x] Streak calculation (basic — currentStreak/bestStreak in UserStats)
 - [ ] Calendar heatmap view
 - [ ] Flame chain view
 - [ ] Daily score line chart
-- [ ] Pillar breakdown chart
+- [ ] Pillar breakdown chart (bar/pie)
 
-### Phase 4: XP & Levels (Week 7)
-- [ ] XP calculation with bonuses
-- [ ] Level progression
-- [ ] Level display with title and progress bar
+### Phase 4: XP & Levels — DONE
+- [x] XP calculation with streak bonuses
+- [x] Level progression (1-10+ with titles)
+- [x] Level display with title and progress bar on dashboard
 
-### Phase 5: Outcomes (Week 8-9)
+### Phase 5: Outcomes
 - [ ] Outcome CRUD
 - [ ] Progress calculation (from start, from target)
 - [ ] Progress Score
 - [ ] Combined dashboard
 - [ ] Optional action to outcome linking
 
-### Phase 6: Reports (Week 10)
+### Phase 6: Reports
 - [ ] Weekly report generation
 - [ ] Monthly report generation
 - [ ] Auto-generation on schedule
 - [ ] On-demand viewing
 
-### Phase 7: Rewards (Week 11)
+### Phase 7: Rewards
 - [ ] Reward CRUD
 - [ ] Trigger detection (all 6 types)
 - [ ] Unlock notifications
 - [ ] Claim functionality
 
-### Phase 8: Polish (Week 12+)
-- [ ] Dark mode
+### Phase 8: Polish
+- [x] Dark mode + light mode + system preference
 - [ ] Focus mode
 - [ ] Morning briefing (simple)
-- [ ] Weekend task handling
-- [ ] Mobile responsiveness
+- [x] Weekend task handling (weekend-only flag, separate thresholds in settings)
+- [x] Mobile responsiveness
+- [x] PWA support (installable)
 - [ ] Performance optimization
 
 ---

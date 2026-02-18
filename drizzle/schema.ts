@@ -213,6 +213,7 @@ export const userPreferencesRelations = relations(userPreferences, ({ one }) => 
 
 export const pillarsRelations = relations(pillars, ({ many }) => ({
   tasks: many(tasks),
+  outcomes: many(outcomes),
 }));
 
 export const tasksRelations = relations(tasks, ({ one, many }) => ({
@@ -239,5 +240,49 @@ export const activityLogRelations = relations(activityLog, ({ one }) => ({
     fields: [activityLog.pillarId],
     references: [pillars.id],
   }),
+}));
+
+// Outcomes table
+export const outcomes = sqliteTable('Outcome', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: text('userId').notNull(),
+  pillarId: integer('pillarId').references(() => pillars.id, { onDelete: 'set null' }),
+  name: text('name').notNull(),
+  startValue: real('startValue').notNull(),
+  targetValue: real('targetValue').notNull(),
+  currentValue: real('currentValue').notNull(),
+  unit: text('unit').notNull(),
+  direction: text('direction').notNull(), // 'decrease' | 'increase'
+  logFrequency: text('logFrequency').notNull().default('weekly'), // 'daily' | 'weekly' | 'custom'
+  targetDate: text('targetDate'), // optional YYYY-MM-DD
+  isArchived: integer('isArchived', { mode: 'boolean' }).notNull().default(false),
+  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+  updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+}, (table) => ({
+  userIdIdx: index('Outcome_userId_idx').on(table.userId),
+  pillarIdIdx: index('Outcome_pillarId_idx').on(table.pillarId),
+}));
+
+// OutcomeLog table
+export const outcomeLogs = sqliteTable('OutcomeLog', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  outcomeId: integer('outcomeId').notNull().references(() => outcomes.id, { onDelete: 'cascade' }),
+  userId: text('userId').notNull(),
+  value: real('value').notNull(),
+  loggedAt: integer('loggedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+  source: text('source').notNull().default('manual'), // 'manual' | 'device_sync'
+  note: text('note'),
+}, (table) => ({
+  outcomeIdIdx: index('OutcomeLog_outcomeId_idx').on(table.outcomeId),
+  userIdIdx: index('OutcomeLog_userId_idx').on(table.userId),
+}));
+
+export const outcomesRelations = relations(outcomes, ({ one, many }) => ({
+  pillar: one(pillars, { fields: [outcomes.pillarId], references: [pillars.id] }),
+  logs: many(outcomeLogs),
+}));
+
+export const outcomeLogsRelations = relations(outcomeLogs, ({ one }) => ({
+  outcome: one(outcomes, { fields: [outcomeLogs.outcomeId], references: [outcomes.id] }),
 }));
 

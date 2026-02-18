@@ -124,6 +124,30 @@ export function calculateDailyScore(
   return { actionScore, pillarScores };
 }
 
+interface OutcomeForScoring {
+  startValue: number;
+  targetValue: number;
+  currentValue: number;
+}
+
+export function calculateProgressScore(outcomes: OutcomeForScoring[]): number {
+  if (outcomes.length === 0) return 0;
+
+  let totalProgress = 0;
+
+  for (const outcome of outcomes) {
+    const range = Math.abs(outcome.targetValue - outcome.startValue);
+    if (range === 0) {
+      totalProgress += 100;
+      continue;
+    }
+    const progress = Math.abs(outcome.currentValue - outcome.startValue) / range * 100;
+    totalProgress += Math.max(0, Math.min(progress, 100));
+  }
+
+  return Math.round(totalProgress / outcomes.length);
+}
+
 export type ScoreTier = 'LEGENDARY' | 'Excellent' | 'Good' | 'Decent' | 'Needs Work' | 'Poor';
 
 export function getScoreTier(score: number): ScoreTier {
