@@ -255,7 +255,13 @@ const runMigrations = async () => {
     }
   }
 
-  // Now run migrations (will skip already-applied ones)
+  // If the custom runner already handled all migrations, we're done
+  if (appliedMigrations.size >= migrationFiles.length) {
+    console.log('All migrations applied successfully!');
+    process.exit(0);
+  }
+
+  // Fallback: run drizzle's migrate for any remaining
   console.log('Running migrations...');
 
   try {
