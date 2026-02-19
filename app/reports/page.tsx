@@ -117,12 +117,14 @@ export default function ReportsPage() {
     if (status === "unauthenticated") {
       router.push("/login");
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
 
   useEffect(() => {
     if (session?.user?.id) {
       fetchReport();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, type, endDate]);
 
   const fetchReport = async () => {

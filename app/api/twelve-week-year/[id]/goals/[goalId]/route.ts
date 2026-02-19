@@ -25,7 +25,7 @@ export async function PUT(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const updateData: Record<string, unknown> = {};
+  const updateData: Record<string, unknown> = { updatedAt: new Date() };
   if (body.name !== undefined) updateData.name = body.name;
   if (body.unit !== undefined) updateData.unit = body.unit;
   if (body.linkedOutcomeId !== undefined) updateData.linkedOutcomeId = body.linkedOutcomeId || null;

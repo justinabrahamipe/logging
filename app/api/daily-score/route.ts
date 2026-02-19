@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db, tasks, pillars, taskCompletions } from "@/lib/db";
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { calculateDailyScore, getScoreTier } from "@/lib/scoring";
 
 export async function GET(request: NextRequest) {

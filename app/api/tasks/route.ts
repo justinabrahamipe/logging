@@ -116,7 +116,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { pillarId, name, completionType, target, unit, flexibilityRule, windowStart, windowEnd, limitValue, importance, frequency, customDays, isWeekendTask, basePoints, outcomeId } = body;
+  const { pillarId, name, completionType, target, unit, flexibilityRule, windowStart, windowEnd, limitValue, importance, frequency, customDays, isWeekendTask, basePoints, outcomeId, periodId } = body;
 
   if (!name) {
     return NextResponse.json({ error: "name is required" }, { status: 400 });
@@ -151,6 +151,7 @@ export async function POST(request: Request) {
     isWeekendTask: isWeekendTask ?? false,
     basePoints: basePoints ?? 10,
     outcomeId: outcomeId || null,
+    periodId: periodId || null,
   }).returning();
 
   return NextResponse.json(task, { status: 201 });

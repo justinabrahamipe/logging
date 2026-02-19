@@ -1,5 +1,10 @@
 "use client";
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+  userChoice: Promise<{ outcome: string }>;
+}
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -10,7 +15,7 @@ import { useSession, signOut } from "next-auth/react";
 export default function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstallable, setIsInstallable] = useState(false);
   const pathname = usePathname();
   const { data: session, status } = useSession();
@@ -34,7 +39,7 @@ export default function Header() {
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
-      setDeferredPrompt(e);
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
       setIsInstallable(true);
     };
 
@@ -65,7 +70,7 @@ export default function Header() {
     { href: "/tasks", label: "Tasks", icon: FaTasks },
     { href: "/activity", label: "Activity", icon: FaHistory },
     { href: "/outcomes", label: "Outcomes", icon: FaChartLine },
-    { href: "/twelve-week-year", label: "12WY", icon: FaCalendarAlt },
+    { href: "/twelve-week-year", label: "Cycles", icon: FaCalendarAlt },
     { href: "/pillars", label: "Pillars", icon: FaColumns },
   ];
 

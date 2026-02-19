@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { db, weeklyTargets, twelveWeekGoals, twelveWeekYears } from "@/lib/db";
+import { db, weeklyTargets, twelveWeekGoals, twelveWeekYears, weeklyReviews, outcomes, outcomeLogs } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
 import { getWeekScore, redistributeTargets, getCurrentWeekNumber } from "@/lib/twelve-week-scoring";
 
@@ -30,8 +30,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const { id } = await params;
   const periodId = parseInt(id);
   const body = await request.json();
-  const { updates } = body as {
+  const { updates, review } = body as {
     updates: { goalId: number; weekNumber: number; actualValue?: number; targetValue?: number; isOverridden?: boolean }[];
+    review?: { weekNumber: number; notes?: string; wins?: string; blockers?: string };
   };
 
   if (!updates || !Array.isArray(updates)) {
@@ -48,7 +49,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Cycle not found" }, { status: 404 });
   }
 
-  const currentWeek = getCurrentWeekNumber(cycle.startDate);
+  const currentWeek = getCurrentWeekNumber(cycle.startDate, cycle.endDate);
 
   // Apply each update
   for (const u of updates) {
@@ -120,6 +121,61 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       .update(twelveWeekGoals)
       .set({ currentValue: totalActual })
       .where(eq(twelveWeekGoals.id, goalId));
+
+    // Outcome sync: if goal is linked to an outcome, update it
+    const [goal] = await db
+      .select()
+      .from(twelveWeekGoals)
+      .where(eq(twelveWeekGoals.id, goalId));
+
+    if (goal?.linkedOutcomeId) {
+      await db
+        .update(outcomes)
+        .set({ currentValue: totalActual })
+        .where(eq(outcomes.id, goal.linkedOutcomeId));
+
+      await db.insert(outcomeLogs).values({
+        outcomeId: goal.linkedOutcomeId,
+        userId: session.user.id,
+        value: totalActual,
+        source: 'twelve_week_sync',
+        note: `Synced from 12-week goal: ${goal.name}`,
+      });
+    }
+  }
+
+  // Upsert weekly review if provided
+  if (review?.weekNumber) {
+    const [existing] = await db
+      .select()
+      .from(weeklyReviews)
+      .where(
+        and(
+          eq(weeklyReviews.periodId, periodId),
+          eq(weeklyReviews.weekNumber, review.weekNumber)
+        )
+      );
+
+    if (existing) {
+      await db
+        .update(weeklyReviews)
+        .set({
+          notes: review.notes ?? existing.notes,
+          wins: review.wins ?? existing.wins,
+          blockers: review.blockers ?? existing.blockers,
+          updatedAt: new Date(),
+        })
+        .where(eq(weeklyReviews.id, existing.id));
+    } else {
+      await db.insert(weeklyReviews).values({
+        periodId,
+        userId: session.user.id,
+        weekNumber: review.weekNumber,
+        notes: review.notes || null,
+        wins: review.wins || null,
+        blockers: review.blockers || null,
+      });
+    }
   }
 
   // Return updated targets

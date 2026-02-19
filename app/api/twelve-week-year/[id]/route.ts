@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { db, twelveWeekYears, twelveWeekGoals, weeklyTargets, outcomes } from "@/lib/db";
+import { db, twelveWeekYears, twelveWeekGoals, weeklyTargets, outcomes, twelveWeekTactics, weeklyReviews, tasks } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
 import { calculateEndDate } from "@/lib/twelve-week-scoring";
 
@@ -45,7 +45,28 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     .from(weeklyTargets)
     .where(eq(weeklyTargets.periodId, periodId));
 
-  return NextResponse.json({ ...cycle, goals, weeklyTargets: targets });
+  const tactics = await db
+    .select()
+    .from(twelveWeekTactics)
+    .where(eq(twelveWeekTactics.periodId, periodId));
+
+  const reviews = await db
+    .select()
+    .from(weeklyReviews)
+    .where(eq(weeklyReviews.periodId, periodId));
+
+  const linkedTasks = await db
+    .select()
+    .from(tasks)
+    .where(and(eq(tasks.periodId, periodId), eq(tasks.isActive, true)));
+
+  // Attach tactics to goals
+  const goalsWithTactics = goals.map((g) => ({
+    ...g,
+    tactics: tactics.filter((t) => t.goalId === g.id),
+  }));
+
+  return NextResponse.json({ ...cycle, goals: goalsWithTactics, weeklyTargets: targets, weeklyReviews: reviews, linkedTasks });
 }
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -67,12 +88,14 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const updateData: Record<string, unknown> = {};
+  const updateData: Record<string, unknown> = { updatedAt: new Date() };
   if (body.name !== undefined) updateData.name = body.name;
   if (body.startDate !== undefined) {
     updateData.startDate = body.startDate;
     updateData.endDate = calculateEndDate(body.startDate);
   }
+  if (body.vision !== undefined) updateData.vision = body.vision || null;
+  if (body.theme !== undefined) updateData.theme = body.theme || null;
   if (body.isActive !== undefined) {
     if (body.isActive) {
       // Deactivate others first

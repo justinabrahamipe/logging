@@ -1,6 +1,3 @@
-type CompletionType = 'checkbox' | 'count' | 'duration' | 'numeric' | 'percentage';
-type Importance = 'high' | 'medium' | 'low';
-
 interface TaskForScoring {
   id: number;
   pillarId: number | null;

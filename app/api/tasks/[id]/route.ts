@@ -23,7 +23,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   }
 
   const updateData: Record<string, unknown> = {};
-  const fields = ['name', 'pillarId', 'completionType', 'target', 'unit', 'flexibilityRule', 'importance', 'frequency', 'customDays', 'isWeekendTask', 'basePoints', 'isActive', 'windowStart', 'windowEnd', 'limitValue', 'outcomeId'];
+  const fields = ['name', 'pillarId', 'completionType', 'target', 'unit', 'flexibilityRule', 'importance', 'frequency', 'customDays', 'isWeekendTask', 'basePoints', 'isActive', 'windowStart', 'windowEnd', 'limitValue', 'outcomeId', 'periodId'];
 
   for (const field of fields) {
     if (body[field] !== undefined) {

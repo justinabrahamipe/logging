@@ -26,13 +26,13 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { name, startDate } = body;
+  const { name, startDate, endDate: customEndDate, vision, theme } = body;
 
   if (!name || !startDate) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
-  const endDate = calculateEndDate(startDate);
+  const endDate = customEndDate || calculateEndDate(startDate);
 
   // Deactivate other active cycles
   await db
@@ -45,6 +45,8 @@ export async function POST(request: Request) {
     name,
     startDate,
     endDate,
+    vision: vision || null,
+    theme: theme || null,
     isActive: true,
   }).returning();
 

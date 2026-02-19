@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db, pillars, tasks, taskCompletions } from "@/lib/db";
-import { eq, desc } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 export async function GET(
   request: NextRequest,
@@ -17,7 +17,7 @@ export async function GET(
 
   try {
     let csvData = "";
-    let filename = `${type}-export.csv`;
+    const filename = `${type}-export.csv`;
 
     switch (type) {
       case "pillars": {

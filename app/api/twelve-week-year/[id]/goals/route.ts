@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db, twelveWeekGoals, weeklyTargets, twelveWeekYears } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
+import { getTotalWeeks } from "@/lib/twelve-week-scoring";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -54,12 +55,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     linkedOutcomeId: linkedOutcomeId || null,
   }).returning();
 
-  // Auto-generate 12 weekly targets
-  const weeklyValue = targetValue / 12;
-  const targetRows = Array.from({ length: 12 }, (_, i) => ({
+  // Auto-generate weekly targets based on cycle duration
+  const totalWeeks = getTotalWeeks(cycle.startDate, cycle.endDate);
+  const weeklyValue = targetValue / totalWeeks;
+  const userId = session.user.id;
+  const targetRows = Array.from({ length: totalWeeks }, (_, i) => ({
     goalId: goal.id,
     periodId,
-    userId: session.user.id,
+    userId,
     weekNumber: i + 1,
     targetValue: weeklyValue,
   }));

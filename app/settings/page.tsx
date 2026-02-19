@@ -22,7 +22,7 @@ export default function SettingsPage() {
   const [weekdayPassThreshold, setWeekdayPassThreshold] = useState(70);
   const [weekendPassThreshold, setWeekendPassThreshold] = useState(70);
   const [saved, setSaved] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
@@ -46,6 +46,7 @@ export default function SettingsPage() {
     } else {
       loadFromLocalStorage();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
 
   const fetchPreferences = async () => {
@@ -58,7 +59,7 @@ export default function SettingsPage() {
         setDateFormat(data.dateFormat || "DD/MM/YYYY");
         setWeekdayPassThreshold(data.weekdayPassThreshold ?? 70);
         setWeekendPassThreshold(data.weekendPassThreshold ?? 70);
-      } catch (e) {}
+      } catch {}
     }
 
     try {

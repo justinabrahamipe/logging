@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db, activityLog, tasks, pillars } from "@/lib/db";
-import { eq, and, gte, lte, like, desc, sql } from "drizzle-orm";
+import { eq, and, gte, lte, desc } from "drizzle-orm";
 
 export async function GET(request: NextRequest) {
   const session = await auth();
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Build the query with joins
-  let query = db
+  const query = db
     .select({
       id: activityLog.id,
       timestamp: activityLog.timestamp,

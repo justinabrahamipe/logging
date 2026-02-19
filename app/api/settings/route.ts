@@ -41,7 +41,7 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  let body: any = {};
+  let body: Record<string, unknown> = {};
   try {
     const session = await auth();
 
@@ -49,8 +49,10 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    body = await request.json();
-    const { theme, timeFormat, dateFormat, weekdayPassThreshold, weekendPassThreshold } = body;
+    body = await request.json() as Record<string, unknown>;
+    const { theme, timeFormat, dateFormat, weekdayPassThreshold, weekendPassThreshold } = body as {
+      theme?: string; timeFormat?: string; dateFormat?: string; weekdayPassThreshold?: number; weekendPassThreshold?: number;
+    };
 
     const validThemes = ["light", "dark", "system"];
     const validTimeFormats = ["12h", "24h"];
@@ -72,7 +74,7 @@ export async function PUT(request: Request) {
 
     let preferences;
     if (existing) {
-      const updateData: any = {};
+      const updateData: Record<string, unknown> = {};
       if (theme) updateData.theme = theme;
       if (timeFormat) updateData.timeFormat = timeFormat;
       if (dateFormat) updateData.dateFormat = dateFormat;

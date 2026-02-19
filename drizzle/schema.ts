@@ -102,6 +102,7 @@ export const tasks = sqliteTable('Task', {
   isWeekendTask: integer('isWeekendTask', { mode: 'boolean' }).notNull().default(false),
   basePoints: real('basePoints').notNull().default(10),
   outcomeId: integer('outcomeId').references(() => outcomes.id, { onDelete: 'set null' }),
+  periodId: integer('periodId').references(() => twelveWeekYears.id, { onDelete: 'set null' }),
   isActive: integer('isActive', { mode: 'boolean' }).notNull().default(true),
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
@@ -109,6 +110,7 @@ export const tasks = sqliteTable('Task', {
   userIdIdx: index('Task_userId_idx').on(table.userId),
   pillarIdIdx: index('Task_pillarId_idx').on(table.pillarId),
   outcomeIdIdx: index('Task_outcomeId_idx').on(table.outcomeId),
+  periodIdIdx: index('Task_periodId_idx').on(table.periodId),
 }));
 
 // TaskCompletions table
@@ -227,6 +229,10 @@ export const tasksRelations = relations(tasks, ({ one, many }) => ({
     fields: [tasks.outcomeId],
     references: [outcomes.id],
   }),
+  period: one(twelveWeekYears, {
+    fields: [tasks.periodId],
+    references: [twelveWeekYears.id],
+  }),
   completions: many(taskCompletions),
 }));
 
@@ -300,6 +306,8 @@ export const twelveWeekYears = sqliteTable('TwelveWeekYear', {
   name: text('name').notNull(),
   startDate: text('startDate').notNull(),
   endDate: text('endDate').notNull(),
+  vision: text('vision'),
+  theme: text('theme'),
   isActive: integer('isActive', { mode: 'boolean' }).notNull().default(true),
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
@@ -343,16 +351,63 @@ export const weeklyTargets = sqliteTable('WeeklyTarget', {
   goalWeekUnique: unique().on(table.goalId, table.weekNumber),
 }));
 
+// TwelveWeekTactic table
+export const twelveWeekTactics = sqliteTable('TwelveWeekTactic', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  goalId: integer('goalId').notNull().references(() => twelveWeekGoals.id, { onDelete: 'cascade' }),
+  periodId: integer('periodId').notNull().references(() => twelveWeekYears.id, { onDelete: 'cascade' }),
+  userId: text('userId').notNull(),
+  name: text('name').notNull(),
+  description: text('description'),
+  isCompleted: integer('isCompleted', { mode: 'boolean' }).notNull().default(false),
+  sortOrder: integer('sortOrder').notNull().default(0),
+  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+}, (table) => ({
+  goalIdIdx: index('TwelveWeekTactic_goalId_idx').on(table.goalId),
+  periodIdIdx: index('TwelveWeekTactic_periodId_idx').on(table.periodId),
+  userIdIdx: index('TwelveWeekTactic_userId_idx').on(table.userId),
+}));
+
+// WeeklyReview table
+export const weeklyReviews = sqliteTable('WeeklyReview', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  periodId: integer('periodId').notNull().references(() => twelveWeekYears.id, { onDelete: 'cascade' }),
+  userId: text('userId').notNull(),
+  weekNumber: integer('weekNumber').notNull(),
+  notes: text('notes'),
+  wins: text('wins'),
+  blockers: text('blockers'),
+  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+  updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+}, (table) => ({
+  periodIdIdx: index('WeeklyReview_periodId_idx').on(table.periodId),
+  userIdIdx: index('WeeklyReview_userId_idx').on(table.userId),
+  periodWeekUnique: unique().on(table.periodId, table.weekNumber),
+}));
+
 // 12 Week Year relations
 export const twelveWeekYearsRelations = relations(twelveWeekYears, ({ many }) => ({
   goals: many(twelveWeekGoals),
   weeklyTargets: many(weeklyTargets),
+  tactics: many(twelveWeekTactics),
+  weeklyReviews: many(weeklyReviews),
+  linkedTasks: many(tasks),
 }));
 
 export const twelveWeekGoalsRelations = relations(twelveWeekGoals, ({ one, many }) => ({
   period: one(twelveWeekYears, { fields: [twelveWeekGoals.periodId], references: [twelveWeekYears.id] }),
   linkedOutcome: one(outcomes, { fields: [twelveWeekGoals.linkedOutcomeId], references: [outcomes.id] }),
   weeklyTargets: many(weeklyTargets),
+  tactics: many(twelveWeekTactics),
+}));
+
+export const twelveWeekTacticsRelations = relations(twelveWeekTactics, ({ one }) => ({
+  goal: one(twelveWeekGoals, { fields: [twelveWeekTactics.goalId], references: [twelveWeekGoals.id] }),
+  period: one(twelveWeekYears, { fields: [twelveWeekTactics.periodId], references: [twelveWeekYears.id] }),
+}));
+
+export const weeklyReviewsRelations = relations(weeklyReviews, ({ one }) => ({
+  period: one(twelveWeekYears, { fields: [weeklyReviews.periodId], references: [twelveWeekYears.id] }),
 }));
 
 export const weeklyTargetsRelations = relations(weeklyTargets, ({ one }) => ({

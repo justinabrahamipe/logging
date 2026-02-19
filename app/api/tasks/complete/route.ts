@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db, tasks, taskCompletions, activityLog } from "@/lib/db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { calculateTaskScore } from "@/lib/scoring";
 
 export async function POST(request: Request) {

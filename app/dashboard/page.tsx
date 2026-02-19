@@ -126,7 +126,7 @@ function CalendarHeatmap({ scores }: { scores: HistoryScore[] }) {
     y: number;
   } | null>(null);
 
-  const { days, weeks } = useMemo(() => {
+  const { weeks } = useMemo(() => {
     const scoreMap = new Map<string, number>();
     for (const s of scores) {
       scoreMap.set(s.date, s.actionScore);
@@ -522,6 +522,7 @@ export default function DashboardPage() {
     if (session?.user?.id) {
       fetchData();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, status]);
 
   const fetchData = async () => {

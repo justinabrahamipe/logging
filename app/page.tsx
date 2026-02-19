@@ -6,7 +6,7 @@ import { FaBolt, FaFire, FaTrophy, FaTasks, FaColumns, FaArrowRight } from "reac
 import { useSession } from "next-auth/react";
 
 export default function Home() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
 
   const features = [
     { title: "Score", icon: FaBolt },

@@ -40,6 +40,7 @@ export default function PillarsPage() {
       return;
     }
     if (session?.user?.id) fetchPillars();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, status]);
 
   const fetchPillars = async () => {

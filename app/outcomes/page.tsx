@@ -90,6 +90,7 @@ export default function OutcomesPage() {
       fetchPillars();
       fetchLinkedTasks();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, status]);
 
   const fetchOutcomes = async () => {

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaPlus, FaEdit, FaTrash, FaTimes, FaCheck, FaMinus, FaPlay, FaStop, FaUndo, FaEllipsisV, FaCopy, FaExpand, FaCompress } from "react-icons/fa";
+import { FaPlus, FaEdit, FaTrash, FaTimes, FaCheck, FaMinus, FaPlay, FaStop, FaUndo, FaEllipsisV, FaCopy, FaExpand, FaCompress, FaChevronRight } from "react-icons/fa";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
@@ -27,6 +27,12 @@ interface Outcome {
   name: string;
 }
 
+interface Cycle {
+  id: number;
+  name: string;
+  isActive: boolean;
+}
+
 interface Task {
   id: number;
   pillarId: number;
@@ -44,6 +50,7 @@ interface Task {
   isWeekendTask: boolean;
   basePoints: number;
   outcomeId: number | null;
+  periodId: number | null;
   completion?: TaskCompletion | null;
 }
 
@@ -103,6 +110,7 @@ export default function TasksPage() {
   const [groups, setGroups] = useState<TaskGroup[]>([]);
   const [pillars, setPillars] = useState<Pillar[]>([]);
   const [outcomes, setOutcomes] = useState<Outcome[]>([]);
+  const [cycles, setCycles] = useState<Cycle[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -112,6 +120,7 @@ export default function TasksPage() {
   const [pendingValues, setPendingValues] = useState<Record<number, string>>({});
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
   const [focusMode, setFocusMode] = useState(false);
+  const [quickAdd, setQuickAdd] = useState({ name: '', date: '' });
   const menuRef = useRef<HTMLDivElement>(null);
   const [form, setForm] = useState({
     pillarId: 0,
@@ -130,6 +139,7 @@ export default function TasksPage() {
     limitValue: '',
     isAdhoc: false,
     outcomeId: 0,
+    periodId: 0,
   });
 
   const today = new Date().toISOString().split('T')[0];
@@ -142,13 +152,16 @@ export default function TasksPage() {
     if (session?.user?.id) {
       fetchPillars();
       fetchOutcomes();
+      fetchCycles();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, status]);
 
   useEffect(() => {
     if (session?.user?.id) {
       fetchTasks();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, filter]);
 
   const fetchPillars = async () => {
@@ -175,6 +188,18 @@ export default function TasksPage() {
       }
     } catch (error) {
       console.error("Failed to fetch outcomes:", error);
+    }
+  };
+
+  const fetchCycles = async () => {
+    try {
+      const res = await fetch('/api/twelve-week-year');
+      if (res.ok) {
+        const data = await res.json();
+        setCycles(data.map((c: Cycle) => ({ id: c.id, name: c.name, isActive: c.isActive })));
+      }
+    } catch (error) {
+      console.error("Failed to fetch cycles:", error);
     }
   };
 
@@ -242,6 +267,7 @@ export default function TasksPage() {
         fetchScore();
       }
     }).catch(err => console.error("Failed to complete task:", err));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [today]);
 
   const handleCheckboxToggle = (task: Task) => {
@@ -329,6 +355,7 @@ export default function TasksPage() {
         fetchScore();
       }
     }).catch(err => console.error("Failed to undo completion:", err));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [today]);
 
   const formatTime = (seconds: number) => {
@@ -344,6 +371,7 @@ export default function TasksPage() {
         if (t.interval) clearInterval(t.interval);
       });
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Close menu on outside click
@@ -379,6 +407,7 @@ export default function TasksPage() {
       limitValue: task.limitValue?.toString() || '',
       isAdhoc: task.frequency === 'adhoc',
       outcomeId: task.outcomeId || 0,
+      periodId: task.periodId || 0,
     });
     setShowForm(true);
   };
@@ -398,6 +427,7 @@ export default function TasksPage() {
     };
 
     if (form.outcomeId) body.outcomeId = form.outcomeId;
+    if (form.periodId) body.periodId = form.periodId;
     if (form.target) body.target = parseFloat(form.target);
     if (form.unit) body.unit = form.unit;
     if (form.frequency === 'custom' && !form.isAdhoc) body.customDays = JSON.stringify(form.customDays);
@@ -459,6 +489,7 @@ export default function TasksPage() {
       limitValue: '',
       isAdhoc: false,
       outcomeId: 0,
+      periodId: 0,
     });
   };
 
@@ -481,6 +512,7 @@ export default function TasksPage() {
       limitValue: task.limitValue?.toString() || '',
       isAdhoc: task.frequency === 'adhoc',
       outcomeId: task.outcomeId || 0,
+      periodId: task.periodId || 0,
     });
     setShowForm(true);
   };
@@ -492,6 +524,54 @@ export default function TasksPage() {
         ? prev.customDays.filter(d => d !== day)
         : [...prev.customDays, day],
     }));
+  };
+
+  const handleQuickAdd = async () => {
+    if (!quickAdd.name.trim()) return;
+    const body: Record<string, unknown> = {
+      name: quickAdd.name,
+      frequency: 'adhoc',
+      completionType: 'checkbox',
+      importance: 'medium',
+      basePoints: 10,
+    };
+    if (quickAdd.date) body.scheduledDate = quickAdd.date;
+    try {
+      await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      setQuickAdd({ name: '', date: '' });
+      await fetchTasks();
+    } catch (error) {
+      console.error("Failed to quick-add task:", error);
+    }
+  };
+
+  const handleQuickAddExpand = () => {
+    setEditingTask(null);
+    setForm({
+      pillarId: pillars[0]?.id || 0,
+      name: quickAdd.name,
+      completionType: 'checkbox',
+      target: '',
+      unit: '',
+      importance: 'medium',
+      frequency: 'daily',
+      customDays: [],
+      isWeekendTask: false,
+      basePoints: '10',
+      flexibilityRule: 'must_today',
+      windowStart: '',
+      windowEnd: '',
+      limitValue: '',
+      isAdhoc: true,
+      outcomeId: 0,
+      periodId: 0,
+    });
+    setShowForm(true);
+    setQuickAdd({ name: '', date: '' });
   };
 
   if (loading) {
@@ -567,6 +647,44 @@ export default function TasksPage() {
             </button>
           )}
         </div>
+
+        {/* Quick-Add Bar */}
+        {isToday && (
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-3 mb-4">
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={quickAdd.name}
+                onChange={(e) => setQuickAdd({ ...quickAdd, name: e.target.value })}
+                onKeyDown={(e) => e.key === 'Enter' && handleQuickAdd()}
+                placeholder="Quick add a task..."
+                className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
+              />
+              <input
+                type="date"
+                value={quickAdd.date}
+                onChange={(e) => setQuickAdd({ ...quickAdd, date: e.target.value })}
+                className="px-2 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white w-[130px]"
+              />
+              <motion.button
+                whileTap={{ scale: 0.9 }}
+                onClick={handleQuickAddExpand}
+                className="p-2 text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
+                title="Expand to full form"
+              >
+                <FaChevronRight className="text-sm" />
+              </motion.button>
+              <motion.button
+                whileTap={{ scale: 0.9 }}
+                onClick={handleQuickAdd}
+                disabled={!quickAdd.name.trim()}
+                className="px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium flex items-center gap-1.5"
+              >
+                <FaPlus className="text-xs" /> Add
+              </motion.button>
+            </div>
+          </div>
+        )}
 
         {/* Score Summary Bar (Today only) */}
         {isToday && scoreSummary && (
@@ -1118,6 +1236,23 @@ export default function TasksPage() {
                         ))}
                     </select>
                   </div>
+
+                  {/* Linked Cycle */}
+                  {cycles.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Linked Cycle (optional)</label>
+                      <select
+                        value={form.periodId}
+                        onChange={e => setForm({ ...form, periodId: parseInt(e.target.value) || 0 })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      >
+                        <option value={0}>None</option>
+                        {cycles.map(c => (
+                          <option key={c.id} value={c.id}>{c.name}{c.isActive ? ' (Active)' : ''}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
 
                   {/* Name */}
                   <div>

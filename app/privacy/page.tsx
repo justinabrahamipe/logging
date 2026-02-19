@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function PrivacyPolicy() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-950 dark:to-gray-900 p-4 sm:p-8">
@@ -180,12 +182,12 @@ export default function PrivacyPolicy() {
           </div>
 
           <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-            <a
+            <Link
               href="/"
               className="text-blue-600 dark:text-blue-400 hover:underline"
             >
               &larr; Back to Total Logger
-            </a>
+            </Link>
           </div>
         </div>
       </div>

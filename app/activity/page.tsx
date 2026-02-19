@@ -89,6 +89,7 @@ export default function ActivityPage() {
       fetchPillars();
       fetchEntries();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, status]);
 
   const fetchPillars = async () => {
@@ -128,6 +129,7 @@ export default function ActivityPage() {
     if (session?.user?.id) {
       fetchEntries();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateFilter, dateFrom, dateTo, pillarFilter, useRange]);
 
   const handleSearch = () => {

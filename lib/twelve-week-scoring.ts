@@ -48,13 +48,22 @@ export function redistributeTargets(
   }));
 }
 
-export function getCurrentWeekNumber(startDate: string): number {
+export function getTotalWeeks(startDate: string, endDate: string): number {
+  const start = new Date(startDate + 'T00:00:00');
+  const end = new Date(endDate + 'T00:00:00');
+  const diffMs = end.getTime() - start.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  return Math.max(1, Math.ceil(diffDays / 7));
+}
+
+export function getCurrentWeekNumber(startDate: string, endDate: string): number {
   const start = new Date(startDate + 'T00:00:00');
   const now = new Date();
   const diffMs = now.getTime() - start.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
   const week = Math.floor(diffDays / 7) + 1;
-  return Math.max(1, Math.min(12, week));
+  const totalWeeks = getTotalWeeks(startDate, endDate);
+  return Math.max(1, Math.min(totalWeeks, week));
 }
 
 export function getGoalStatus(

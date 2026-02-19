@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FaPlus,
@@ -13,18 +13,32 @@ import {
   FaChevronDown,
   FaChevronUp,
   FaLink,
+  FaSyncAlt,
 } from "react-icons/fa";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { getCurrentWeekNumber, getGoalStatus } from "@/lib/twelve-week-scoring";
+import { getCurrentWeekNumber, getGoalStatus, getTotalWeeks, calculateEndDate } from "@/lib/twelve-week-scoring";
+import { computeCycleAnalytics } from "@/lib/twelve-week-analytics";
 
 interface Cycle {
   id: number;
   name: string;
   startDate: string;
   endDate: string;
+  vision: string | null;
+  theme: string | null;
   isActive: boolean;
   createdAt: string;
+}
+
+interface Tactic {
+  id: number;
+  goalId: number;
+  periodId: number;
+  name: string;
+  description: string | null;
+  isCompleted: boolean;
+  sortOrder: number;
 }
 
 interface Goal {
@@ -36,6 +50,7 @@ interface Goal {
   unit: string;
   linkedOutcomeId: number | null;
   outcomeName: string | null;
+  tactics: Tactic[];
 }
 
 interface WeeklyTarget {
@@ -50,9 +65,29 @@ interface WeeklyTarget {
   reviewedAt: string | null;
 }
 
+interface WeeklyReview {
+  id: number;
+  periodId: number;
+  weekNumber: number;
+  notes: string | null;
+  wins: string | null;
+  blockers: string | null;
+}
+
+interface LinkedTask {
+  id: number;
+  name: string;
+  completionType: string;
+  importance: string;
+  frequency: string;
+  isActive: boolean;
+}
+
 interface CycleDetail extends Cycle {
   goals: Goal[];
   weeklyTargets: WeeklyTarget[];
+  weeklyReviews: WeeklyReview[];
+  linkedTasks: LinkedTask[];
 }
 
 interface Outcome {
@@ -70,13 +105,23 @@ export default function TwelveWeekYearPage() {
   const [showGoalForm, setShowGoalForm] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [expandedWeek, setExpandedWeek] = useState<number | null>(null);
+  const [expandedGoal, setExpandedGoal] = useState<number | null>(null);
   const [menuOpen, setMenuOpen] = useState<number | null>(null);
   const [outcomes, setOutcomes] = useState<Outcome[]>([]);
   const [savingWeek, setSavingWeek] = useState(false);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [newTacticName, setNewTacticName] = useState("");
 
-  const [cycleForm, setCycleForm] = useState({ name: "", startDate: "" });
+  const [cycleForm, setCycleForm] = useState({ name: "", startDate: "", endDate: "", vision: "", theme: "" });
   const [goalForm, setGoalForm] = useState({ name: "", targetValue: "", unit: "", linkedOutcomeId: "" });
   const [weekEdits, setWeekEdits] = useState<Record<string, { actualValue: string; targetValue: string; isOverridden: boolean }>>({});
+  const [reviewEdits, setReviewEdits] = useState<Record<number, { notes: string; wins: string; blockers: string }>>({});
+
+  // Inline editing for vision/theme
+  const [editingVision, setEditingVision] = useState(false);
+  const [editingTheme, setEditingTheme] = useState(false);
+  const [visionDraft, setVisionDraft] = useState("");
+  const [themeDraft, setThemeDraft] = useState("");
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -87,6 +132,7 @@ export default function TwelveWeekYearPage() {
       fetchCycles();
       fetchOutcomes();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, status]);
 
   const fetchCycles = async () => {
@@ -101,6 +147,7 @@ export default function TwelveWeekYearPage() {
   };
 
   const fetchCycleDetail = async (id: number) => {
+    setLoadingDetail(true);
     try {
       const res = await fetch(`/api/twelve-week-year/${id}`);
       if (res.ok) {
@@ -109,6 +156,8 @@ export default function TwelveWeekYearPage() {
       }
     } catch (error) {
       console.error("Failed to fetch cycle detail:", error);
+    } finally {
+      setLoadingDetail(false);
     }
   };
 
@@ -130,12 +179,18 @@ export default function TwelveWeekYearPage() {
       const res = await fetch("/api/twelve-week-year", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(cycleForm),
+        body: JSON.stringify({
+          name: cycleForm.name,
+          startDate: cycleForm.startDate,
+          endDate: cycleForm.endDate || null,
+          vision: cycleForm.vision || null,
+          theme: cycleForm.theme || null,
+        }),
       });
       if (res.ok) {
         await fetchCycles();
         setShowCycleForm(false);
-        setCycleForm({ name: "", startDate: "" });
+        setCycleForm({ name: "", startDate: "", endDate: "", vision: "", theme: "" });
       }
     } catch (error) {
       console.error("Failed to create cycle:", error);
@@ -223,6 +278,66 @@ export default function TwelveWeekYearPage() {
     setMenuOpen(null);
   };
 
+  const handleSaveVisionTheme = async (field: "vision" | "theme", value: string) => {
+    if (!selectedCycle) return;
+    try {
+      const res = await fetch(`/api/twelve-week-year/${selectedCycle.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [field]: value }),
+      });
+      if (res.ok) {
+        setSelectedCycle({ ...selectedCycle, [field]: value || null });
+      }
+    } catch (error) {
+      console.error("Failed to save:", error);
+    }
+  };
+
+  // Tactics handlers
+  const handleAddTactic = async (goalId: number) => {
+    if (!selectedCycle || !newTacticName.trim()) return;
+    try {
+      const res = await fetch(`/api/twelve-week-year/${selectedCycle.id}/goals/${goalId}/tactics`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newTacticName.trim() }),
+      });
+      if (res.ok) {
+        setNewTacticName("");
+        await fetchCycleDetail(selectedCycle.id);
+      }
+    } catch (error) {
+      console.error("Failed to add tactic:", error);
+    }
+  };
+
+  const handleToggleTactic = async (goalId: number, tacticId: number, isCompleted: boolean) => {
+    if (!selectedCycle) return;
+    try {
+      await fetch(`/api/twelve-week-year/${selectedCycle.id}/goals/${goalId}/tactics`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tacticId, isCompleted: !isCompleted }),
+      });
+      await fetchCycleDetail(selectedCycle.id);
+    } catch (error) {
+      console.error("Failed to toggle tactic:", error);
+    }
+  };
+
+  const handleDeleteTactic = async (goalId: number, tacticId: number) => {
+    if (!selectedCycle) return;
+    try {
+      await fetch(`/api/twelve-week-year/${selectedCycle.id}/goals/${goalId}/tactics?tacticId=${tacticId}`, {
+        method: "DELETE",
+      });
+      await fetchCycleDetail(selectedCycle.id);
+    } catch (error) {
+      console.error("Failed to delete tactic:", error);
+    }
+  };
+
   const initWeekEdits = (weekNum: number) => {
     if (!selectedCycle) return;
     const edits: Record<string, { actualValue: string; targetValue: string; isOverridden: boolean }> = {};
@@ -230,15 +345,24 @@ export default function TwelveWeekYearPage() {
       const target = selectedCycle.weeklyTargets.find(
         (t) => t.goalId === goal.id && t.weekNumber === weekNum
       );
-      if (target) {
-        edits[`${goal.id}`] = {
-          actualValue: String(target.actualValue),
-          targetValue: String(target.targetValue),
-          isOverridden: target.isOverridden,
-        };
-      }
+      edits[`${goal.id}`] = {
+        actualValue: String(target?.actualValue ?? 0),
+        targetValue: String(target?.targetValue ?? (goal.targetValue / totalWeeks)),
+        isOverridden: target?.isOverridden ?? false,
+      };
     }
     setWeekEdits(edits);
+
+    // Load existing review data
+    const existingReview = selectedCycle.weeklyReviews?.find((r) => r.weekNumber === weekNum);
+    setReviewEdits((prev) => ({
+      ...prev,
+      [weekNum]: {
+        notes: existingReview?.notes || "",
+        wins: existingReview?.wins || "",
+        blockers: existingReview?.blockers || "",
+      },
+    }));
   };
 
   const handleSaveWeekReview = async (weekNum: number) => {
@@ -253,10 +377,18 @@ export default function TwelveWeekYearPage() {
         isOverridden: vals.isOverridden,
       }));
 
+      const reviewData = reviewEdits[weekNum];
+      const review = reviewData ? {
+        weekNumber: weekNum,
+        notes: reviewData.notes,
+        wins: reviewData.wins,
+        blockers: reviewData.blockers,
+      } : undefined;
+
       await fetch(`/api/twelve-week-year/${selectedCycle.id}/weekly`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ updates }),
+        body: JSON.stringify({ updates, review }),
       });
 
       await fetchCycleDetail(selectedCycle.id);
@@ -279,17 +411,24 @@ export default function TwelveWeekYearPage() {
 
   const getScoreIcon = (score: string | null) => {
     switch (score) {
-      case "exceeded": return "★";
-      case "good": return "✓";
-      case "partial": return "◐";
-      case "missed": return "✗";
-      default: return "·";
+      case "exceeded": return "\u2605";
+      case "good": return "\u2713";
+      case "partial": return "\u25D0";
+      case "missed": return "\u2717";
+      default: return "\u00B7";
     }
   };
 
-  const currentWeek = selectedCycle ? getCurrentWeekNumber(selectedCycle.startDate) : 1;
+  const totalWeeks = selectedCycle ? getTotalWeeks(selectedCycle.startDate, selectedCycle.endDate) : 12;
+  const currentWeek = selectedCycle ? getCurrentWeekNumber(selectedCycle.startDate, selectedCycle.endDate) : 1;
 
-  if (loading) {
+  // Analytics
+  const analytics = useMemo(() => {
+    if (!selectedCycle || selectedCycle.goals.length === 0) return null;
+    return computeCycleAnalytics(selectedCycle.goals, selectedCycle.weeklyTargets, currentWeek, totalWeeks);
+  }, [selectedCycle, currentWeek, totalWeeks]);
+
+  if (loading || loadingDetail) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -315,7 +454,7 @@ export default function TwelveWeekYearPage() {
             <div className="flex-1">
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">{selectedCycle.name}</h1>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                {selectedCycle.startDate} → {selectedCycle.endDate} &middot; Week {currentWeek}/12
+                {selectedCycle.startDate} &rarr; {selectedCycle.endDate} &middot; Week {currentWeek}/{totalWeeks}
               </p>
             </div>
             <motion.button
@@ -326,6 +465,57 @@ export default function TwelveWeekYearPage() {
             >
               <FaTrash />
             </motion.button>
+          </div>
+
+          {/* Vision & Theme */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">Vision</label>
+              {editingVision ? (
+                <textarea
+                  autoFocus
+                  value={visionDraft}
+                  onChange={(e) => setVisionDraft(e.target.value)}
+                  onBlur={() => {
+                    setEditingVision(false);
+                    handleSaveVisionTheme("vision", visionDraft);
+                  }}
+                  onKeyDown={(e) => { if (e.key === "Escape") setEditingVision(false); }}
+                  className="w-full px-2 py-1 text-sm border border-blue-400 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
+                  rows={2}
+                />
+              ) : (
+                <p
+                  onClick={() => { setEditingVision(true); setVisionDraft(selectedCycle.vision || ""); }}
+                  className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded px-2 py-1 min-h-[2rem]"
+                >
+                  {selectedCycle.vision || <span className="text-gray-400 italic">Click to add vision...</span>}
+                </p>
+              )}
+            </div>
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">Theme</label>
+              {editingTheme ? (
+                <input
+                  autoFocus
+                  value={themeDraft}
+                  onChange={(e) => setThemeDraft(e.target.value)}
+                  onBlur={() => {
+                    setEditingTheme(false);
+                    handleSaveVisionTheme("theme", themeDraft);
+                  }}
+                  onKeyDown={(e) => { if (e.key === "Escape") setEditingTheme(false); if (e.key === "Enter") { setEditingTheme(false); handleSaveVisionTheme("theme", themeDraft); } }}
+                  className="w-full px-2 py-1 text-sm border border-blue-400 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+              ) : (
+                <p
+                  onClick={() => { setEditingTheme(true); setThemeDraft(selectedCycle.theme || ""); }}
+                  className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded px-2 py-1 min-h-[2rem]"
+                >
+                  {selectedCycle.theme || <span className="text-gray-400 italic">Click to add theme...</span>}
+                </p>
+              )}
+            </div>
           </div>
 
           {/* Goals */}
@@ -354,8 +544,9 @@ export default function TwelveWeekYearPage() {
             <div className="space-y-3 mb-6">
               {selectedCycle.goals.map((goal) => {
                 const progress = goal.targetValue > 0 ? (goal.currentValue / goal.targetValue) * 100 : 0;
-                const goalStatus = getGoalStatus(goal.currentValue, goal.targetValue, currentWeek - 1);
+                const goalStatus = getGoalStatus(goal.currentValue, goal.targetValue, currentWeek - 1, totalWeeks);
                 const statusColor = goalStatus === "Ahead" ? "text-green-500" : goalStatus === "Behind" ? "text-red-500" : "text-blue-500";
+                const isGoalExpanded = expandedGoal === goal.id;
 
                 return (
                   <motion.div
@@ -373,12 +564,22 @@ export default function TwelveWeekYearPage() {
                               <FaLink className="text-[10px]" /> {goal.outcomeName}
                             </span>
                           )}
+                          {goal.linkedOutcomeId && (
+                            <FaSyncAlt className="text-[10px] text-green-500" title="Synced to outcome" />
+                          )}
                         </div>
                         <p className="text-sm text-gray-500 dark:text-gray-400">
                           {goal.currentValue} / {goal.targetValue} {goal.unit}
                         </p>
                       </div>
-                      <div className="relative">
+                      <div className="relative flex items-center gap-1">
+                        <button
+                          onClick={() => setExpandedGoal(isGoalExpanded ? null : goal.id)}
+                          className="p-2 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                          title="Tactics"
+                        >
+                          {isGoalExpanded ? <FaChevronUp className="text-sm" /> : <FaChevronDown className="text-sm" />}
+                        </button>
                         <button
                           onClick={() => setMenuOpen(menuOpen === goal.id ? null : goal.id)}
                           className="p-2 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
@@ -424,10 +625,168 @@ export default function TwelveWeekYearPage() {
                       <span>{Math.round(progress)}%</span>
                       <span>{goal.targetValue} {goal.unit}</span>
                     </div>
+
+                    {/* Tactics (expandable) */}
+                    <AnimatePresence>
+                      {isGoalExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">Tactics / Strategies</p>
+                            {goal.tactics.length === 0 && (
+                              <p className="text-xs text-gray-400 mb-2">No tactics yet</p>
+                            )}
+                            <div className="space-y-1.5 mb-2">
+                              {goal.tactics.map((tactic) => (
+                                <div key={tactic.id} className="flex items-center gap-2 group">
+                                  <button
+                                    onClick={() => handleToggleTactic(goal.id, tactic.id, tactic.isCompleted)}
+                                    className={`w-5 h-5 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${
+                                      tactic.isCompleted
+                                        ? "bg-green-500 border-green-500 text-white"
+                                        : "border-gray-300 dark:border-gray-600 hover:border-blue-400"
+                                    }`}
+                                  >
+                                    {tactic.isCompleted && <FaCheck className="text-[10px]" />}
+                                  </button>
+                                  <span className={`text-sm flex-1 ${tactic.isCompleted ? "line-through text-gray-400" : "text-gray-700 dark:text-gray-300"}`}>
+                                    {tactic.name}
+                                  </span>
+                                  <button
+                                    onClick={() => handleDeleteTactic(goal.id, tactic.id)}
+                                    className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 p-1 transition-opacity"
+                                  >
+                                    <FaTimes className="text-xs" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                value={newTacticName}
+                                onChange={(e) => setNewTacticName(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === "Enter") handleAddTactic(goal.id); }}
+                                placeholder="Add tactic..."
+                                className="flex-1 px-2.5 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                              />
+                              <button
+                                onClick={() => handleAddTactic(goal.id)}
+                                className="px-2.5 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                              >
+                                <FaPlus className="text-xs" />
+                              </button>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </motion.div>
                 );
               })}
             </div>
+          )}
+
+          {/* Analytics Dashboard */}
+          {analytics && (
+            <>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Analytics</h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                {/* Overall Completion */}
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">Completion</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{Math.round(analytics.overallCompletion)}%</p>
+                  <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full mt-2 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all"
+                      style={{ width: `${Math.min(analytics.overallCompletion, 100)}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Pace */}
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">Pace</p>
+                  <p className={`text-2xl font-bold ${
+                    analytics.pace === "ahead" ? "text-green-500" : analytics.pace === "behind" ? "text-red-500" : "text-blue-500"
+                  }`}>
+                    {analytics.pace === "ahead" ? "Ahead" : analytics.pace === "behind" ? "Behind" : "On Track"}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">Projected: {Math.round(analytics.projectedCompletion)}%</p>
+                </div>
+
+                {/* Consistent Weeks */}
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">Consistent Weeks</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {analytics.consistentWeeks}/{analytics.totalReviewedWeeks}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {analytics.totalReviewedWeeks > 0
+                      ? `${Math.round((analytics.consistentWeeks / analytics.totalReviewedWeeks) * 100)}% consistency`
+                      : "No weeks reviewed yet"}
+                  </p>
+                </div>
+
+                {/* Goal Trends */}
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">Goal Trends</p>
+                  <div className="space-y-2 mt-1">
+                    {analytics.goalTrends.slice(0, 3).map((gt) => {
+                      const maxVal = Math.max(...gt.weeklyActuals, 1);
+                      return (
+                        <div key={gt.goalId}>
+                          <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">{gt.goalName}</p>
+                          <div className="flex gap-[2px] items-end h-4">
+                            {gt.weeklyActuals.map((val, i) => (
+                              <div
+                                key={i}
+                                className={`flex-1 rounded-sm ${i + 1 <= currentWeek ? "bg-blue-500" : "bg-gray-200 dark:bg-gray-700"}`}
+                                style={{ height: `${Math.max((val / maxVal) * 100, 4)}%` }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Linked Tasks */}
+          {selectedCycle.linkedTasks && selectedCycle.linkedTasks.length > 0 && (
+            <>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Linked Tasks</h2>
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
+                <div className="divide-y divide-gray-100 dark:divide-gray-700">
+                  {selectedCycle.linkedTasks.map((task) => {
+                    const badge = task.importance === 'high'
+                      ? { label: 'High', className: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' }
+                      : task.importance === 'medium'
+                      ? { label: 'Med', className: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' }
+                      : { label: 'Low', className: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400' };
+                    return (
+                      <div key={task.id} className="px-4 py-3 flex items-center gap-3">
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm font-medium text-gray-900 dark:text-white">{task.name}</span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400 ml-2 capitalize">{task.completionType}</span>
+                        </div>
+                        <span className={`text-xs px-1.5 py-0.5 rounded ${badge.className}`}>{badge.label}</span>
+                        {task.frequency === 'adhoc' && (
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">Ad-hoc</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
           )}
 
           {/* Weekly Breakdown Grid */}
@@ -441,7 +800,7 @@ export default function TwelveWeekYearPage() {
                     <thead>
                       <tr className="border-b border-gray-200 dark:border-gray-700">
                         <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400 sticky left-0 bg-white dark:bg-gray-800">Goal</th>
-                        {Array.from({ length: 12 }, (_, i) => (
+                        {Array.from({ length: totalWeeks }, (_, i) => (
                           <th
                             key={i}
                             className={`px-2 py-3 text-center font-medium min-w-[40px] ${
@@ -461,7 +820,7 @@ export default function TwelveWeekYearPage() {
                           <td className="px-4 py-2 font-medium text-gray-700 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 truncate max-w-[150px]">
                             {goal.name}
                           </td>
-                          {Array.from({ length: 12 }, (_, i) => {
+                          {Array.from({ length: totalWeeks }, (_, i) => {
                             const target = selectedCycle.weeklyTargets.find(
                               (t) => t.goalId === goal.id && t.weekNumber === i + 1
                             );
@@ -483,11 +842,12 @@ export default function TwelveWeekYearPage() {
               {/* Expandable Week Reviews */}
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Week Reviews</h2>
               <div className="space-y-2 mb-8">
-                {Array.from({ length: 12 }, (_, i) => i + 1).map((weekNum) => {
+                {Array.from({ length: totalWeeks }, (_, i) => i + 1).map((weekNum) => {
                   const isExpanded = expandedWeek === weekNum;
                   const weekTargets = selectedCycle.weeklyTargets.filter((t) => t.weekNumber === weekNum);
                   const allReviewed = weekTargets.length > 0 && weekTargets.every((t) => t.score);
                   const someReviewed = weekTargets.some((t) => t.score);
+                  const hasReviewNotes = selectedCycle.weeklyReviews?.some((r) => r.weekNumber === weekNum && (r.notes || r.wins || r.blockers));
 
                   return (
                     <div key={weekNum} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -519,6 +879,11 @@ export default function TwelveWeekYearPage() {
                           {!allReviewed && someReviewed && (
                             <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
                               Partial
+                            </span>
+                          )}
+                          {hasReviewNotes && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">
+                              Notes
                             </span>
                           )}
                         </div>
@@ -599,6 +964,50 @@ export default function TwelveWeekYearPage() {
                                   </div>
                                 );
                               })}
+
+                              {/* Weekly Review Notes */}
+                              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 space-y-3">
+                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Weekly Review Notes</p>
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Wins</label>
+                                  <textarea
+                                    value={reviewEdits[weekNum]?.wins || ""}
+                                    onChange={(e) => setReviewEdits((prev) => ({
+                                      ...prev,
+                                      [weekNum]: { ...prev[weekNum], wins: e.target.value },
+                                    }))}
+                                    placeholder="What went well this week?"
+                                    rows={2}
+                                    className="w-full px-2.5 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Blockers</label>
+                                  <textarea
+                                    value={reviewEdits[weekNum]?.blockers || ""}
+                                    onChange={(e) => setReviewEdits((prev) => ({
+                                      ...prev,
+                                      [weekNum]: { ...prev[weekNum], blockers: e.target.value },
+                                    }))}
+                                    placeholder="What held you back?"
+                                    rows={2}
+                                    className="w-full px-2.5 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Notes</label>
+                                  <textarea
+                                    value={reviewEdits[weekNum]?.notes || ""}
+                                    onChange={(e) => setReviewEdits((prev) => ({
+                                      ...prev,
+                                      [weekNum]: { ...prev[weekNum], notes: e.target.value },
+                                    }))}
+                                    placeholder="Additional reflections..."
+                                    rows={2}
+                                    className="w-full px-2.5 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
+                                  />
+                                </div>
+                              </div>
 
                               <motion.button
                                 whileHover={{ scale: 1.02 }}
@@ -729,8 +1138,8 @@ export default function TwelveWeekYearPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">12 Week Year</h1>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Plan and execute 12-week goal cycles</p>
+            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">Goal Cycles</h1>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Plan and execute goal cycles of any duration</p>
           </div>
           <motion.button
             whileHover={{ scale: 1.05 }}
@@ -746,12 +1155,13 @@ export default function TwelveWeekYearPage() {
         {cycles.length === 0 ? (
           <div className="text-center py-12 text-gray-500 dark:text-gray-400">
             <p className="text-lg mb-2">No cycles yet</p>
-            <p className="text-sm">Create your first 12-week cycle to start planning</p>
+            <p className="text-sm">Create your first goal cycle to start planning</p>
           </div>
         ) : (
           <div className="space-y-3">
             {cycles.map((cycle) => {
-              const weekNum = getCurrentWeekNumber(cycle.startDate);
+              const cycleTotalWeeks = getTotalWeeks(cycle.startDate, cycle.endDate);
+              const weekNum = getCurrentWeekNumber(cycle.startDate, cycle.endDate);
               const now = new Date();
               const end = new Date(cycle.endDate + "T23:59:59");
               const isCompleted = now > end;
@@ -774,12 +1184,15 @@ export default function TwelveWeekYearPage() {
                       {isCompleted ? "Completed" : cycle.isActive ? "Active" : "Inactive"}
                     </span>
                   </div>
+                  {cycle.theme && (
+                    <p className="text-xs text-purple-600 dark:text-purple-400 mb-1 font-medium">{cycle.theme}</p>
+                  )}
                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
-                    {cycle.startDate} → {cycle.endDate}
+                    {cycle.startDate} &rarr; {cycle.endDate}
                   </p>
                   {/* Mini week progress */}
                   <div className="flex gap-1">
-                    {Array.from({ length: 12 }, (_, i) => (
+                    {Array.from({ length: cycleTotalWeeks }, (_, i) => (
                       <div
                         key={i}
                         className={`h-2 flex-1 rounded-full ${
@@ -795,7 +1208,7 @@ export default function TwelveWeekYearPage() {
                     ))}
                   </div>
                   {!isCompleted && (
-                    <p className="text-xs text-gray-400 mt-1">Week {weekNum} of 12</p>
+                    <p className="text-xs text-gray-400 mt-1">Week {weekNum} of {cycleTotalWeeks}</p>
                   )}
                 </motion.div>
               );
@@ -839,13 +1252,48 @@ export default function TwelveWeekYearPage() {
                     placeholder="e.g., Q1 2026 Transformation"
                   />
                 </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date</label>
+                    <input
+                      type="date"
+                      value={cycleForm.startDate}
+                      onChange={(e) => {
+                        const start = e.target.value;
+                        const autoEnd = start ? calculateEndDate(start) : "";
+                        setCycleForm({ ...cycleForm, startDate: start, endDate: cycleForm.endDate || autoEnd });
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">End Date</label>
+                    <input
+                      type="date"
+                      value={cycleForm.endDate}
+                      onChange={(e) => setCycleForm({ ...cycleForm, endDate: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
+                </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Vision (optional)</label>
+                  <textarea
+                    value={cycleForm.vision}
+                    onChange={(e) => setCycleForm({ ...cycleForm, vision: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
+                    placeholder="Your vision for this cycle..."
+                    rows={2}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Theme (optional)</label>
                   <input
-                    type="date"
-                    value={cycleForm.startDate}
-                    onChange={(e) => setCycleForm({ ...cycleForm, startDate: e.target.value })}
+                    type="text"
+                    value={cycleForm.theme}
+                    onChange={(e) => setCycleForm({ ...cycleForm, theme: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    placeholder="e.g., Deep Focus"
                   />
                 </div>
 
