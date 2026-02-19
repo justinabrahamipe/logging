@@ -19,8 +19,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Total logger",
-  description: "Log everything you do",
+  title: "TotalLogger",
+  description: "Level up your life - gamify your daily habits",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,

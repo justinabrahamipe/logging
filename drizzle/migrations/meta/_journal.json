@@ -29,6 +29,55 @@
       "when": 1764175903600,
       "tag": "0003_remove-ignored-contact-table",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1771000000000,
+      "tag": "0004_gamification-revamp",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1771100000000,
+      "tag": "0005_remove-finance",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1771200000000,
+      "tag": "0006_twelve-week-year",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1771300000000,
+      "tag": "0007_vision-theme",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1771400000000,
+      "tag": "0008_tactics",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1771500000000,
+      "tag": "0009_weekly-reviews",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1771600000000,
+      "tag": "0010_task-cycle-link",
+      "breakpoints": true
     }
   ]
 }

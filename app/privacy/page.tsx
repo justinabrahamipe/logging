@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function PrivacyPolicy() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-950 dark:to-gray-900 p-4 sm:p-8">
@@ -7,7 +9,7 @@ export default function PrivacyPolicy() {
             Privacy Policy
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mb-8">
-            Last updated: October 17, 2025
+            Last updated: February 18, 2026
           </p>
 
           <div className="space-y-6 text-gray-700 dark:text-gray-300">
@@ -28,9 +30,9 @@ export default function PrivacyPolicy() {
               <p className="mb-2">We collect the following types of information:</p>
               <ul className="list-disc list-inside space-y-2 ml-4">
                 <li><strong>Account Information:</strong> Name, email address, and profile picture from your Google account</li>
-                <li><strong>Contact Information:</strong> When you sync your Google contacts, we store names, email addresses, phone numbers, organizations, and job titles</li>
-                <li><strong>Activity Data:</strong> Logs, activities, goals, and todos you create within the application</li>
-                <li><strong>Authentication Tokens:</strong> OAuth tokens to access your Google account data</li>
+                <li><strong>Application Data:</strong> Pillars, tasks, task completions, daily scores, and user stats you create within the application</li>
+                <li><strong>Preferences:</strong> Theme, date/time format, and score threshold settings</li>
+                <li><strong>Authentication Tokens:</strong> OAuth tokens to authenticate your Google account</li>
               </ul>
             </section>
 
@@ -42,8 +44,8 @@ export default function PrivacyPolicy() {
               <ul className="list-disc list-inside space-y-2 ml-4">
                 <li>Provide and maintain our service</li>
                 <li>Authenticate your identity</li>
-                <li>Sync and display your Google contacts</li>
-                <li>Track your activities, goals, and tasks</li>
+                <li>Track your tasks, scores, and progress</li>
+                <li>Calculate XP, levels, and streaks</li>
                 <li>Improve and personalize your experience</li>
               </ul>
             </section>
@@ -53,7 +55,7 @@ export default function PrivacyPolicy() {
                 4. Data Storage and Security
               </h2>
               <p>
-                Your data is stored securely in our PostgreSQL database hosted on Neon. We use industry-standard
+                Your data is stored securely in our database hosted on Turso. We use industry-standard
                 security measures including encrypted connections (SSL/TLS) and secure authentication protocols.
                 Access tokens are stored encrypted and are never shared with third parties.
               </p>
@@ -64,7 +66,7 @@ export default function PrivacyPolicy() {
                 5. Google API Services
               </h2>
               <p className="mb-2">
-                Total Logger uses Google APIs to access your Google account information. Our use of information
+                Total Logger uses Google APIs to authenticate your account. Our use of information
                 received from Google APIs adheres to the{" "}
                 <a
                   href="https://developers.google.com/terms/api-services-user-data-policy"
@@ -77,8 +79,7 @@ export default function PrivacyPolicy() {
               </p>
               <p className="mb-2">Specifically, we access:</p>
               <ul className="list-disc list-inside space-y-2 ml-4">
-                <li><strong>Google People API:</strong> To read and sync your contacts</li>
-                <li><strong>Basic Profile Information:</strong> Your name, email, and profile picture</li>
+                <li><strong>Basic Profile Information:</strong> Your name, email, and profile picture for authentication</li>
               </ul>
               <p className="mt-2">
                 We do not use this data for advertising, profiling, or any purpose other than providing the
@@ -109,7 +110,7 @@ export default function PrivacyPolicy() {
                 <li>Export your data</li>
               </ul>
               <p className="mt-2">
-                To exercise these rights, please sign out and delete your data from within the application,
+                To exercise these rights, please use the Settings page within the application,
                 or contact us at justinabrahamipe@gmail.com.
               </p>
             </section>
@@ -119,7 +120,7 @@ export default function PrivacyPolicy() {
                 8. Revoking Access
               </h2>
               <p>
-                You can revoke Total Logger's access to your Google account at any time by visiting your{" "}
+                You can revoke Total Logger&apos;s access to your Google account at any time by visiting your{" "}
                 <a
                   href="https://myaccount.google.com/permissions"
                   target="_blank"
@@ -143,7 +144,7 @@ export default function PrivacyPolicy() {
 
             <section>
               <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-3">
-                10. Children's Privacy
+                10. Children&apos;s Privacy
               </h2>
               <p>
                 Total Logger is not intended for users under the age of 13. We do not knowingly collect
@@ -157,7 +158,7 @@ export default function PrivacyPolicy() {
               </h2>
               <p>
                 We may update this privacy policy from time to time. We will notify you of any changes by
-                posting the new privacy policy on this page and updating the "Last updated" date.
+                posting the new privacy policy on this page and updating the &quot;Last updated&quot; date.
               </p>
             </section>
 
@@ -181,12 +182,12 @@ export default function PrivacyPolicy() {
           </div>
 
           <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-            <a
+            <Link
               href="/"
               className="text-blue-600 dark:text-blue-400 hover:underline"
             >
-              ← Back to Total Logger
-            </a>
+              &larr; Back to Total Logger
+            </Link>
           </div>
         </div>
       </div>

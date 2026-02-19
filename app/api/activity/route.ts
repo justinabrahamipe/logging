@@ -1,129 +1,88 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, activities } from "@/lib/db";
-import { desc, eq } from "drizzle-orm";
+import { auth } from "@/auth";
+import { db, activityLog, tasks, pillars } from "@/lib/db";
+import { eq, and, gte, lte, desc } from "drizzle-orm";
 
-export const maxDuration = 10;
-export const dynamic = 'force-dynamic';
-
-export async function GET() {
-  try {
-    const data = await db.select().from(activities).orderBy(desc(activities.createdOn));
-    return NextResponse.json({ data }, { status: 200 });
-  } catch (error) {
-    console.error("GET /api/activity error:", error);
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error ? error.message : "An unknown error occurred",
-      },
-      { status: 500 }
-    );
+export async function GET(request: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-}
 
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
+  const params = request.nextUrl.searchParams;
+  const date = params.get('date');
+  const from = params.get('from');
+  const to = params.get('to');
+  const pillarId = params.get('pillarId');
+  const taskId = params.get('taskId');
+  const search = params.get('search');
+  const limit = parseInt(params.get('limit') || '50');
+  const offset = parseInt(params.get('offset') || '0');
 
-    // Validate required fields
-    if (!body.title || !body.category || !body.icon) {
-      return NextResponse.json(
-        { error: "Missing required fields: title, category, and icon are required" },
-        { status: 400 }
-      );
+  const conditions = [eq(activityLog.userId, session.user.id)];
+
+  if (date) {
+    // Filter by specific date — match timestamp range for that day
+    const dayStart = new Date(date + 'T00:00:00');
+    const dayEnd = new Date(date + 'T23:59:59');
+    conditions.push(gte(activityLog.timestamp, dayStart));
+    conditions.push(lte(activityLog.timestamp, dayEnd));
+  } else {
+    if (from) {
+      conditions.push(gte(activityLog.timestamp, new Date(from + 'T00:00:00')));
     }
-
-    const [response] = await db.insert(activities).values({
-      title: body.title,
-      category: body.category,
-      icon: body.icon,
-      color: body.color || null
-    }).returning();
-    return NextResponse.json(response, { status: 201 });
-  } catch (error) {
-    console.error("POST /api/activity error:", error);
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error ? error.message : "An unknown error occurred",
-      },
-      { status: 500 }
-    );
+    if (to) {
+      conditions.push(lte(activityLog.timestamp, new Date(to + 'T23:59:59')));
+    }
   }
-}
 
-export async function PUT(request: NextRequest) {
-  try {
-    const { oldTitle, ...body } = await request.json();
-
-    if (!oldTitle) {
-      return NextResponse.json(
-        { error: "oldTitle is required for updates" },
-        { status: 400 }
-      );
-    }
-
-    const updated = await db.update(activities)
-      .set({
-        title: body.title,
-        category: body.category,
-        icon: body.icon,
-        color: body.color || null
-      })
-      .where(eq(activities.title, oldTitle))
-      .returning();
-
-    if (updated.length === 0) {
-      return NextResponse.json(
-        { error: "Activity not found" },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({ count: updated.length }, { status: 200 });
-  } catch (error) {
-    console.error("PUT /api/activity error:", error);
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error ? error.message : "An unknown error occurred",
-      },
-      { status: 500 }
-    );
+  if (pillarId) {
+    conditions.push(eq(activityLog.pillarId, parseInt(pillarId)));
   }
-}
 
-export async function DELETE(request: NextRequest) {
-  try {
-    const body = await request.json();
-
-    if (!body.title) {
-      return NextResponse.json(
-        { error: "title is required for deletion" },
-        { status: 400 }
-      );
-    }
-
-    const deleted = await db.delete(activities)
-      .where(eq(activities.title, body.title))
-      .returning();
-
-    if (deleted.length === 0) {
-      return NextResponse.json(
-        { error: "Activity not found" },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({ count: deleted.length }, { status: 200 });
-  } catch (error) {
-    console.error("DELETE /api/activity error:", error);
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error ? error.message : "An unknown error occurred",
-      },
-      { status: 500 }
-    );
+  if (taskId) {
+    conditions.push(eq(activityLog.taskId, parseInt(taskId)));
   }
+
+  // Build the query with joins
+  const query = db
+    .select({
+      id: activityLog.id,
+      timestamp: activityLog.timestamp,
+      taskId: activityLog.taskId,
+      pillarId: activityLog.pillarId,
+      action: activityLog.action,
+      previousValue: activityLog.previousValue,
+      newValue: activityLog.newValue,
+      delta: activityLog.delta,
+      pointsBefore: activityLog.pointsBefore,
+      pointsAfter: activityLog.pointsAfter,
+      pointsDelta: activityLog.pointsDelta,
+      source: activityLog.source,
+      reversalOf: activityLog.reversalOf,
+      note: activityLog.note,
+      taskName: tasks.name,
+      taskCompletionType: tasks.completionType,
+      pillarName: pillars.name,
+      pillarEmoji: pillars.emoji,
+      pillarColor: pillars.color,
+    })
+    .from(activityLog)
+    .leftJoin(tasks, eq(activityLog.taskId, tasks.id))
+    .leftJoin(pillars, eq(activityLog.pillarId, pillars.id))
+    .where(and(...conditions))
+    .orderBy(desc(activityLog.id))
+    .limit(limit)
+    .offset(offset);
+
+  const entries = await query;
+
+  // Filter by search on task name (done in-app since it's a left join)
+  let filtered = entries;
+  if (search) {
+    const searchLower = search.toLowerCase();
+    filtered = entries.filter(e => e.taskName?.toLowerCase().includes(searchLower));
+  }
+
+  return NextResponse.json(filtered);
 }

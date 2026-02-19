@@ -3,35 +3,26 @@ import { auth } from "@/auth";
 import { db, userPreferences } from "@/lib/db";
 import { eq } from "drizzle-orm";
 
-// GET /api/preferences - Get user preferences
 export async function GET() {
   try {
     const session = await auth();
 
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Try to get existing preferences
     let preferences = await db.query.userPreferences.findFirst({
       where: eq(userPreferences.userId, session.user.id)
     });
 
-    // If no preferences exist, create default ones
     if (!preferences) {
       const [created] = await db.insert(userPreferences).values({
         userId: session.user.id,
         theme: "light",
         timeFormat: "12h",
         dateFormat: "DD/MM/YYYY",
-        enableTodo: false,
-        enableGoals: false,
-        enablePeople: false,
-        enablePlaces: false,
-        enableFinance: false,
+        weekdayPassThreshold: 70,
+        weekendPassThreshold: 70,
       }).returning();
       preferences = created;
     }
@@ -39,85 +30,56 @@ export async function GET() {
     return NextResponse.json(preferences);
   } catch (error) {
     console.error("Error fetching preferences:", error);
-    // Return default preferences instead of error to prevent client-side crashes
     return NextResponse.json({
       theme: "light",
       timeFormat: "12h",
       dateFormat: "DD/MM/YYYY",
-      enableTodo: false,
-      enableGoals: false,
-      enablePeople: false,
-      enablePlaces: false,
-      enableFinance: false,
+      weekdayPassThreshold: 70,
+      weekendPassThreshold: 70,
     });
   }
 }
 
-// PUT /api/preferences - Update user preferences
 export async function PUT(request: Request) {
-  let body: any = {};
+  let body: Record<string, unknown> = {};
   try {
     const session = await auth();
 
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    body = await request.json();
-    const { theme, timeFormat, dateFormat, enableTodo, enableGoals, enablePeople, enablePlaces, enableFinance } = body;
+    body = await request.json() as Record<string, unknown>;
+    const { theme, timeFormat, dateFormat, weekdayPassThreshold, weekendPassThreshold } = body as {
+      theme?: string; timeFormat?: string; dateFormat?: string; weekdayPassThreshold?: number; weekendPassThreshold?: number;
+    };
 
-    // Validate input
     const validThemes = ["light", "dark", "system"];
     const validTimeFormats = ["12h", "24h"];
-    const validDateFormats = [
-      "DD/MM/YYYY",
-      "MM/DD/YYYY",
-      "YYYY-MM-DD",
-      "DD-MM-YYYY",
-      "MM-DD-YYYY",
-    ];
+    const validDateFormats = ["DD/MM/YYYY", "MM/DD/YYYY", "YYYY-MM-DD", "DD-MM-YYYY", "MM-DD-YYYY"];
 
     if (theme && !validThemes.includes(theme)) {
-      return NextResponse.json(
-        { error: "Invalid theme value" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid theme value" }, { status: 400 });
     }
-
     if (timeFormat && !validTimeFormats.includes(timeFormat)) {
-      return NextResponse.json(
-        { error: "Invalid timeFormat value" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid timeFormat value" }, { status: 400 });
     }
-
     if (dateFormat && !validDateFormats.includes(dateFormat)) {
-      return NextResponse.json(
-        { error: "Invalid dateFormat value" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid dateFormat value" }, { status: 400 });
     }
 
-    // Check if preferences exist
     const existing = await db.query.userPreferences.findFirst({
       where: eq(userPreferences.userId, session.user.id)
     });
 
     let preferences;
     if (existing) {
-      // Update existing preferences
-      const updateData: any = {};
+      const updateData: Record<string, unknown> = {};
       if (theme) updateData.theme = theme;
       if (timeFormat) updateData.timeFormat = timeFormat;
       if (dateFormat) updateData.dateFormat = dateFormat;
-      if (typeof enableTodo === "boolean") updateData.enableTodo = enableTodo;
-      if (typeof enableGoals === "boolean") updateData.enableGoals = enableGoals;
-      if (typeof enablePeople === "boolean") updateData.enablePeople = enablePeople;
-      if (typeof enablePlaces === "boolean") updateData.enablePlaces = enablePlaces;
-      if (typeof enableFinance === "boolean") updateData.enableFinance = enableFinance;
+      if (typeof weekdayPassThreshold === "number") updateData.weekdayPassThreshold = weekdayPassThreshold;
+      if (typeof weekendPassThreshold === "number") updateData.weekendPassThreshold = weekendPassThreshold;
 
       const [updated] = await db.update(userPreferences)
         .set(updateData)
@@ -125,17 +87,13 @@ export async function PUT(request: Request) {
         .returning();
       preferences = updated;
     } else {
-      // Create new preferences
       const [created] = await db.insert(userPreferences).values({
         userId: session.user.id,
         theme: theme || "light",
         timeFormat: timeFormat || "12h",
         dateFormat: dateFormat || "DD/MM/YYYY",
-        enableTodo: enableTodo ?? false,
-        enableGoals: enableGoals ?? false,
-        enablePeople: enablePeople ?? false,
-        enablePlaces: enablePlaces ?? false,
-        enableFinance: enableFinance ?? false,
+        weekdayPassThreshold: weekdayPassThreshold ?? 70,
+        weekendPassThreshold: weekendPassThreshold ?? 70,
       }).returning();
       preferences = created;
     }
@@ -143,17 +101,12 @@ export async function PUT(request: Request) {
     return NextResponse.json(preferences);
   } catch (error) {
     console.error("Error updating preferences:", error);
-    // Return the request body as success to prevent client-side crashes
-    // This allows the UI to work even if DB update fails
     return NextResponse.json({
       theme: body.theme || "light",
       timeFormat: body.timeFormat || "12h",
       dateFormat: body.dateFormat || "DD/MM/YYYY",
-      enableTodo: body.enableTodo ?? false,
-      enableGoals: body.enableGoals ?? false,
-      enablePeople: body.enablePeople ?? false,
-      enablePlaces: body.enablePlaces ?? false,
-      enableFinance: body.enableFinance ?? false,
+      weekdayPassThreshold: body.weekdayPassThreshold ?? 70,
+      weekendPassThreshold: body.weekendPassThreshold ?? 70,
     });
   }
 }

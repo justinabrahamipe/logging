@@ -2,100 +2,6 @@ import { sqliteTable, text, integer, real, unique, index } from 'drizzle-orm/sql
 import { relations } from 'drizzle-orm';
 import { sql } from 'drizzle-orm';
 
-// Activity table
-export const activities = sqliteTable('Activity', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  icon: text('icon').notNull().default('--'),
-  title: text('title').notNull().unique(),
-  category: text('category').notNull(),
-  color: text('color'),
-  createdOn: integer('created_on', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
-});
-
-// Log table
-export const logs = sqliteTable('Log', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  comment: text('comment'),
-  activityTitle: text('activityTitle').notNull(),
-  activityCategory: text('activityCategory').notNull(),
-  activityIcon: text('activityIcon').notNull(),
-  activityColor: text('activityColor'),
-  startTime: integer('start_time', { mode: 'timestamp' }),
-  endTime: integer('end_time', { mode: 'timestamp' }),
-  createdOn: integer('created_on', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
-  timeSpent: integer('time_spent'),
-  tags: text('tags'),
-  todoId: integer('todoId').references(() => todos.id, { onDelete: 'set null' }),
-  goalId: integer('goalId').references(() => goals.id, { onDelete: 'set null' }),
-  goalCount: integer('goalCount'),
-  userId: text('userId'),
-  placeId: integer('placeId'),
-  contactIds: text('contactIds'),
-}, (table) => ({
-  todoIdIdx: index('Log_todoId_idx').on(table.todoId),
-  goalIdIdx: index('Log_goalId_idx').on(table.goalId),
-  placeIdIdx: index('Log_placeId_idx').on(table.placeId),
-}));
-
-// Todo table
-export const todos = sqliteTable('Todo', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  title: text('title').notNull(),
-  description: text('description'),
-  activityTitle: text('activityTitle'),
-  activityCategory: text('activityCategory'),
-  deadline: text('deadline'),
-  workDate: text('work_date'),
-  done: integer('done', { mode: 'boolean' }).notNull().default(false),
-  importance: integer('importance').notNull().default(1),
-  urgency: integer('urgency').notNull().default(1),
-  createdOn: integer('created_on', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
-  userId: text('userId'),
-  // Recurring task fields
-  isRecurring: integer('isRecurring', { mode: 'boolean' }).default(false),
-  recurrencePattern: text('recurrencePattern'), // 'daily' | 'weekly' | 'monthly' | 'custom'
-  recurrenceInterval: integer('recurrenceInterval'), // For custom: every N days
-  recurrenceEndDate: text('recurrenceEndDate'), // End date for recurrence
-  recurrenceCount: integer('recurrenceCount'), // OR number of occurrences
-  workDateOffset: integer('workDateOffset'), // Days before deadline for work_date
-  recurrenceGroupId: text('recurrenceGroupId'), // Links all instances together
-  placeId: integer('placeId'),
-  contactIds: text('contactIds'),
-  goalId: integer('goalId'),
-}, (table) => ({
-  placeIdIdx: index('Todo_placeId_idx').on(table.placeId),
-  goalIdIdx: index('Todo_goalId_idx').on(table.goalId),
-}));
-
-// Goal table
-export const goals = sqliteTable('Goal', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  title: text('title').notNull(),
-  description: text('description'),
-  goalType: text('goalType').notNull(),
-  metricType: text('metricType').notNull(),
-  targetValue: real('targetValue').notNull(),
-  currentValue: real('currentValue').notNull().default(0),
-  periodType: text('periodType').notNull(),
-  startDate: integer('startDate', { mode: 'timestamp' }).notNull(),
-  endDate: integer('endDate', { mode: 'timestamp' }).notNull(),
-  activityTitle: text('activityTitle'),
-  activityCategory: text('activityCategory'),
-  color: text('color'),
-  icon: text('icon'),
-  createdOn: integer('created_on', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
-  isActive: integer('isActive', { mode: 'boolean' }).notNull().default(true),
-  isRecurring: integer('isRecurring', { mode: 'boolean' }).notNull().default(false),
-  recurrencePattern: text('recurrencePattern'),
-  recurrenceConfig: text('recurrenceConfig'),
-  parentGoalId: integer('parentGoalId'),
-  userId: text('userId'),
-  placeId: integer('placeId'),
-  contactIds: text('contactIds'),
-}, (table) => ({
-  placeIdIdx: index('Goal_placeId_idx').on(table.placeId),
-}));
-
 // User table (lowercase for Auth.js compatibility)
 export const users = sqliteTable('user', {
   id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
@@ -152,178 +58,136 @@ export const userPreferences = sqliteTable('UserPreferences', {
   theme: text('theme').notNull().default('light'),
   timeFormat: text('timeFormat').notNull().default('12h'),
   dateFormat: text('dateFormat').notNull().default('DD/MM/YYYY'),
-  enableTodo: integer('enableTodo', { mode: 'boolean' }).notNull().default(false),
-  enableGoals: integer('enableGoals', { mode: 'boolean' }).notNull().default(false),
-  enablePeople: integer('enablePeople', { mode: 'boolean' }).notNull().default(false),
-  enablePlaces: integer('enablePlaces', { mode: 'boolean' }).notNull().default(false),
-  enableFinance: integer('enableFinance', { mode: 'boolean' }).notNull().default(false),
+  weekdayPassThreshold: integer('weekdayPassThreshold').notNull().default(70),
+  weekendPassThreshold: integer('weekendPassThreshold').notNull().default(70),
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
   userIdIdx: index('UserPreferences_userId_idx').on(table.userId),
 }));
 
-// Contact table
-export const contacts = sqliteTable('Contact', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  userId: text('userId').notNull(),
-  googleId: text('googleId'),
-  name: text('name').notNull(),
-  email: text('email'),
-  phoneNumber: text('phoneNumber'),
-  photoUrl: text('photoUrl'),
-  organization: text('organization'),
-  jobTitle: text('jobTitle'),
-  notes: text('notes'),
-  address: text('address'),
-  birthday: integer('birthday', { mode: 'timestamp' }),
-  weddingAnniversary: integer('weddingAnniversary', { mode: 'timestamp' }),
-  isIgnored: integer('isIgnored', { mode: 'boolean' }).notNull().default(false),
-  lastSynced: integer('lastSynced', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
-  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
-  updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
-}, (table) => ({
-  userIdGoogleIdUnique: unique().on(table.userId, table.googleId),
-  userIdIdx: index('Contact_userId_idx').on(table.userId),
-}));
-
-// Place table
-export const places = sqliteTable('Place', {
+// Pillars table
+export const pillars = sqliteTable('Pillar', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: text('userId').notNull(),
   name: text('name').notNull(),
-  address: text('address').notNull(),
-  latitude: real('latitude'),
-  longitude: real('longitude'),
+  emoji: text('emoji').notNull().default('📌'),
+  color: text('color').notNull().default('#3B82F6'),
+  weight: real('weight').notNull().default(0),
   description: text('description'),
-  category: text('category'),
+  isArchived: integer('isArchived', { mode: 'boolean' }).notNull().default(false),
+  sortOrder: integer('sortOrder').notNull().default(0),
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
-  userIdIdx: index('Place_userId_idx').on(table.userId),
+  userIdIdx: index('Pillar_userId_idx').on(table.userId),
 }));
 
-// FinanceAccount table
-export const financeAccounts = sqliteTable('FinanceAccount', {
+// Tasks table
+export const tasks = sqliteTable('Task', {
   id: integer('id').primaryKey({ autoIncrement: true }),
+  pillarId: integer('pillarId').references(() => pillars.id, { onDelete: 'set null' }),
   userId: text('userId').notNull(),
   name: text('name').notNull(),
-  currency: text('currency').notNull(),
-  type: text('type').notNull(),
-  balance: real('balance').notNull().default(0),
-  description: text('description'),
+  completionType: text('completionType').notNull().default('checkbox'), // checkbox|count|duration|numeric|percentage
+  target: real('target'),
+  unit: text('unit'),
+  flexibilityRule: text('flexibilityRule').notNull().default('must_today'), // must_today|window|limit_avoid|carryover
+  windowStart: integer('windowStart'),
+  windowEnd: integer('windowEnd'),
+  limitValue: real('limitValue'),
+  importance: text('importance').notNull().default('medium'), // high|medium|low
+  frequency: text('frequency').notNull().default('daily'), // daily|weekly|custom
+  customDays: text('customDays'), // JSON array of day numbers [0-6] (0=Sunday)
+  isWeekendTask: integer('isWeekendTask', { mode: 'boolean' }).notNull().default(false),
+  basePoints: real('basePoints').notNull().default(10),
+  outcomeId: integer('outcomeId').references(() => outcomes.id, { onDelete: 'set null' }),
+  periodId: integer('periodId').references(() => twelveWeekYears.id, { onDelete: 'set null' }),
+  isActive: integer('isActive', { mode: 'boolean' }).notNull().default(true),
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
-  userIdIdx: index('FinanceAccount_userId_idx').on(table.userId),
+  userIdIdx: index('Task_userId_idx').on(table.userId),
+  pillarIdIdx: index('Task_pillarId_idx').on(table.pillarId),
+  outcomeIdIdx: index('Task_outcomeId_idx').on(table.outcomeId),
+  periodIdIdx: index('Task_periodId_idx').on(table.periodId),
 }));
 
-// FinanceTransaction table
-export const financeTransactions = sqliteTable('FinanceTransaction', {
+// TaskCompletions table
+export const taskCompletions = sqliteTable('TaskCompletion', {
   id: integer('id').primaryKey({ autoIncrement: true }),
+  taskId: integer('taskId').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
   userId: text('userId').notNull(),
-  fromAccountId: integer('fromAccountId').references(() => financeAccounts.id, { onDelete: 'cascade' }),
-  toAccountId: integer('toAccountId').references(() => financeAccounts.id, { onDelete: 'cascade' }),
-  amount: real('amount').notNull(),
-  currency: text('currency').notNull(),
-  exchangeRate: real('exchangeRate'),
-  convertedAmount: real('convertedAmount'),
-  type: text('type').notNull(),
-  category: text('category'),
-  description: text('description').notNull(),
-  isNeed: integer('isNeed', { mode: 'boolean' }).notNull().default(true),
-  transactionDate: integer('transactionDate', { mode: 'timestamp' }).notNull(),
-  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+  date: text('date').notNull(), // YYYY-MM-DD
+  completed: integer('completed', { mode: 'boolean' }).notNull().default(false),
+  value: real('value'),
+  pointsEarned: real('pointsEarned').notNull().default(0),
+  completedAt: integer('completedAt', { mode: 'timestamp' }),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
-  placeId: integer('placeId'),
-  contactIds: text('contactIds'),
 }, (table) => ({
-  userIdIdx: index('FinanceTransaction_userId_idx').on(table.userId),
-  fromAccountIdIdx: index('FinanceTransaction_fromAccountId_idx').on(table.fromAccountId),
-  toAccountIdIdx: index('FinanceTransaction_toAccountId_idx').on(table.toAccountId),
-  transactionDateIdx: index('FinanceTransaction_transactionDate_idx').on(table.transactionDate),
-  placeIdIdx: index('FinanceTransaction_placeId_idx').on(table.placeId),
+  userIdIdx: index('TaskCompletion_userId_idx').on(table.userId),
+  taskIdIdx: index('TaskCompletion_taskId_idx').on(table.taskId),
+  dateIdx: index('TaskCompletion_date_idx').on(table.date),
+  taskDateUnique: unique().on(table.taskId, table.date),
 }));
 
-// FinanceCategory table
-export const financeCategories = sqliteTable('FinanceCategory', {
+// DailyScores table
+export const dailyScores = sqliteTable('DailyScore', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: text('userId').notNull(),
-  name: text('name').notNull(),
-  type: text('type').notNull(),
-  description: text('description'),
-  color: text('color'),
-  icon: text('icon'),
-  isDefault: integer('isDefault', { mode: 'boolean' }).notNull().default(false),
+  date: text('date').notNull(), // YYYY-MM-DD
+  actionScore: real('actionScore').notNull().default(0),
+  pillarScores: text('pillarScores'), // JSON: { pillarId: score }
+  xpEarned: real('xpEarned').notNull().default(0),
+  streakBonus: real('streakBonus').notNull().default(0),
+  isPassing: integer('isPassing', { mode: 'boolean' }).notNull().default(false),
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
-  userIdNameTypeUnique: unique().on(table.userId, table.name, table.type),
-  userIdIdx: index('FinanceCategory_userId_idx').on(table.userId),
-  typeIdx: index('FinanceCategory_type_idx').on(table.type),
+  userIdIdx: index('DailyScore_userId_idx').on(table.userId),
+  dateIdx: index('DailyScore_date_idx').on(table.date),
+  userDateUnique: unique().on(table.userId, table.date),
 }));
 
-// FinanceDebt table
-export const financeDebts = sqliteTable('FinanceDebt', {
+// UserStats table
+export const userStats = sqliteTable('UserStats', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  userId: text('userId').notNull(),
-  name: text('name').notNull(),
-  type: text('type').notNull(),
-  amount: real('amount').notNull(),
-  remainingAmount: real('remainingAmount').notNull(),
-  currency: text('currency').notNull(),
-  interestRate: real('interestRate'),
-  contactId: integer('contactId').references(() => contacts.id, { onDelete: 'set null' }),
-  description: text('description'),
-  dueDate: integer('dueDate', { mode: 'timestamp' }),
-  startDate: integer('startDate', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
-  status: text('status').notNull().default('active'),
-  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+  userId: text('userId').notNull().unique(),
+  totalXp: real('totalXp').notNull().default(0),
+  level: integer('level').notNull().default(1),
+  levelTitle: text('levelTitle').notNull().default('Beginner'),
+  currentStreak: integer('currentStreak').notNull().default(0),
+  bestStreak: integer('bestStreak').notNull().default(0),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
-  userIdIdx: index('FinanceDebt_userId_idx').on(table.userId),
-  typeIdx: index('FinanceDebt_type_idx').on(table.type),
-  statusIdx: index('FinanceDebt_status_idx').on(table.status),
-  contactIdIdx: index('FinanceDebt_contactId_idx').on(table.contactId),
+  userIdIdx: index('UserStats_userId_idx').on(table.userId),
+}));
+
+
+// ActivityLog table
+export const activityLog = sqliteTable('ActivityLog', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: text('userId').notNull(),
+  timestamp: integer('timestamp', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+  taskId: integer('taskId').references(() => tasks.id, { onDelete: 'set null' }),
+  pillarId: integer('pillarId').references(() => pillars.id, { onDelete: 'set null' }),
+  action: text('action').notNull(), // complete | reverse | adjust | add | subtract
+  previousValue: real('previousValue'),
+  newValue: real('newValue'),
+  delta: real('delta'),
+  pointsBefore: real('pointsBefore'),
+  pointsAfter: real('pointsAfter'),
+  pointsDelta: real('pointsDelta'),
+  source: text('source').notNull().default('manual'), // manual | timer | auto
+  reversalOf: integer('reversalOf'),
+  note: text('note'),
+}, (table) => ({
+  userIdIdx: index('ActivityLog_userId_idx').on(table.userId),
+  taskIdIdx: index('ActivityLog_taskId_idx').on(table.taskId),
+  timestampIdx: index('ActivityLog_timestamp_idx').on(table.timestamp),
 }));
 
 // Relations
-export const logsRelations = relations(logs, ({ one }) => ({
-  todo: one(todos, {
-    fields: [logs.todoId],
-    references: [todos.id],
-  }),
-  goal: one(goals, {
-    fields: [logs.goalId],
-    references: [goals.id],
-  }),
-  place: one(places, {
-    fields: [logs.placeId],
-    references: [places.id],
-  }),
-}));
-
-export const todosRelations = relations(todos, ({ one, many }) => ({
-  logs: many(logs),
-  place: one(places, {
-    fields: [todos.placeId],
-    references: [places.id],
-  }),
-  goal: one(goals, {
-    fields: [todos.goalId],
-    references: [goals.id],
-  }),
-}));
-
-export const goalsRelations = relations(goals, ({ one, many }) => ({
-  logs: many(logs),
-  todos: many(todos),
-  place: one(places, {
-    fields: [goals.placeId],
-    references: [places.id],
-  }),
-}));
-
 export const usersRelations = relations(users, ({ one, many }) => ({
   preferences: one(userPreferences),
   accounts: many(accounts),
@@ -351,42 +215,217 @@ export const userPreferencesRelations = relations(userPreferences, ({ one }) => 
   }),
 }));
 
-export const contactsRelations = relations(contacts, ({ many }) => ({
-  financeDebts: many(financeDebts),
+export const pillarsRelations = relations(pillars, ({ many }) => ({
+  tasks: many(tasks),
+  outcomes: many(outcomes),
 }));
 
-export const placesRelations = relations(places, ({ many }) => ({
-  logs: many(logs),
-  todos: many(todos),
-  goals: many(goals),
-  financeTransactions: many(financeTransactions),
-}));
-
-export const financeAccountsRelations = relations(financeAccounts, ({ many }) => ({
-  transactionsFrom: many(financeTransactions, { relationName: 'fromAccount' }),
-  transactionsTo: many(financeTransactions, { relationName: 'toAccount' }),
-}));
-
-export const financeTransactionsRelations = relations(financeTransactions, ({ one }) => ({
-  fromAccount: one(financeAccounts, {
-    fields: [financeTransactions.fromAccountId],
-    references: [financeAccounts.id],
-    relationName: 'fromAccount',
+export const tasksRelations = relations(tasks, ({ one, many }) => ({
+  pillar: one(pillars, {
+    fields: [tasks.pillarId],
+    references: [pillars.id],
   }),
-  toAccount: one(financeAccounts, {
-    fields: [financeTransactions.toAccountId],
-    references: [financeAccounts.id],
-    relationName: 'toAccount',
+  outcome: one(outcomes, {
+    fields: [tasks.outcomeId],
+    references: [outcomes.id],
   }),
-  place: one(places, {
-    fields: [financeTransactions.placeId],
-    references: [places.id],
+  period: one(twelveWeekYears, {
+    fields: [tasks.periodId],
+    references: [twelveWeekYears.id],
+  }),
+  completions: many(taskCompletions),
+}));
+
+export const taskCompletionsRelations = relations(taskCompletions, ({ one }) => ({
+  task: one(tasks, {
+    fields: [taskCompletions.taskId],
+    references: [tasks.id],
   }),
 }));
 
-export const financeDebtsRelations = relations(financeDebts, ({ one }) => ({
-  contact: one(contacts, {
-    fields: [financeDebts.contactId],
-    references: [contacts.id],
+export const activityLogRelations = relations(activityLog, ({ one }) => ({
+  task: one(tasks, {
+    fields: [activityLog.taskId],
+    references: [tasks.id],
+  }),
+  pillar: one(pillars, {
+    fields: [activityLog.pillarId],
+    references: [pillars.id],
   }),
 }));
+
+// Outcomes table
+export const outcomes = sqliteTable('Outcome', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: text('userId').notNull(),
+  pillarId: integer('pillarId').references(() => pillars.id, { onDelete: 'set null' }),
+  name: text('name').notNull(),
+  startValue: real('startValue').notNull(),
+  targetValue: real('targetValue').notNull(),
+  currentValue: real('currentValue').notNull(),
+  unit: text('unit').notNull(),
+  direction: text('direction').notNull(), // 'decrease' | 'increase'
+  logFrequency: text('logFrequency').notNull().default('weekly'), // 'daily' | 'weekly' | 'custom'
+  targetDate: text('targetDate'), // optional YYYY-MM-DD
+  isArchived: integer('isArchived', { mode: 'boolean' }).notNull().default(false),
+  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+  updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+}, (table) => ({
+  userIdIdx: index('Outcome_userId_idx').on(table.userId),
+  pillarIdIdx: index('Outcome_pillarId_idx').on(table.pillarId),
+}));
+
+// OutcomeLog table
+export const outcomeLogs = sqliteTable('OutcomeLog', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  outcomeId: integer('outcomeId').notNull().references(() => outcomes.id, { onDelete: 'cascade' }),
+  userId: text('userId').notNull(),
+  value: real('value').notNull(),
+  loggedAt: integer('loggedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+  source: text('source').notNull().default('manual'), // 'manual' | 'device_sync'
+  note: text('note'),
+}, (table) => ({
+  outcomeIdIdx: index('OutcomeLog_outcomeId_idx').on(table.outcomeId),
+  userIdIdx: index('OutcomeLog_userId_idx').on(table.userId),
+}));
+
+export const outcomesRelations = relations(outcomes, ({ one, many }) => ({
+  pillar: one(pillars, { fields: [outcomes.pillarId], references: [pillars.id] }),
+  logs: many(outcomeLogs),
+  linkedTasks: many(tasks),
+}));
+
+export const outcomeLogsRelations = relations(outcomeLogs, ({ one }) => ({
+  outcome: one(outcomes, { fields: [outcomeLogs.outcomeId], references: [outcomes.id] }),
+}));
+
+// TwelveWeekYear table
+export const twelveWeekYears = sqliteTable('TwelveWeekYear', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: text('userId').notNull(),
+  name: text('name').notNull(),
+  startDate: text('startDate').notNull(),
+  endDate: text('endDate').notNull(),
+  vision: text('vision'),
+  theme: text('theme'),
+  isActive: integer('isActive', { mode: 'boolean' }).notNull().default(true),
+  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+  updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+}, (table) => ({
+  userIdIdx: index('TwelveWeekYear_userId_idx').on(table.userId),
+}));
+
+// TwelveWeekGoal table
+export const twelveWeekGoals = sqliteTable('TwelveWeekGoal', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  periodId: integer('periodId').notNull().references(() => twelveWeekYears.id, { onDelete: 'cascade' }),
+  userId: text('userId').notNull(),
+  name: text('name').notNull(),
+  targetValue: real('targetValue').notNull(),
+  currentValue: real('currentValue').notNull().default(0),
+  unit: text('unit').notNull(),
+  linkedOutcomeId: integer('linkedOutcomeId').references(() => outcomes.id, { onDelete: 'set null' }),
+  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+  updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+}, (table) => ({
+  periodIdIdx: index('TwelveWeekGoal_periodId_idx').on(table.periodId),
+  userIdIdx: index('TwelveWeekGoal_userId_idx').on(table.userId),
+}));
+
+// WeeklyTarget table
+export const weeklyTargets = sqliteTable('WeeklyTarget', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  goalId: integer('goalId').notNull().references(() => twelveWeekGoals.id, { onDelete: 'cascade' }),
+  periodId: integer('periodId').notNull().references(() => twelveWeekYears.id, { onDelete: 'cascade' }),
+  userId: text('userId').notNull(),
+  weekNumber: integer('weekNumber').notNull(),
+  targetValue: real('targetValue').notNull(),
+  actualValue: real('actualValue').notNull().default(0),
+  isOverridden: integer('isOverridden', { mode: 'boolean' }).notNull().default(false),
+  score: text('score'),
+  reviewedAt: integer('reviewedAt', { mode: 'timestamp' }),
+}, (table) => ({
+  goalIdIdx: index('WeeklyTarget_goalId_idx').on(table.goalId),
+  periodIdIdx: index('WeeklyTarget_periodId_idx').on(table.periodId),
+  userIdIdx: index('WeeklyTarget_userId_idx').on(table.userId),
+  goalWeekUnique: unique().on(table.goalId, table.weekNumber),
+}));
+
+// TwelveWeekTactic table
+export const twelveWeekTactics = sqliteTable('TwelveWeekTactic', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  goalId: integer('goalId').notNull().references(() => twelveWeekGoals.id, { onDelete: 'cascade' }),
+  periodId: integer('periodId').notNull().references(() => twelveWeekYears.id, { onDelete: 'cascade' }),
+  userId: text('userId').notNull(),
+  name: text('name').notNull(),
+  description: text('description'),
+  isCompleted: integer('isCompleted', { mode: 'boolean' }).notNull().default(false),
+  sortOrder: integer('sortOrder').notNull().default(0),
+  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+}, (table) => ({
+  goalIdIdx: index('TwelveWeekTactic_goalId_idx').on(table.goalId),
+  periodIdIdx: index('TwelveWeekTactic_periodId_idx').on(table.periodId),
+  userIdIdx: index('TwelveWeekTactic_userId_idx').on(table.userId),
+}));
+
+// WeeklyReview table
+export const weeklyReviews = sqliteTable('WeeklyReview', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  periodId: integer('periodId').notNull().references(() => twelveWeekYears.id, { onDelete: 'cascade' }),
+  userId: text('userId').notNull(),
+  weekNumber: integer('weekNumber').notNull(),
+  notes: text('notes'),
+  wins: text('wins'),
+  blockers: text('blockers'),
+  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+  updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+}, (table) => ({
+  periodIdIdx: index('WeeklyReview_periodId_idx').on(table.periodId),
+  userIdIdx: index('WeeklyReview_userId_idx').on(table.userId),
+  periodWeekUnique: unique().on(table.periodId, table.weekNumber),
+}));
+
+// 12 Week Year relations
+export const twelveWeekYearsRelations = relations(twelveWeekYears, ({ many }) => ({
+  goals: many(twelveWeekGoals),
+  weeklyTargets: many(weeklyTargets),
+  tactics: many(twelveWeekTactics),
+  weeklyReviews: many(weeklyReviews),
+  linkedTasks: many(tasks),
+}));
+
+export const twelveWeekGoalsRelations = relations(twelveWeekGoals, ({ one, many }) => ({
+  period: one(twelveWeekYears, { fields: [twelveWeekGoals.periodId], references: [twelveWeekYears.id] }),
+  linkedOutcome: one(outcomes, { fields: [twelveWeekGoals.linkedOutcomeId], references: [outcomes.id] }),
+  weeklyTargets: many(weeklyTargets),
+  tactics: many(twelveWeekTactics),
+}));
+
+export const twelveWeekTacticsRelations = relations(twelveWeekTactics, ({ one }) => ({
+  goal: one(twelveWeekGoals, { fields: [twelveWeekTactics.goalId], references: [twelveWeekGoals.id] }),
+  period: one(twelveWeekYears, { fields: [twelveWeekTactics.periodId], references: [twelveWeekYears.id] }),
+}));
+
+export const weeklyReviewsRelations = relations(weeklyReviews, ({ one }) => ({
+  period: one(twelveWeekYears, { fields: [weeklyReviews.periodId], references: [twelveWeekYears.id] }),
+}));
+
+export const weeklyTargetsRelations = relations(weeklyTargets, ({ one }) => ({
+  goal: one(twelveWeekGoals, { fields: [weeklyTargets.goalId], references: [twelveWeekGoals.id] }),
+  period: one(twelveWeekYears, { fields: [weeklyTargets.periodId], references: [twelveWeekYears.id] }),
+}));
+
+// GeneratedReports table
+export const generatedReports = sqliteTable('GeneratedReport', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: text('userId').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  type: text('type').notNull(), // 'weekly' | 'monthly'
+  periodStart: text('periodStart').notNull(), // YYYY-MM-DD
+  periodEnd: text('periodEnd').notNull(), // YYYY-MM-DD
+  data: text('data').notNull(), // JSON string of the full report payload
+  generatedAt: integer('generatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+}, (table) => ({
+  userIdIdx: index('GeneratedReport_userId_idx').on(table.userId),
+  userTypePeriodUnique: unique().on(table.userId, table.type, table.periodStart),
+}));
+
