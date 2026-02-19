@@ -267,12 +267,14 @@ export const outcomes = sqliteTable('Outcome', {
   direction: text('direction').notNull(), // 'decrease' | 'increase'
   logFrequency: text('logFrequency').notNull().default('weekly'), // 'daily' | 'weekly' | 'custom'
   targetDate: text('targetDate'), // optional YYYY-MM-DD
+  periodId: integer('periodId').references(() => twelveWeekYears.id, { onDelete: 'set null' }),
   isArchived: integer('isArchived', { mode: 'boolean' }).notNull().default(false),
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
   userIdIdx: index('Outcome_userId_idx').on(table.userId),
   pillarIdIdx: index('Outcome_pillarId_idx').on(table.pillarId),
+  periodIdIdx: index('Outcome_periodId_idx').on(table.periodId),
 }));
 
 // OutcomeLog table
@@ -291,6 +293,7 @@ export const outcomeLogs = sqliteTable('OutcomeLog', {
 
 export const outcomesRelations = relations(outcomes, ({ one, many }) => ({
   pillar: one(pillars, { fields: [outcomes.pillarId], references: [pillars.id] }),
+  period: one(twelveWeekYears, { fields: [outcomes.periodId], references: [twelveWeekYears.id] }),
   logs: many(outcomeLogs),
   linkedTasks: many(tasks),
 }));
@@ -392,6 +395,7 @@ export const twelveWeekYearsRelations = relations(twelveWeekYears, ({ many }) =>
   tactics: many(twelveWeekTactics),
   weeklyReviews: many(weeklyReviews),
   linkedTasks: many(tasks),
+  linkedOutcomes: many(outcomes),
 }));
 
 export const twelveWeekGoalsRelations = relations(twelveWeekGoals, ({ one, many }) => ({

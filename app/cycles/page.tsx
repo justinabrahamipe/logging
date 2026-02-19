@@ -117,6 +117,10 @@ export default function TwelveWeekYearPage() {
   const [weekEdits, setWeekEdits] = useState<Record<string, { actualValue: string; targetValue: string; isOverridden: boolean }>>({});
   const [reviewEdits, setReviewEdits] = useState<Record<number, { notes: string; wins: string; blockers: string }>>({});
 
+  // Accordion state for cycle list
+  const [futureAccordionOpen, setFutureAccordionOpen] = useState(false);
+  const [pastAccordionOpen, setPastAccordionOpen] = useState(false);
+
   // Inline editing for vision/theme
   const [editingVision, setEditingVision] = useState(false);
   const [editingTheme, setEditingTheme] = useState(false);
@@ -137,7 +141,7 @@ export default function TwelveWeekYearPage() {
 
   const fetchCycles = async () => {
     try {
-      const res = await fetch("/api/twelve-week-year");
+      const res = await fetch("/api/cycles");
       if (res.ok) setCycles(await res.json());
     } catch (error) {
       console.error("Failed to fetch cycles:", error);
@@ -149,7 +153,7 @@ export default function TwelveWeekYearPage() {
   const fetchCycleDetail = async (id: number) => {
     setLoadingDetail(true);
     try {
-      const res = await fetch(`/api/twelve-week-year/${id}`);
+      const res = await fetch(`/api/cycles/${id}`);
       if (res.ok) {
         const data = await res.json();
         setSelectedCycle(data);
@@ -176,7 +180,7 @@ export default function TwelveWeekYearPage() {
   const handleCreateCycle = async () => {
     if (!cycleForm.name.trim() || !cycleForm.startDate) return;
     try {
-      const res = await fetch("/api/twelve-week-year", {
+      const res = await fetch("/api/cycles", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -200,7 +204,7 @@ export default function TwelveWeekYearPage() {
   const handleDeleteCycle = async (id: number) => {
     if (!confirm("Delete this cycle? This will remove all goals and weekly data.")) return;
     try {
-      await fetch(`/api/twelve-week-year/${id}`, { method: "DELETE" });
+      await fetch(`/api/cycles/${id}`, { method: "DELETE" });
       setSelectedCycle(null);
       await fetchCycles();
     } catch (error) {
@@ -211,7 +215,7 @@ export default function TwelveWeekYearPage() {
   const handleCreateGoal = async () => {
     if (!selectedCycle || !goalForm.name.trim() || !goalForm.targetValue || !goalForm.unit.trim()) return;
     try {
-      const res = await fetch(`/api/twelve-week-year/${selectedCycle.id}/goals`, {
+      const res = await fetch(`/api/cycles/${selectedCycle.id}/goals`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -234,7 +238,7 @@ export default function TwelveWeekYearPage() {
   const handleUpdateGoal = async () => {
     if (!selectedCycle || !editingGoal) return;
     try {
-      const res = await fetch(`/api/twelve-week-year/${selectedCycle.id}/goals/${editingGoal.id}`, {
+      const res = await fetch(`/api/cycles/${selectedCycle.id}/goals/${editingGoal.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -258,7 +262,7 @@ export default function TwelveWeekYearPage() {
   const handleDeleteGoal = async (goalId: number) => {
     if (!selectedCycle || !confirm("Delete this goal and all its weekly data?")) return;
     try {
-      await fetch(`/api/twelve-week-year/${selectedCycle.id}/goals/${goalId}`, { method: "DELETE" });
+      await fetch(`/api/cycles/${selectedCycle.id}/goals/${goalId}`, { method: "DELETE" });
       await fetchCycleDetail(selectedCycle.id);
     } catch (error) {
       console.error("Failed to delete goal:", error);
@@ -281,7 +285,7 @@ export default function TwelveWeekYearPage() {
   const handleSaveVisionTheme = async (field: "vision" | "theme", value: string) => {
     if (!selectedCycle) return;
     try {
-      const res = await fetch(`/api/twelve-week-year/${selectedCycle.id}`, {
+      const res = await fetch(`/api/cycles/${selectedCycle.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ [field]: value }),
@@ -298,7 +302,7 @@ export default function TwelveWeekYearPage() {
   const handleAddTactic = async (goalId: number) => {
     if (!selectedCycle || !newTacticName.trim()) return;
     try {
-      const res = await fetch(`/api/twelve-week-year/${selectedCycle.id}/goals/${goalId}/tactics`, {
+      const res = await fetch(`/api/cycles/${selectedCycle.id}/goals/${goalId}/tactics`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newTacticName.trim() }),
@@ -315,7 +319,7 @@ export default function TwelveWeekYearPage() {
   const handleToggleTactic = async (goalId: number, tacticId: number, isCompleted: boolean) => {
     if (!selectedCycle) return;
     try {
-      await fetch(`/api/twelve-week-year/${selectedCycle.id}/goals/${goalId}/tactics`, {
+      await fetch(`/api/cycles/${selectedCycle.id}/goals/${goalId}/tactics`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tacticId, isCompleted: !isCompleted }),
@@ -329,7 +333,7 @@ export default function TwelveWeekYearPage() {
   const handleDeleteTactic = async (goalId: number, tacticId: number) => {
     if (!selectedCycle) return;
     try {
-      await fetch(`/api/twelve-week-year/${selectedCycle.id}/goals/${goalId}/tactics?tacticId=${tacticId}`, {
+      await fetch(`/api/cycles/${selectedCycle.id}/goals/${goalId}/tactics?tacticId=${tacticId}`, {
         method: "DELETE",
       });
       await fetchCycleDetail(selectedCycle.id);
@@ -385,7 +389,7 @@ export default function TwelveWeekYearPage() {
         blockers: reviewData.blockers,
       } : undefined;
 
-      await fetch(`/api/twelve-week-year/${selectedCycle.id}/weekly`, {
+      await fetch(`/api/cycles/${selectedCycle.id}/weekly`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ updates, review }),
@@ -1145,9 +1149,9 @@ export default function TwelveWeekYearPage() {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setShowCycleForm(true)}
-            className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium flex items-center gap-2"
+            className="p-2 md:px-4 md:py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium flex items-center gap-2"
           >
-            <FaPlus /> New Cycle
+            <FaPlus /> <span className="hidden md:inline">New Cycle</span>
           </motion.button>
         </div>
 
@@ -1157,64 +1161,144 @@ export default function TwelveWeekYearPage() {
             <p className="text-lg mb-2">No cycles yet</p>
             <p className="text-sm">Create your first goal cycle to start planning</p>
           </div>
-        ) : (
-          <div className="space-y-3">
-            {cycles.map((cycle) => {
-              const cycleTotalWeeks = getTotalWeeks(cycle.startDate, cycle.endDate);
-              const weekNum = getCurrentWeekNumber(cycle.startDate, cycle.endDate);
-              const now = new Date();
-              const end = new Date(cycle.endDate + "T23:59:59");
-              const isCompleted = now > end;
+        ) : (() => {
+          const now = new Date();
+          const activeCycles = cycles.filter((c) => {
+            const end = new Date(c.endDate + "T23:59:59");
+            const start = new Date(c.startDate + "T00:00:00");
+            return c.isActive && now >= start && now <= end;
+          });
+          const futureCycles = cycles.filter((c) => {
+            const start = new Date(c.startDate + "T00:00:00");
+            return start > now;
+          });
+          const pastCycles = cycles.filter((c) => {
+            const end = new Date(c.endDate + "T23:59:59");
+            const start = new Date(c.startDate + "T00:00:00");
+            return now > end || (!c.isActive && now >= start && now <= end);
+          });
 
-              return (
-                <motion.div
-                  key={cycle.id}
-                  layout
-                  whileHover={{ scale: 1.01 }}
-                  onClick={() => fetchCycleDetail(cycle.id)}
-                  className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-5 cursor-pointer hover:border-blue-300 dark:hover:border-blue-600 transition-colors"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{cycle.name}</h3>
-                    <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                      cycle.isActive && !isCompleted
-                        ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                        : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400"
-                    }`}>
-                      {isCompleted ? "Completed" : cycle.isActive ? "Active" : "Inactive"}
-                    </span>
-                  </div>
-                  {cycle.theme && (
-                    <p className="text-xs text-purple-600 dark:text-purple-400 mb-1 font-medium">{cycle.theme}</p>
-                  )}
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
-                    {cycle.startDate} &rarr; {cycle.endDate}
-                  </p>
-                  {/* Mini week progress */}
-                  <div className="flex gap-1">
-                    {Array.from({ length: cycleTotalWeeks }, (_, i) => (
-                      <div
-                        key={i}
-                        className={`h-2 flex-1 rounded-full ${
-                          i + 1 < weekNum
-                            ? "bg-blue-500"
-                            : i + 1 === weekNum && !isCompleted
-                            ? "bg-blue-300 dark:bg-blue-600"
-                            : isCompleted
-                            ? "bg-blue-500"
-                            : "bg-gray-200 dark:bg-gray-700"
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  {!isCompleted && (
-                    <p className="text-xs text-gray-400 mt-1">Week {weekNum} of {cycleTotalWeeks}</p>
-                  )}
-                </motion.div>
-              );
-            })}
-          </div>
-        )}
+          const renderCycleCard = (cycle: Cycle, status: "Active" | "Future" | "Past") => {
+            const cycleTotalWeeks = getTotalWeeks(cycle.startDate, cycle.endDate);
+            const weekNum = getCurrentWeekNumber(cycle.startDate, cycle.endDate);
+            const isCompleted = status === "Past";
+
+            return (
+              <motion.div
+                key={cycle.id}
+                layout
+                whileHover={{ scale: 1.01 }}
+                onClick={() => fetchCycleDetail(cycle.id)}
+                className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-5 cursor-pointer hover:border-blue-300 dark:hover:border-blue-600 transition-colors"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{cycle.name}</h3>
+                  <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                    status === "Active"
+                      ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                      : status === "Future"
+                      ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                      : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400"
+                  }`}>
+                    {status}
+                  </span>
+                </div>
+                {cycle.theme && (
+                  <p className="text-xs text-purple-600 dark:text-purple-400 mb-1 font-medium">{cycle.theme}</p>
+                )}
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                  {cycle.startDate} &rarr; {cycle.endDate}
+                </p>
+                <div className="flex gap-1">
+                  {Array.from({ length: cycleTotalWeeks }, (_, i) => (
+                    <div
+                      key={i}
+                      className={`h-2 flex-1 rounded-full ${
+                        i + 1 < weekNum
+                          ? "bg-blue-500"
+                          : i + 1 === weekNum && !isCompleted
+                          ? "bg-blue-300 dark:bg-blue-600"
+                          : isCompleted
+                          ? "bg-blue-500"
+                          : "bg-gray-200 dark:bg-gray-700"
+                      }`}
+                    />
+                  ))}
+                </div>
+                {status === "Active" && (
+                  <p className="text-xs text-gray-400 mt-1">Week {weekNum} of {cycleTotalWeeks}</p>
+                )}
+              </motion.div>
+            );
+          };
+
+          return (
+            <div className="space-y-4">
+              {/* Active cycles */}
+              {activeCycles.length > 0 && (
+                <div className="space-y-3">
+                  {activeCycles.map((c) => renderCycleCard(c, "Active"))}
+                </div>
+              )}
+
+              {/* Future cycles accordion */}
+              {futureCycles.length > 0 && (
+                <div>
+                  <button
+                    onClick={() => setFutureAccordionOpen(!futureAccordionOpen)}
+                    className="flex items-center justify-between w-full px-4 py-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl text-blue-700 dark:text-blue-400 font-medium text-sm"
+                  >
+                    <span>Future ({futureCycles.length})</span>
+                    {futureAccordionOpen ? <FaChevronUp /> : <FaChevronDown />}
+                  </button>
+                  <AnimatePresence>
+                    {futureAccordionOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="space-y-3 mt-3">
+                          {futureCycles.map((c) => renderCycleCard(c, "Future"))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )}
+
+              {/* Past cycles accordion */}
+              {pastCycles.length > 0 && (
+                <div>
+                  <button
+                    onClick={() => setPastAccordionOpen(!pastAccordionOpen)}
+                    className="flex items-center justify-between w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 rounded-xl text-gray-600 dark:text-gray-400 font-medium text-sm"
+                  >
+                    <span>Past ({pastCycles.length})</span>
+                    {pastAccordionOpen ? <FaChevronUp /> : <FaChevronDown />}
+                  </button>
+                  <AnimatePresence>
+                    {pastAccordionOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="space-y-3 mt-3">
+                          {pastCycles.map((c) => renderCycleCard(c, "Past"))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </motion.div>
 
       {/* New Cycle Modal */}

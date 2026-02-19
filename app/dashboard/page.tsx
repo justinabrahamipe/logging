@@ -466,14 +466,14 @@ function StreakFlameChain({
           </span>
         </div>
       </div>
-      <div className="flex items-center justify-between gap-1">
+      <div className="flex items-center justify-between gap-0.5 md:gap-1 overflow-x-auto">
         {days.map((day, i) => (
-          <div key={i} className="flex flex-col items-center gap-1">
-            <span className="text-[10px] text-gray-400 dark:text-gray-500">
+          <div key={i} className="flex flex-col items-center gap-0.5 md:gap-1 min-w-0 shrink-0">
+            <span className="text-[9px] md:text-[10px] text-gray-400 dark:text-gray-500">
               {day.label}
             </span>
             <div
-              className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-sm ${
+              className={`w-5 h-5 md:w-8 md:h-8 rounded-full flex items-center justify-center text-[10px] md:text-sm ${
                 day.status === "pass"
                   ? "bg-orange-500/20 text-orange-500"
                   : day.status === "fail"
@@ -484,12 +484,12 @@ function StreakFlameChain({
               {day.status === "pass" ? (
                 <FaFire />
               ) : day.status === "fail" ? (
-                <FaTimes className="text-xs" />
+                <FaTimes className="text-[8px] md:text-xs" />
               ) : (
-                <span className="text-xs">-</span>
+                <span className="text-[8px] md:text-xs">-</span>
               )}
             </div>
-            <span className="text-[9px] text-gray-400 dark:text-gray-500">
+            <span className="text-[8px] md:text-[9px] text-gray-400 dark:text-gray-500">
               {day.date.slice(8)}
             </span>
           </div>
@@ -620,13 +620,13 @@ export default function DashboardPage() {
               })}
             </p>
           </div>
-          <Link href="/today">
+          <Link href="/tasks">
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium"
             >
-              Go to Today
+              Go to Tasks
             </motion.button>
           </Link>
         </div>

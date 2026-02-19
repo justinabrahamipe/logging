@@ -19,6 +19,7 @@ import { useRouter } from "next/navigation";
 interface Outcome {
   id: number;
   pillarId: number | null;
+  periodId: number | null;
   name: string;
   startValue: number;
   targetValue: number;
@@ -30,6 +31,13 @@ interface Outcome {
   pillarName: string | null;
   pillarColor: string | null;
   pillarEmoji: string | null;
+}
+
+interface CycleOption {
+  id: number;
+  name: string;
+  startDate: string;
+  endDate: string;
 }
 
 interface Pillar {
@@ -68,16 +76,17 @@ export default function OutcomesPage() {
   const [showHistory, setShowHistory] = useState<number | null>(null);
   const [historyLogs, setHistoryLogs] = useState<LogEntry[]>([]);
   const [linkedTasks, setLinkedTasks] = useState<LinkedTask[]>([]);
+  const [cycles, setCycles] = useState<CycleOption[]>([]);
 
   const [form, setForm] = useState({
     name: "",
     startValue: "",
     targetValue: "",
     unit: "",
-    direction: "decrease",
     pillarId: "",
     logFrequency: "weekly",
     targetDate: "",
+    periodId: "",
   });
 
   useEffect(() => {
@@ -89,6 +98,7 @@ export default function OutcomesPage() {
       fetchOutcomes();
       fetchPillars();
       fetchLinkedTasks();
+      fetchCycles();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, status]);
@@ -133,18 +143,31 @@ export default function OutcomesPage() {
     }
   };
 
+  const fetchCycles = async () => {
+    try {
+      const res = await fetch("/api/cycles");
+      if (res.ok) setCycles(await res.json());
+    } catch (error) {
+      console.error("Failed to fetch cycles:", error);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!form.name.trim() || !form.unit.trim() || form.startValue === "" || form.targetValue === "") return;
 
+    const start = parseFloat(form.startValue);
+    const target = parseFloat(form.targetValue);
+
     const payload = {
       name: form.name,
-      startValue: parseFloat(form.startValue),
-      targetValue: parseFloat(form.targetValue),
+      startValue: start,
+      targetValue: target,
       unit: form.unit,
-      direction: form.direction,
+      direction: target >= start ? "increase" : "decrease",
       pillarId: form.pillarId ? parseInt(form.pillarId) : null,
       logFrequency: form.logFrequency,
       targetDate: form.targetDate || null,
+      periodId: form.periodId ? parseInt(form.periodId) : null,
     };
 
     try {
@@ -218,10 +241,10 @@ export default function OutcomesPage() {
       startValue: "",
       targetValue: "",
       unit: "",
-      direction: "decrease",
       pillarId: "",
       logFrequency: "weekly",
       targetDate: "",
+      periodId: "",
     });
   };
 
@@ -232,10 +255,10 @@ export default function OutcomesPage() {
       startValue: String(outcome.startValue),
       targetValue: String(outcome.targetValue),
       unit: outcome.unit,
-      direction: outcome.direction,
       pillarId: outcome.pillarId ? String(outcome.pillarId) : "",
       logFrequency: outcome.logFrequency,
       targetDate: outcome.targetDate || "",
+      periodId: outcome.periodId ? String(outcome.periodId) : "",
     });
     setShowForm(true);
     setMenuOpen(null);
@@ -306,9 +329,9 @@ export default function OutcomesPage() {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => { resetForm(); setShowForm(true); }}
-            className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium flex items-center gap-2"
+            className="p-2 md:px-4 md:py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium flex items-center gap-2"
           >
-            <FaPlus /> Add Outcome
+            <FaPlus /> <span className="hidden md:inline">Add Outcome</span>
           </motion.button>
         </div>
 
@@ -574,20 +597,6 @@ export default function OutcomesPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Direction</label>
-                      <select
-                        value={form.direction}
-                        onChange={(e) => setForm({ ...form, direction: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                      >
-                        <option value="decrease">Decrease</option>
-                        <option value="increase">Increase</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Log Frequency</label>
                       <select
                         value={form.logFrequency}
@@ -599,15 +608,38 @@ export default function OutcomesPage() {
                         <option value="custom">Custom</option>
                       </select>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Target Date</label>
-                      <input
-                        type="date"
-                        value={form.targetDate}
-                        onChange={(e) => setForm({ ...form, targetDate: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                      />
-                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Goal Cycle (optional)</label>
+                    <select
+                      value={form.periodId}
+                      onChange={(e) => {
+                        const pid = e.target.value;
+                        const cycle = cycles.find((c) => String(c.id) === pid);
+                        setForm({
+                          ...form,
+                          periodId: pid,
+                          targetDate: cycle ? cycle.endDate : form.targetDate,
+                        });
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    >
+                      <option value="">None</option>
+                      {cycles.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name} ({c.startDate} → {c.endDate})</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Target Date</label>
+                    <input
+                      type="date"
+                      value={form.targetDate}
+                      onChange={(e) => setForm({ ...form, targetDate: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
                   </div>
 
                   <div className="flex gap-3 pt-2">
