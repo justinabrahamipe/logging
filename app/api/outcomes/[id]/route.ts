@@ -30,6 +30,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   if (body.direction !== undefined) updateData.direction = body.direction;
   if (body.logFrequency !== undefined) updateData.logFrequency = body.logFrequency;
   if (body.targetDate !== undefined) updateData.targetDate = body.targetDate || null;
+  if (body.periodId !== undefined) updateData.periodId = body.periodId || null;
 
   const [updated] = await db
     .update(outcomes)

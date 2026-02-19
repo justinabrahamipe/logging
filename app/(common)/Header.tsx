@@ -70,7 +70,7 @@ export default function Header() {
     { href: "/tasks", label: "Tasks", icon: FaTasks },
     { href: "/activity", label: "Activity", icon: FaHistory },
     { href: "/outcomes", label: "Outcomes", icon: FaChartLine },
-    { href: "/twelve-week-year", label: "Cycles", icon: FaCalendarAlt },
+    { href: "/cycles", label: "Cycles", icon: FaCalendarAlt },
     { href: "/pillars", label: "Pillars", icon: FaColumns },
   ];
 
