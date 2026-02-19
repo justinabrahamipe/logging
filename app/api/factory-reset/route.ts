@@ -9,6 +9,16 @@ import {
 import { eq } from "drizzle-orm";
 import { seedDefaultData } from "@/lib/seed-data";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function safeDelete(table: any, userId: string, userIdField: any) {
+  try {
+    await db.delete(table).where(eq(userIdField, userId));
+  } catch (e) {
+    // Table might not exist yet in prod — skip and continue
+    console.warn(`Factory reset: skipping table delete`, e);
+  }
+}
+
 export async function POST() {
   const session = await auth();
   if (!session?.user?.id) {
@@ -20,21 +30,22 @@ export async function POST() {
   try {
     // Delete all user data (order matters due to FKs)
     // Using sequential deletes instead of transaction for Turso/libsql HTTP compatibility
-    await db.delete(taskCompletions).where(eq(taskCompletions.userId, userId));
-    await db.delete(dailyScores).where(eq(dailyScores.userId, userId));
-    await db.delete(userStats).where(eq(userStats.userId, userId));
-    await db.delete(outcomeLogs).where(eq(outcomeLogs.userId, userId));
-    await db.delete(activityLog).where(eq(activityLog.userId, userId));
-    await db.delete(generatedReports).where(eq(generatedReports.userId, userId));
-    await db.delete(weeklyReviews).where(eq(weeklyReviews.userId, userId));
-    await db.delete(twelveWeekTactics).where(eq(twelveWeekTactics.userId, userId));
-    await db.delete(weeklyTargets).where(eq(weeklyTargets.userId, userId));
-    await db.delete(twelveWeekGoals).where(eq(twelveWeekGoals.userId, userId));
-    await db.delete(twelveWeekYears).where(eq(twelveWeekYears.userId, userId));
-    await db.delete(outcomes).where(eq(outcomes.userId, userId));
-    await db.delete(tasks).where(eq(tasks.userId, userId));
-    await db.delete(pillars).where(eq(pillars.userId, userId));
-    await db.delete(userPreferences).where(eq(userPreferences.userId, userId));
+    // Each wrapped in safeDelete to handle missing tables gracefully
+    await safeDelete(taskCompletions, userId, taskCompletions.userId);
+    await safeDelete(dailyScores, userId, dailyScores.userId);
+    await safeDelete(userStats, userId, userStats.userId);
+    await safeDelete(outcomeLogs, userId, outcomeLogs.userId);
+    await safeDelete(activityLog, userId, activityLog.userId);
+    await safeDelete(generatedReports, userId, generatedReports.userId);
+    await safeDelete(weeklyReviews, userId, weeklyReviews.userId);
+    await safeDelete(twelveWeekTactics, userId, twelveWeekTactics.userId);
+    await safeDelete(weeklyTargets, userId, weeklyTargets.userId);
+    await safeDelete(twelveWeekGoals, userId, twelveWeekGoals.userId);
+    await safeDelete(twelveWeekYears, userId, twelveWeekYears.userId);
+    await safeDelete(outcomes, userId, outcomes.userId);
+    await safeDelete(tasks, userId, tasks.userId);
+    await safeDelete(pillars, userId, pillars.userId);
+    await safeDelete(userPreferences, userId, userPreferences.userId);
 
     // Re-seed default gamification data (skip check since we just deleted everything)
     await seedDefaultData(userId, true);
@@ -42,8 +53,9 @@ export async function POST() {
     return NextResponse.json({ success: true, message: "Factory reset completed and default data seeded" });
   } catch (error) {
     console.error("Error during factory reset:", error);
+    const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: "Failed to perform factory reset" },
+      { error: "Failed to perform factory reset", details: message },
       { status: 500 }
     );
   }
