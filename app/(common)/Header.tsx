@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaBolt, FaColumns, FaTasks, FaBars, FaTimes, FaSignOutAlt, FaCog, FaDownload, FaHistory, FaChartLine } from "react-icons/fa";
+import { FaBolt, FaColumns, FaTasks, FaBars, FaTimes, FaSignOutAlt, FaCog, FaDownload, FaHistory, FaChartLine, FaCalendarAlt } from "react-icons/fa";
 import { useState, useEffect, useRef } from "react";
 import { useSession, signOut } from "next-auth/react";
 
@@ -65,6 +65,7 @@ export default function Header() {
     { href: "/tasks", label: "Tasks", icon: FaTasks },
     { href: "/activity", label: "Activity", icon: FaHistory },
     { href: "/outcomes", label: "Outcomes", icon: FaChartLine },
+    { href: "/twelve-week-year", label: "12WY", icon: FaCalendarAlt },
     { href: "/pillars", label: "Pillars", icon: FaColumns },
   ];
 

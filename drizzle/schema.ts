@@ -293,6 +293,73 @@ export const outcomeLogsRelations = relations(outcomeLogs, ({ one }) => ({
   outcome: one(outcomes, { fields: [outcomeLogs.outcomeId], references: [outcomes.id] }),
 }));
 
+// TwelveWeekYear table
+export const twelveWeekYears = sqliteTable('TwelveWeekYear', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: text('userId').notNull(),
+  name: text('name').notNull(),
+  startDate: text('startDate').notNull(),
+  endDate: text('endDate').notNull(),
+  isActive: integer('isActive', { mode: 'boolean' }).notNull().default(true),
+  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+  updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+}, (table) => ({
+  userIdIdx: index('TwelveWeekYear_userId_idx').on(table.userId),
+}));
+
+// TwelveWeekGoal table
+export const twelveWeekGoals = sqliteTable('TwelveWeekGoal', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  periodId: integer('periodId').notNull().references(() => twelveWeekYears.id, { onDelete: 'cascade' }),
+  userId: text('userId').notNull(),
+  name: text('name').notNull(),
+  targetValue: real('targetValue').notNull(),
+  currentValue: real('currentValue').notNull().default(0),
+  unit: text('unit').notNull(),
+  linkedOutcomeId: integer('linkedOutcomeId').references(() => outcomes.id, { onDelete: 'set null' }),
+  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+  updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+}, (table) => ({
+  periodIdIdx: index('TwelveWeekGoal_periodId_idx').on(table.periodId),
+  userIdIdx: index('TwelveWeekGoal_userId_idx').on(table.userId),
+}));
+
+// WeeklyTarget table
+export const weeklyTargets = sqliteTable('WeeklyTarget', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  goalId: integer('goalId').notNull().references(() => twelveWeekGoals.id, { onDelete: 'cascade' }),
+  periodId: integer('periodId').notNull().references(() => twelveWeekYears.id, { onDelete: 'cascade' }),
+  userId: text('userId').notNull(),
+  weekNumber: integer('weekNumber').notNull(),
+  targetValue: real('targetValue').notNull(),
+  actualValue: real('actualValue').notNull().default(0),
+  isOverridden: integer('isOverridden', { mode: 'boolean' }).notNull().default(false),
+  score: text('score'),
+  reviewedAt: integer('reviewedAt', { mode: 'timestamp' }),
+}, (table) => ({
+  goalIdIdx: index('WeeklyTarget_goalId_idx').on(table.goalId),
+  periodIdIdx: index('WeeklyTarget_periodId_idx').on(table.periodId),
+  userIdIdx: index('WeeklyTarget_userId_idx').on(table.userId),
+  goalWeekUnique: unique().on(table.goalId, table.weekNumber),
+}));
+
+// 12 Week Year relations
+export const twelveWeekYearsRelations = relations(twelveWeekYears, ({ many }) => ({
+  goals: many(twelveWeekGoals),
+  weeklyTargets: many(weeklyTargets),
+}));
+
+export const twelveWeekGoalsRelations = relations(twelveWeekGoals, ({ one, many }) => ({
+  period: one(twelveWeekYears, { fields: [twelveWeekGoals.periodId], references: [twelveWeekYears.id] }),
+  linkedOutcome: one(outcomes, { fields: [twelveWeekGoals.linkedOutcomeId], references: [outcomes.id] }),
+  weeklyTargets: many(weeklyTargets),
+}));
+
+export const weeklyTargetsRelations = relations(weeklyTargets, ({ one }) => ({
+  goal: one(twelveWeekGoals, { fields: [weeklyTargets.goalId], references: [twelveWeekGoals.id] }),
+  period: one(twelveWeekYears, { fields: [weeklyTargets.periodId], references: [twelveWeekYears.id] }),
+}));
+
 // GeneratedReports table
 export const generatedReports = sqliteTable('GeneratedReport', {
   id: integer('id').primaryKey({ autoIncrement: true }),

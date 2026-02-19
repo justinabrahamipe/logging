@@ -43,6 +43,13 @@
       "when": 1771100000000,
       "tag": "0005_remove-finance",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1771200000000,
+      "tag": "0006_twelve-week-year",
+      "breakpoints": true
     }
   ]
 }
