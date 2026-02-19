@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import { motion } from "framer-motion";
-import { FaFire, FaStar, FaTrophy, FaBolt, FaTimes, FaChartLine, FaArrowUp, FaArrowDown } from "react-icons/fa";
+import { FaFire, FaStar, FaTrophy, FaBolt, FaTimes, FaChartLine, FaArrowUp, FaArrowDown, FaSun } from "react-icons/fa";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -300,8 +300,8 @@ function ScoreTrendChart({ scores }: { scores: HistoryScore[] }) {
               color: "var(--tooltip-text, #F9FAFB)",
               fontSize: 12,
             }}
-            formatter={(value: number) => [`${value}%`, "Score"]}
-            labelFormatter={(label: string) => `Date: ${label}`}
+            formatter={(value: number | undefined) => [`${value ?? 0}%`, "Score"]}
+            labelFormatter={(label: unknown) => `Date: ${label}`}
           />
           <ReferenceLine
             y={70}
@@ -406,7 +406,7 @@ function PillarBreakdownChart({
               color: "var(--tooltip-text, #F9FAFB)",
               fontSize: 12,
             }}
-            formatter={(value: number) => [`${value}%`, "Average"]}
+            formatter={(value: number | undefined) => [`${value ?? 0}%`, "Average"]}
           />
           <Bar dataKey="avg" radius={[0, 6, 6, 0]} barSize={24}>
             {data.map((entry, index) => (
@@ -508,6 +508,7 @@ export default function DashboardPage() {
   const [history, setHistory] = useState<HistoryData | null>(null);
   const [outcomesData, setOutcomesData] = useState<OutcomeData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [todayTaskCount, setTodayTaskCount] = useState(0);
   const [seeding, setSeeding] = useState(false);
   const seedingRef = useRef(false);
 
@@ -525,11 +526,12 @@ export default function DashboardPage() {
 
   const fetchData = async () => {
     try {
-      const [scoreRes, statsRes, historyRes, outcomesRes] = await Promise.all([
+      const [scoreRes, statsRes, historyRes, outcomesRes, tasksRes] = await Promise.all([
         fetch(`/api/daily-score?date=${today}`),
         fetch("/api/user-stats"),
         fetch("/api/daily-score/history?days=90"),
         fetch("/api/outcomes"),
+        fetch(`/api/tasks?date=${today}`),
       ]);
 
       if (scoreRes.ok) {
@@ -543,6 +545,11 @@ export default function DashboardPage() {
       }
       if (outcomesRes.ok) {
         setOutcomesData(await outcomesRes.json());
+      }
+      if (tasksRes.ok) {
+        const groups = await tasksRes.json();
+        const count = groups.reduce((sum: number, g: { tasks: unknown[] }) => sum + g.tasks.length, 0);
+        setTodayTaskCount(count);
       }
     } catch (error) {
       console.error("Failed to fetch dashboard data:", error);
@@ -622,6 +629,72 @@ export default function DashboardPage() {
             </motion.button>
           </Link>
         </div>
+
+        {/* Morning Briefing */}
+        {stats && history && (
+          (() => {
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            const yesterdayStr = yesterday.toISOString().split("T")[0];
+            const yesterdayScore = history.scores.find(s => s.date === yesterdayStr);
+
+            const getStreakMessage = (streak: number) => {
+              if (streak >= 30) return "Unstoppable. Keep dominating.";
+              if (streak >= 14) return "Two weeks strong. You're building something real.";
+              if (streak >= 7) return "A full week! Momentum is on your side.";
+              if (streak >= 3) return "Nice streak going. Don't break the chain.";
+              if (streak >= 1) return "Good start. Let's keep it going today.";
+              return "New day, fresh start. Let's make it count.";
+            };
+
+            return (
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 mb-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <FaSun className="text-2xl text-amber-500" />
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                    Today&apos;s Briefing
+                  </h2>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4 mb-4">
+                  {/* Yesterday's Score */}
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                      {yesterdayScore ? `${yesterdayScore.actionScore}%` : "—"}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      Yesterday
+                    </div>
+                  </div>
+
+                  {/* Current Streak */}
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-orange-500">
+                      {stats.currentStreak}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      Day Streak
+                    </div>
+                  </div>
+
+                  {/* Tasks Due */}
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-500">
+                      {todayTaskCount}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      Tasks Today
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-sm text-gray-600 dark:text-gray-400 text-center italic">
+                  {getStreakMessage(stats.currentStreak)}
+                </p>
+              </div>
+            );
+          })()
+        )}
 
         {/* Empty State — Seed Prompt */}
         {score && score.totalTasks === 0 && (

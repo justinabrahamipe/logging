@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaPlus, FaEdit, FaTrash, FaTimes, FaCheck, FaMinus, FaPlay, FaStop, FaUndo, FaEllipsisV, FaCopy } from "react-icons/fa";
+import { FaPlus, FaEdit, FaTrash, FaTimes, FaCheck, FaMinus, FaPlay, FaStop, FaUndo, FaEllipsisV, FaCopy, FaExpand, FaCompress } from "react-icons/fa";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
@@ -21,6 +21,12 @@ interface TaskCompletion {
   pointsEarned: number;
 }
 
+interface Outcome {
+  id: number;
+  pillarId: number | null;
+  name: string;
+}
+
 interface Task {
   id: number;
   pillarId: number;
@@ -37,6 +43,7 @@ interface Task {
   customDays: string | null;
   isWeekendTask: boolean;
   basePoints: number;
+  outcomeId: number | null;
   completion?: TaskCompletion | null;
 }
 
@@ -95,6 +102,7 @@ export default function TasksPage() {
   const router = useRouter();
   const [groups, setGroups] = useState<TaskGroup[]>([]);
   const [pillars, setPillars] = useState<Pillar[]>([]);
+  const [outcomes, setOutcomes] = useState<Outcome[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -103,6 +111,7 @@ export default function TasksPage() {
   const [timers, setTimers] = useState<Record<number, { running: boolean; elapsed: number; interval?: NodeJS.Timeout }>>({});
   const [pendingValues, setPendingValues] = useState<Record<number, string>>({});
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+  const [focusMode, setFocusMode] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const [form, setForm] = useState({
     pillarId: 0,
@@ -120,6 +129,7 @@ export default function TasksPage() {
     windowEnd: '',
     limitValue: '',
     isAdhoc: false,
+    outcomeId: 0,
   });
 
   const today = new Date().toISOString().split('T')[0];
@@ -131,6 +141,7 @@ export default function TasksPage() {
     }
     if (session?.user?.id) {
       fetchPillars();
+      fetchOutcomes();
     }
   }, [session, status]);
 
@@ -152,6 +163,18 @@ export default function TasksPage() {
       }
     } catch (error) {
       console.error("Failed to fetch pillars:", error);
+    }
+  };
+
+  const fetchOutcomes = async () => {
+    try {
+      const res = await fetch('/api/outcomes');
+      if (res.ok) {
+        const data = await res.json();
+        setOutcomes(data.map((o: Outcome & { pillarId: number | null }) => ({ id: o.id, pillarId: o.pillarId, name: o.name })));
+      }
+    } catch (error) {
+      console.error("Failed to fetch outcomes:", error);
     }
   };
 
@@ -355,6 +378,7 @@ export default function TasksPage() {
       windowEnd: task.windowEnd?.toString() || '',
       limitValue: task.limitValue?.toString() || '',
       isAdhoc: task.frequency === 'adhoc',
+      outcomeId: task.outcomeId || 0,
     });
     setShowForm(true);
   };
@@ -373,6 +397,7 @@ export default function TasksPage() {
       flexibilityRule: form.isAdhoc ? 'must_today' : form.flexibilityRule,
     };
 
+    if (form.outcomeId) body.outcomeId = form.outcomeId;
     if (form.target) body.target = parseFloat(form.target);
     if (form.unit) body.unit = form.unit;
     if (form.frequency === 'custom' && !form.isAdhoc) body.customDays = JSON.stringify(form.customDays);
@@ -433,6 +458,7 @@ export default function TasksPage() {
       windowEnd: '',
       limitValue: '',
       isAdhoc: false,
+      outcomeId: 0,
     });
   };
 
@@ -454,6 +480,7 @@ export default function TasksPage() {
       windowEnd: task.windowEnd?.toString() || '',
       limitValue: task.limitValue?.toString() || '',
       isAdhoc: task.frequency === 'adhoc',
+      outcomeId: task.outcomeId || 0,
     });
     setShowForm(true);
   };
@@ -507,28 +534,38 @@ export default function TasksPage() {
           </motion.button>
         </div>
 
-        {/* Filter Toggle */}
-        <div className="flex gap-1 mb-4 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 w-fit">
-          <button
-            onClick={() => setFilter('today')}
-            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
-              filter === 'today'
-                ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-            }`}
-          >
-            Today
-          </button>
-          <button
-            onClick={() => setFilter('all')}
-            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
-              filter === 'all'
-                ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-            }`}
-          >
-            All
-          </button>
+        {/* Filter Toggle + Focus */}
+        <div className="flex items-center gap-2 mb-4">
+          <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 w-fit">
+            <button
+              onClick={() => setFilter('today')}
+              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                filter === 'today'
+                  ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              Today
+            </button>
+            <button
+              onClick={() => setFilter('all')}
+              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                filter === 'all'
+                  ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              All
+            </button>
+          </div>
+          {isToday && (
+            <button
+              onClick={() => setFocusMode(true)}
+              className="px-3 py-1.5 text-sm font-medium rounded-md bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors flex items-center gap-1.5"
+            >
+              <FaExpand className="text-xs" /> Focus
+            </button>
+          )}
         </div>
 
         {/* Score Summary Bar (Today only) */}
@@ -642,6 +679,11 @@ export default function TasksPage() {
                             {task.frequency === 'adhoc' && (
                               <span className="text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
                                 Ad-hoc
+                              </span>
+                            )}
+                            {task.outcomeId && outcomes.find(o => o.id === task.outcomeId) && (
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                                {outcomes.find(o => o.id === task.outcomeId)?.name}
                               </span>
                             )}
                           </div>
@@ -808,6 +850,216 @@ export default function TasksPage() {
           ))}
         </div>
 
+        {/* Focus Mode Overlay */}
+        <AnimatePresence>
+          {focusMode && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[100] bg-white dark:bg-gray-900 overflow-y-auto"
+            >
+              <div className="max-w-2xl mx-auto px-4 py-6">
+                {/* Exit button */}
+                <button
+                  onClick={() => setFocusMode(false)}
+                  className="fixed top-4 right-4 z-[101] px-3 py-1.5 text-sm font-medium rounded-lg bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors flex items-center gap-1.5 shadow-lg"
+                >
+                  <FaCompress className="text-xs" /> Exit Focus
+                </button>
+
+                {/* Score bar */}
+                {scoreSummary && (
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 mb-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-3">
+                        <div className="text-3xl font-bold text-gray-900 dark:text-white">
+                          {scoreSummary.actionScore}%
+                        </div>
+                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                          {scoreSummary.scoreTier}
+                        </span>
+                      </div>
+                      <span className="text-sm text-gray-500 dark:text-gray-400">
+                        {scoreSummary.completedTasks}/{scoreSummary.totalTasks} tasks
+                      </span>
+                    </div>
+                    <div className="w-full h-2.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${Math.min(scoreSummary.actionScore, 100)}%` }}
+                        transition={{ duration: 0.5 }}
+                        className="h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-500"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Task groups */}
+                {groups.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                    <p className="text-lg">No tasks for today</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {groups.map((group) => (
+                      <div key={group.pillar.id} className="bg-gray-50 dark:bg-gray-800 rounded-xl overflow-hidden">
+                        <div
+                          className="px-4 py-2.5 flex items-center gap-2 border-b border-gray-200 dark:border-gray-700"
+                          style={{ borderLeftWidth: 4, borderLeftColor: group.pillar.color }}
+                        >
+                          <span className="text-lg">{group.pillar.emoji}</span>
+                          <h3 className="font-semibold text-gray-900 dark:text-white text-sm">{group.pillar.name}</h3>
+                        </div>
+                        <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                          {group.tasks.map((task) => {
+                            const isCompleted = task.completion?.completed || false;
+                            const currentValue = task.completion?.value || 0;
+
+                            return (
+                              <div
+                                key={task.id}
+                                className={`px-4 py-3 transition-colors ${isCompleted ? 'bg-green-50/50 dark:bg-green-900/10' : ''}`}
+                              >
+                                <div className="flex items-center justify-between gap-3">
+                                  <span className={`text-sm font-medium flex-1 ${isCompleted ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>
+                                    {task.name}
+                                  </span>
+
+                                  <div className="flex items-center gap-2 flex-shrink-0">
+                                    {task.completionType === 'checkbox' && (
+                                      <motion.button
+                                        whileTap={{ scale: 0.9 }}
+                                        onClick={() => handleCheckboxToggle(task)}
+                                        className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-colors ${
+                                          isCompleted
+                                            ? 'bg-green-500 border-green-500 text-white'
+                                            : 'border-gray-300 dark:border-gray-600 hover:border-green-500'
+                                        }`}
+                                      >
+                                        {isCompleted && <FaCheck className="text-sm" />}
+                                      </motion.button>
+                                    )}
+
+                                    {task.completionType === 'count' && (
+                                      <div className="flex items-center gap-1">
+                                        <motion.button
+                                          whileTap={{ scale: 0.9 }}
+                                          onClick={() => handleCountChange(task, -1)}
+                                          className="w-7 h-7 rounded-lg bg-gray-200 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-600"
+                                        >
+                                          <FaMinus className="text-xs" />
+                                        </motion.button>
+                                        <span className={`w-12 text-center text-sm font-bold ${
+                                          task.target && currentValue >= task.target ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'
+                                        }`}>
+                                          {currentValue}/{task.target || '?'}
+                                        </span>
+                                        <motion.button
+                                          whileTap={{ scale: 0.9 }}
+                                          onClick={() => handleCountChange(task, 1)}
+                                          className="w-7 h-7 rounded-lg bg-blue-500 text-white flex items-center justify-center hover:bg-blue-600"
+                                        >
+                                          <FaPlus className="text-xs" />
+                                        </motion.button>
+                                      </div>
+                                    )}
+
+                                    {task.completionType === 'duration' && (
+                                      <div className="flex items-center gap-1">
+                                        {timers[task.id]?.running ? (
+                                          <span className="text-sm font-mono text-gray-700 dark:text-gray-300 w-14 text-center">
+                                            {formatTime(timers[task.id].elapsed)}
+                                          </span>
+                                        ) : (
+                                          <span className="text-sm text-gray-500 dark:text-gray-400 w-14 text-center">
+                                            {currentValue ? `${currentValue}m` : '0m'}
+                                          </span>
+                                        )}
+                                        <motion.button
+                                          whileTap={{ scale: 0.9 }}
+                                          onClick={() => handleTimerToggle(task)}
+                                          className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                                            timers[task.id]?.running ? 'bg-red-500 text-white' : 'bg-blue-500 text-white'
+                                          }`}
+                                        >
+                                          {timers[task.id]?.running ? <FaStop className="text-xs" /> : <FaPlay className="text-xs" />}
+                                        </motion.button>
+                                      </div>
+                                    )}
+
+                                    {task.completionType === 'numeric' && (
+                                      <div className="flex items-center gap-1">
+                                        <input
+                                          type="number"
+                                          value={pendingValues[task.id] ?? (currentValue || '')}
+                                          onChange={(e) => setPendingValues(prev => ({ ...prev, [task.id]: e.target.value }))}
+                                          onKeyDown={(e) => e.key === 'Enter' && handleNumericSubmit(task)}
+                                          placeholder={task.target ? String(task.target) : '0'}
+                                          className="w-16 px-2 py-1 text-sm text-right border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                        />
+                                        {pendingValues[task.id] !== undefined && (
+                                          <motion.button
+                                            whileTap={{ scale: 0.9 }}
+                                            onClick={() => handleNumericSubmit(task)}
+                                            className="w-7 h-7 rounded-lg bg-green-500 text-white flex items-center justify-center hover:bg-green-600"
+                                          >
+                                            <FaCheck className="text-xs" />
+                                          </motion.button>
+                                        )}
+                                      </div>
+                                    )}
+
+                                    {task.completionType === 'percentage' && (
+                                      <div className="flex items-center gap-1">
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          max="100"
+                                          value={pendingValues[task.id] ?? (currentValue || '')}
+                                          onChange={(e) => setPendingValues(prev => ({ ...prev, [task.id]: e.target.value }))}
+                                          onKeyDown={(e) => e.key === 'Enter' && handlePercentageSubmit(task)}
+                                          placeholder="0"
+                                          className="w-14 px-2 py-1 text-sm text-right border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                        />
+                                        <span className="text-sm text-gray-500">%</span>
+                                        {pendingValues[task.id] !== undefined && (
+                                          <motion.button
+                                            whileTap={{ scale: 0.9 }}
+                                            onClick={() => handlePercentageSubmit(task)}
+                                            className="w-7 h-7 rounded-lg bg-green-500 text-white flex items-center justify-center hover:bg-green-600"
+                                          >
+                                            <FaCheck className="text-xs" />
+                                          </motion.button>
+                                        )}
+                                      </div>
+                                    )}
+
+                                    {isCompleted && (
+                                      <motion.button
+                                        whileTap={{ scale: 0.9 }}
+                                        onClick={() => handleUndo(task.id)}
+                                        className="w-6 h-6 rounded-lg flex items-center justify-center text-gray-400 hover:text-orange-500 transition-colors"
+                                        title="Undo"
+                                      >
+                                        <FaUndo className="text-xs" />
+                                      </motion.button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Add/Edit Form Modal */}
         <AnimatePresence>
           {showForm && (
@@ -847,6 +1099,23 @@ export default function TasksPage() {
                       {pillars.map(p => (
                         <option key={p.id} value={p.id}>{p.emoji} {p.name}</option>
                       ))}
+                    </select>
+                  </div>
+
+                  {/* Linked Outcome */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Linked Outcome (optional)</label>
+                    <select
+                      value={form.outcomeId}
+                      onChange={e => setForm({ ...form, outcomeId: parseInt(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    >
+                      <option value={0}>None</option>
+                      {outcomes
+                        .filter(o => !form.pillarId || o.pillarId === form.pillarId || !o.pillarId)
+                        .map(o => (
+                          <option key={o.id} value={o.id}>{o.name}</option>
+                        ))}
                     </select>
                   </div>
 

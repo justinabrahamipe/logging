@@ -101,12 +101,14 @@ export const tasks = sqliteTable('Task', {
   customDays: text('customDays'), // JSON array of day numbers [0-6] (0=Sunday)
   isWeekendTask: integer('isWeekendTask', { mode: 'boolean' }).notNull().default(false),
   basePoints: real('basePoints').notNull().default(10),
+  outcomeId: integer('outcomeId').references(() => outcomes.id, { onDelete: 'set null' }),
   isActive: integer('isActive', { mode: 'boolean' }).notNull().default(true),
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
   userIdIdx: index('Task_userId_idx').on(table.userId),
   pillarIdIdx: index('Task_pillarId_idx').on(table.pillarId),
+  outcomeIdIdx: index('Task_outcomeId_idx').on(table.outcomeId),
 }));
 
 // TaskCompletions table
@@ -221,6 +223,10 @@ export const tasksRelations = relations(tasks, ({ one, many }) => ({
     fields: [tasks.pillarId],
     references: [pillars.id],
   }),
+  outcome: one(outcomes, {
+    fields: [tasks.outcomeId],
+    references: [outcomes.id],
+  }),
   completions: many(taskCompletions),
 }));
 
@@ -280,9 +286,24 @@ export const outcomeLogs = sqliteTable('OutcomeLog', {
 export const outcomesRelations = relations(outcomes, ({ one, many }) => ({
   pillar: one(pillars, { fields: [outcomes.pillarId], references: [pillars.id] }),
   logs: many(outcomeLogs),
+  linkedTasks: many(tasks),
 }));
 
 export const outcomeLogsRelations = relations(outcomeLogs, ({ one }) => ({
   outcome: one(outcomes, { fields: [outcomeLogs.outcomeId], references: [outcomes.id] }),
+}));
+
+// GeneratedReports table
+export const generatedReports = sqliteTable('GeneratedReport', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: text('userId').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  type: text('type').notNull(), // 'weekly' | 'monthly'
+  periodStart: text('periodStart').notNull(), // YYYY-MM-DD
+  periodEnd: text('periodEnd').notNull(), // YYYY-MM-DD
+  data: text('data').notNull(), // JSON string of the full report payload
+  generatedAt: integer('generatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+}, (table) => ({
+  userIdIdx: index('GeneratedReport_userId_idx').on(table.userId),
+  userTypePeriodUnique: unique().on(table.userId, table.type, table.periodStart),
 }));
 

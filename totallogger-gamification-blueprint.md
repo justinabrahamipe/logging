@@ -1,10 +1,10 @@
 # TotalLogger Life Gamification System
 ## Complete Product Blueprint
 
-**Created:** February 18, 2026  
-**Author:** Justin Abraham Ipe  
-**Status:** Ready for Development  
-**Platform:** Web (responsive - mobile + desktop)  
+**Created:** February 18, 2026
+**Author:** Justin Abraham Ipe
+**Status:** In Development
+**Platform:** Web (responsive - mobile + desktop)
 **User Scope:** Personal use first, product-ready architecture
 
 ---
@@ -20,8 +20,8 @@
 7. [Streaks & Visualization](#7-streaks--visualization)
 8. [XP & Levels System](#8-xp--levels-system)
 9. [Logging System](#9-logging-system)
-10. [Rewards System](#10-rewards-system)
-11. [Reports](#11-reports)
+10. [Reports](#10-reports)
+11. [The 12 Week Year Module](#11-the-12-week-year-module-optional--future)
 12. [Additional Features](#12-additional-features)
 13. [Database Schema](#13-database-schema)
 14. [Build Phases](#14-build-phases)
@@ -42,7 +42,6 @@ A gamification system that provides immediate visual feedback, streaks, and scor
 - **Progress Score:** Long-term outcome tracking (results over time)
 - **Streaks:** Visual chain you don't want to break
 - **XP & Levels:** Long-term progression and titles
-- **Rewards:** Real-world rewards tied to achievements
 
 ---
 
@@ -73,7 +72,7 @@ A gamification system that provides immediate visual feedback, streaks, and scor
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                        OUTPUTS                              │
-│  Daily Score | Streaks | XP/Levels | Reports | Rewards      │
+│  Daily Score | Streaks | XP/Levels | Reports                │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -172,7 +171,7 @@ Tasks can optionally belong to a pillar. Each task row has a 3-dot menu for edit
 ```
 Daily Score = Sum of (Task Score x Importance Multiplier)
 
-Where Task Score = 
+Where Task Score =
   - Checkbox: 0 or max points
   - Count/Duration/Numeric: (actual / target) x max points
   - Percentage: (percentage / 100) x max points
@@ -364,38 +363,9 @@ interface LogEntry {
 
 ---
 
-## 10. Rewards System
+## 10. Reports
 
-### 10.1 Concept
-
-Users set real-world rewards tied to achievements. When trigger is met, reward unlocks and can be claimed guilt-free.
-
-### 10.2 Trigger Types
-
-| Trigger | Example |
-|---------|---------|
-| Outcome-based | Hit 90kg weight |
-| Streak-based | 30-day streak |
-| Task completion | Complete first 10K run |
-| Level-based | Reach Level 10 |
-| Cumulative | Complete 50 gym sessions |
-| Time-based | Stay consistent for 3 months |
-
-### 10.3 Reward Flow
-
-```
-Set Reward --> Trigger Met --> Unlocked --> Claim --> Date Logged
-```
-
-### 10.4 Setup
-- User sets reward when creating the goal/trigger
-- Claim action: Mark as claimed + date logged
-
----
-
-## 11. Reports
-
-### 11.1 Weekly Reports
+### 10.1 Weekly Reports
 
 | Metric | Description |
 |--------|-------------|
@@ -408,19 +378,130 @@ Set Reward --> Trigger Met --> Unlocked --> Claim --> Date Logged
 | Most completed tasks | Top performers |
 | Most skipped tasks | Problem areas |
 
-### 11.2 Monthly Reports
+### 10.2 Monthly Reports
 
 Everything in weekly, plus:
 - Month-over-month comparison
 - Trend analysis
 - Long-term patterns
 
-### 11.3 Delivery
+### 10.3 Delivery
 
 | Method | Description |
 |--------|-------------|
 | Auto-generated | Every Sunday (weekly), 1st of month (monthly) |
 | On-demand | User can view anytime |
+
+---
+
+## 11. The 12 Week Year Module (Optional / Future)
+
+### 11.1 Overview
+
+The 12 Week Year treats 12 weeks like a full year - creating urgency and focus. This is an optional module users can enable.
+
+### 11.2 Core Features
+
+| Feature | Description |
+|---------|-------------|
+| 12-week goal setting | Define cycle with specific targets |
+| Weekly breakdown | Auto-calculate targets (with override) |
+| Weekly review | Score progress against plan |
+| Progress dashboard | Visual 12-week view |
+| Rollover | Carry incomplete to next cycle |
+
+### 11.3 Weekly Target Calculation
+
+```
+12-Week Goal: 75 LeetCode problems
+Weekly Target: 75 ÷ 12 = 6.25 → 6 problems/week
+
+User can override any week (e.g., vacation week = 2, heavy week = 10)
+```
+
+### 11.4 Weekly Scoring Tiers
+
+| Score | Rating | Visual |
+|-------|--------|--------|
+| 100%+ | Exceeded | Fire |
+| 80-99% | Good | Check |
+| 60-79% | Partial | Neutral |
+| <60% | Missed | X |
+
+### 11.5 Missed Target Handling
+
+Missed targets spread across remaining weeks:
+
+```
+Week 1: Target 6, Actual 4 (missed 2)
+Remaining: 11 weeks
+New weekly target: 6 + (2 ÷ 11) = 6.18
+
+System tracks fractional, displays rounded
+```
+
+### 11.6 Integration Options
+
+| Feature | Options |
+|---------|---------|
+| Link to Outcomes | User chooses per goal (can link or keep separate) |
+| Actions → Goals | Auto-suggest connection, user confirms |
+| Review day | User chooses (Monday, Sunday, etc.) |
+
+### 11.7 12-Week Dashboard
+
+```
+12 WEEK YEAR: "Q1 2026 Transformation"
+Feb 17 - May 11, 2026                              Week 4/12
+
+GOALS                              Target    Progress   Status
+├─ Weight loss                     90kg      96.2kg     On Track
+├─ LeetCode problems               75        28/75      Ahead
+├─ Job applications                36        10/36      Behind
+└─ Side hustle hours               60hrs     18/60      On Track
+
+WEEKLY BREAKDOWN
+Wk1 ✅ | Wk2 ✅ | Wk3 😐 | Wk4 [IN PROGRESS] | Wk5-12 ░░░░░░░░
+```
+
+### 11.8 Schema Additions
+
+```typescript
+interface TwelveWeekYear {
+  id: string;
+  userId: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+interface TwelveWeekGoal {
+  id: string;
+  periodId: string;
+  userId: string;
+  name: string;
+  targetValue: number;
+  currentValue: number;
+  unit: string;
+  linkedOutcomeId?: string;
+  linkedTaskIds?: string[];
+  createdAt: string;
+}
+
+interface WeeklyTarget {
+  id: string;
+  goalId: string;
+  periodId: string;
+  weekNumber: number;
+  targetValue: number;
+  actualValue: number;
+  isOverridden: boolean;
+  score: 'exceeded' | 'good' | 'partial' | 'missed';
+  reviewedAt?: string;
+}
+```
 
 ---
 
@@ -438,7 +519,7 @@ Everything in weekly, plus:
 
 | Feature | Description |
 |---------|-------------|
-| AI Coach | Claude API integration for personalized insights |
+| AI Coach | AI integration for personalized insights |
 | Offline mode | Sync when back online |
 | Voice input | "Log gym done" |
 | API access | Connect to other apps |
@@ -503,10 +584,10 @@ interface Task {
   frequency: 'daily' | 'weekly' | 'custom' | 'adhoc';
   customDays?: number[];
   isWeekendTask: boolean;
-  
+
   // Points
   basePoints: number;
-  
+
   createdAt: string;
   updatedAt: string;
 }
@@ -598,22 +679,6 @@ interface UserStats {
   bestStreak: number;
   updatedAt: string;
 }
-
-// Rewards
-interface Reward {
-  id: string;
-  userId: string;
-  name: string;
-  description?: string;
-  triggerType: 'outcome' | 'streak' | 'task' | 'level' | 'cumulative' | 'time';
-  triggerEntityId?: string;
-  triggerValue: number;
-  isUnlocked: boolean;
-  unlockedAt?: string;
-  isClaimed: boolean;
-  claimedAt?: string;
-  createdAt: string;
-}
 ```
 
 ---
@@ -637,45 +702,49 @@ interface Reward {
 - [x] Undo/reversal functionality
 - [x] Log viewing (day, filter, search) — Activity page
 
-### Phase 3: Streaks & Visualization
+### Phase 3: Streaks & Visualization — DONE
 - [x] Streak calculation (basic — currentStreak/bestStreak in UserStats)
-- [ ] Calendar heatmap view
-- [ ] Flame chain view
-- [ ] Daily score line chart
-- [ ] Pillar breakdown chart (bar/pie)
+- [x] Calendar heatmap view
+- [x] Flame chain view
+- [x] Daily score line chart
+- [x] Pillar breakdown chart (bar/pie)
 
 ### Phase 4: XP & Levels — DONE
 - [x] XP calculation with streak bonuses
 - [x] Level progression (1-10+ with titles)
 - [x] Level display with title and progress bar on dashboard
 
-### Phase 5: Outcomes
-- [ ] Outcome CRUD
-- [ ] Progress calculation (from start, from target)
-- [ ] Progress Score
-- [ ] Combined dashboard
-- [ ] Optional action to outcome linking
+### Phase 5: Outcomes — DONE
+- [x] Outcome CRUD
+- [x] Progress calculation (from start, from target)
+- [x] Progress Score
+- [x] Combined dashboard
+- [x] Optional action to outcome linking
 
-### Phase 6: Reports
-- [ ] Weekly report generation
-- [ ] Monthly report generation
-- [ ] Auto-generation on schedule
-- [ ] On-demand viewing
+### Phase 6: Reports — DONE
+- [x] Weekly report generation
+- [x] Monthly report generation
+- [x] Auto-generation on schedule (Vercel cron: weekly Monday 9am UTC, monthly 1st 9am UTC)
+- [x] On-demand viewing
+- [x] Saved reports tab (stored JSON, instant load)
 
-### Phase 7: Rewards
-- [ ] Reward CRUD
-- [ ] Trigger detection (all 6 types)
-- [ ] Unlock notifications
-- [ ] Claim functionality
-
-### Phase 8: Polish
+### Phase 7: Polish
 - [x] Dark mode + light mode + system preference
-- [ ] Focus mode
-- [ ] Morning briefing (simple)
+- [x] Focus mode
+- [x] Morning briefing (simple)
 - [x] Weekend task handling (weekend-only flag, separate thresholds in settings)
 - [x] Mobile responsiveness
 - [x] PWA support (installable)
-- [ ] Performance optimization
+- [x] Performance optimization (skeleton loaders, client-side caching)
+
+### Phase 8: 12 Week Year (Future)
+- [ ] 12-week cycle CRUD (create, name, start/end date)
+- [ ] Goal setting within cycles
+- [ ] Weekly target auto-calculation with override
+- [ ] Weekly review and scoring
+- [ ] Missed target redistribution
+- [ ] 12-week dashboard visualization
+- [ ] Link to existing Outcomes (optional)
 
 ---
 
@@ -724,15 +793,6 @@ interface Reward {
 | Body Fat | 25.7% | 15% | Decrease |
 | Skeletal Muscle | 40.1 kg | 42 kg | Increase |
 
-### 15.4 Sample Rewards
-
-| Reward | Trigger |
-|--------|---------|
-| Garmin watch | Complete 10K run |
-| New wardrobe | Hit 90kg weight |
-| Weekend trip | Reach Level 10 |
-| Nice dinner | Ship Churchly MVP |
-
 ---
 
 ## Summary
@@ -742,7 +802,7 @@ This blueprint defines a comprehensive life gamification system that:
 1. **Solves your core problem:** Provides immediate dopamine feedback for productive tasks
 2. **Separates control:** Actions (what you do) vs Outcomes (results)
 3. **Maintains integrity:** Immutable logging with reversal-based undo
-4. **Motivates long-term:** XP, levels, streaks, and real-world rewards
+4. **Motivates long-term:** XP, levels, and streaks
 5. **Scales to users:** Built with product-ready architecture
 
 **Next step:** Start Phase 1 - build pillar and task CRUD with basic scoring.

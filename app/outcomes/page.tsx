@@ -39,6 +39,12 @@ interface Pillar {
   color: string;
 }
 
+interface LinkedTask {
+  id: number;
+  name: string;
+  outcomeId: number | null;
+}
+
 interface LogEntry {
   id: number;
   value: number;
@@ -61,6 +67,7 @@ export default function OutcomesPage() {
   const [menuOpen, setMenuOpen] = useState<number | null>(null);
   const [showHistory, setShowHistory] = useState<number | null>(null);
   const [historyLogs, setHistoryLogs] = useState<LogEntry[]>([]);
+  const [linkedTasks, setLinkedTasks] = useState<LinkedTask[]>([]);
 
   const [form, setForm] = useState({
     name: "",
@@ -81,6 +88,7 @@ export default function OutcomesPage() {
     if (session?.user?.id) {
       fetchOutcomes();
       fetchPillars();
+      fetchLinkedTasks();
     }
   }, [session, status]);
 
@@ -101,6 +109,26 @@ export default function OutcomesPage() {
       if (res.ok) setPillars(await res.json());
     } catch (error) {
       console.error("Failed to fetch pillars:", error);
+    }
+  };
+
+  const fetchLinkedTasks = async () => {
+    try {
+      const res = await fetch('/api/tasks');
+      if (res.ok) {
+        const groups = await res.json();
+        const allTasks: LinkedTask[] = [];
+        for (const group of groups) {
+          for (const task of group.tasks) {
+            if (task.outcomeId) {
+              allTasks.push({ id: task.id, name: task.name, outcomeId: task.outcomeId });
+            }
+          }
+        }
+        setLinkedTasks(allTasks);
+      }
+    } catch (error) {
+      console.error("Failed to fetch linked tasks:", error);
     }
   };
 
@@ -394,6 +422,20 @@ export default function OutcomesPage() {
                           <span className="font-medium">{Math.round(progress)}%</span>
                           <span>{outcome.targetValue} {outcome.unit}</span>
                         </div>
+
+                        {/* Linked Tasks */}
+                        {linkedTasks.filter(t => t.outcomeId === outcome.id).length > 0 && (
+                          <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Linked Tasks</p>
+                            <div className="flex flex-wrap gap-1">
+                              {linkedTasks.filter(t => t.outcomeId === outcome.id).map(task => (
+                                <span key={task.id} className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                                  {task.name}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
 
                         {/* History panel */}
                         <AnimatePresence>

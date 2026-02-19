@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { motion } from "framer-motion";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -13,6 +13,7 @@ import {
   FaStar,
   FaTrophy,
   FaBolt,
+  FaHistory,
 } from "react-icons/fa";
 import {
   LineChart,
@@ -65,6 +66,15 @@ interface ReportData {
   }>;
 }
 
+interface SavedReport {
+  id: number;
+  type: string;
+  periodStart: string;
+  periodEnd: string;
+  generatedAt: string;
+  data: string;
+}
+
 function getTierColor(score: number): string {
   if (score >= 95) return "#FFD700";
   if (score >= 85) return "#22C55E";
@@ -98,6 +108,10 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
   const [type, setType] = useState<"weekly" | "monthly">("weekly");
   const [endDate, setEndDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [tab, setTab] = useState<"live" | "saved">("live");
+  const [savedReports, setSavedReports] = useState<SavedReport[]>([]);
+  const [savedLoading, setSavedLoading] = useState(false);
+  const reportCache = useRef<Map<string, ReportData>>(new Map());
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -112,17 +126,49 @@ export default function ReportsPage() {
   }, [session, type, endDate]);
 
   const fetchReport = async () => {
+    const cacheKey = `${type}-${endDate}`;
+    const cached = reportCache.current.get(cacheKey);
+    if (cached) {
+      setReport(cached);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch(`/api/reports?type=${type}&date=${endDate}`);
       if (res.ok) {
-        setReport(await res.json());
+        const data = await res.json();
+        reportCache.current.set(cacheKey, data);
+        setReport(data);
       }
     } catch (error) {
       console.error("Failed to fetch report:", error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchSavedReports = async () => {
+    setSavedLoading(true);
+    try {
+      const res = await fetch("/api/reports/saved");
+      if (res.ok) {
+        setSavedReports(await res.json());
+      }
+    } catch (error) {
+      console.error("Failed to fetch saved reports:", error);
+    } finally {
+      setSavedLoading(false);
+    }
+  };
+
+  const loadSavedReport = (saved: SavedReport) => {
+    const data = JSON.parse(saved.data) as ReportData;
+    setReport(data);
+    setType(data.type as "weekly" | "monthly");
+    setEndDate(saved.periodEnd);
+    setTab("live");
   };
 
   const navigatePeriod = (direction: "prev" | "next") => {
@@ -189,8 +235,32 @@ export default function ReportsPage() {
             Reports
           </h1>
 
+          {/* Live vs Saved Toggle */}
+          <div className="flex gap-1 mb-4 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 w-fit">
+            <button
+              onClick={() => setTab("live")}
+              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                tab === "live"
+                  ? "bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm"
+                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+              }`}
+            >
+              Live
+            </button>
+            <button
+              onClick={() => { setTab("saved"); fetchSavedReports(); }}
+              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center gap-1 ${
+                tab === "saved"
+                  ? "bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm"
+                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+              }`}
+            >
+              <FaHistory className="text-xs" /> Saved
+            </button>
+          </div>
+
           {/* Period Toggle */}
-          <div className="flex items-center gap-2 mb-4">
+          {tab === "live" && <div className="flex items-center gap-2 mb-4">
             <button
               onClick={() => setType("weekly")}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
@@ -211,42 +281,86 @@ export default function ReportsPage() {
             >
               Monthly
             </button>
-          </div>
+          </div>}
 
           {/* Date Navigation */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigatePeriod("prev")}
-              className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-            >
-              <FaChevronLeft />
-            </button>
-            <span className="text-lg font-medium text-gray-900 dark:text-white min-w-[200px] text-center">
-              {report ? formatDateRange(report.dateRange.start, report.dateRange.end) : "..."}
-            </span>
-            <button
-              onClick={() => navigatePeriod("next")}
-              disabled={isCurrentPeriod}
-              className={`p-2 rounded-lg transition-colors ${
-                isCurrentPeriod
-                  ? "bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed"
-                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
-              }`}
-            >
-              <FaChevronRight />
-            </button>
-          </div>
+          {tab === "live" && (
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => navigatePeriod("prev")}
+                className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+              >
+                <FaChevronLeft />
+              </button>
+              <span className="text-lg font-medium text-gray-900 dark:text-white min-w-[200px] text-center">
+                {report ? formatDateRange(report.dateRange.start, report.dateRange.end) : "..."}
+              </span>
+              <button
+                onClick={() => navigatePeriod("next")}
+                disabled={isCurrentPeriod}
+                className={`p-2 rounded-lg transition-colors ${
+                  isCurrentPeriod
+                    ? "bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed"
+                    : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                }`}
+              >
+                <FaChevronRight />
+              </button>
+            </div>
+          )}
         </div>
 
+        {/* Saved Reports Tab */}
+        {tab === "saved" && (
+          <div className="space-y-3">
+            {savedLoading ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              </div>
+            ) : savedReports.length === 0 ? (
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-8 text-center">
+                <p className="text-lg text-gray-500 dark:text-gray-400">No saved reports yet</p>
+                <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">Reports are auto-generated weekly on Mondays and monthly on the 1st</p>
+              </div>
+            ) : (
+              savedReports.map((saved) => (
+                <button
+                  key={saved.id}
+                  onClick={() => loadSavedReport(saved)}
+                  className="w-full text-left bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 hover:border-blue-400 dark:hover:border-blue-500 transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded ${
+                        saved.type === "weekly"
+                          ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                          : "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"
+                      }`}>
+                        {saved.type === "weekly" ? "Weekly" : "Monthly"}
+                      </span>
+                      <span className="ml-2 text-sm font-medium text-gray-900 dark:text-white">
+                        {formatDateRange(saved.periodStart, saved.periodEnd)}
+                      </span>
+                    </div>
+                    <span className="text-xs text-gray-400 dark:text-gray-500">
+                      Generated {new Date(saved.generatedAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+        )}
+
         {/* Loading overlay for period changes */}
-        {loading && report && (
+        {tab === "live" && loading && report && (
           <div className="flex justify-center py-4 mb-4">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
           </div>
         )}
 
         {/* Empty State */}
-        {!hasData && !loading && (
+        {tab === "live" && !hasData && !loading && (
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-8 text-center">
             <p className="text-lg text-gray-500 dark:text-gray-400">
               No data for this period. Try navigating to a different date range.
@@ -254,7 +368,7 @@ export default function ReportsPage() {
           </div>
         )}
 
-        {hasData && report && (
+        {tab === "live" && hasData && report && (
           <>
             {/* Summary Card */}
             <motion.div
@@ -346,8 +460,8 @@ export default function ReportsPage() {
                         color: "var(--tooltip-text, #F9FAFB)",
                         fontSize: 12,
                       }}
-                      formatter={(value: number) => [`${value}%`, "Score"]}
-                      labelFormatter={(label: string) => `Date: ${label}`}
+                      formatter={(value: number | undefined) => [`${value ?? 0}%`, "Score"]}
+                      labelFormatter={(label: unknown) => `Date: ${label}`}
                     />
                     <ReferenceLine
                       y={70}
@@ -413,7 +527,7 @@ export default function ReportsPage() {
                         color: "var(--tooltip-text, #F9FAFB)",
                         fontSize: 12,
                       }}
-                      formatter={(value: number) => [`${value}%`, "Average"]}
+                      formatter={(value: number | undefined) => [`${value ?? 0}%`, "Average"]}
                     />
                     <Bar dataKey="avg" radius={[0, 6, 6, 0]} barSize={24}>
                       {pillarChartData.map((entry, index) => (

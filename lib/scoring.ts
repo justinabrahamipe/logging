@@ -3,7 +3,7 @@ type Importance = 'high' | 'medium' | 'low';
 
 interface TaskForScoring {
   id: number;
-  pillarId: number;
+  pillarId: number | null;
   completionType: string;
   target: number | null;
   importance: string;
@@ -74,8 +74,9 @@ export function calculateDailyScore(
   // Group tasks by pillar
   const pillarTasks: Record<number, TaskForScoring[]> = {};
   for (const task of tasksForDay) {
-    if (!pillarTasks[task.pillarId]) pillarTasks[task.pillarId] = [];
-    pillarTasks[task.pillarId].push(task);
+    const pid = task.pillarId ?? 0;
+    if (!pillarTasks[pid]) pillarTasks[pid] = [];
+    pillarTasks[pid].push(task);
   }
 
   const completionMap = new Map<number, CompletionForScoring>();
