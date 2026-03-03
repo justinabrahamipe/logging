@@ -197,15 +197,17 @@ export default function SettingsPage() {
     setIsResetting(true);
     try {
       const response = await fetch("/api/factory-reset", { method: "POST" });
+      const data = await response.json();
       if (response.ok) {
         setSnackbar({ open: true, message: "All data has been reset and default data seeded! Redirecting...", severity: "success" });
         setTimeout(() => { window.location.href = "/dashboard"; }, 2000);
       } else {
-        setSnackbar({ open: true, message: "Failed to reset data. Please try again.", severity: "error" });
+        const detail = data?.details || data?.error || "Unknown error";
+        setSnackbar({ open: true, message: `Factory reset failed: ${detail}`, severity: "error" });
       }
     } catch (error) {
       console.error("Error resetting data:", error);
-      setSnackbar({ open: true, message: "Failed to reset data. Please try again.", severity: "error" });
+      setSnackbar({ open: true, message: `Factory reset failed: ${error instanceof Error ? error.message : "Network error"}`, severity: "error" });
     } finally {
       setIsResetting(false);
       setShowResetConfirm(false);

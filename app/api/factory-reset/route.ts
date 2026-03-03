@@ -1,23 +1,26 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import {
-  db, pillars, tasks, taskCompletions, dailyScores, userStats,
-  outcomes, outcomeLogs, activityLog,
-  twelveWeekYears, twelveWeekGoals, twelveWeekTactics, weeklyTargets, weeklyReviews,
-  generatedReports, userPreferences,
-} from "@/lib/db";
-import { eq } from "drizzle-orm";
+import { createClient } from "@libsql/client";
 import { seedDefaultData } from "@/lib/seed-data";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function safeDelete(table: any, userId: string, userIdField: any) {
-  try {
-    await db.delete(table).where(eq(userIdField, userId));
-  } catch (e) {
-    // Table might not exist yet in prod — skip and continue
-    console.warn(`Factory reset: skipping table delete`, e);
-  }
-}
+// Tables to delete in FK-safe order (children before parents)
+const TABLES_TO_DELETE = [
+  "TaskCompletion",
+  "DailyScore",
+  "UserStats",
+  "OutcomeLog",
+  "ActivityLog",
+  "GeneratedReport",
+  "WeeklyReview",
+  "TwelveWeekTactic",
+  "WeeklyTarget",
+  "TwelveWeekGoal",
+  "TwelveWeekYear",
+  "Outcome",
+  "Task",
+  "Pillar",
+  "UserPreferences",
+];
 
 export async function POST() {
   const session = await auth();
@@ -28,29 +31,44 @@ export async function POST() {
   const userId = session.user.id;
 
   try {
-    // Delete all user data (order matters due to FKs)
-    // Using sequential deletes instead of transaction for Turso/libsql HTTP compatibility
-    // Each wrapped in safeDelete to handle missing tables gracefully
-    await safeDelete(taskCompletions, userId, taskCompletions.userId);
-    await safeDelete(dailyScores, userId, dailyScores.userId);
-    await safeDelete(userStats, userId, userStats.userId);
-    await safeDelete(outcomeLogs, userId, outcomeLogs.userId);
-    await safeDelete(activityLog, userId, activityLog.userId);
-    await safeDelete(generatedReports, userId, generatedReports.userId);
-    await safeDelete(weeklyReviews, userId, weeklyReviews.userId);
-    await safeDelete(twelveWeekTactics, userId, twelveWeekTactics.userId);
-    await safeDelete(weeklyTargets, userId, weeklyTargets.userId);
-    await safeDelete(twelveWeekGoals, userId, twelveWeekGoals.userId);
-    await safeDelete(twelveWeekYears, userId, twelveWeekYears.userId);
-    await safeDelete(outcomes, userId, outcomes.userId);
-    await safeDelete(tasks, userId, tasks.userId);
-    await safeDelete(pillars, userId, pillars.userId);
-    await safeDelete(userPreferences, userId, userPreferences.userId);
+    // Use raw SQL client to bypass any Drizzle schema mismatches
+    const client = createClient({
+      url: process.env.DATABASE_URL!,
+      authToken: process.env.DATABASE_AUTH_TOKEN!,
+    });
 
-    // Re-seed default gamification data (skip check since we just deleted everything)
+    // Disable foreign key checks to avoid FK ordering issues
+    await client.execute("PRAGMA foreign_keys = OFF");
+
+    const deleted: string[] = [];
+    const skipped: string[] = [];
+
+    for (const table of TABLES_TO_DELETE) {
+      try {
+        await client.execute({
+          sql: `DELETE FROM "${table}" WHERE "userId" = ?`,
+          args: [userId],
+        });
+        deleted.push(table);
+      } catch (e) {
+        // Table might not exist in production — skip
+        skipped.push(table);
+        console.warn(`Factory reset: skipped ${table}`, e);
+      }
+    }
+
+    // Re-enable foreign key checks
+    await client.execute("PRAGMA foreign_keys = ON");
+
+    // Re-seed default data
     await seedDefaultData(userId, true);
 
-    return NextResponse.json({ success: true, message: "Factory reset completed and default data seeded" });
+    return NextResponse.json({
+      success: true,
+      message: "Factory reset completed and default data seeded",
+      deleted,
+      skipped,
+    });
   } catch (error) {
     console.error("Error during factory reset:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
