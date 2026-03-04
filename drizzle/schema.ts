@@ -171,7 +171,7 @@ export const activityLog = sqliteTable('ActivityLog', {
   timestamp: integer('timestamp', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   taskId: integer('taskId').references(() => tasks.id, { onDelete: 'set null' }),
   pillarId: integer('pillarId').references(() => pillars.id, { onDelete: 'set null' }),
-  action: text('action').notNull(), // complete | reverse | adjust | add | subtract
+  action: text('action').notNull(), // complete | reverse | adjust | add | subtract | outcome_log
   previousValue: real('previousValue'),
   newValue: real('newValue'),
   delta: real('delta'),
@@ -181,6 +181,7 @@ export const activityLog = sqliteTable('ActivityLog', {
   source: text('source').notNull().default('manual'), // manual | timer | auto
   reversalOf: integer('reversalOf'),
   note: text('note'),
+  outcomeLogId: integer('outcomeLogId').references(() => outcomeLogs.id, { onDelete: 'set null' }),
 }, (table) => ({
   userIdIdx: index('ActivityLog_userId_idx').on(table.userId),
   taskIdIdx: index('ActivityLog_taskId_idx').on(table.taskId),
@@ -251,6 +252,10 @@ export const activityLogRelations = relations(activityLog, ({ one }) => ({
   pillar: one(pillars, {
     fields: [activityLog.pillarId],
     references: [pillars.id],
+  }),
+  outcomeLog: one(outcomeLogs, {
+    fields: [activityLog.outcomeLogId],
+    references: [outcomeLogs.id],
   }),
 }));
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { db, activityLog, tasks, pillars } from "@/lib/db";
+import { db, activityLog, tasks, pillars, outcomeLogs, outcomes } from "@/lib/db";
 import { eq, and, gte, lte, desc } from "drizzle-orm";
 
 export async function GET(request: NextRequest) {
@@ -66,10 +66,17 @@ export async function GET(request: NextRequest) {
       pillarName: pillars.name,
       pillarEmoji: pillars.emoji,
       pillarColor: pillars.color,
+      outcomeLogId: activityLog.outcomeLogId,
+      outcomeLogValue: outcomeLogs.value,
+      outcomeId: outcomeLogs.outcomeId,
+      outcomeName: outcomes.name,
+      outcomeUnit: outcomes.unit,
     })
     .from(activityLog)
     .leftJoin(tasks, eq(activityLog.taskId, tasks.id))
     .leftJoin(pillars, eq(activityLog.pillarId, pillars.id))
+    .leftJoin(outcomeLogs, eq(activityLog.outcomeLogId, outcomeLogs.id))
+    .leftJoin(outcomes, eq(outcomeLogs.outcomeId, outcomes.id))
     .where(and(...conditions))
     .orderBy(desc(activityLog.id))
     .limit(limit)
