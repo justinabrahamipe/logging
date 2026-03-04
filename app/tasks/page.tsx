@@ -968,7 +968,7 @@ export default function TasksPage() {
               exit={{ opacity: 0 }}
               className="fixed inset-0 z-[100] bg-white dark:bg-gray-900 overflow-y-auto"
             >
-              <div className="max-w-2xl mx-auto px-4 py-6">
+              <div className="w-full px-4 py-6">
                 {/* Exit button */}
                 <button
                   onClick={() => setFocusMode(false)}
@@ -1010,16 +1010,18 @@ export default function TasksPage() {
                     <p className="text-lg">No tasks for today</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
                     {groups.flatMap((group) =>
                       group.tasks.map((task) => {
                             const isCompleted = task.completion?.completed || false;
                             const currentValue = task.completion?.value || 0;
 
+                            const isFullyDone = isCompleted || (task.target != null && task.target > 0 && currentValue >= task.target);
+
                             return (
                               <div
                                 key={task.id}
-                                className={`rounded-lg h-[68px] flex flex-col justify-between p-2.5 pl-3 transition-colors ${
+                                className={`rounded-lg flex items-center justify-between px-3 py-2 transition-colors ${
                                   isCompleted
                                     ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
                                     : 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700'
@@ -1028,12 +1030,12 @@ export default function TasksPage() {
                               >
                                 <div className="flex items-center gap-1.5 min-w-0">
                                   <span className="text-xs shrink-0" title={group.pillar.name}>{group.pillar.emoji}</span>
-                                  <span className={`text-sm font-medium leading-tight truncate ${isCompleted ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>
+                                  <span className={`text-sm font-medium leading-tight ${isFullyDone ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>
                                     {task.name}
                                   </span>
                                 </div>
 
-                                <div className="flex items-center gap-1.5">
+                                <div className="flex items-center gap-1.5 shrink-0 ml-2">
                                   {task.completionType === 'checkbox' && (
                                     <motion.button
                                       whileTap={{ scale: 0.9 }}
@@ -1140,17 +1142,6 @@ export default function TasksPage() {
                                         </motion.button>
                                       )}
                                     </div>
-                                  )}
-
-                                  {isCompleted && (
-                                    <motion.button
-                                      whileTap={{ scale: 0.9 }}
-                                      onClick={() => handleUndo(task.id)}
-                                      className="w-5 h-5 rounded flex items-center justify-center text-gray-400 hover:text-orange-500 transition-colors ml-auto"
-                                      title="Undo"
-                                    >
-                                      <FaUndo className="text-[10px]" />
-                                    </motion.button>
                                   )}
                                 </div>
                               </div>
