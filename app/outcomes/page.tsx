@@ -310,11 +310,9 @@ export default function OutcomesPage() {
   // Categorize outcomes by time
   const today = new Date().toISOString().split("T")[0];
   const getTimeCategory = (o: Outcome): "current" | "future" | "past" => {
-    if (!o.targetDate) return "current";
-    if (o.targetDate < today) return "past";
-    // "future" = target date is in the future AND no logs yet (hasn't started)
-    const hasLogs = (logsMap[o.id] || []).length > 0;
-    if (!hasLogs && o.currentValue === o.startValue) return "future";
+    if (o.targetDate && o.targetDate < today) return "past";
+    // "future" = start date is explicitly in the future
+    if (o.startDate && o.startDate > today) return "future";
     return "current";
   };
 
