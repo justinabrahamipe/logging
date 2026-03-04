@@ -271,6 +271,7 @@ export const outcomes = sqliteTable('Outcome', {
   unit: text('unit').notNull(),
   direction: text('direction').notNull(), // 'decrease' | 'increase'
   logFrequency: text('logFrequency').notNull().default('weekly'), // 'daily' | 'weekly' | 'custom'
+  startDate: text('startDate'), // optional YYYY-MM-DD
   targetDate: text('targetDate'), // optional YYYY-MM-DD
   periodId: integer('periodId').references(() => twelveWeekYears.id, { onDelete: 'set null' }),
   isArchived: integer('isArchived', { mode: 'boolean' }).notNull().default(false),

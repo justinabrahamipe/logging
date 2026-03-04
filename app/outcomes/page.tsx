@@ -35,6 +35,7 @@ interface Outcome {
   unit: string;
   direction: string;
   logFrequency: string;
+  startDate: string | null;
   targetDate: string | null;
   pillarName: string | null;
   pillarColor: string | null;
@@ -94,6 +95,7 @@ export default function OutcomesPage() {
     unit: "",
     pillarId: "",
     logFrequency: "weekly",
+    startDate: "",
     targetDate: "",
     periodId: "",
   });
@@ -194,6 +196,7 @@ export default function OutcomesPage() {
       direction: target >= start ? "increase" : "decrease",
       pillarId: form.pillarId ? parseInt(form.pillarId) : null,
       logFrequency: form.logFrequency,
+      startDate: form.startDate || null,
       targetDate: form.targetDate || null,
       periodId: form.periodId ? parseInt(form.periodId) : null,
     };
@@ -265,6 +268,7 @@ export default function OutcomesPage() {
       unit: "",
       pillarId: "",
       logFrequency: "weekly",
+      startDate: "",
       targetDate: "",
       periodId: "",
     });
@@ -279,6 +283,7 @@ export default function OutcomesPage() {
       unit: outcome.unit,
       pillarId: outcome.pillarId ? String(outcome.pillarId) : "",
       logFrequency: outcome.logFrequency,
+      startDate: outcome.startDate || "",
       targetDate: outcome.targetDate || "",
       periodId: outcome.periodId ? String(outcome.periodId) : "",
     });
@@ -520,7 +525,10 @@ export default function OutcomesPage() {
 
                           const DAY_MS = 86400000;
                           const firstLogTime = new Date(sorted[0].loggedAt).getTime();
-                          const startDay = Math.floor(firstLogTime / DAY_MS) * DAY_MS;
+                          const outcomeStartTime = outcome.startDate
+                            ? new Date(outcome.startDate + "T00:00:00").getTime()
+                            : firstLogTime;
+                          const startDay = Math.floor(Math.min(outcomeStartTime, firstLogTime) / DAY_MS) * DAY_MS;
                           const endDate = outcome.targetDate
                             ? new Date(outcome.targetDate)
                             : new Date(sorted[sorted.length - 1].loggedAt);
@@ -754,6 +762,7 @@ export default function OutcomesPage() {
                         setForm({
                           ...form,
                           periodId: pid,
+                          startDate: cycle ? cycle.startDate : form.startDate,
                           targetDate: cycle ? cycle.endDate : form.targetDate,
                         });
                       }}
@@ -766,14 +775,25 @@ export default function OutcomesPage() {
                     </select>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Target Date</label>
-                    <input
-                      type="date"
-                      value={form.targetDate}
-                      onChange={(e) => setForm({ ...form, targetDate: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date</label>
+                      <input
+                        type="date"
+                        value={form.startDate}
+                        onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Target Date</label>
+                      <input
+                        type="date"
+                        value={form.targetDate}
+                        onChange={(e) => setForm({ ...form, targetDate: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      />
+                    </div>
                   </div>
 
                   <div className="flex gap-3 pt-2">

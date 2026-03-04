@@ -21,6 +21,7 @@ export async function GET() {
       unit: outcomes.unit,
       direction: outcomes.direction,
       logFrequency: outcomes.logFrequency,
+      startDate: outcomes.startDate,
       targetDate: outcomes.targetDate,
       periodId: outcomes.periodId,
       isArchived: outcomes.isArchived,
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { name, startValue, targetValue, unit, pillarId, logFrequency, targetDate, periodId } = body;
+  const { name, startValue, targetValue, unit, pillarId, logFrequency, startDate, targetDate, periodId } = body;
 
   if (!name || startValue == null || targetValue == null || !unit) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -62,6 +63,7 @@ export async function POST(request: Request) {
     direction,
     pillarId: pillarId || null,
     logFrequency: logFrequency || 'weekly',
+    startDate: startDate || null,
     targetDate: targetDate || null,
     periodId: periodId || null,
   }).returning();
