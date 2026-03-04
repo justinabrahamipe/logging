@@ -118,7 +118,7 @@ export default function OutcomesPage() {
       if (res.ok) {
         const data = await res.json();
         setOutcomes(data);
-        fetchAllLogs(data);
+        await fetchAllLogs(data);
       }
     } catch (error) {
       console.error("Failed to fetch outcomes:", error);

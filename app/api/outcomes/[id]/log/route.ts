@@ -77,18 +77,22 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     .where(eq(outcomes.id, outcomeId));
 
   // Create activity log entry
-  await db.insert(activityLog).values({
-    userId: session.user.id,
-    timestamp: log.loggedAt,
-    pillarId: outcome.pillarId,
-    action: 'outcome_log',
-    previousValue,
-    newValue: body.value,
-    delta: body.value - previousValue,
-    source: 'manual',
-    note: `${outcome.name}: ${body.value} ${outcome.unit}${body.note ? ' - ' + body.note : ''}`,
-    outcomeLogId: log.id,
-  });
+  try {
+    await db.insert(activityLog).values({
+      userId: session.user.id,
+      timestamp: log.loggedAt,
+      pillarId: outcome.pillarId,
+      action: 'outcome_log',
+      previousValue,
+      newValue: body.value,
+      delta: body.value - previousValue,
+      source: 'manual',
+      note: `${outcome.name}: ${body.value} ${outcome.unit}${body.note ? ' - ' + body.note : ''}`,
+      outcomeLogId: log.id,
+    });
+  } catch (err) {
+    console.error("Failed to create activity log for outcome:", err);
+  }
 
   return NextResponse.json(log, { status: 201 });
 }
