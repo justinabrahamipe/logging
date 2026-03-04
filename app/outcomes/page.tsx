@@ -13,6 +13,14 @@ import {
   FaEllipsisV,
   FaClipboardList,
 } from "react-icons/fa";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+} from "recharts";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
@@ -72,9 +80,10 @@ export default function OutcomesPage() {
   const [logTarget, setLogTarget] = useState<Outcome | null>(null);
   const [logValue, setLogValue] = useState("");
   const [logNote, setLogNote] = useState("");
+  const [logDate, setLogDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [menuOpen, setMenuOpen] = useState<number | null>(null);
-  const [showHistory, setShowHistory] = useState<number | null>(null);
-  const [historyLogs, setHistoryLogs] = useState<LogEntry[]>([]);
+  const [logsMap, setLogsMap] = useState<Record<number, LogEntry[]>>({});
+  const [timeTab, setTimeTab] = useState<"current" | "future" | "past">("current");
   const [linkedTasks, setLinkedTasks] = useState<LinkedTask[]>([]);
   const [cycles, setCycles] = useState<CycleOption[]>([]);
 
@@ -106,12 +115,31 @@ export default function OutcomesPage() {
   const fetchOutcomes = async () => {
     try {
       const res = await fetch("/api/outcomes");
-      if (res.ok) setOutcomes(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setOutcomes(data);
+        fetchAllLogs(data);
+      }
     } catch (error) {
       console.error("Failed to fetch outcomes:", error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchAllLogs = async (outcomesList: Outcome[]) => {
+    const entries: Record<number, LogEntry[]> = {};
+    await Promise.all(
+      outcomesList.map(async (o) => {
+        try {
+          const res = await fetch(`/api/outcomes/${o.id}/log`);
+          if (res.ok) entries[o.id] = await res.json();
+        } catch {
+          // ignore individual failures
+        }
+      })
+    );
+    setLogsMap(entries);
   };
 
   const fetchPillars = async () => {
@@ -212,24 +240,18 @@ export default function OutcomesPage() {
         body: JSON.stringify({
           value: parseFloat(logValue),
           note: logNote || null,
+          loggedAt: logDate || null,
         }),
       });
-      if (res.ok) await fetchOutcomes();
+      if (res.ok) {
+        await fetchOutcomes();
+      }
       setShowLogModal(false);
       setLogTarget(null);
       setLogValue("");
       setLogNote("");
     } catch (error) {
       console.error("Failed to log progress:", error);
-    }
-  };
-
-  const fetchHistory = async (outcomeId: number) => {
-    try {
-      const res = await fetch(`/api/outcomes/${outcomeId}/log`);
-      if (res.ok) setHistoryLogs(await res.json());
-    } catch (error) {
-      console.error("Failed to fetch history:", error);
     }
   };
 
@@ -268,6 +290,7 @@ export default function OutcomesPage() {
     setLogTarget(outcome);
     setLogValue(String(outcome.currentValue));
     setLogNote("");
+    setLogDate(new Date().toISOString().split("T")[0]);
     setShowLogModal(true);
     setMenuOpen(null);
   };
@@ -279,9 +302,27 @@ export default function OutcomesPage() {
     return Math.max(0, Math.min(progress, 100));
   };
 
-  // Group by pillar
-  const grouped: Record<string, Outcome[]> = {};
+  // Categorize outcomes by time
+  const today = new Date().toISOString().split("T")[0];
+  const getTimeCategory = (o: Outcome): "current" | "future" | "past" => {
+    if (!o.targetDate) return "current";
+    if (o.targetDate < today) return "past";
+    // "future" = target date is in the future AND no logs yet (hasn't started)
+    const hasLogs = (logsMap[o.id] || []).length > 0;
+    if (!hasLogs && o.currentValue === o.startValue) return "future";
+    return "current";
+  };
+
+  const filteredOutcomes = outcomes.filter((o) => getTimeCategory(o) === timeTab);
+
+  const timeCounts = { current: 0, future: 0, past: 0 };
   for (const o of outcomes) {
+    timeCounts[getTimeCategory(o)]++;
+  }
+
+  // Group filtered outcomes by pillar
+  const grouped: Record<string, Outcome[]> = {};
+  for (const o of filteredOutcomes) {
     const key = o.pillarId ? `${o.pillarId}` : "none";
     if (!grouped[key]) grouped[key] = [];
     grouped[key].push(o);
@@ -333,6 +374,27 @@ export default function OutcomesPage() {
           >
             <FaPlus /> <span className="hidden md:inline">Add Outcome</span>
           </motion.button>
+        </div>
+
+        {/* Time Tabs */}
+        <div className="flex gap-2 mb-6">
+          {([
+            { key: "current" as const, label: "Current" },
+            { key: "future" as const, label: "Future" },
+            { key: "past" as const, label: "Past" },
+          ]).map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setTimeTab(key)}
+              className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                timeTab === key
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+              }`}
+            >
+              {label} {timeCounts[key] > 0 && <span className="ml-1 opacity-70">({timeCounts[key]})</span>}
+            </button>
+          ))}
         </div>
 
         {/* Grouped Outcomes */}
@@ -406,20 +468,6 @@ export default function OutcomesPage() {
                                     <FaEdit /> Edit
                                   </button>
                                   <button
-                                    onClick={() => {
-                                      if (showHistory === outcome.id) {
-                                        setShowHistory(null);
-                                      } else {
-                                        setShowHistory(outcome.id);
-                                        fetchHistory(outcome.id);
-                                      }
-                                      setMenuOpen(null);
-                                    }}
-                                    className="w-full px-4 py-2.5 text-left text-sm flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-                                  >
-                                    <FaClipboardList /> History
-                                  </button>
-                                  <button
                                     onClick={() => handleArchive(outcome.id)}
                                     className="w-full px-4 py-2.5 text-left text-sm flex items-center gap-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
                                   >
@@ -461,37 +509,119 @@ export default function OutcomesPage() {
                           </div>
                         )}
 
-                        {/* History panel */}
-                        <AnimatePresence>
-                          {showHistory === outcome.id && (
-                            <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: "auto", opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              className="overflow-hidden mt-3 pt-3 border-t border-gray-200 dark:border-gray-700"
-                            >
-                              {historyLogs.length === 0 ? (
-                                <p className="text-sm text-gray-400">No logs yet</p>
-                              ) : (
-                                <div className="space-y-2 max-h-48 overflow-y-auto">
-                                  {historyLogs.map((log) => (
-                                    <div key={log.id} className="flex justify-between text-sm">
-                                      <span className="text-gray-600 dark:text-gray-400">
-                                        {new Date(log.loggedAt).toLocaleDateString()}
-                                      </span>
-                                      <span className="font-medium text-gray-900 dark:text-white">
-                                        {log.value} {outcome.unit}
-                                      </span>
-                                      {log.note && (
-                                        <span className="text-gray-400 text-xs truncate max-w-[120px]">{log.note}</span>
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
+                        {/* Progress Chart */}
+                        {(() => {
+                          const logs = logsMap[outcome.id] || [];
+                          if (logs.length === 0) return null;
+
+                          const sorted = [...logs].sort(
+                            (a, b) => new Date(a.loggedAt).getTime() - new Date(b.loggedAt).getTime()
+                          );
+
+                          const DAY_MS = 86400000;
+                          const firstLogTime = new Date(sorted[0].loggedAt).getTime();
+                          const startDay = Math.floor(firstLogTime / DAY_MS) * DAY_MS;
+                          const endDate = outcome.targetDate
+                            ? new Date(outcome.targetDate)
+                            : new Date(sorted[sorted.length - 1].loggedAt);
+                          const endDay = Math.floor(endDate.getTime() / DAY_MS) * DAY_MS;
+
+                          // Use day number (0-based from first log) as the X axis
+                          const toDayNum = (ts: number) => Math.round((ts - startDay) / DAY_MS);
+
+                          const startPoint = {
+                            day: 0,
+                            actual: outcome.startValue as number | null,
+                            target: outcome.startValue as number | null,
+                            note: null as string | null,
+                          };
+
+                          const logPoints = sorted.map((log) => ({
+                            day: toDayNum(new Date(log.loggedAt).getTime()),
+                            actual: log.value as number | null,
+                            target: null as number | null,
+                            note: log.note,
+                          }));
+
+                          const lastLogDay = logPoints[logPoints.length - 1].day;
+                          const endDayNum = toDayNum(endDay);
+                          const needsEndPoint = endDayNum > lastLogDay;
+
+                          const endPoint = {
+                            day: endDayNum,
+                            actual: null as number | null,
+                            target: outcome.targetValue as number | null,
+                            note: null as string | null,
+                          };
+
+                          if (!needsEndPoint && logPoints.length > 0) {
+                            logPoints[logPoints.length - 1].target = outcome.targetValue;
+                          }
+
+                          const chartData = [startPoint, ...logPoints, ...(needsEndPoint ? [endPoint] : [])];
+
+                          const maxDay = Math.max(endDayNum, lastLogDay, 1);
+                          const formatDay = (day: number) => {
+                            const d = new Date(startDay + day * DAY_MS);
+                            return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+                          };
+
+                          return (
+                            <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                              <ResponsiveContainer width="100%" height={180}>
+                                <LineChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                                  <XAxis
+                                    dataKey="day"
+                                    type="number"
+                                    domain={[0, maxDay]}
+                                    tickFormatter={formatDay}
+                                    tick={{ fontSize: 11, fill: "#9CA3AF" }}
+                                    tickLine={false}
+                                    axisLine={{ stroke: "#374151" }}
+                                  />
+                                  <YAxis
+                                    tick={{ fontSize: 11, fill: "#9CA3AF" }}
+                                    tickLine={false}
+                                    axisLine={{ stroke: "#374151" }}
+                                    domain={["auto", "auto"]}
+                                  />
+                                  <RechartsTooltip
+                                    contentStyle={{
+                                      backgroundColor: "var(--tooltip-bg, #1F2937)",
+                                      border: "1px solid #374151",
+                                      borderRadius: "8px",
+                                      color: "var(--tooltip-text, #F9FAFB)",
+                                      fontSize: 12,
+                                    }}
+                                    labelFormatter={(day: number) => formatDay(day)}
+                                    formatter={(value: number, name: string) => [
+                                      `${value} ${outcome.unit}`,
+                                      name === "actual" ? "Actual" : "Target",
+                                    ]}
+                                  />
+                                  <Line
+                                    type="linear"
+                                    dataKey="target"
+                                    stroke="#9CA3AF"
+                                    strokeWidth={2}
+                                    strokeDasharray="5 5"
+                                    dot={false}
+                                    connectNulls
+                                  />
+                                  <Line
+                                    type="monotone"
+                                    dataKey="actual"
+                                    stroke={color}
+                                    strokeWidth={2}
+                                    dot={{ fill: color, r: 3 }}
+                                    activeDot={{ r: 5 }}
+                                    connectNulls
+                                  />
+                                </LineChart>
+                              </ResponsiveContainer>
+                            </div>
+                          );
+                        })()}
                       </motion.div>
                     );
                   })}
@@ -501,8 +631,12 @@ export default function OutcomesPage() {
           })
         ) : (
           <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-            <p className="text-lg mb-2">No outcomes yet</p>
-            <p className="text-sm">Create your first outcome to start tracking progress</p>
+            <p className="text-lg mb-2">No {timeTab} outcomes</p>
+            <p className="text-sm">
+              {timeTab === "current" && "Create an outcome or start logging to see it here"}
+              {timeTab === "future" && "Outcomes with a future target date and no logs will appear here"}
+              {timeTab === "past" && "Outcomes whose target date has passed will appear here"}
+            </p>
           </div>
         )}
 
@@ -694,6 +828,16 @@ export default function OutcomesPage() {
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{logTarget.name}</p>
 
                 <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date</label>
+                    <input
+                      type="date"
+                      value={logDate}
+                      onChange={(e) => setLogDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Value ({logTarget.unit})

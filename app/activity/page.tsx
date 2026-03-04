@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { FaSearch, FaFilter, FaChevronDown, FaChevronUp, FaUndo, FaCheck, FaPlus, FaMinus, FaSlidersH } from "react-icons/fa";
+import { FaSearch, FaFilter, FaChevronDown, FaChevronUp, FaUndo, FaCheck, FaPlus, FaMinus, FaSlidersH, FaBullseye, FaEdit, FaTimes } from "react-icons/fa";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
@@ -26,6 +26,11 @@ interface ActivityEntry {
   pillarName: string | null;
   pillarEmoji: string | null;
   pillarColor: string | null;
+  outcomeLogId: number | null;
+  outcomeLogValue: number | null;
+  outcomeId: number | null;
+  outcomeName: string | null;
+  outcomeUnit: string | null;
 }
 
 interface Pillar {
@@ -41,6 +46,7 @@ function getActionIcon(action: string) {
     case 'add': return <FaPlus className="text-blue-500" />;
     case 'subtract': return <FaMinus className="text-red-500" />;
     case 'adjust': return <FaSlidersH className="text-purple-500" />;
+    case 'outcome_log': return <FaBullseye className="text-teal-500" />;
     default: return <FaCheck className="text-gray-500" />;
   }
 }
@@ -52,6 +58,7 @@ function getActionLabel(action: string) {
     case 'add': return 'Added';
     case 'subtract': return 'Subtracted';
     case 'adjust': return 'Adjusted';
+    case 'outcome_log': return 'Logged';
     default: return action;
   }
 }
@@ -79,6 +86,8 @@ export default function ActivityPage() {
   const [dateTo, setDateTo] = useState('');
   const [pillarFilter, setPillarFilter] = useState('');
   const [useRange, setUseRange] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editValue, setEditValue] = useState("");
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -134,6 +143,26 @@ export default function ActivityPage() {
 
   const handleSearch = () => {
     fetchEntries();
+  };
+
+  const handleSaveOutcomeLog = async (entry: ActivityEntry) => {
+    if (!entry.outcomeLogId || !entry.outcomeId) return;
+    try {
+      const res = await fetch(`/api/outcomes/${entry.outcomeId}/log`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          logId: entry.outcomeLogId,
+          value: parseFloat(editValue),
+        }),
+      });
+      if (res.ok) {
+        setEditingId(null);
+        fetchEntries();
+      }
+    } catch (error) {
+      console.error("Failed to update outcome log:", error);
+    }
   };
 
   if (loading && entries.length === 0) {
@@ -294,13 +323,14 @@ export default function ActivityPage() {
                         <span className="text-sm">{entry.pillarEmoji}</span>
                       )}
                       <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                        {entry.taskName || 'Unknown Task'}
+                        {entry.action === 'outcome_log' ? (entry.outcomeName || 'Outcome') : (entry.taskName || 'Unknown Task')}
                       </span>
                       <span className={`text-xs px-1.5 py-0.5 rounded ${
                         entry.action === 'complete' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
                         entry.action === 'reverse' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
                         entry.action === 'add' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
                         entry.action === 'subtract' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                        entry.action === 'outcome_log' ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400' :
                         'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
                       }`}>
                         {getActionLabel(entry.action)}
@@ -309,20 +339,52 @@ export default function ActivityPage() {
 
                     <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                       <span>{formatTimestamp(entry.timestamp)}</span>
-                      {entry.delta != null && entry.delta !== 0 && (
-                        <span>
-                          Value: {entry.previousValue ?? 0} → {entry.newValue ?? 0}
-                          <span className={entry.delta > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
-                            {' '}({entry.delta > 0 ? '+' : ''}{entry.delta})
-                          </span>
+                      {entry.action === 'outcome_log' && editingId === entry.id ? (
+                        <span className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            step="any"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            className="w-20 px-1.5 py-0.5 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleSaveOutcomeLog(entry);
+                              if (e.key === 'Escape') setEditingId(null);
+                            }}
+                          />
+                          <span className="text-gray-400">{entry.outcomeUnit}</span>
+                          <button onClick={() => handleSaveOutcomeLog(entry)} className="text-green-500 hover:text-green-600"><FaCheck className="text-xs" /></button>
+                          <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-gray-500"><FaTimes className="text-xs" /></button>
                         </span>
+                      ) : (
+                        <>
+                          {entry.action === 'outcome_log' && entry.outcomeLogValue != null ? (
+                            <span className="flex items-center gap-1">
+                              {entry.outcomeLogValue} {entry.outcomeUnit}
+                              <button
+                                onClick={() => { setEditingId(entry.id); setEditValue(String(entry.outcomeLogValue)); }}
+                                className="text-gray-400 hover:text-blue-500"
+                              >
+                                <FaEdit className="text-xs" />
+                              </button>
+                            </span>
+                          ) : entry.delta != null && entry.delta !== 0 ? (
+                            <span>
+                              Value: {entry.previousValue ?? 0} → {entry.newValue ?? 0}
+                              <span className={entry.delta > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
+                                {' '}({entry.delta > 0 ? '+' : ''}{entry.delta})
+                              </span>
+                            </span>
+                          ) : null}
+                          {entry.pointsDelta != null && entry.pointsDelta !== 0 && (
+                            <span className={entry.pointsDelta > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
+                              {entry.pointsDelta > 0 ? '+' : ''}{entry.pointsDelta.toFixed(1)} pts
+                            </span>
+                          )}
+                          <span className="text-gray-400 dark:text-gray-500 capitalize">{entry.source}</span>
+                        </>
                       )}
-                      {entry.pointsDelta != null && entry.pointsDelta !== 0 && (
-                        <span className={entry.pointsDelta > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
-                          {entry.pointsDelta > 0 ? '+' : ''}{entry.pointsDelta.toFixed(1)} pts
-                        </span>
-                      )}
-                      <span className="text-gray-400 dark:text-gray-500 capitalize">{entry.source}</span>
                     </div>
                   </div>
 
