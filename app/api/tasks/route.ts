@@ -134,25 +134,30 @@ export async function POST(request: Request) {
     }
   }
 
-  const [task] = await db.insert(tasks).values({
-    pillarId: pillarId || null,
-    userId: session.user.id,
-    name,
-    completionType: completionType || 'checkbox',
-    target: target ?? null,
-    unit: unit ?? null,
-    flexibilityRule: flexibilityRule || 'must_today',
-    windowStart: windowStart ?? null,
-    windowEnd: windowEnd ?? null,
-    limitValue: limitValue ?? null,
-    importance: importance || 'medium',
-    frequency: frequency || 'daily',
-    customDays: customDays ?? null,
-    isWeekendTask: isWeekendTask ?? false,
-    basePoints: basePoints ?? 10,
-    outcomeId: outcomeId || null,
-    periodId: periodId || null,
-  }).returning();
+  try {
+    const [task] = await db.insert(tasks).values({
+      pillarId: pillarId || null,
+      userId: session.user.id,
+      name,
+      completionType: completionType || 'checkbox',
+      target: target ?? null,
+      unit: unit ?? null,
+      flexibilityRule: flexibilityRule || 'must_today',
+      windowStart: windowStart ?? null,
+      windowEnd: windowEnd ?? null,
+      limitValue: limitValue ?? null,
+      importance: importance || 'medium',
+      frequency: frequency || 'daily',
+      customDays: customDays ?? null,
+      isWeekendTask: isWeekendTask ?? false,
+      basePoints: basePoints ?? 10,
+      outcomeId: outcomeId || null,
+      periodId: periodId || null,
+    }).returning();
 
-  return NextResponse.json(task, { status: 201 });
+    return NextResponse.json(task, { status: 201 });
+  } catch (error) {
+    console.error("Failed to create task:", error);
+    return NextResponse.json({ error: "Failed to create task" }, { status: 500 });
+  }
 }
