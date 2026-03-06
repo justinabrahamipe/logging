@@ -31,9 +31,9 @@ export async function GET(
 
       case "tasks": {
         const data = await db.select().from(tasks).where(eq(tasks.userId, userId));
-        csvData = "Name,Pillar ID,Completion Type,Target,Unit,Importance,Frequency,Base Points,Active\n";
+        csvData = "Name,Pillar ID,Completion Type,Target,Unit,Frequency,Base Points,Active\n";
         data.forEach((t) => {
-          csvData += `"${t.name}",${t.pillarId},"${t.completionType}",${t.target || ""},"${t.unit || ""}","${t.importance}","${t.frequency}",${t.basePoints},${t.isActive}\n`;
+          csvData += `"${t.name}",${t.pillarId},"${t.completionType}",${t.target || ""},"${t.unit || ""}","${t.frequency}",${t.basePoints},${t.isActive}\n`;
         });
         break;
       }

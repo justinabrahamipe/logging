@@ -2,50 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db, tasks, pillars, taskCompletions } from "@/lib/db";
 import { eq, and, asc } from "drizzle-orm";
-
-function isTaskForDate(task: typeof tasks.$inferSelect, dateStr: string): boolean {
-  const date = new Date(dateStr + 'T12:00:00');
-  const dayOfWeek = date.getDay(); // 0=Sunday
-  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-
-  // Flexibility rule filtering
-  if (task.flexibilityRule === 'window') {
-    // Only show if current day-of-week is within window range
-    if (task.windowStart != null && task.windowEnd != null) {
-      if (dayOfWeek < task.windowStart || dayOfWeek > task.windowEnd) return false;
-    }
-  }
-  // limit_avoid tasks always show (they track what to avoid)
-  // carryover tasks always show (user manually reschedules)
-
-  // Weekend-only tasks
-  if (task.isWeekendTask && !isWeekend) return false;
-
-  if (task.frequency === 'adhoc') {
-    // Ad-hoc tasks only appear on the day they were created
-    const createdDate = task.createdAt ? new Date(task.createdAt).toISOString().split('T')[0] : null;
-    return createdDate === dateStr;
-  }
-
-  if (task.frequency === 'daily') return true;
-
-  if (task.frequency === 'weekly') {
-    // Show weekly tasks on Monday (1) by default, or on weekend if isWeekendTask
-    if (task.isWeekendTask) return dayOfWeek === 6; // Saturday
-    return dayOfWeek === 1; // Monday
-  }
-
-  if (task.frequency === 'custom' && task.customDays) {
-    try {
-      const days: number[] = JSON.parse(task.customDays);
-      return days.includes(dayOfWeek);
-    } catch {
-      return true;
-    }
-  }
-
-  return true;
-}
+import { isTaskForDate } from "@/lib/task-schedule";
 
 export async function GET(request: NextRequest) {
   const session = await auth();
@@ -54,6 +11,7 @@ export async function GET(request: NextRequest) {
   }
 
   const date = request.nextUrl.searchParams.get('date');
+  const showAll = request.nextUrl.searchParams.get('all') === 'true';
 
   const allTasks = await db
     .select()
@@ -62,7 +20,7 @@ export async function GET(request: NextRequest) {
     .orderBy(asc(tasks.pillarId));
 
   let filteredTasks = allTasks;
-  if (date) {
+  if (date && !showAll) {
     filteredTasks = allTasks.filter(t => isTaskForDate(t, date));
   }
 
@@ -116,7 +74,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { pillarId, name, completionType, target, unit, flexibilityRule, windowStart, windowEnd, limitValue, importance, frequency, customDays, isWeekendTask, basePoints, outcomeId, periodId } = body;
+  const { pillarId, name, completionType, target, unit, flexibilityRule, windowStart, windowEnd, limitValue, frequency, customDays, repeatInterval, toleranceBefore, toleranceAfter, isWeekendTask, basePoints, outcomeId, periodId, startDate } = body;
 
   if (!name) {
     return NextResponse.json({ error: "name is required" }, { status: 400 });
@@ -146,13 +104,16 @@ export async function POST(request: Request) {
       windowStart: windowStart ?? null,
       windowEnd: windowEnd ?? null,
       limitValue: limitValue ?? null,
-      importance: importance || 'medium',
       frequency: frequency || 'daily',
       customDays: customDays ?? null,
+      repeatInterval: repeatInterval ?? null,
+      toleranceBefore: toleranceBefore ?? null,
+      toleranceAfter: toleranceAfter ?? null,
       isWeekendTask: isWeekendTask ?? false,
       basePoints: basePoints ?? 10,
       outcomeId: outcomeId || null,
       periodId: periodId || null,
+      startDate: startDate || null,
     }).returning();
 
     return NextResponse.json(task, { status: 201 });

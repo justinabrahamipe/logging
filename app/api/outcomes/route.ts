@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { db, outcomes, pillars } from "@/lib/db";
+import { db, outcomes, pillars, tasks, twelveWeekYears } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
+import { countScheduledDaysInRange } from "@/lib/effort-calculations";
 
 export async function GET() {
   const session = await auth();
@@ -24,6 +25,11 @@ export async function GET() {
       startDate: outcomes.startDate,
       targetDate: outcomes.targetDate,
       periodId: outcomes.periodId,
+      goalType: outcomes.goalType,
+      scheduleDays: outcomes.scheduleDays,
+      autoCreateTasks: outcomes.autoCreateTasks,
+      tolerance: outcomes.tolerance,
+      linkedOutcomeId: outcomes.linkedOutcomeId,
       isArchived: outcomes.isArchived,
       createdAt: outcomes.createdAt,
       updatedAt: outcomes.updatedAt,
@@ -45,28 +51,94 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { name, startValue, targetValue, unit, pillarId, logFrequency, startDate, targetDate, periodId } = body;
+  const { name, targetValue, unit, pillarId, logFrequency, periodId, goalType, scheduleDays, autoCreateTasks, repeatInterval, repeatUnit, linkedOutcomeId, tolerance } = body;
 
-  if (!name || startValue == null || targetValue == null || !unit) {
+  const isActivityGoal = goalType === 'habitual' || goalType === 'target' || goalType === 'effort';
+
+  if (!name) {
+    return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+  }
+  if (!isActivityGoal && (targetValue == null || !unit)) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
-  const direction = body.direction || (targetValue >= startValue ? 'increase' : 'decrease');
+  // For activity goals, derive dates from the linked cycle
+  let effectiveStartDate = body.startDate || null;
+  let effectiveTargetDate = body.targetDate || null;
+
+  if (isActivityGoal && periodId) {
+    const [cycle] = await db.select().from(twelveWeekYears).where(eq(twelveWeekYears.id, parseInt(periodId)));
+    if (cycle) {
+      effectiveStartDate = cycle.startDate;
+      effectiveTargetDate = cycle.endDate;
+    }
+  }
+
+  const effectiveStartValue = isActivityGoal ? 0 : (body.startValue ?? 0);
+  const direction = isActivityGoal ? 'increase' : (body.direction || ((targetValue ?? 0) >= effectiveStartValue ? 'increase' : 'decrease'));
 
   const [outcome] = await db.insert(outcomes).values({
     userId: session.user.id,
     name,
-    startValue,
-    targetValue,
-    currentValue: startValue,
-    unit,
+    startValue: effectiveStartValue,
+    targetValue: targetValue ?? 0,
+    currentValue: effectiveStartValue,
+    unit: unit || 'days',
     direction,
     pillarId: pillarId || null,
-    logFrequency: logFrequency || 'weekly',
-    startDate: startDate || null,
-    targetDate: targetDate || null,
+    logFrequency: logFrequency || (isActivityGoal ? 'daily' : 'weekly'),
+    startDate: effectiveStartDate,
+    targetDate: effectiveTargetDate,
     periodId: periodId || null,
+    goalType: goalType || 'outcome',
+    scheduleDays: scheduleDays ? JSON.stringify(scheduleDays) : null,
+    autoCreateTasks: autoCreateTasks || false,
+    tolerance: tolerance ?? null,
+    linkedOutcomeId: linkedOutcomeId || null,
   }).returning();
+
+  // Auto-create a linked task for activity goals
+  if (isActivityGoal && autoCreateTasks && scheduleDays && scheduleDays.length > 0) {
+    const isHabitual = goalType === 'habitual';
+    const totalScheduledDays = (effectiveStartDate && effectiveTargetDate)
+      ? (countScheduledDaysInRange(effectiveStartDate, effectiveTargetDate, scheduleDays) || 1)
+      : 1;
+    const dailyTarget = isHabitual ? 1 : Math.ceil((targetValue ?? 1) / totalScheduledDays);
+
+    // Convert repeatUnit to task frequency/repeatInterval
+    let taskFrequency = 'custom';
+    let taskRepeatInterval: number | null = null;
+    const interval = parseInt(repeatInterval) || 1;
+
+    if (repeatUnit === 'days') {
+      taskFrequency = 'interval';
+      taskRepeatInterval = interval;
+    } else if (repeatUnit === 'months') {
+      taskFrequency = 'monthly';
+      if (interval > 1) taskRepeatInterval = interval;
+    } else {
+      // weeks (default)
+      taskFrequency = 'custom';
+      if (interval > 1) taskRepeatInterval = interval * 7;
+    }
+
+    await db.insert(tasks).values({
+      userId: session.user.id,
+      name,
+      pillarId: pillarId || null,
+      completionType: isHabitual ? 'checkbox' : 'count',
+      target: isHabitual ? null : dailyTarget,
+      unit: isHabitual ? null : (unit || null),
+      frequency: taskFrequency,
+      customDays: JSON.stringify(scheduleDays),
+      repeatInterval: taskRepeatInterval,
+      outcomeId: outcome.id,
+      periodId: periodId || null,
+      basePoints: 10,
+      flexibilityRule: 'must_today',
+      importance: 'medium',
+    });
+  }
 
   return NextResponse.json(outcome, { status: 201 });
 }

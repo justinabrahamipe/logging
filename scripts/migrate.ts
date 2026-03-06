@@ -142,8 +142,10 @@ const runMigrations = async () => {
   }
 
   // If some migrations are recorded but not all, run the pending ones
-  if (appliedMigrations.size > 0 && appliedMigrations.size < migrationFiles.length) {
-    console.log(`\nFound ${migrationFiles.length - appliedMigrations.size} pending migrations - running them...`);
+  const hasPending = appliedMigrations.size > 0 && migrationFiles.some(f => !appliedMigrations.has(f.replace('.sql', '')));
+  if (hasPending) {
+    const pendingCount = migrationFiles.filter(f => !appliedMigrations.has(f.replace('.sql', ''))).length;
+    console.log(`\nFound ${pendingCount} pending migrations - running them...`);
 
     for (const file of migrationFiles) {
       const hash = file.replace('.sql', '');
@@ -256,7 +258,8 @@ const runMigrations = async () => {
   }
 
   // If the custom runner already handled all migrations, we're done
-  if (appliedMigrations.size >= migrationFiles.length) {
+  const allApplied = migrationFiles.every(f => appliedMigrations.has(f.replace('.sql', '')));
+  if (allApplied) {
     console.log('All migrations applied successfully!');
     process.exit(0);
   }

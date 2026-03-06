@@ -3,6 +3,8 @@ import { auth } from "@/auth";
 import { db, tasks, pillars, taskCompletions } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
 import { calculateDailyScore, getScoreTier } from "@/lib/scoring";
+import { isTaskForDate } from "@/lib/task-schedule";
+import { saveDailyScore } from "@/lib/save-daily-score";
 
 export async function GET(request: NextRequest) {
   const session = await auth();
@@ -22,25 +24,7 @@ export async function GET(request: NextRequest) {
     .where(and(eq(tasks.userId, session.user.id), eq(tasks.isActive, true)));
 
   // Filter tasks for the specific date
-  const dateObj = new Date(date + 'T12:00:00');
-  const dayOfWeek = dateObj.getDay();
-  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-
-  const tasksForDay = allTasks.filter(task => {
-    if (task.isWeekendTask && !isWeekend) return false;
-    if (task.frequency === 'daily') return true;
-    if (task.frequency === 'weekly') {
-      if (task.isWeekendTask) return dayOfWeek === 6;
-      return dayOfWeek === 1;
-    }
-    if (task.frequency === 'custom' && task.customDays) {
-      try {
-        const days: number[] = JSON.parse(task.customDays);
-        return days.includes(dayOfWeek);
-      } catch { return true; }
-    }
-    return true;
-  });
+  const tasksForDay = allTasks.filter(task => isTaskForDate(task, date));
 
   // Get completions
   const completions = await db
@@ -61,8 +45,9 @@ export async function GET(request: NextRequest) {
     pillarId: t.pillarId,
     completionType: t.completionType,
     target: t.target,
-    importance: t.importance,
     basePoints: t.basePoints,
+    flexibilityRule: t.flexibilityRule,
+    limitValue: t.limitValue,
   }));
 
   const completionsForScoring = completions.map(c => ({
@@ -74,6 +59,12 @@ export async function GET(request: NextRequest) {
   const { actionScore, pillarScores } = calculateDailyScore(completionsForScoring, tasksForScoring, pillarWeights);
   const tier = getScoreTier(actionScore);
 
+  // Compute effective weights for display
+  const assignedWeight = userPillars.reduce((sum, p) => sum + (p.weight || 0), 0);
+  const unweightedPillars = userPillars.filter(p => !p.weight || p.weight === 0);
+  const remainingWeight = Math.max(0, 100 - assignedWeight);
+  const autoWeight = unweightedPillars.length > 0 ? Math.round(remainingWeight / unweightedPillars.length) : 0;
+
   // Build pillar score breakdown with names
   const pillarBreakdown = userPillars
     .filter(p => pillarScores[p.id] !== undefined)
@@ -82,13 +73,17 @@ export async function GET(request: NextRequest) {
       name: p.name,
       emoji: p.emoji,
       color: p.color,
-      weight: p.weight,
+      weight: p.weight || autoWeight,
       score: pillarScores[p.id],
     }));
+
+  // Persist daily score to history (includes momentum calculation)
+  const saved = await saveDailyScore(session.user.id, date);
 
   return NextResponse.json({
     date,
     actionScore,
+    momentumScore: saved.momentumScore ?? null,
     scoreTier: tier,
     pillarScores: pillarBreakdown,
     totalTasks: tasksForDay.length,

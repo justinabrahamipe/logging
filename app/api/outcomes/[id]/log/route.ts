@@ -56,6 +56,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   const previousValue = outcome.currentValue;
+  const isEffort = outcome.goalType === 'effort';
+
+  // For effort goals, value is a delta; for outcomes, value is absolute
+  const newCurrentValue = isEffort ? previousValue + body.value : body.value;
 
   // Create log entry
   const logValues: Record<string, unknown> = {
@@ -73,7 +77,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   // Update currentValue on the outcome
   await db
     .update(outcomes)
-    .set({ currentValue: body.value })
+    .set({ currentValue: newCurrentValue })
     .where(eq(outcomes.id, outcomeId));
 
   // Create activity log entry
@@ -84,10 +88,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       pillarId: outcome.pillarId,
       action: 'outcome_log',
       previousValue,
-      newValue: body.value,
-      delta: body.value - previousValue,
-      source: 'manual',
-      note: `${outcome.name}: ${body.value} ${outcome.unit}${body.note ? ' - ' + body.note : ''}`,
+      newValue: newCurrentValue,
+      delta: isEffort ? body.value : body.value - previousValue,
+      source: body.source || 'manual',
+      note: isEffort
+        ? `${outcome.name}: +${body.value} ${outcome.unit} (total: ${newCurrentValue})${body.note ? ' - ' + body.note : ''}`
+        : `${outcome.name}: ${body.value} ${outcome.unit}${body.note ? ' - ' + body.note : ''}`,
       outcomeLogId: log.id,
     });
   } catch (err) {
@@ -144,19 +150,31 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     .where(eq(outcomeLogs.id, body.logId))
     .returning();
 
-  // If this was the most recent log, update the outcome's currentValue
-  const [latestLog] = await db
-    .select()
-    .from(outcomeLogs)
-    .where(eq(outcomeLogs.outcomeId, outcomeId))
-    .orderBy(desc(outcomeLogs.loggedAt))
-    .limit(1);
-
-  if (latestLog) {
+  // Update the outcome's currentValue
+  if (outcome.goalType === 'effort') {
+    // For effort goals, recalculate as sum of all deltas
+    const allLogs = await db
+      .select({ value: outcomeLogs.value })
+      .from(outcomeLogs)
+      .where(eq(outcomeLogs.outcomeId, outcomeId));
+    const total = allLogs.reduce((sum, l) => sum + l.value, 0);
     await db
       .update(outcomes)
-      .set({ currentValue: latestLog.value })
+      .set({ currentValue: total })
       .where(eq(outcomes.id, outcomeId));
+  } else {
+    const [latestLog] = await db
+      .select()
+      .from(outcomeLogs)
+      .where(eq(outcomeLogs.outcomeId, outcomeId))
+      .orderBy(desc(outcomeLogs.loggedAt))
+      .limit(1);
+    if (latestLog) {
+      await db
+        .update(outcomes)
+        .set({ currentValue: latestLog.value })
+        .where(eq(outcomes.id, outcomeId));
+    }
   }
 
   // Update the linked activity log entry if it exists

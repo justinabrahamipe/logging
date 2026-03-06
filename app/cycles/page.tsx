@@ -78,7 +78,6 @@ interface LinkedTask {
   id: number;
   name: string;
   completionType: string;
-  importance: string;
   frequency: string;
   isActive: boolean;
 }
@@ -126,6 +125,13 @@ export default function TwelveWeekYearPage() {
   const [editingTheme, setEditingTheme] = useState(false);
   const [visionDraft, setVisionDraft] = useState("");
   const [themeDraft, setThemeDraft] = useState("");
+
+  // Inline editing for cycle name/dates
+  const [editingCycleName, setEditingCycleName] = useState(false);
+  const [editingCycleDates, setEditingCycleDates] = useState(false);
+  const [cycleNameDraft, setCycleNameDraft] = useState("");
+  const [cycleStartDraft, setCycleStartDraft] = useState("");
+  const [cycleEndDraft, setCycleEndDraft] = useState("");
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -280,6 +286,25 @@ export default function TwelveWeekYearPage() {
     });
     setShowGoalForm(true);
     setMenuOpen(null);
+  };
+
+  const handleSaveCycleField = async (updates: Record<string, string | boolean>) => {
+    if (!selectedCycle) return;
+    try {
+      const res = await fetch(`/api/cycles/${selectedCycle.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setSelectedCycle({ ...selectedCycle, ...updated });
+        // Also update in the cycles list
+        setCycles(prev => prev.map(c => c.id === selectedCycle.id ? { ...c, ...updated } : c));
+      }
+    } catch (error) {
+      console.error("Failed to save cycle:", error);
+    }
   };
 
   const handleSaveVisionTheme = async (field: "vision" | "theme", value: string) => {
@@ -456,10 +481,76 @@ export default function TwelveWeekYearPage() {
               <FaArrowLeft />
             </motion.button>
             <div className="flex-1">
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">{selectedCycle.name}</h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {selectedCycle.startDate} &rarr; {selectedCycle.endDate} &middot; Week {currentWeek}/{totalWeeks}
-              </p>
+              {editingCycleName ? (
+                <input
+                  autoFocus
+                  value={cycleNameDraft}
+                  onChange={(e) => setCycleNameDraft(e.target.value)}
+                  onBlur={() => {
+                    setEditingCycleName(false);
+                    if (cycleNameDraft.trim()) handleSaveCycleField({ name: cycleNameDraft.trim() });
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") { setEditingCycleName(false); if (cycleNameDraft.trim()) handleSaveCycleField({ name: cycleNameDraft.trim() }); }
+                    if (e.key === "Escape") setEditingCycleName(false);
+                  }}
+                  className="text-2xl md:text-3xl font-bold border-b-2 border-blue-400 bg-transparent text-gray-900 dark:text-white outline-none w-full"
+                />
+              ) : (
+                <h1
+                  onClick={() => { setEditingCycleName(true); setCycleNameDraft(selectedCycle.name); }}
+                  className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                >
+                  {selectedCycle.name}
+                </h1>
+              )}
+              {editingCycleDates ? (
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  <div>
+                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-0.5">Start</label>
+                    <input
+                      type="date"
+                      value={cycleStartDraft}
+                      onChange={(e) => setCycleStartDraft(e.target.value)}
+                      className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-0.5">End</label>
+                    <input
+                      type="date"
+                      value={cycleEndDraft}
+                      onChange={(e) => setCycleEndDraft(e.target.value)}
+                      className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
+                  <div className="flex gap-1.5 self-end">
+                    <button
+                      onClick={() => {
+                        setEditingCycleDates(false);
+                        if (cycleStartDraft && cycleEndDraft) handleSaveCycleField({ startDate: cycleStartDraft, endDate: cycleEndDraft });
+                      }}
+                      className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center gap-1"
+                    >
+                      <FaCheck className="text-xs" /> Save
+                    </button>
+                    <button
+                      onClick={() => setEditingCycleDates(false)}
+                      className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p
+                  onClick={() => { setEditingCycleDates(true); setCycleStartDraft(selectedCycle.startDate); setCycleEndDraft(selectedCycle.endDate); }}
+                  className="text-sm text-gray-500 dark:text-gray-400 cursor-pointer hover:text-blue-500 dark:hover:text-blue-400 transition-colors flex items-center gap-1.5"
+                >
+                  {selectedCycle.startDate} &rarr; {selectedCycle.endDate} &middot; Week {currentWeek}/{totalWeeks}
+                  <FaEdit className="text-[10px]" />
+                </p>
+              )}
             </div>
             <motion.button
               whileHover={{ scale: 1.05 }}
@@ -770,20 +861,20 @@ export default function TwelveWeekYearPage() {
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
                 <div className="divide-y divide-gray-100 dark:divide-gray-700">
                   {selectedCycle.linkedTasks.map((task) => {
-                    const badge = task.importance === 'high'
-                      ? { label: 'High', className: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' }
-                      : task.importance === 'medium'
-                      ? { label: 'Med', className: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' }
-                      : { label: 'Low', className: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400' };
                     return (
                       <div key={task.id} className="px-4 py-3 flex items-center gap-3">
                         <div className="flex-1 min-w-0">
                           <span className="text-sm font-medium text-gray-900 dark:text-white">{task.name}</span>
                           <span className="text-xs text-gray-500 dark:text-gray-400 ml-2 capitalize">{task.completionType}</span>
                         </div>
-                        <span className={`text-xs px-1.5 py-0.5 rounded ${badge.className}`}>{badge.label}</span>
-                        {task.frequency === 'adhoc' && (
-                          <span className="text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">Ad-hoc</span>
+                        {task.frequency !== 'daily' && (
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                            {task.frequency === 'adhoc' ? 'One-time' :
+                             task.frequency === 'monthly' ? 'Monthly' :
+                             task.frequency === 'custom' ? 'Weekly' :
+                             task.frequency === 'interval' ? 'Repeat' :
+                             task.frequency}
+                          </span>
                         )}
                       </div>
                     );

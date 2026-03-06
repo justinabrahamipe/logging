@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { db, tasks, taskCompletions, activityLog } from "@/lib/db";
+import { db, tasks, taskCompletions, activityLog, outcomes, outcomeLogs } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
 import { calculateTaskScore } from "@/lib/scoring";
+import { saveDailyScore } from "@/lib/save-daily-score";
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -27,11 +28,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
-  const isCompleted = completed ?? (task.completionType === 'checkbox' ? true : (value ?? 0) > 0);
-  const completionValue = value ?? (task.completionType === 'checkbox' ? (isCompleted ? 1 : 0) : 0);
+  const completionValue = value ?? (task.completionType === 'checkbox' ? (completed ? 1 : 0) : 0);
+  const targetReached = task.target != null && task.target > 0 && completionValue >= task.target;
+  const isCompleted = completed ?? (task.completionType === 'checkbox' ? true : targetReached || completionValue > 0);
 
   const pointsEarned = calculateTaskScore(
-    { id: task.id, pillarId: task.pillarId, completionType: task.completionType, target: task.target, importance: task.importance, basePoints: task.basePoints, flexibilityRule: task.flexibilityRule, limitValue: task.limitValue },
+    { id: task.id, pillarId: task.pillarId, completionType: task.completionType, target: task.target, basePoints: task.basePoints, flexibilityRule: task.flexibilityRule, limitValue: task.limitValue },
     { taskId: task.id, completed: isCompleted, value: completionValue }
   );
 
@@ -93,6 +95,39 @@ export async function POST(request: Request) {
     pointsDelta: pointsEarned - pointsBefore,
     source,
   });
+
+  // Auto-log effort goal progress when completing a linked task
+  if (task.outcomeId && isCompleted && completionValue > 0) {
+    try {
+      const [linkedOutcome] = await db
+        .select()
+        .from(outcomes)
+        .where(and(eq(outcomes.id, task.outcomeId), eq(outcomes.userId, session.user.id)));
+
+      if (linkedOutcome && linkedOutcome.goalType === 'effort') {
+        const delta = completionValue;
+        const newTotal = linkedOutcome.currentValue + delta;
+
+        await db.insert(outcomeLogs).values({
+          outcomeId: linkedOutcome.id,
+          userId: session.user.id,
+          value: delta,
+          source: 'auto',
+          note: `Auto-logged from task: ${task.name}`,
+        });
+
+        await db
+          .update(outcomes)
+          .set({ currentValue: newTotal })
+          .where(eq(outcomes.id, linkedOutcome.id));
+      }
+    } catch (err) {
+      console.error("Failed to auto-log effort goal:", err);
+    }
+  }
+
+  // Recalculate and save daily score
+  await saveDailyScore(session.user.id, date);
 
   return NextResponse.json(result);
 }

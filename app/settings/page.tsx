@@ -23,7 +23,7 @@ export default function SettingsPage() {
   const [weekendPassThreshold, setWeekendPassThreshold] = useState(70);
   const [saved, setSaved] = useState(false);
   const [, setLoading] = useState(false);
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState<null | 'blank' | 'defaults'>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [snackbar, setSnackbar] = useState<{
@@ -193,24 +193,31 @@ export default function SettingsPage() {
     }
   };
 
-  const handleFactoryReset = async () => {
+  const handleFactoryReset = async (seedDefaults: boolean) => {
     setIsResetting(true);
     try {
-      const response = await fetch("/api/factory-reset", { method: "POST" });
+      const response = await fetch("/api/factory-reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ seedDefaults }),
+      });
       const data = await response.json();
       if (response.ok) {
-        setSnackbar({ open: true, message: "All data has been reset and default data seeded! Redirecting...", severity: "success" });
+        const msg = seedDefaults
+          ? "All data has been reset and default data loaded! Redirecting..."
+          : "All data has been cleared! Redirecting...";
+        setSnackbar({ open: true, message: msg, severity: "success" });
         setTimeout(() => { window.location.href = "/dashboard"; }, 2000);
       } else {
         const detail = data?.details || data?.error || "Unknown error";
-        setSnackbar({ open: true, message: `Factory reset failed: ${detail}`, severity: "error" });
+        setSnackbar({ open: true, message: `Reset failed: ${detail}`, severity: "error" });
       }
     } catch (error) {
       console.error("Error resetting data:", error);
-      setSnackbar({ open: true, message: `Factory reset failed: ${error instanceof Error ? error.message : "Network error"}`, severity: "error" });
+      setSnackbar({ open: true, message: `Reset failed: ${error instanceof Error ? error.message : "Network error"}`, severity: "error" });
     } finally {
       setIsResetting(false);
-      setShowResetConfirm(false);
+      setShowResetConfirm(null);
     }
   };
 
@@ -474,15 +481,15 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            {/* Factory Reset */}
+            {/* Reset Options */}
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-red-200 dark:border-red-900/50 p-4 md:p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">
                   <FaTrash className="text-2xl text-red-600 dark:text-red-400" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Factory Reset</h2>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Delete all data and seed defaults</p>
+                  <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Reset Data</h2>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Clear your data and start over</p>
                 </div>
               </div>
 
@@ -492,26 +499,46 @@ export default function SettingsPage() {
                   <div>
                     <p className="font-semibold text-red-800 dark:text-red-300 mb-1">Warning: This action cannot be undone!</p>
                     <p className="text-sm text-red-700 dark:text-red-400">
-                      This will permanently delete ALL your data including pillars, tasks, completions,
-                      and scores. Default pillars and tasks will be re-created.
+                      This will permanently delete ALL your data including pillars, tasks, completions, and scores.
                     </p>
                   </div>
                 </div>
               </div>
 
               {!showResetConfirm ? (
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => setShowResetConfirm(true)}
-                  className="w-full sm:w-auto px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-all flex items-center justify-center gap-2"
-                >
-                  <FaTrash /> Factory Reset
-                </motion.button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setShowResetConfirm('blank')}
+                    className="px-6 py-4 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-all flex flex-col items-center gap-1"
+                  >
+                    <div className="flex items-center gap-2">
+                      <FaTrash /> Start Blank
+                    </div>
+                    <span className="text-xs font-normal opacity-80">Delete everything and start fresh</span>
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setShowResetConfirm('defaults')}
+                    className="px-6 py-4 bg-orange-600 hover:bg-orange-700 text-white font-semibold rounded-lg transition-all flex flex-col items-center gap-1"
+                  >
+                    <div className="flex items-center gap-2">
+                      <FaDatabase /> Load Defaults
+                    </div>
+                    <span className="text-xs font-normal opacity-80">Reset and load default pillars & tasks</span>
+                  </motion.button>
+                </div>
               ) : (
                 <div className="space-y-3">
                   <p className="font-semibold text-gray-900 dark:text-white">
-                    Are you absolutely sure? Type &quot;DELETE&quot; to confirm:
+                    {showResetConfirm === 'blank'
+                      ? 'This will delete ALL data with nothing re-created.'
+                      : 'This will delete ALL data and load default pillars & tasks.'}
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Type &quot;DELETE&quot; to confirm:
                   </p>
                   <input
                     type="text"
@@ -526,20 +553,27 @@ export default function SettingsPage() {
                       onClick={() => {
                         const input = document.getElementById("confirmDelete") as HTMLInputElement;
                         if (input.value === "DELETE") {
-                          handleFactoryReset();
+                          handleFactoryReset(showResetConfirm === 'defaults');
                         } else {
                           setSnackbar({ open: true, message: "Please type DELETE to confirm", severity: "warning" });
                         }
                       }}
                       disabled={isResetting}
-                      className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      className={`px-6 py-3 text-white font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${
+                        showResetConfirm === 'blank'
+                          ? 'bg-red-600 hover:bg-red-700'
+                          : 'bg-orange-600 hover:bg-orange-700'
+                      }`}
                     >
-                      {isResetting ? (<><span className="animate-spin">&#9203;</span> Resetting...</>) : (<><FaTrash /> Confirm Reset</>)}
+                      {isResetting
+                        ? (<><span className="animate-spin">&#9203;</span> Resetting...</>)
+                        : (<><FaTrash /> {showResetConfirm === 'blank' ? 'Confirm Blank Reset' : 'Confirm & Load Defaults'}</>)
+                      }
                     </motion.button>
                     <motion.button
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
-                      onClick={() => setShowResetConfirm(false)}
+                      onClick={() => setShowResetConfirm(null)}
                       className="px-6 py-3 bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500 text-gray-900 dark:text-white font-semibold rounded-lg transition-all"
                     >
                       Cancel

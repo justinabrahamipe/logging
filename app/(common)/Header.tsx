@@ -68,8 +68,7 @@ export default function Header() {
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: FaBolt },
     { href: "/tasks", label: "Tasks", icon: FaTasks },
-    { href: "/activity", label: "Activity", icon: FaHistory },
-    { href: "/outcomes", label: "Outcomes", icon: FaChartLine },
+    { href: "/outcomes", label: "Goals", icon: FaChartLine },
     { href: "/cycles", label: "Cycles", icon: FaCalendarAlt },
     { href: "/pillars", label: "Pillars", icon: FaColumns },
   ];
@@ -198,6 +197,17 @@ export default function Header() {
                           <span className="font-medium">Install App</span>
                         </motion.button>
                       )}
+
+                      <Link href="/activity">
+                        <motion.button
+                          whileHover={{ backgroundColor: "rgba(59, 130, 246, 0.1)" }}
+                          onClick={() => setIsProfileMenuOpen(false)}
+                          className="w-full px-4 py-2 text-left flex items-center gap-3 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                        >
+                          <FaHistory className="text-lg" />
+                          <span className="font-medium">Activity</span>
+                        </motion.button>
+                      </Link>
 
                       <Link href="/settings">
                         <motion.button
@@ -341,6 +351,17 @@ export default function Header() {
                   <span className="font-medium">Install App</span>
                 </motion.div>
               )}
+
+              <Link href="/activity">
+                <motion.div
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer mb-2"
+                >
+                  <FaHistory />
+                  <span className="font-medium">Activity</span>
+                </motion.div>
+              </Link>
 
               <Link href="/settings">
                 <motion.div

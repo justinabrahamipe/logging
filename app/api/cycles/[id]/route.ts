@@ -92,8 +92,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   if (body.name !== undefined) updateData.name = body.name;
   if (body.startDate !== undefined) {
     updateData.startDate = body.startDate;
-    updateData.endDate = calculateEndDate(body.startDate);
+    if (!body.endDate) updateData.endDate = calculateEndDate(body.startDate);
   }
+  if (body.endDate !== undefined) updateData.endDate = body.endDate;
   if (body.vision !== undefined) updateData.vision = body.vision || null;
   if (body.theme !== undefined) updateData.theme = body.theme || null;
   if (body.isActive !== undefined) {
