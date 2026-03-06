@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaPlus, FaEdit, FaTrash, FaTimes, FaCheck, FaMinus, FaPlay, FaStop, FaUndo, FaEllipsisV, FaCopy, FaExpand, FaCompress, FaChevronRight, FaArrowRight, FaCalendarAlt } from "react-icons/fa";
+import { FaPlus, FaEdit, FaTrash, FaTimes, FaCheck, FaMinus, FaPlay, FaStop, FaEllipsisV, FaCopy, FaChevronRight, FaChevronDown, FaArrowRight, FaCalendarAlt, FaStar } from "react-icons/fa";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
@@ -19,12 +19,14 @@ interface TaskCompletion {
   completed: boolean;
   value: number | null;
   pointsEarned: number;
+  isHighlighted: boolean;
 }
 
 interface Outcome {
   id: number;
   pillarId: number | null;
   name: string;
+  goalType: string;
 }
 
 interface Cycle {
@@ -44,13 +46,15 @@ interface Task {
   windowStart: number | null;
   windowEnd: number | null;
   limitValue: number | null;
-  importance: string;
   frequency: string;
   customDays: string | null;
+  toleranceBefore: number | null;
+  toleranceAfter: number | null;
   isWeekendTask: boolean;
   basePoints: number;
   outcomeId: number | null;
   periodId: number | null;
+  startDate: string | null;
   completion?: TaskCompletion | null;
 }
 
@@ -71,37 +75,129 @@ const COMPLETION_TYPES = [
   { value: 'count', label: 'Count' },
   { value: 'duration', label: 'Duration (min)' },
   { value: 'numeric', label: 'Numeric' },
-  { value: 'percentage', label: 'Percentage' },
 ];
 
-const IMPORTANCE_OPTIONS = [
-  { value: 'high', label: 'High' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'low', label: 'Low' },
-];
-
-const FREQUENCY_OPTIONS = [
+const FREQUENCY_PRESETS = [
+  { value: 'adhoc', label: 'Does not repeat' },
   { value: 'daily', label: 'Daily' },
-  { value: 'weekly', label: 'Weekly' },
-  { value: 'custom', label: 'Custom Days' },
+  { value: 'weekdays', label: 'Every weekday (Mon–Fri)' },
+  { value: 'custom', label: 'Custom...' },
+];
+
+const REPEAT_UNITS = [
+  { value: 'days', label: 'day' },
+  { value: 'weeks', label: 'week' },
+  { value: 'months', label: 'month' },
 ];
 
 const FLEXIBILITY_OPTIONS = [
-  { value: 'must_today', label: 'Must Today', desc: 'Must be done today' },
-  { value: 'window', label: 'Window', desc: 'Can be done within a day range' },
-  { value: 'limit_avoid', label: 'Limit/Avoid', desc: 'Track what to limit or avoid' },
-  { value: 'carryover', label: 'Carryover', desc: 'Can be rescheduled manually' },
+  { value: 'must_today', label: 'Standard', desc: 'Simple completion' },
+  { value: 'at_least', label: 'At Least', desc: 'Achieve a minimum target' },
+  { value: 'limit_avoid', label: 'Limit', desc: 'Stay under a maximum' },
 ];
 
 const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-function getImportanceBadge(importance: string) {
-  switch (importance) {
-    case 'high': return { label: 'High', className: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' };
-    case 'medium': return { label: 'Med', className: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' };
-    case 'low': return { label: 'Low', className: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400' };
-    default: return { label: '', className: '' };
+function getDateBucket(task: { frequency: string; customDays?: string | null; createdAt?: unknown; repeatInterval?: number | null; toleranceBefore?: number | null; toleranceAfter?: number | null; startDate?: string | null }, todayStr: string): string {
+  // For daily tasks with no future startDate, bucket as "Today"
+  if (task.frequency === 'daily' && (!task.startDate || task.startDate <= todayStr)) return 'Today';
+
+  const today = new Date(todayStr + 'T12:00:00');
+  const todayDay = today.getDay();
+
+  // Find next occurrence within 60 days
+  for (let i = 0; i <= 60; i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() + i);
+    const dStr = d.toISOString().split('T')[0];
+
+    // Skip dates before task's startDate
+    if (task.startDate && dStr < task.startDate) continue;
+
+    // Inline check (simplified version of isTaskForExactDate)
+    let matches = false;
+    const dow = d.getDay();
+    if (task.frequency === 'adhoc') {
+      const created = task.createdAt ? new Date(task.createdAt as string | number | Date).toISOString().split('T')[0] : null;
+      matches = created === dStr;
+    } else if (task.frequency === 'custom' && task.customDays) {
+      try {
+        const days: number[] = JSON.parse(task.customDays);
+        matches = days.includes(dow);
+      } catch { matches = false; }
+    } else if (task.frequency === 'monthly' && task.customDays) {
+      try {
+        const days: number[] = JSON.parse(task.customDays);
+        matches = days.includes(d.getDate());
+      } catch { matches = false; }
+    } else if (task.frequency === 'interval' && task.repeatInterval && task.createdAt) {
+      const created = new Date(task.createdAt as string | number | Date);
+      const diffMs = d.getTime() - new Date(created.toISOString().split('T')[0] + 'T12:00:00').getTime();
+      const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+      matches = diffDays >= 0 && diffDays % task.repeatInterval === 0;
+    } else if (task.frequency === 'weekly') {
+      matches = dow === 1;
+    }
+
+    if (!matches) continue;
+
+    if (i === 0) return 'Today';
+    if (i === 1) return 'Tomorrow';
+
+    // Rest of this week (up to Sunday)
+    const daysUntilSunday = (7 - todayDay) % 7;
+    if (i <= daysUntilSunday) return 'Rest of the Week';
+
+    // Next week
+    if (i <= daysUntilSunday + 7) return 'Next Week';
+
+    // Rest of this month
+    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    const daysUntilEndOfMonth = Math.round((endOfMonth.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (i <= daysUntilEndOfMonth) return 'Rest of the Month';
+
+    // Next month
+    const endOfNextMonth = new Date(today.getFullYear(), today.getMonth() + 2, 0);
+    const daysUntilEndOfNextMonth = Math.round((endOfNextMonth.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (i <= daysUntilEndOfNextMonth) return 'Next Month';
+
+    return 'Later';
   }
+  return 'No Date';
+}
+
+function taskToPreset(task: { frequency: string; customDays?: string | null; repeatInterval?: number | null }): {
+  preset: string; repeatInterval: string; repeatUnit: 'days' | 'weeks' | 'months'; customDays: number[]; monthDay: number
+} {
+  const customDays = task.customDays ? JSON.parse(task.customDays) : [];
+
+  if (task.frequency === 'adhoc') return { preset: 'adhoc', repeatInterval: '1', repeatUnit: 'days', customDays: [], monthDay: 1 };
+  if (task.frequency === 'daily') return { preset: 'daily', repeatInterval: '1', repeatUnit: 'days', customDays: [], monthDay: 1 };
+
+  // Check if it's a weekdays preset
+  if (task.frequency === 'custom' && !task.repeatInterval) {
+    const sorted = [...customDays].sort().join(',');
+    if (sorted === '1,2,3,4,5') return { preset: 'weekdays', repeatInterval: '1', repeatUnit: 'weeks', customDays, monthDay: 1 };
+  }
+
+  if (task.frequency === 'weekly') {
+    return { preset: 'custom', repeatInterval: '1', repeatUnit: 'weeks', customDays: [1], monthDay: 1 };
+  }
+
+  if (task.frequency === 'custom') {
+    const weekInterval = task.repeatInterval ? Math.round(task.repeatInterval / 7) : 1;
+    return { preset: 'custom', repeatInterval: weekInterval.toString(), repeatUnit: 'weeks', customDays, monthDay: 1 };
+  }
+
+  if (task.frequency === 'monthly') {
+    return { preset: 'custom', repeatInterval: (task.repeatInterval || 1).toString(), repeatUnit: 'months', customDays: [], monthDay: customDays[0] || 1 };
+  }
+
+  if (task.frequency === 'interval') {
+    return { preset: 'custom', repeatInterval: (task.repeatInterval || 1).toString(), repeatUnit: 'days', customDays: [], monthDay: 1 };
+  }
+
+  return { preset: 'daily', repeatInterval: '1', repeatUnit: 'days', customDays: [], monthDay: 1 };
 }
 
 export default function TasksPage() {
@@ -115,11 +211,12 @@ export default function TasksPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [filter, setFilter] = useState<'today' | 'all'>('today');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'todo' | 'done'>('all');
+  const [openSchedules, setOpenSchedules] = useState<Set<string>>(new Set(['Today', 'Tomorrow', 'Rest of the Week']));
   const [scoreSummary, setScoreSummary] = useState<ScoreSummary | null>(null);
   const [timers, setTimers] = useState<Record<number, { running: boolean; elapsed: number; interval?: NodeJS.Timeout }>>({});
   const [pendingValues, setPendingValues] = useState<Record<number, string>>({});
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
-  const [focusMode, setFocusMode] = useState(false);
   const [quickAdd, setQuickAdd] = useState({ name: '', date: new Date().toISOString().split('T')[0] });
   const menuRef = useRef<HTMLDivElement>(null);
   const [form, setForm] = useState({
@@ -128,18 +225,21 @@ export default function TasksPage() {
     completionType: 'checkbox',
     target: '',
     unit: '',
-    importance: 'medium',
-    frequency: 'daily',
+
+    frequencyPreset: 'adhoc' as string,
+    frequency: 'adhoc',
     customDays: [] as number[],
-    isWeekendTask: false,
+    repeatInterval: '1',
+    repeatUnit: 'days' as 'days' | 'weeks' | 'months',
+    monthDay: 1,
     basePoints: '10',
     flexibilityRule: 'must_today',
-    windowStart: '',
-    windowEnd: '',
+    toleranceBefore: '0',
+    toleranceAfter: '0',
     limitValue: '',
-    isAdhoc: false,
     outcomeId: 0,
     periodId: 0,
+    startDate: '',
   });
 
   const today = new Date().toISOString().split('T')[0];
@@ -184,7 +284,7 @@ export default function TasksPage() {
       const res = await fetch('/api/outcomes');
       if (res.ok) {
         const data = await res.json();
-        setOutcomes(data.map((o: Outcome & { pillarId: number | null }) => ({ id: o.id, pillarId: o.pillarId, name: o.name })));
+        setOutcomes(data.map((o: Outcome & { pillarId: number | null; goalType: string }) => ({ id: o.id, pillarId: o.pillarId, name: o.name, goalType: o.goalType || 'outcome' })));
       }
     } catch (error) {
       console.error("Failed to fetch outcomes:", error);
@@ -205,14 +305,12 @@ export default function TasksPage() {
 
   const fetchTasks = async () => {
     try {
-      const url = filter === 'today' ? `/api/tasks?date=${today}` : '/api/tasks';
+      const url = filter === 'today' ? `/api/tasks?date=${today}` : `/api/tasks?date=${today}&all=true`;
       const res = await fetch(url);
       if (res.ok) {
         setGroups(await res.json());
       }
-      if (filter === 'today') {
-        await fetchScore();
-      }
+      await fetchScore();
     } catch (error) {
       console.error("Failed to fetch tasks:", error);
     } finally {
@@ -242,7 +340,7 @@ export default function TasksPage() {
     setGroups(prev => prev.map(g => ({
       ...g,
       tasks: g.tasks.map(t =>
-        t.id === taskId ? { ...t, completion: { ...t.completion, taskId, completed: completed ?? false, value: value ?? null, pointsEarned: t.completion?.pointsEarned ?? 0 } as TaskCompletion } : t
+        t.id === taskId ? { ...t, completion: { ...t.completion, taskId, completed: completed ?? false, value: value ?? null, pointsEarned: t.completion?.pointsEarned ?? 0, isHighlighted: t.completion?.isHighlighted ?? false } as TaskCompletion } : t
       ),
     })));
 
@@ -278,21 +376,14 @@ export default function TasksPage() {
   const handleCountChange = (task: Task, delta: number) => {
     const current = task.completion?.value || 0;
     const newValue = Math.max(0, current + delta);
-    handleComplete(task.id, newValue > 0, newValue);
+    const completed = task.target ? newValue >= task.target : newValue > 0;
+    handleComplete(task.id, completed, newValue);
   };
 
   const handleNumericSubmit = (task: Task) => {
     const raw = pendingValues[task.id];
     if (raw === undefined) return;
     const numValue = parseFloat(raw) || 0;
-    handleComplete(task.id, numValue > 0, numValue);
-    setPendingValues(prev => { const next = { ...prev }; delete next[task.id]; return next; });
-  };
-
-  const handlePercentageSubmit = (task: Task) => {
-    const raw = pendingValues[task.id];
-    if (raw === undefined) return;
-    const numValue = Math.min(100, Math.max(0, parseInt(raw) || 0));
     handleComplete(task.id, numValue > 0, numValue);
     setPendingValues(prev => { const next = { ...prev }; delete next[task.id]; return next; });
   };
@@ -330,18 +421,35 @@ export default function TasksPage() {
     setPendingValues(prev => { const next = { ...prev }; delete next[task.id]; return next; });
   };
 
-  const handleUndo = useCallback((taskId: number) => {
+  const handleHighlightToggle = useCallback((taskId: number) => {
+    const allTasks = groups.flatMap(g => g.tasks);
+    const task = allTasks.find(t => t.id === taskId);
+    const currentlyHighlighted = task?.completion?.isHighlighted || false;
+
+    // Check max 3 before toggling on
+    if (!currentlyHighlighted) {
+      const highlightedCount = allTasks.filter(t => t.completion?.isHighlighted).length;
+      if (highlightedCount >= 3) return;
+    }
+
+    // Optimistic update
     setGroups(prev => prev.map(g => ({
       ...g,
       tasks: g.tasks.map(t =>
-        t.id === taskId ? { ...t, completion: { ...t.completion, taskId, completed: false, value: 0, pointsEarned: 0 } as TaskCompletion } : t
+        t.id === taskId ? {
+          ...t,
+          completion: {
+            ...(t.completion || { id: 0, taskId, completed: false, value: null, pointsEarned: 0, isHighlighted: false }),
+            isHighlighted: !currentlyHighlighted,
+          } as TaskCompletion
+        } : t
       ),
     })));
 
-    fetch('/api/tasks/complete/undo', {
+    fetch('/api/tasks/highlight', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ taskId, date: today }),
+      body: JSON.stringify({ taskId, date: today, isHighlighted: !currentlyHighlighted }),
     }).then(res => {
       if (res.ok) {
         res.json().then(completion => {
@@ -354,9 +462,9 @@ export default function TasksPage() {
         });
         fetchScore();
       }
-    }).catch(err => console.error("Failed to undo completion:", err));
+    }).catch(err => console.error("Failed to toggle highlight:", err));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [today]);
+  }, [today, groups]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -390,24 +498,27 @@ export default function TasksPage() {
   const handleCopy = (task: Task) => {
     setOpenMenuId(null);
     setEditingTask(null);
+    const freq = taskToPreset(task);
     setForm({
       pillarId: task.pillarId,
       name: task.name + ' (copy)',
       completionType: task.completionType,
       target: task.target?.toString() || '',
       unit: task.unit || '',
-      importance: task.importance,
-      frequency: task.frequency === 'adhoc' ? 'daily' : task.frequency,
-      customDays: task.customDays ? JSON.parse(task.customDays) : [],
-      isWeekendTask: task.isWeekendTask,
+      frequencyPreset: freq.preset,
+      frequency: task.frequency,
+      customDays: freq.customDays,
+      repeatInterval: freq.repeatInterval,
+      repeatUnit: freq.repeatUnit,
+      monthDay: freq.monthDay,
       basePoints: task.basePoints.toString(),
       flexibilityRule: task.flexibilityRule,
-      windowStart: task.windowStart?.toString() || '',
-      windowEnd: task.windowEnd?.toString() || '',
+      toleranceBefore: task.toleranceBefore?.toString() || '0',
+      toleranceAfter: task.toleranceAfter?.toString() || '0',
       limitValue: task.limitValue?.toString() || '',
-      isAdhoc: task.frequency === 'adhoc',
       outcomeId: task.outcomeId || 0,
       periodId: task.periodId || 0,
+      startDate: task.startDate || '',
     });
     setShowForm(true);
   };
@@ -415,27 +526,53 @@ export default function TasksPage() {
   const handleSubmit = async () => {
     if (!form.name.trim()) return;
 
+    // Convert form preset to DB frequency + fields
+    let dbFrequency = form.frequency;
+    let dbCustomDays: string | null = null;
+    let dbRepeatInterval: number | null = null;
+
+    if (form.frequencyPreset === 'weekdays') {
+      dbFrequency = 'custom';
+      dbCustomDays = JSON.stringify([1, 2, 3, 4, 5]);
+    } else if (form.frequencyPreset === 'custom') {
+      if (form.repeatUnit === 'weeks') {
+        dbFrequency = 'custom';
+        dbCustomDays = JSON.stringify(form.customDays);
+        const interval = parseInt(form.repeatInterval) || 1;
+        if (interval > 1) dbRepeatInterval = interval * 7;
+      } else if (form.repeatUnit === 'months') {
+        dbFrequency = 'monthly';
+        dbCustomDays = JSON.stringify([form.monthDay]);
+        const interval = parseInt(form.repeatInterval) || 1;
+        if (interval > 1) dbRepeatInterval = interval;
+      } else {
+        // days
+        dbFrequency = 'interval';
+        dbRepeatInterval = parseInt(form.repeatInterval) || 1;
+      }
+    } else {
+      dbFrequency = form.frequencyPreset; // daily, adhoc
+    }
+
     const body: Record<string, unknown> = {
       pillarId: form.pillarId || null,
       name: form.name,
       completionType: form.completionType,
-      importance: form.importance,
-      frequency: form.isAdhoc ? 'adhoc' : form.frequency,
-      isWeekendTask: form.isWeekendTask,
+      frequency: dbFrequency,
+      customDays: dbCustomDays,
+      repeatInterval: dbRepeatInterval,
       basePoints: parseFloat(form.basePoints) || 10,
-      flexibilityRule: form.isAdhoc ? 'must_today' : form.flexibilityRule,
+      flexibilityRule: form.flexibilityRule,
     };
 
     if (form.outcomeId) body.outcomeId = form.outcomeId;
     if (form.periodId) body.periodId = form.periodId;
+    body.startDate = form.startDate || null;
     if (form.target) body.target = parseFloat(form.target);
     if (form.unit) body.unit = form.unit;
-    if (form.frequency === 'custom' && !form.isAdhoc) body.customDays = JSON.stringify(form.customDays);
-    if (form.flexibilityRule === 'window' && !form.isAdhoc) {
-      if (form.windowStart) body.windowStart = parseInt(form.windowStart);
-      if (form.windowEnd) body.windowEnd = parseInt(form.windowEnd);
-    }
-    if (form.flexibilityRule === 'limit_avoid' && !form.isAdhoc) {
+    if (form.toleranceBefore) body.toleranceBefore = parseInt(form.toleranceBefore);
+    if (form.toleranceAfter) body.toleranceAfter = parseInt(form.toleranceAfter);
+    if (form.flexibilityRule === 'limit_avoid' && dbFrequency !== 'adhoc') {
       if (form.limitValue) body.limitValue = parseFloat(form.limitValue);
     }
 
@@ -478,22 +615,25 @@ export default function TasksPage() {
       completionType: 'checkbox',
       target: '',
       unit: '',
-      importance: 'medium',
+      frequencyPreset: 'daily',
       frequency: 'daily',
       customDays: [],
-      isWeekendTask: false,
+      repeatInterval: '1',
+      repeatUnit: 'days' as 'days' | 'weeks' | 'months',
+      monthDay: 1,
       basePoints: '10',
       flexibilityRule: 'must_today',
-      windowStart: '',
-      windowEnd: '',
+      toleranceBefore: '0',
+      toleranceAfter: '0',
       limitValue: '',
-      isAdhoc: false,
       outcomeId: 0,
       periodId: 0,
+      startDate: '',
     });
   };
 
   const startEdit = (task: Task) => {
+    const freq = taskToPreset(task);
     setEditingTask(task);
     setForm({
       pillarId: task.pillarId,
@@ -501,18 +641,20 @@ export default function TasksPage() {
       completionType: task.completionType,
       target: task.target?.toString() || '',
       unit: task.unit || '',
-      importance: task.importance,
-      frequency: task.frequency === 'adhoc' ? 'daily' : task.frequency,
-      customDays: task.customDays ? JSON.parse(task.customDays) : [],
-      isWeekendTask: task.isWeekendTask,
+      frequencyPreset: freq.preset,
+      frequency: task.frequency,
+      customDays: freq.customDays,
+      repeatInterval: freq.repeatInterval,
+      repeatUnit: freq.repeatUnit,
+      monthDay: freq.monthDay,
       basePoints: task.basePoints.toString(),
       flexibilityRule: task.flexibilityRule,
-      windowStart: task.windowStart?.toString() || '',
-      windowEnd: task.windowEnd?.toString() || '',
+      toleranceBefore: task.toleranceBefore?.toString() || '0',
+      toleranceAfter: task.toleranceAfter?.toString() || '0',
       limitValue: task.limitValue?.toString() || '',
-      isAdhoc: task.frequency === 'adhoc',
       outcomeId: task.outcomeId || 0,
       periodId: task.periodId || 0,
+      startDate: task.startDate || '',
     });
     setShowForm(true);
   };
@@ -532,10 +674,9 @@ export default function TasksPage() {
       name: quickAdd.name,
       frequency: 'adhoc',
       completionType: 'checkbox',
-      importance: 'medium',
       basePoints: 10,
     };
-    if (quickAdd.date) body.scheduledDate = quickAdd.date;
+    if (quickAdd.date) body.startDate = quickAdd.date;
     try {
       await fetch('/api/tasks', {
         method: 'POST',
@@ -557,18 +698,20 @@ export default function TasksPage() {
       completionType: 'checkbox',
       target: '',
       unit: '',
-      importance: 'medium',
-      frequency: 'daily',
+      frequencyPreset: 'adhoc',
+      frequency: 'adhoc',
       customDays: [],
-      isWeekendTask: false,
+      repeatInterval: '1',
+      repeatUnit: 'days' as 'days' | 'weeks' | 'months',
+      monthDay: 1,
       basePoints: '10',
       flexibilityRule: 'must_today',
-      windowStart: '',
-      windowEnd: '',
+      toleranceBefore: '0',
+      toleranceAfter: '0',
       limitValue: '',
-      isAdhoc: true,
       outcomeId: 0,
       periodId: 0,
+      startDate: '',
     });
     setShowForm(true);
     setQuickAdd({ name: '', date: '' });
@@ -596,9 +739,8 @@ export default function TasksPage() {
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Tasks</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-              {isToday
-                ? new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
-                : 'All tasks across all days'}
+              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+              {!isToday && ' · Showing all tasks'}
             </p>
           </div>
           <motion.button
@@ -611,7 +753,7 @@ export default function TasksPage() {
           </motion.button>
         </div>
 
-        {/* Filter Toggle + Focus */}
+        {/* Filters */}
         <div className="flex items-center gap-3 mb-4">
           <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 w-fit">
             <button
@@ -635,19 +777,25 @@ export default function TasksPage() {
               All
             </button>
           </div>
-          {isToday && (
-            <button
-              onClick={() => setFocusMode(true)}
-              className="px-3 py-1.5 text-sm font-medium rounded-md bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors flex items-center gap-1.5"
-            >
-              <FaExpand className="text-xs" /> Focus
-            </button>
-          )}
+          <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 w-fit">
+            {(['all', 'todo', 'done'] as const).map(s => (
+              <button
+                key={s}
+                onClick={() => setStatusFilter(s)}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                  statusFilter === s
+                    ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                {s === 'all' ? 'All' : s === 'todo' ? 'To Do' : 'Done'}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Quick-Add Bar */}
-        {isToday && (
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-3 mb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-3 mb-4">
             <div className="flex items-center gap-2">
               <input
                 type="text"
@@ -692,10 +840,9 @@ export default function TasksPage() {
               </motion.button>
             </div>
           </div>
-        )}
 
-        {/* Score Summary Bar (Today only) */}
-        {isToday && scoreSummary && (
+        {/* Score Summary Bar */}
+        {scoreSummary && (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 mb-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -724,65 +871,96 @@ export default function TasksPage() {
         {/* Task Groups */}
         {groups.length === 0 && (
           <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-            <p className="text-base mb-1">{isToday ? 'No tasks for today' : 'No tasks yet'}</p>
-            <p className="text-sm">{isToday ? 'Add tasks or switch to All to see everything' : 'Click Add Task to create one'}</p>
+            <p className="text-base mb-1">No tasks {isToday ? 'for today' : 'yet'}</p>
+            <p className="text-sm">Click Add Task to create one</p>
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
-          {groups.flatMap((group) =>
-            group.tasks.map((task) => {
-                  const badge = getImportanceBadge(task.importance);
-                  const isCompleted = task.completion?.completed || false;
-                  const currentValue = task.completion?.value || 0;
-                  const isFullyDone = isCompleted || (task.target != null && task.target > 0 && currentValue >= task.target);
+        {(() => {
+          const allEnrichedTasks = groups.flatMap((group) =>
+            group.tasks.filter((task) => {
+              if (statusFilter === 'all') return true;
+              const done = task.completion?.completed || (task.target != null && task.target > 0 && (task.completion?.value || 0) >= task.target);
+              return statusFilter === 'done' ? done : !done;
+            }).map((task) => ({ ...task, _pillarColor: group.pillar.color, _pillarEmoji: group.pillar.emoji, _pillarName: group.pillar.name }))
+          ).sort((a, b) => {
+              const aStarred = a.completion?.isHighlighted ? 1 : 0;
+              const bStarred = b.completion?.isHighlighted ? 1 : 0;
+              if (aStarred !== bStarred) return bStarred - aStarred;
+              const aDone = a.completion?.completed || (a.target != null && a.target > 0 && (a.completion?.value || 0) >= a.target) ? 1 : 0;
+              const bDone = b.completion?.completed || (b.target != null && b.target > 0 && (b.completion?.value || 0) >= b.target) ? 1 : 0;
+              return aDone - bDone;
+          });
 
-                  return (
-                    <div
-                      key={task.id}
-                      className={`rounded-lg px-3 py-2.5 transition-all ${
-                        isToday && isFullyDone
+          const starredCount = allEnrichedTasks.filter(t => t.completion?.isHighlighted).length;
+          const maxStarsReached = starredCount >= 3;
+
+          const renderTaskCard = (task: typeof allEnrichedTasks[number]) => {
+            const isCompleted = task.completion?.completed || false;
+            const currentValue = task.completion?.value || 0;
+            const isFullyDone = isCompleted || (task.target != null && task.target > 0 && currentValue >= task.target);
+            const isHighlighted = task.completion?.isHighlighted || false;
+
+            return (
+              <div
+                key={task.id}
+                className={`rounded-lg px-3 py-2.5 transition-all ${
+                        isFullyDone
                           ? 'bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800'
+                          : isHighlighted
+                          ? 'bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 hover:shadow-md'
                           : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600'
                       }`}
-                      style={{ borderLeftWidth: 3, borderLeftColor: isToday && isFullyDone ? '#4ade80' : group.pillar.color }}
+                      style={{ borderLeftWidth: 3, borderLeftColor: isFullyDone ? '#4ade80' : isHighlighted ? '#F59E0B' : task._pillarColor }}
                     >
                       <div className="flex items-center gap-2">
-                        {/* Left: name, pillar, badges */}
+                        {/* Left: star + name, pillar, badges */}
+                        {(isHighlighted || !maxStarsReached) && (
+                          <button
+                            onClick={() => handleHighlightToggle(task.id)}
+                            className={`shrink-0 transition-colors ${
+                              isHighlighted
+                                ? 'text-amber-500'
+                                : 'text-gray-300 dark:text-gray-600 hover:text-amber-400'
+                            }`}
+                            title={isHighlighted ? 'Remove highlight' : 'Highlight task (max 3/day)'}
+                          >
+                            <FaStar className="text-xs" />
+                          </button>
+                        )}
                         <div className="flex-1 min-w-0">
-                          <h3 className={`text-sm font-semibold leading-snug ${isToday && isFullyDone ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>
+                          <h3 className={`text-sm font-semibold leading-snug ${isFullyDone ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>
                             {task.name}
                           </h3>
                           <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                            <span className="text-[11px] text-gray-500 dark:text-gray-400">{group.pillar.emoji} {group.pillar.name}</span>
-                            <span className="text-gray-300 dark:text-gray-600">·</span>
-                            <span className={`text-[11px] px-1.5 py-px rounded-full font-medium ${badge.className}`}>
-                              {badge.label}
-                            </span>
-                            {task.frequency === 'adhoc' && (
-                              <span className="text-[11px] px-1.5 py-px rounded-full font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
-                                Ad-hoc
-                              </span>
-                            )}
+                            <span className="text-[11px] text-gray-500 dark:text-gray-400 shrink-0">{task._pillarEmoji} {task._pillarName}</span>
                             {task.outcomeId && outcomes.find(o => o.id === task.outcomeId) && (
                               <span className="text-[11px] px-1.5 py-px rounded-full font-medium bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 truncate max-w-[120px]">
                                 {outcomes.find(o => o.id === task.outcomeId)?.name}
                               </span>
                             )}
-                            {!isToday && (
-                              <>
-                                <span className="text-gray-300 dark:text-gray-600">·</span>
-                                <span className="text-[11px] text-gray-400 dark:text-gray-500 capitalize">{task.completionType}</span>
-                                {task.target && <span className="text-[11px] text-gray-400 dark:text-gray-500">{task.target}{task.unit ? ` ${task.unit}` : ''}</span>}
-                              </>
+                            {task.periodId && cycles.find(c => c.id === task.periodId) && (
+                              <span className="text-[11px] px-1.5 py-px rounded-full font-medium bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400 truncate max-w-[120px]">
+                                {cycles.find(c => c.id === task.periodId)?.name}
+                              </span>
                             )}
                           </div>
+                          {task.frequency !== 'daily' && (
+                            <div className="mt-0.5">
+                              <span className="text-[11px] px-1.5 py-px rounded-full font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                                {task.frequency === 'adhoc' ? 'One-time' :
+                                 task.frequency === 'monthly' ? `Monthly` :
+                                 task.frequency === 'custom' ? (task.customDays ? JSON.parse(task.customDays).map((d: number) => DAYS_OF_WEEK[d]).join(', ') : 'Custom') :
+                                 task.frequency === 'interval' ? `Every ${(task as unknown as Record<string, unknown>).repeatInterval || '?'} days` :
+                                 task.frequency}
+                              </span>
+                            </div>
+                          )}
                         </div>
 
                         {/* Right: completion controls + menu */}
                         <div className="flex items-center gap-1.5 shrink-0">
-                          {isToday && (
-                            <>
+                          <>
                               {task.completionType === 'checkbox' && (
                                 <motion.button
                                   whileTap={{ scale: 0.9 }}
@@ -885,33 +1063,7 @@ export default function TasksPage() {
                                 </div>
                               )}
 
-                              {task.completionType === 'percentage' && (
-                                <div className="flex items-center gap-1">
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    max="100"
-                                    value={pendingValues[task.id] ?? (currentValue || '')}
-                                    onChange={(e) => setPendingValues(prev => ({ ...prev, [task.id]: e.target.value }))}
-                                    onKeyDown={(e) => e.key === 'Enter' && handlePercentageSubmit(task)}
-                                    placeholder="0"
-                                    className="w-12 px-1.5 py-1 text-xs text-right border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                                  />
-                                  <span className="text-[10px] text-gray-500 dark:text-gray-400">%</span>
-                                  {pendingValues[task.id] !== undefined && (
-                                    <motion.button
-                                      whileTap={{ scale: 0.9 }}
-                                      onClick={() => handlePercentageSubmit(task)}
-                                      className="w-6 h-6 rounded bg-green-500 text-white flex items-center justify-center hover:bg-green-600"
-                                    >
-                                      <FaCheck className="text-[9px]" />
-                                    </motion.button>
-                                  )}
-                                </div>
-                              )}
-
-                            </>
-                          )}
+                          </>
 
                           <div className="relative" ref={openMenuId === task.id ? menuRef : undefined}>
                             <button
@@ -929,12 +1081,21 @@ export default function TasksPage() {
                                   transition={{ duration: 0.1 }}
                                   className="absolute right-0 top-7 z-20 w-36 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden"
                                 >
-                                  <button
-                                    onClick={() => { setOpenMenuId(null); startEdit(task); }}
-                                    className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                  >
-                                    <FaEdit className="text-xs" /> Edit
-                                  </button>
+                                  {task.outcomeId ? (
+                                    <button
+                                      onClick={() => { setOpenMenuId(null); router.push('/outcomes'); }}
+                                      className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                    >
+                                      <FaArrowRight className="text-xs" /> Edit in Goals
+                                    </button>
+                                  ) : (
+                                    <button
+                                      onClick={() => { setOpenMenuId(null); startEdit(task); }}
+                                      className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                    >
+                                      <FaEdit className="text-xs" /> Edit
+                                    </button>
+                                  )}
                                   <button
                                     onClick={() => handleCopy(task)}
                                     className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -953,207 +1114,61 @@ export default function TasksPage() {
                           </div>
                         </div>
                       </div>
+              </div>
+            );
+          };
+
+          if (!isToday && allEnrichedTasks.length > 0) {
+            // "All" view: group by date bucket in accordions
+            const bucketOrder = ['Today', 'Tomorrow', 'Rest of the Week', 'Next Week', 'Rest of the Month', 'Next Month', 'Later', 'No Date'];
+            const bucketGroups: Record<string, typeof allEnrichedTasks> = {};
+            for (const task of allEnrichedTasks) {
+              const bucket = getDateBucket(task, today);
+              if (!bucketGroups[bucket]) bucketGroups[bucket] = [];
+              bucketGroups[bucket].push(task);
+            }
+            const sortedLabels = bucketOrder.filter(b => bucketGroups[b]);
+
+            return (
+              <div className="space-y-2">
+                {sortedLabels.map(label => {
+                  const isOpen = openSchedules.has(label);
+                  const tasksInGroup = bucketGroups[label];
+                  return (
+                    <div key={label} className="border border-gray-200 dark:border-gray-700 rounded-lg">
+                      <button
+                        onClick={() => setOpenSchedules(prev => {
+                          const next = new Set(prev);
+                          if (next.has(label)) next.delete(label); else next.add(label);
+                          return next;
+                        })}
+                        className="w-full px-4 py-2.5 flex items-center justify-between bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <FaChevronDown className={`text-[10px] text-gray-400 transition-transform ${isOpen ? '' : '-rotate-90'}`} />
+                          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{label}</span>
+                          <span className="text-xs text-gray-400 dark:text-gray-500">({tasksInGroup.length})</span>
+                        </div>
+                      </button>
+                      {isOpen && (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.5rem', padding: '0.5rem' }}>
+                          {tasksInGroup.map(renderTaskCard)}
+                        </div>
+                      )}
                     </div>
                   );
-                })
-          )}
-        </div>
-
-        {/* Focus Mode Overlay */}
-        <AnimatePresence>
-          {focusMode && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[100] bg-white dark:bg-gray-900 overflow-y-auto"
-            >
-              <div className="w-full px-4 py-6">
-                {/* Exit button */}
-                <button
-                  onClick={() => setFocusMode(false)}
-                  className="fixed top-4 right-4 z-[101] px-3 py-1.5 text-sm font-medium rounded-lg bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors flex items-center gap-1.5 shadow-lg"
-                >
-                  <FaCompress className="text-xs" /> Exit Focus
-                </button>
-
-                {/* Score bar */}
-                {scoreSummary && (
-                  <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 mb-6">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-3">
-                        <div className="text-3xl font-bold text-gray-900 dark:text-white">
-                          {scoreSummary.actionScore}%
-                        </div>
-                        <span className="text-sm text-gray-500 dark:text-gray-400">
-                          {scoreSummary.scoreTier}
-                        </span>
-                      </div>
-                      <span className="text-sm text-gray-500 dark:text-gray-400">
-                        {scoreSummary.completedTasks}/{scoreSummary.totalTasks} tasks
-                      </span>
-                    </div>
-                    <div className="w-full h-2.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${Math.min(scoreSummary.actionScore, 100)}%` }}
-                        transition={{ duration: 0.5 }}
-                        className="h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-500"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Task groups */}
-                {groups.length === 0 ? (
-                  <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-                    <p className="text-lg">No tasks for today</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
-                    {groups.flatMap((group) =>
-                      group.tasks.map((task) => {
-                            const isCompleted = task.completion?.completed || false;
-                            const currentValue = task.completion?.value || 0;
-
-                            const isFullyDone = isCompleted || (task.target != null && task.target > 0 && currentValue >= task.target);
-
-                            return (
-                              <div
-                                key={task.id}
-                                className={`rounded-lg flex items-center justify-between px-3 py-2 transition-colors ${
-                                  isCompleted
-                                    ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
-                                    : 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700'
-                                }`}
-                                style={{ borderLeftWidth: 3, borderLeftColor: isCompleted ? '#4ade80' : group.pillar.color }}
-                              >
-                                <div className="flex items-center gap-1.5 min-w-0">
-                                  <span className="text-xs shrink-0" title={group.pillar.name}>{group.pillar.emoji}</span>
-                                  <span className={`text-sm font-medium leading-tight ${isFullyDone ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>
-                                    {task.name}
-                                  </span>
-                                </div>
-
-                                <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                                  {task.completionType === 'checkbox' && (
-                                    <motion.button
-                                      whileTap={{ scale: 0.9 }}
-                                      onClick={() => handleCheckboxToggle(task)}
-                                      className={`w-6 h-6 rounded border-2 flex items-center justify-center transition-colors ${
-                                        isCompleted
-                                          ? 'bg-green-500 border-green-500 text-white'
-                                          : 'border-gray-300 dark:border-gray-600 hover:border-green-500'
-                                      }`}
-                                    >
-                                      {isCompleted && <FaCheck className="text-[10px]" />}
-                                    </motion.button>
-                                  )}
-
-                                  {task.completionType === 'count' && (
-                                    <div className="flex items-center gap-1">
-                                      <motion.button
-                                        whileTap={{ scale: 0.9 }}
-                                        onClick={() => handleCountChange(task, -1)}
-                                        className="w-6 h-6 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-600"
-                                      >
-                                        <FaMinus className="text-[10px]" />
-                                      </motion.button>
-                                      <span className={`text-xs font-bold ${
-                                        task.target && currentValue >= task.target ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'
-                                      }`}>
-                                        {currentValue}/{task.target || '?'}
-                                      </span>
-                                      <motion.button
-                                        whileTap={{ scale: 0.9 }}
-                                        onClick={() => handleCountChange(task, 1)}
-                                        className="w-6 h-6 rounded bg-blue-500 text-white flex items-center justify-center hover:bg-blue-600"
-                                      >
-                                        <FaPlus className="text-[10px]" />
-                                      </motion.button>
-                                    </div>
-                                  )}
-
-                                  {task.completionType === 'duration' && (
-                                    <div className="flex items-center gap-1">
-                                      {timers[task.id]?.running ? (
-                                        <span className="text-xs font-mono text-gray-700 dark:text-gray-300">
-                                          {formatTime(timers[task.id].elapsed)}
-                                        </span>
-                                      ) : (
-                                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                                          {currentValue ? `${currentValue}m` : '0m'}
-                                        </span>
-                                      )}
-                                      <motion.button
-                                        whileTap={{ scale: 0.9 }}
-                                        onClick={() => handleTimerToggle(task)}
-                                        className={`w-6 h-6 rounded flex items-center justify-center ${
-                                          timers[task.id]?.running ? 'bg-red-500 text-white' : 'bg-blue-500 text-white'
-                                        }`}
-                                      >
-                                        {timers[task.id]?.running ? <FaStop className="text-[10px]" /> : <FaPlay className="text-[10px]" />}
-                                      </motion.button>
-                                    </div>
-                                  )}
-
-                                  {task.completionType === 'numeric' && (
-                                    <div className="flex items-center gap-1">
-                                      <input
-                                        type="number"
-                                        value={pendingValues[task.id] ?? (currentValue || '')}
-                                        onChange={(e) => setPendingValues(prev => ({ ...prev, [task.id]: e.target.value }))}
-                                        onKeyDown={(e) => e.key === 'Enter' && handleNumericSubmit(task)}
-                                        placeholder={task.target ? String(task.target) : '0'}
-                                        className="w-12 px-1 py-0.5 text-xs text-right border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                                      />
-                                      {pendingValues[task.id] !== undefined && (
-                                        <motion.button
-                                          whileTap={{ scale: 0.9 }}
-                                          onClick={() => handleNumericSubmit(task)}
-                                          className="w-6 h-6 rounded bg-green-500 text-white flex items-center justify-center hover:bg-green-600"
-                                        >
-                                          <FaCheck className="text-[10px]" />
-                                        </motion.button>
-                                      )}
-                                    </div>
-                                  )}
-
-                                  {task.completionType === 'percentage' && (
-                                    <div className="flex items-center gap-1">
-                                      <input
-                                        type="number"
-                                        min="0"
-                                        max="100"
-                                        value={pendingValues[task.id] ?? (currentValue || '')}
-                                        onChange={(e) => setPendingValues(prev => ({ ...prev, [task.id]: e.target.value }))}
-                                        onKeyDown={(e) => e.key === 'Enter' && handlePercentageSubmit(task)}
-                                        placeholder="0"
-                                        className="w-10 px-1 py-0.5 text-xs text-right border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                                      />
-                                      <span className="text-[10px] text-gray-500">%</span>
-                                      {pendingValues[task.id] !== undefined && (
-                                        <motion.button
-                                          whileTap={{ scale: 0.9 }}
-                                          onClick={() => handlePercentageSubmit(task)}
-                                          className="w-6 h-6 rounded bg-green-500 text-white flex items-center justify-center hover:bg-green-600"
-                                        >
-                                          <FaCheck className="text-[10px]" />
-                                        </motion.button>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })
-                    )}
-                  </div>
-                )}
+                })}
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            );
+          }
+
+          // "Today" view: flat grid
+          return (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
+              {allEnrichedTasks.map(renderTaskCard)}
+            </div>
+          );
+        })()}
 
         {/* Add/Edit Form Modal */}
         <AnimatePresence>
@@ -1182,24 +1197,62 @@ export default function TasksPage() {
                 </div>
 
                 <div className="space-y-4">
-                  {/* Pillar */}
+                  {/* Name */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Pillar</label>
-                    <select
-                      value={form.pillarId}
-                      onChange={e => setForm({ ...form, pillarId: parseInt(e.target.value) || 0 })}
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Task Name</label>
+                    <input
+                      type="text"
+                      value={form.name}
+                      onChange={e => setForm({ ...form, name: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    >
-                      <option value={0}>📋 None</option>
-                      {pillars.map(p => (
-                        <option key={p.id} value={p.id}>{p.emoji} {p.name}</option>
-                      ))}
-                    </select>
+                      placeholder="e.g., Gym session"
+                      autoFocus
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Pillar</label>
+                      <select
+                        value={form.pillarId}
+                        onChange={e => setForm({ ...form, pillarId: parseInt(e.target.value) || 0 })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      >
+                        <option value={0}>📋 None</option>
+                        {pillars.map(p => (
+                          <option key={p.id} value={p.id}>{p.emoji} {p.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Points</label>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => setForm({ ...form, basePoints: Math.max(0, (parseFloat(form.basePoints) || 0) - 5).toString() })}
+                          className="w-8 h-9 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600"
+                        >
+                          <FaMinus className="text-[10px]" />
+                        </button>
+                        <input
+                          type="number"
+                          value={form.basePoints}
+                          onChange={e => setForm({ ...form, basePoints: e.target.value })}
+                          className="flex-1 px-2 py-2 text-center border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                          min="0"
+                        />
+                        <button
+                          onClick={() => setForm({ ...form, basePoints: ((parseFloat(form.basePoints) || 0) + 5).toString() })}
+                          className="w-8 h-9 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600"
+                        >
+                          <FaPlus className="text-[10px]" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Linked Outcome */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Linked Outcome (optional)</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Linked Goal (optional)</label>
                     <select
                       value={form.outcomeId}
                       onChange={e => setForm({ ...form, outcomeId: parseInt(e.target.value) || 0 })}
@@ -1209,7 +1262,7 @@ export default function TasksPage() {
                       {outcomes
                         .filter(o => !form.pillarId || o.pillarId === form.pillarId || !o.pillarId)
                         .map(o => (
-                          <option key={o.id} value={o.id}>{o.name}</option>
+                          <option key={o.id} value={o.id}>{o.goalType === 'effort' ? '⚡ ' : '📈 '}{o.name}</option>
                         ))}
                     </select>
                   </div>
@@ -1231,22 +1284,22 @@ export default function TasksPage() {
                     </div>
                   )}
 
-                  {/* Name */}
+                  {/* Start Date */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Task Name</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date (optional)</label>
                     <input
-                      type="text"
-                      value={form.name}
-                      onChange={e => setForm({ ...form, name: e.target.value })}
+                      type="date"
+                      value={form.startDate}
+                      onChange={(e) => setForm({ ...form, startDate: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                      placeholder="e.g., Gym session"
                     />
+                    <p className="text-xs text-gray-400 mt-0.5">Task will only appear from this date onwards</p>
                   </div>
 
                   {/* Completion Type */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Completion Type</label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    <div className="grid grid-cols-4 gap-2">
                       {COMPLETION_TYPES.map(ct => (
                         <button
                           key={ct.value}
@@ -1265,115 +1318,119 @@ export default function TasksPage() {
 
                   {/* Target & Unit (for non-checkbox types) */}
                   {form.completionType !== 'checkbox' && (
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className={`grid gap-3 ${form.completionType === 'duration' ? 'grid-cols-1' : 'grid-cols-2'}`}>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Target</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          {form.completionType === 'duration' ? 'Target (minutes)' : 'Target'}
+                        </label>
                         <input
                           type="number"
                           value={form.target}
                           onChange={e => setForm({ ...form, target: e.target.value })}
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                          placeholder="e.g., 8"
+                          placeholder={form.completionType === 'duration' ? 'e.g., 30' : 'e.g., 8'}
                         />
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unit</label>
-                        <input
-                          type="text"
-                          value={form.unit}
-                          onChange={e => setForm({ ...form, unit: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                          placeholder="e.g., glasses"
-                        />
-                      </div>
+                      {form.completionType !== 'duration' && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unit</label>
+                          <input
+                            type="text"
+                            value={form.unit}
+                            onChange={e => setForm({ ...form, unit: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            placeholder="e.g., glasses"
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
 
-                  {/* Importance */}
+                  {/* Frequency - Google Calendar style */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Importance</label>
-                    <div className="flex gap-2">
-                      {IMPORTANCE_OPTIONS.map(opt => (
-                        <button
-                          key={opt.value}
-                          onClick={() => setForm({ ...form, importance: opt.value })}
-                          className={`flex-1 px-3 py-2 text-sm rounded-lg border transition-colors ${
-                            form.importance === opt.value
-                              ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 font-bold'
-                              : 'border-gray-300 dark:border-gray-600'
-                          } text-gray-700 dark:text-gray-300`}
-                        >
-                          {opt.label}
-                        </button>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Repeat</label>
+                    <select
+                      value={form.frequencyPreset}
+                      onChange={e => setForm({ ...form, frequencyPreset: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    >
+                      {FREQUENCY_PRESETS.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
                       ))}
-                    </div>
+                    </select>
                   </div>
 
-                  {/* Ad-hoc toggle */}
-                  <div
-                    onClick={() => setForm({ ...form, isAdhoc: !form.isAdhoc })}
-                    className="flex items-center justify-between p-3 rounded-lg border border-gray-300 dark:border-gray-600 cursor-pointer"
-                  >
-                    <div>
-                      <span className="text-sm text-gray-700 dark:text-gray-300">Ad-hoc (one-time)</span>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Only appears today, not on future days</p>
-                    </div>
-                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
-                      form.isAdhoc ? 'bg-blue-500 border-blue-500 text-white' : 'border-gray-300 dark:border-gray-600'
-                    }`}>
-                      {form.isAdhoc && <FaCheck className="text-xs" />}
-                    </div>
-                  </div>
-
-                  {/* Frequency (hidden when adhoc) */}
-                  {!form.isAdhoc && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Frequency</label>
-                      <div className="flex gap-2">
-                        {FREQUENCY_OPTIONS.map(opt => (
-                          <button
-                            key={opt.value}
-                            onClick={() => setForm({ ...form, frequency: opt.value })}
-                            className={`flex-1 px-3 py-2 text-sm rounded-lg border transition-colors ${
-                              form.frequency === opt.value
-                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 font-bold'
-                                : 'border-gray-300 dark:border-gray-600'
-                            } text-gray-700 dark:text-gray-300`}
+                  {/* Custom recurrence options */}
+                  {form.frequencyPreset === 'custom' && (
+                    <div className="space-y-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Repeat every</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            value={form.repeatInterval}
+                            onChange={e => setForm({ ...form, repeatInterval: e.target.value })}
+                            className="w-20 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            min="1"
+                          />
+                          <select
+                            value={form.repeatUnit}
+                            onChange={e => setForm({ ...form, repeatUnit: e.target.value as 'days' | 'weeks' | 'months' })}
+                            className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                           >
-                            {opt.label}
-                          </button>
-                        ))}
+                            {REPEAT_UNITS.map(u => (
+                              <option key={u.value} value={u.value}>
+                                {parseInt(form.repeatInterval) > 1 ? u.label + 's' : u.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
+
+                      {/* Day of week picker - shown for weeks */}
+                      {form.repeatUnit === 'weeks' && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Repeat on</label>
+                          <div className="flex gap-1">
+                            {DAYS_OF_WEEK.map((day, idx) => (
+                              <button
+                                key={idx}
+                                onClick={() => toggleCustomDay(idx)}
+                                className={`flex-1 py-2 text-xs rounded-lg border transition-colors ${
+                                  form.customDays.includes(idx)
+                                    ? 'border-blue-500 bg-blue-500 text-white'
+                                    : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300'
+                                }`}
+                              >
+                                {day}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Day of month picker - shown for months */}
+                      {form.repeatUnit === 'months' && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">On day</label>
+                          <select
+                            value={form.monthDay}
+                            onChange={e => setForm({ ...form, monthDay: parseInt(e.target.value) })}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                          >
+                            {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                              <option key={d} value={d}>{d}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
                     </div>
                   )}
 
-                  {/* Custom Days */}
-                  {!form.isAdhoc && form.frequency === 'custom' && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Days</label>
-                      <div className="flex gap-1">
-                        {DAYS_OF_WEEK.map((day, idx) => (
-                          <button
-                            key={idx}
-                            onClick={() => toggleCustomDay(idx)}
-                            className={`flex-1 py-2 text-xs rounded-lg border transition-colors ${
-                              form.customDays.includes(idx)
-                                ? 'border-blue-500 bg-blue-500 text-white'
-                                : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300'
-                            }`}
-                          >
-                            {day}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Flexibility Rule (hidden when adhoc) */}
-                  {!form.isAdhoc && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Flexibility Rule</label>
-                      <div className="grid grid-cols-2 gap-2">
+                  {/* Flexibility Rule (hidden when one-time) */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
+                      <div className="grid grid-cols-3 gap-2">
                         {FLEXIBILITY_OPTIONS.map(opt => (
                           <button
                             key={opt.value}
@@ -1390,40 +1447,81 @@ export default function TasksPage() {
                         ))}
                       </div>
                     </div>
-                  )}
 
-                  {/* Window fields */}
-                  {!form.isAdhoc && form.flexibilityRule === 'window' && (
+                  {/* Tolerance */}
+                  {form.flexibilityRule === 'must_today' && (
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Window Start (days)</label>
-                        <input
-                          type="number"
-                          value={form.windowStart}
-                          onChange={e => setForm({ ...form, windowStart: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                          placeholder="e.g., 0"
-                          min="0"
-                        />
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Days before</label>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => setForm({ ...form, toleranceBefore: Math.max(0, (parseInt(form.toleranceBefore) || 0) - 1).toString() })}
+                            className="w-8 h-9 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600"
+                          >
+                            <FaMinus className="text-[10px]" />
+                          </button>
+                          <input
+                            type="number"
+                            value={form.toleranceBefore}
+                            onChange={e => setForm({ ...form, toleranceBefore: e.target.value })}
+                            className="flex-1 px-2 py-2 text-center border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            min="0"
+                          />
+                          <button
+                            onClick={() => setForm({ ...form, toleranceBefore: ((parseInt(form.toleranceBefore) || 0) + 1).toString() })}
+                            className="w-8 h-9 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600"
+                          >
+                            <FaPlus className="text-[10px]" />
+                          </button>
+                        </div>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Window End (days)</label>
-                        <input
-                          type="number"
-                          value={form.windowEnd}
-                          onChange={e => setForm({ ...form, windowEnd: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                          placeholder="e.g., 3"
-                          min="0"
-                        />
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Days after</label>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => setForm({ ...form, toleranceAfter: Math.max(0, (parseInt(form.toleranceAfter) || 0) - 1).toString() })}
+                            className="w-8 h-9 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600"
+                          >
+                            <FaMinus className="text-[10px]" />
+                          </button>
+                          <input
+                            type="number"
+                            value={form.toleranceAfter}
+                            onChange={e => setForm({ ...form, toleranceAfter: e.target.value })}
+                            className="flex-1 px-2 py-2 text-center border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            min="0"
+                          />
+                          <button
+                            onClick={() => setForm({ ...form, toleranceAfter: ((parseInt(form.toleranceAfter) || 0) + 1).toString() })}
+                            className="w-8 h-9 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600"
+                          >
+                            <FaPlus className="text-[10px]" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}
 
-                  {/* Limit/Avoid fields */}
-                  {!form.isAdhoc && form.flexibilityRule === 'limit_avoid' && (
+                  {/* At Least - minimum target */}
+                  {form.flexibilityRule === 'at_least' && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Limit Value (max threshold)</label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Minimum Value</label>
+                      <input
+                        type="number"
+                        value={form.target}
+                        onChange={e => setForm({ ...form, target: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        placeholder="e.g., 20"
+                        min="0"
+                      />
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Full points at this value, exceeding is fine</p>
+                    </div>
+                  )}
+
+                  {/* Limit - maximum threshold */}
+                  {form.flexibilityRule === 'limit_avoid' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Maximum Value</label>
                       <input
                         type="number"
                         value={form.limitValue}
@@ -1432,34 +1530,9 @@ export default function TasksPage() {
                         placeholder="e.g., 2"
                         min="0"
                       />
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Full points under this, penalty above</p>
                     </div>
                   )}
-
-                  {/* Weekend Task (hidden when adhoc) */}
-                  {!form.isAdhoc && (
-                    <div
-                      onClick={() => setForm({ ...form, isWeekendTask: !form.isWeekendTask })}
-                      className="flex items-center justify-between p-3 rounded-lg border border-gray-300 dark:border-gray-600 cursor-pointer"
-                    >
-                      <span className="text-sm text-gray-700 dark:text-gray-300">Weekend-only task</span>
-                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
-                        form.isWeekendTask ? 'bg-blue-500 border-blue-500 text-white' : 'border-gray-300 dark:border-gray-600'
-                      }`}>
-                        {form.isWeekendTask && <FaCheck className="text-xs" />}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Base Points */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Base Points</label>
-                    <input
-                      type="number"
-                      value={form.basePoints}
-                      onChange={e => setForm({ ...form, basePoints: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    />
-                  </div>
 
                   <div className="flex gap-3 pt-2">
                     <motion.button

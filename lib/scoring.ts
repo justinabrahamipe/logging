@@ -3,7 +3,6 @@ interface TaskForScoring {
   pillarId: number | null;
   completionType: string;
   target: number | null;
-  importance: string;
   basePoints: number;
   flexibilityRule?: string;
   limitValue?: number | null;
@@ -13,45 +12,40 @@ interface CompletionForScoring {
   taskId: number;
   completed: boolean;
   value: number | null;
+  isHighlighted?: boolean;
 }
 
-const IMPORTANCE_MULTIPLIERS: Record<string, number> = {
-  high: 3,
-  medium: 2,
-  low: 1,
-};
-
 export function calculateTaskScore(task: TaskForScoring, completion: CompletionForScoring): number {
-  const multiplier = IMPORTANCE_MULTIPLIERS[task.importance] || 1;
-
   if (task.completionType === 'checkbox') {
-    return completion.completed ? task.basePoints * multiplier : 0;
+    return completion.completed ? task.basePoints : 0;
+  }
+
+  // At Least scoring: full points at or above target, partial below
+  if (task.flexibilityRule === 'at_least' && task.target && task.target > 0) {
+    const val = completion.value || 0;
+    if (val >= task.target) return task.basePoints;
+    return task.basePoints * (val / task.target);
   }
 
   // Limit/Avoid scoring: under limit = full points, over = negative proportional
   if (task.flexibilityRule === 'limit_avoid' && task.limitValue != null && task.limitValue > 0) {
     const val = completion.value || 0;
     if (val <= task.limitValue) {
-      return task.basePoints * multiplier;
+      return task.basePoints;
     }
     // Over limit: negative points proportional to how much over
     const overRatio = (val - task.limitValue) / task.limitValue;
-    return -task.basePoints * multiplier * Math.min(overRatio, 1);
-  }
-
-  if (task.completionType === 'percentage') {
-    const pct = Math.min((completion.value || 0), 100) / 100;
-    return task.basePoints * multiplier * pct;
+    return -task.basePoints * Math.min(overRatio, 1);
   }
 
   // For count, duration, numeric — score based on progress toward target
   if (task.target && task.target > 0) {
     const progress = Math.min((completion.value || 0) / task.target, 1);
-    return task.basePoints * multiplier * progress;
+    return task.basePoints * progress;
   }
 
   // No target, just check if there's a value
-  return completion.value && completion.value > 0 ? task.basePoints * multiplier : 0;
+  return completion.value && completion.value > 0 ? task.basePoints : 0;
 }
 
 interface PillarWeight {
@@ -83,23 +77,31 @@ export function calculateDailyScore(
 
   const pillarScores: Record<number, number> = {};
   const weightMap = new Map<number, number>();
+
+  // Distribute remaining weight evenly among pillars with 0 weight
+  const assignedWeight = pillarWeights.reduce((sum, pw) => sum + (pw.weight || 0), 0);
+  const unweighted = pillarWeights.filter(pw => !pw.weight || pw.weight === 0);
+  const remainingWeight = Math.max(0, 100 - assignedWeight);
+  const autoWeight = unweighted.length > 0 ? remainingWeight / unweighted.length : 0;
+
   for (const pw of pillarWeights) {
-    weightMap.set(pw.pillarId, pw.weight);
+    weightMap.set(pw.pillarId, pw.weight || autoWeight);
   }
 
-  // Calculate score per pillar
+  // Calculate score per pillar (highlighted tasks get 1.5x weight)
+  const HIGHLIGHT_MULTIPLIER = 2;
   for (const [pillarIdStr, tasks] of Object.entries(pillarTasks)) {
     const pillarId = Number(pillarIdStr);
     let maxPossible = 0;
     let earned = 0;
 
     for (const task of tasks) {
-      const multiplier = IMPORTANCE_MULTIPLIERS[task.importance] || 1;
+      const completion = completionMap.get(task.id);
+      const multiplier = completion?.isHighlighted ? HIGHLIGHT_MULTIPLIER : 1;
       maxPossible += task.basePoints * multiplier;
 
-      const completion = completionMap.get(task.id);
       if (completion) {
-        earned += calculateTaskScore(task, completion);
+        earned += calculateTaskScore(task, completion) * multiplier;
       }
     }
 

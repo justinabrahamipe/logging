@@ -32,6 +32,11 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   if (body.startDate !== undefined) updateData.startDate = body.startDate || null;
   if (body.targetDate !== undefined) updateData.targetDate = body.targetDate || null;
   if (body.periodId !== undefined) updateData.periodId = body.periodId || null;
+  if (body.goalType !== undefined) updateData.goalType = body.goalType;
+  if (body.scheduleDays !== undefined) updateData.scheduleDays = body.scheduleDays ? JSON.stringify(body.scheduleDays) : null;
+  if (body.autoCreateTasks !== undefined) updateData.autoCreateTasks = body.autoCreateTasks;
+  if (body.tolerance !== undefined) updateData.tolerance = body.tolerance ?? null;
+  if (body.linkedOutcomeId !== undefined) updateData.linkedOutcomeId = body.linkedOutcomeId || null;
 
   const [updated] = await db
     .update(outcomes)

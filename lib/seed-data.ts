@@ -17,7 +17,6 @@ interface TaskSeed {
   completionType: string;
   target?: number;
   unit?: string;
-  importance: string;
   frequency: string;
   customDays?: string;
   isWeekendTask?: boolean;
@@ -34,13 +33,13 @@ const DEFAULT_PILLARS: PillarSeed[] = [
     description: 'Physical health, exercise, nutrition',
     sortOrder: 0,
     tasks: [
-      { name: 'Gym session', completionType: 'checkbox', importance: 'high', frequency: 'custom', customDays: JSON.stringify([1, 2, 4, 5]), basePoints: 10 },
-      { name: 'C25K run', completionType: 'checkbox', importance: 'high', frequency: 'custom', customDays: JSON.stringify([1, 3, 5]), basePoints: 10 },
-      { name: 'Hit protein target', completionType: 'numeric', target: 208, unit: 'g', importance: 'high', frequency: 'daily', basePoints: 10 },
-      { name: 'Stay in calories', completionType: 'numeric', target: 2040, unit: 'cal', importance: 'medium', frequency: 'daily', basePoints: 10 },
-      { name: 'Take supplements', completionType: 'checkbox', importance: 'low', frequency: 'daily', basePoints: 10 },
-      { name: 'Water intake', completionType: 'count', target: 8, unit: 'glasses', importance: 'medium', frequency: 'daily', basePoints: 10 },
-      { name: 'Social media limit', completionType: 'checkbox', importance: 'medium', frequency: 'daily', flexibilityRule: 'limit_avoid', basePoints: 10 },
+      { name: 'Gym session', completionType: 'checkbox', frequency: 'custom', customDays: JSON.stringify([1, 2, 4, 5]), basePoints: 10 },
+      { name: 'C25K run', completionType: 'checkbox', frequency: 'custom', customDays: JSON.stringify([1, 3, 5]), basePoints: 10 },
+      { name: 'Hit protein target', completionType: 'numeric', target: 208, unit: 'g', frequency: 'daily', basePoints: 10 },
+      { name: 'Stay in calories', completionType: 'numeric', target: 2040, unit: 'cal', frequency: 'daily', basePoints: 10 },
+      { name: 'Take supplements', completionType: 'checkbox', frequency: 'daily', basePoints: 10 },
+      { name: 'Water intake', completionType: 'count', target: 8, unit: 'glasses', frequency: 'daily', basePoints: 10 },
+      { name: 'Social media limit', completionType: 'checkbox', frequency: 'daily', flexibilityRule: 'limit_avoid', basePoints: 10 },
     ],
   },
   {
@@ -51,11 +50,11 @@ const DEFAULT_PILLARS: PillarSeed[] = [
     description: 'Job search, skills, professional development',
     sortOrder: 1,
     tasks: [
-      { name: 'LeetCode problem', completionType: 'count', target: 1, unit: 'problems', importance: 'high', frequency: 'daily', basePoints: 10 },
-      { name: 'DSA concept', completionType: 'checkbox', importance: 'medium', frequency: 'daily', basePoints: 10 },
-      { name: 'Deep-dive topic', completionType: 'duration', target: 15, unit: 'min', importance: 'medium', frequency: 'daily', basePoints: 10 },
-      { name: 'Interview questions', completionType: 'count', target: 2, unit: 'questions', importance: 'medium', frequency: 'daily', basePoints: 10 },
-      { name: 'Job application', completionType: 'count', target: 1, unit: 'applications', importance: 'high', frequency: 'daily', basePoints: 10 },
+      { name: 'LeetCode problem', completionType: 'count', target: 1, unit: 'problems', frequency: 'daily', basePoints: 10 },
+      { name: 'DSA concept', completionType: 'checkbox', frequency: 'daily', basePoints: 10 },
+      { name: 'Deep-dive topic', completionType: 'duration', target: 15, unit: 'min', frequency: 'daily', basePoints: 10 },
+      { name: 'Interview questions', completionType: 'count', target: 2, unit: 'questions', frequency: 'daily', basePoints: 10 },
+      { name: 'Job application', completionType: 'count', target: 1, unit: 'applications', frequency: 'daily', basePoints: 10 },
     ],
   },
   {
@@ -66,8 +65,8 @@ const DEFAULT_PILLARS: PillarSeed[] = [
     description: 'Product development, content creation',
     sortOrder: 2,
     tasks: [
-      { name: 'Product work', completionType: 'duration', target: 60, unit: 'min', importance: 'high', frequency: 'daily', basePoints: 10 },
-      { name: 'YouTube content', completionType: 'checkbox', importance: 'medium', frequency: 'weekly', basePoints: 10 },
+      { name: 'Product work', completionType: 'duration', target: 60, unit: 'min', frequency: 'daily', basePoints: 10 },
+      { name: 'YouTube content', completionType: 'checkbox', frequency: 'custom', customDays: JSON.stringify([6]), basePoints: 10 },
     ],
   },
   {
@@ -78,9 +77,9 @@ const DEFAULT_PILLARS: PillarSeed[] = [
     description: 'Household chores and maintenance',
     sortOrder: 3,
     tasks: [
-      { name: 'Kitchen clean', completionType: 'checkbox', importance: 'medium', frequency: 'daily', basePoints: 10 },
-      { name: 'Living area tidy', completionType: 'checkbox', importance: 'low', frequency: 'daily', basePoints: 10 },
-      { name: 'Vacuum/mop', completionType: 'checkbox', importance: 'low', frequency: 'weekly', basePoints: 10 },
+      { name: 'Kitchen clean', completionType: 'checkbox', frequency: 'daily', basePoints: 10 },
+      { name: 'Living area tidy', completionType: 'checkbox', frequency: 'daily', basePoints: 10 },
+      { name: 'Vacuum/mop', completionType: 'checkbox', frequency: 'custom', customDays: JSON.stringify([6]), basePoints: 10 },
     ],
   },
   {
@@ -91,9 +90,9 @@ const DEFAULT_PILLARS: PillarSeed[] = [
     description: 'Personal development, reading, learning',
     sortOrder: 4,
     tasks: [
-      { name: 'Bible writing', completionType: 'checkbox', importance: 'high', frequency: 'daily', basePoints: 10 },
-      { name: 'Reading', completionType: 'duration', target: 20, unit: 'min', importance: 'medium', frequency: 'daily', basePoints: 10 },
-      { name: 'Morning routine', completionType: 'checkbox', importance: 'medium', frequency: 'daily', basePoints: 10 },
+      { name: 'Bible writing', completionType: 'checkbox', frequency: 'daily', basePoints: 10 },
+      { name: 'Reading', completionType: 'duration', target: 20, unit: 'min', frequency: 'daily', basePoints: 10 },
+      { name: 'Morning routine', completionType: 'checkbox', frequency: 'daily', basePoints: 10 },
     ],
   },
   {
@@ -104,8 +103,8 @@ const DEFAULT_PILLARS: PillarSeed[] = [
     description: 'Family time, church, community',
     sortOrder: 5,
     tasks: [
-      { name: 'Family time', completionType: 'checkbox', importance: 'high', frequency: 'daily', basePoints: 10 },
-      { name: 'Church duties', completionType: 'checkbox', importance: 'medium', frequency: 'weekly', isWeekendTask: true, basePoints: 10 },
+      { name: 'Family time', completionType: 'checkbox', frequency: 'daily', basePoints: 10 },
+      { name: 'Church duties', completionType: 'checkbox', frequency: 'custom', customDays: JSON.stringify([0]), basePoints: 10 },
     ],
   },
 ];
@@ -142,7 +141,6 @@ export async function seedDefaultData(userId: string, skipCheck = false) {
         completionType: taskData.completionType,
         target: taskData.target ?? null,
         unit: taskData.unit ?? null,
-        importance: taskData.importance,
         frequency: taskData.frequency,
         customDays: taskData.customDays ?? null,
         isWeekendTask: taskData.isWeekendTask ?? false,

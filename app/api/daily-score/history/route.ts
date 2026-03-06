@@ -49,8 +49,10 @@ export async function GET(request: NextRequest) {
   const formattedScores = scores.map((s) => ({
     date: s.date,
     actionScore: s.actionScore,
+    momentumScore: s.momentumScore,
     isPassing: s.isPassing,
     pillarScores: s.pillarScores ? JSON.parse(s.pillarScores) : {},
+    pillarMomentum: s.pillarMomentum ? JSON.parse(s.pillarMomentum) : {},
   }));
 
   return NextResponse.json({

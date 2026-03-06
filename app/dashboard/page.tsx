@@ -17,6 +17,7 @@ import {
   BarChart,
   Bar,
   Cell,
+  Legend,
 } from "recharts";
 
 interface PillarScore {
@@ -31,10 +32,39 @@ interface PillarScore {
 interface DailyScoreData {
   date: string;
   actionScore: number;
+  momentumScore: number | null;
   scoreTier: string;
   pillarScores: PillarScore[];
   totalTasks: number;
   completedTasks: number;
+}
+
+interface MomentumGoal {
+  goalId: number;
+  goalType: string;
+  pillarId: number | null;
+  momentum: number;
+  bufferDays: number;
+  label: string;
+  name: string;
+  currentValue: number;
+  targetValue: number;
+  unit: string;
+}
+
+interface MomentumPillar {
+  id: number;
+  name: string;
+  emoji: string;
+  color: string;
+  weight: number;
+  momentum: number | null;
+}
+
+interface MomentumData {
+  overall: number;
+  pillars: MomentumPillar[];
+  goals: MomentumGoal[];
 }
 
 interface UserStatsData {
@@ -55,8 +85,10 @@ interface UserStatsData {
 interface HistoryScore {
   date: string;
   actionScore: number;
+  momentumScore: number | null;
   isPassing: boolean;
   pillarScores: Record<string, number>;
+  pillarMomentum: Record<string, number>;
 }
 
 interface PillarMeta {
@@ -81,6 +113,7 @@ interface OutcomeData {
   unit: string;
   direction: string;
   pillarColor: string | null;
+  goalType: string;
 }
 
 function getTierColor(tier: string): string {
@@ -247,7 +280,7 @@ function CalendarHeatmap({ scores }: { scores: HistoryScore[] }) {
   );
 }
 
-// --- Score Trend Line Chart ---
+// --- Score & Momentum Trend Chart ---
 function ScoreTrendChart({ scores }: { scores: HistoryScore[] }) {
   const data = useMemo(() => {
     return [...scores]
@@ -255,9 +288,12 @@ function ScoreTrendChart({ scores }: { scores: HistoryScore[] }) {
       .map((s) => ({
         date: s.date.slice(5), // MM-DD
         fullDate: s.date,
-        score: s.actionScore,
+        action: s.actionScore,
+        momentum: s.momentumScore ?? null,
       }));
   }, [scores]);
+
+  const hasMomentum = data.some((d) => d.momentum !== null);
 
   if (data.length === 0) {
     return (
@@ -275,7 +311,7 @@ function ScoreTrendChart({ scores }: { scores: HistoryScore[] }) {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 mb-6">
       <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-        Score Trend (Last 30 Days)
+        {hasMomentum ? "Action Score & Momentum" : "Score Trend"} (Last 30 Days)
       </h2>
       <ResponsiveContainer width="100%" height={250}>
         <LineChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
@@ -287,7 +323,7 @@ function ScoreTrendChart({ scores }: { scores: HistoryScore[] }) {
             interval="preserveStartEnd"
           />
           <YAxis
-            domain={[0, 100]}
+            domain={[0, hasMomentum ? 'auto' : 100]}
             tick={{ fontSize: 11, fill: "#9CA3AF" }}
             tickLine={false}
             axisLine={{ stroke: "#374151" }}
@@ -300,16 +336,24 @@ function ScoreTrendChart({ scores }: { scores: HistoryScore[] }) {
               color: "var(--tooltip-text, #F9FAFB)",
               fontSize: 12,
             }}
-            formatter={(value: number | undefined) => [`${value ?? 0}%`, "Score"]}
+            formatter={(value, name) => [
+              `${value ?? 0}%`,
+              name === "momentum" ? "Momentum" : "Action Score",
+            ]}
             labelFormatter={(label: unknown) => `Date: ${label}`}
           />
+          {hasMomentum && (
+            <Legend
+              formatter={(value: string) => value === "momentum" ? "Momentum" : "Action Score"}
+            />
+          )}
           <ReferenceLine
-            y={70}
+            y={hasMomentum ? 100 : 70}
             stroke="#22C55E"
             strokeDasharray="5 5"
             strokeOpacity={0.6}
             label={{
-              value: "Pass",
+              value: hasMomentum ? "On Pace" : "Pass",
               position: "right",
               fill: "#22C55E",
               fontSize: 11,
@@ -317,12 +361,23 @@ function ScoreTrendChart({ scores }: { scores: HistoryScore[] }) {
           />
           <Line
             type="monotone"
-            dataKey="score"
+            dataKey="action"
             stroke="#8B5CF6"
             strokeWidth={2}
             dot={{ fill: "#8B5CF6", r: 3 }}
             activeDot={{ r: 5, fill: "#A78BFA" }}
           />
+          {hasMomentum && (
+            <Line
+              type="monotone"
+              dataKey="momentum"
+              stroke="#F59E0B"
+              strokeWidth={2}
+              dot={{ fill: "#F59E0B", r: 3 }}
+              activeDot={{ r: 5, fill: "#FCD34D" }}
+              connectNulls
+            />
+          )}
         </LineChart>
       </ResponsiveContainer>
     </div>
@@ -507,6 +562,7 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<UserStatsData | null>(null);
   const [history, setHistory] = useState<HistoryData | null>(null);
   const [outcomesData, setOutcomesData] = useState<OutcomeData[]>([]);
+  const [momentumData, setMomentumData] = useState<MomentumData | null>(null);
   const [loading, setLoading] = useState(true);
   const [todayTaskCount, setTodayTaskCount] = useState(0);
   const [seeding, setSeeding] = useState(false);
@@ -527,12 +583,13 @@ export default function DashboardPage() {
 
   const fetchData = async () => {
     try {
-      const [scoreRes, statsRes, historyRes, outcomesRes, tasksRes] = await Promise.all([
+      const [scoreRes, statsRes, historyRes, outcomesRes, tasksRes, momentumRes] = await Promise.all([
         fetch(`/api/daily-score?date=${today}`),
         fetch("/api/user-stats"),
         fetch("/api/daily-score/history?days=90"),
         fetch("/api/outcomes"),
         fetch(`/api/tasks?date=${today}`),
+        fetch("/api/momentum"),
       ]);
 
       if (scoreRes.ok) {
@@ -546,6 +603,9 @@ export default function DashboardPage() {
       }
       if (outcomesRes.ok) {
         setOutcomesData(await outcomesRes.json());
+      }
+      if (momentumRes.ok) {
+        setMomentumData(await momentumRes.json());
       }
       if (tasksRes.ok) {
         const groups = await tasksRes.json();
@@ -758,14 +818,99 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Progress Score */}
-        {outcomesData.length > 0 && (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 mb-6">
-            <div className="flex items-center justify-between mb-4">
+        {/* Momentum */}
+        {momentumData && momentumData.goals.length > 0 && (
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 mb-6">
+            <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <FaChartLine className="text-2xl text-emerald-500" />
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                  Progress Score
+                <FaChartLine className="text-xl text-amber-500" />
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Momentum
+                </h2>
+              </div>
+              <span className={`text-2xl font-bold ${
+                momentumData.overall >= 1.0 ? "text-green-500" : "text-red-500"
+              }`}>
+                {momentumData.overall.toFixed(1)}x
+              </span>
+            </div>
+
+            <div className="relative w-full h-4 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mb-3">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${Math.min(momentumData.overall * 50, 100)}%` }}
+                transition={{ duration: 1, ease: "easeOut" }}
+                className={`h-full rounded-full ${
+                  momentumData.overall >= 1.0
+                    ? "bg-gradient-to-r from-green-400 to-emerald-500"
+                    : "bg-gradient-to-r from-red-400 to-orange-500"
+                }`}
+              />
+              <div className="absolute top-0 left-1/2 w-0.5 h-full bg-gray-400 dark:bg-gray-500" />
+            </div>
+            <p className="text-xs text-center text-gray-500 dark:text-gray-400 mb-4">
+              {momentumData.overall >= 1.05
+                ? "Ahead of pace"
+                : momentumData.overall >= 0.95
+                ? "On track"
+                : "Behind pace"}
+            </p>
+
+            {/* Per-pillar momentum */}
+            {momentumData.pillars.filter(p => p.momentum !== null).length > 0 && (
+              <div className="space-y-2 mb-4">
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">By Pillar</p>
+                {momentumData.pillars.filter(p => p.momentum !== null).map((pillar) => (
+                  <div key={pillar.id} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span>{pillar.emoji}</span>
+                      <span className="text-sm text-gray-700 dark:text-gray-300">{pillar.name}</span>
+                    </div>
+                    <span className={`text-sm font-bold ${
+                      (pillar.momentum ?? 0) >= 1.0 ? "text-green-500" : "text-red-500"
+                    }`}>
+                      {(pillar.momentum ?? 0).toFixed(1)}x
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Goal spotlight */}
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Goals</p>
+              {momentumData.goals.map((goal) => (
+                <div key={goal.goalId} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 shrink-0">
+                      {goal.goalType === "habitual" ? "H" : goal.goalType === "target" ? "T" : "O"}
+                    </span>
+                    <span className="text-sm text-gray-700 dark:text-gray-300 truncate">{goal.name}</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {goal.bufferDays > 0 && (
+                      <span className="text-xs text-gray-400">{goal.bufferDays}d buffer</span>
+                    )}
+                    <span className={`text-sm font-bold ${
+                      goal.momentum >= 1.0 ? "text-green-500" : "text-red-500"
+                    }`}>
+                      {goal.label}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Goals Progress */}
+        {outcomesData.length > 0 && (
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <FaChartLine className="text-xl text-emerald-500" />
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Goals Progress
                 </h2>
               </div>
               <Link href="/outcomes">
@@ -781,6 +926,8 @@ export default function DashboardPage() {
                 return sum + Math.max(0, Math.min(p, 100));
               }, 0);
               const progressScore = Math.round(totalProgress / outcomesData.length);
+              const activityCount = outcomesData.filter(o => o.goalType !== 'outcome').length;
+              const outcomeCount = outcomesData.filter(o => o.goalType === 'outcome').length;
 
               return (
                 <>
@@ -792,38 +939,43 @@ export default function DashboardPage() {
                       className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500"
                     />
                   </div>
-                  <div className="flex justify-between text-sm mb-4">
+                  <div className="flex justify-between text-sm mb-3">
                     <span className="text-gray-600 dark:text-gray-400">
-                      {outcomesData.length} outcome{outcomesData.length !== 1 ? "s" : ""}
+                      {activityCount > 0 && outcomeCount > 0
+                        ? `${activityCount} activity, ${outcomeCount} outcome`
+                        : `${outcomesData.length} goal${outcomesData.length !== 1 ? "s" : ""}`}
                     </span>
                     <span className="font-bold text-gray-900 dark:text-white text-lg">
                       {progressScore}%
                     </span>
                   </div>
 
-                  <div className="space-y-3">
-                    {outcomesData.map((outcome) => {
-                      const range = Math.abs(outcome.targetValue - outcome.startValue);
+                  <div className="space-y-2">
+                    {outcomesData.map((goal) => {
+                      const range = Math.abs(goal.targetValue - goal.startValue);
                       const progress = range === 0 ? 100 : Math.max(0, Math.min(
-                        Math.abs(outcome.currentValue - outcome.startValue) / range * 100, 100
+                        Math.abs(goal.currentValue - goal.startValue) / range * 100, 100
                       ));
-                      const color = outcome.pillarColor || "#10B981";
+                      const color = goal.pillarColor || "#10B981";
+                      const isEffort = goal.goalType !== 'outcome';
 
                       return (
-                        <div key={outcome.id}>
+                        <div key={goal.id}>
                           <div className="flex items-center justify-between mb-1">
                             <div className="flex items-center gap-2">
-                              {outcome.direction === "decrease" ? (
+                              {isEffort ? (
+                                <FaBolt className="text-xs text-blue-500" />
+                              ) : goal.direction === "decrease" ? (
                                 <FaArrowDown className="text-xs text-green-500" />
                               ) : (
                                 <FaArrowUp className="text-xs text-green-500" />
                               )}
                               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                {outcome.name}
+                                {goal.name}
                               </span>
                             </div>
                             <span className="text-xs text-gray-500 dark:text-gray-400">
-                              {outcome.currentValue} / {outcome.targetValue} {outcome.unit}
+                              {goal.currentValue} / {goal.targetValue} {goal.unit}
                             </span>
                           </div>
                           <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
@@ -847,11 +999,11 @@ export default function DashboardPage() {
 
         {/* Pillar Breakdown (today) */}
         {score && score.pillarScores.length > 0 && (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
               Pillar Breakdown
             </h2>
-            <div className="space-y-4">
+            <div className="space-y-2">
               {score.pillarScores.map((pillar) => (
                 <div key={pillar.id}>
                   <div className="flex items-center justify-between mb-1">

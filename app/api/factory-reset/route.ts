@@ -22,13 +22,15 @@ const TABLES_TO_DELETE = [
   "UserPreferences",
 ];
 
-export async function POST() {
+export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const userId = session.user.id;
+  const body = await request.json().catch(() => ({}));
+  const seedDefaults = body.seedDefaults !== false; // default true for backward compat
 
   try {
     // Use raw SQL client to bypass any Drizzle schema mismatches
@@ -60,12 +62,16 @@ export async function POST() {
     // Re-enable foreign key checks
     await client.execute("PRAGMA foreign_keys = ON");
 
-    // Re-seed default data
-    await seedDefaultData(userId, true);
+    // Re-seed default data only if requested
+    if (seedDefaults) {
+      await seedDefaultData(userId, true);
+    }
 
     return NextResponse.json({
       success: true,
-      message: "Factory reset completed and default data seeded",
+      message: seedDefaults
+        ? "Factory reset completed and default data seeded"
+        : "All data cleared successfully",
       deleted,
       skipped,
     });

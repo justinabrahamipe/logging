@@ -89,20 +89,24 @@ export const tasks = sqliteTable('Task', {
   pillarId: integer('pillarId').references(() => pillars.id, { onDelete: 'set null' }),
   userId: text('userId').notNull(),
   name: text('name').notNull(),
-  completionType: text('completionType').notNull().default('checkbox'), // checkbox|count|duration|numeric|percentage
+  completionType: text('completionType').notNull().default('checkbox'), // checkbox|count|duration|numeric
   target: real('target'),
   unit: text('unit'),
-  flexibilityRule: text('flexibilityRule').notNull().default('must_today'), // must_today|window|limit_avoid|carryover
+  flexibilityRule: text('flexibilityRule').notNull().default('must_today'), // must_today|at_least|limit_avoid
   windowStart: integer('windowStart'),
   windowEnd: integer('windowEnd'),
   limitValue: real('limitValue'),
   importance: text('importance').notNull().default('medium'), // high|medium|low
-  frequency: text('frequency').notNull().default('daily'), // daily|weekly|custom
-  customDays: text('customDays'), // JSON array of day numbers [0-6] (0=Sunday)
+  frequency: text('frequency').notNull().default('daily'), // daily|weekly|custom|monthly|interval|adhoc
+  customDays: text('customDays'), // JSON array: day-of-week [0-6] for custom, day-of-month [1-31] for monthly
+  repeatInterval: integer('repeatInterval'), // repeat every N days/weeks/months depending on frequency
+  toleranceBefore: integer('toleranceBefore'), // days before scheduled date
+  toleranceAfter: integer('toleranceAfter'), // days after scheduled date
   isWeekendTask: integer('isWeekendTask', { mode: 'boolean' }).notNull().default(false),
   basePoints: real('basePoints').notNull().default(10),
   outcomeId: integer('outcomeId').references(() => outcomes.id, { onDelete: 'set null' }),
   periodId: integer('periodId').references(() => twelveWeekYears.id, { onDelete: 'set null' }),
+  startDate: text('startDate'), // optional YYYY-MM-DD, task only appears from this date
   isActive: integer('isActive', { mode: 'boolean' }).notNull().default(true),
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
@@ -122,6 +126,7 @@ export const taskCompletions = sqliteTable('TaskCompletion', {
   completed: integer('completed', { mode: 'boolean' }).notNull().default(false),
   value: real('value'),
   pointsEarned: real('pointsEarned').notNull().default(0),
+  isHighlighted: integer('isHighlighted', { mode: 'boolean' }).notNull().default(false),
   completedAt: integer('completedAt', { mode: 'timestamp' }),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
@@ -137,7 +142,9 @@ export const dailyScores = sqliteTable('DailyScore', {
   userId: text('userId').notNull(),
   date: text('date').notNull(), // YYYY-MM-DD
   actionScore: real('actionScore').notNull().default(0),
+  momentumScore: real('momentumScore'), // goal-based momentum (0-200+, 100 = on pace)
   pillarScores: text('pillarScores'), // JSON: { pillarId: score }
+  pillarMomentum: text('pillarMomentum'), // JSON: { pillarId: momentum }
   xpEarned: real('xpEarned').notNull().default(0),
   streakBonus: real('streakBonus').notNull().default(0),
   isPassing: integer('isPassing', { mode: 'boolean' }).notNull().default(false),
@@ -274,6 +281,11 @@ export const outcomes = sqliteTable('Outcome', {
   startDate: text('startDate'), // optional YYYY-MM-DD
   targetDate: text('targetDate'), // optional YYYY-MM-DD
   periodId: integer('periodId').references(() => twelveWeekYears.id, { onDelete: 'set null' }),
+  goalType: text('goalType').notNull().default('outcome'), // 'habitual' | 'target' | 'outcome'
+  scheduleDays: text('scheduleDays'), // JSON weekday array e.g. [1,3,5]
+  autoCreateTasks: integer('autoCreateTasks', { mode: 'boolean' }).notNull().default(false),
+  tolerance: integer('tolerance'), // for habitual: allowed misses per week
+  linkedOutcomeId: integer('linkedOutcomeId'),
   isArchived: integer('isArchived', { mode: 'boolean' }).notNull().default(false),
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),

@@ -61,9 +61,10 @@ export function getCurrentWeekNumber(startDate: string, endDate: string): number
   const now = new Date();
   const diffMs = now.getTime() - start.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) return 0; // hasn't started yet
   const week = Math.floor(diffDays / 7) + 1;
   const totalWeeks = getTotalWeeks(startDate, endDate);
-  return Math.max(1, Math.min(totalWeeks, week));
+  return Math.min(totalWeeks, week);
 }
 
 export function getGoalStatus(
