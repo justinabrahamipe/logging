@@ -27,7 +27,14 @@ CREATE TABLE `Task_new` (
   `updatedAt` integer DEFAULT (unixepoch()) NOT NULL
 );--> statement-breakpoint
 
-INSERT INTO `Task_new` SELECT * FROM `Task`;--> statement-breakpoint
+INSERT INTO `Task_new` SELECT
+  `id`, `pillarId`, `userId`, `name`, `completionType`, `target`, `unit`,
+  `flexibilityRule`, `windowStart`, `windowEnd`, `limitValue`, `importance`,
+  `frequency`, `customDays`, `isWeekendTask`, `basePoints`, `outcomeId`, `periodId`,
+  `isActive`,
+  COALESCE(`createdAt`, unixepoch()),
+  COALESCE(`updatedAt`, unixepoch())
+FROM `Task`;--> statement-breakpoint
 
 DROP TABLE `Task`;--> statement-breakpoint
 
