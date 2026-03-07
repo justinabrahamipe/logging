@@ -17,7 +17,7 @@ import {
 } from "react-icons/fa";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { getCurrentWeekNumber, getGoalStatus, getTotalWeeks, calculateEndDate } from "@/lib/twelve-week-scoring";
+import { getCurrentWeekNumber, getGoalStatus, getTotalWeeks } from "@/lib/twelve-week-scoring";
 import { computeCycleAnalytics } from "@/lib/twelve-week-analytics";
 
 interface Cycle {
@@ -100,9 +100,6 @@ export default function TwelveWeekYearPage() {
   const [cycles, setCycles] = useState<Cycle[]>([]);
   const [selectedCycle, setSelectedCycle] = useState<CycleDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showCycleForm, setShowCycleForm] = useState(false);
-  const [showGoalForm, setShowGoalForm] = useState(false);
-  const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [expandedWeek, setExpandedWeek] = useState<number | null>(null);
   const [expandedGoal, setExpandedGoal] = useState<number | null>(null);
   const [menuOpen, setMenuOpen] = useState<number | null>(null);
@@ -111,8 +108,6 @@ export default function TwelveWeekYearPage() {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [newTacticName, setNewTacticName] = useState("");
 
-  const [cycleForm, setCycleForm] = useState({ name: "", startDate: "", endDate: "", vision: "", theme: "" });
-  const [goalForm, setGoalForm] = useState({ name: "", targetValue: "", unit: "", linkedOutcomeId: "" });
   const [weekEdits, setWeekEdits] = useState<Record<string, { actualValue: string; targetValue: string; isOverridden: boolean }>>({});
   const [reviewEdits, setReviewEdits] = useState<Record<number, { notes: string; wins: string; blockers: string }>>({});
 
@@ -183,29 +178,6 @@ export default function TwelveWeekYearPage() {
     }
   };
 
-  const handleCreateCycle = async () => {
-    if (!cycleForm.name.trim() || !cycleForm.startDate) return;
-    try {
-      const res = await fetch("/api/cycles", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: cycleForm.name,
-          startDate: cycleForm.startDate,
-          endDate: cycleForm.endDate || null,
-          vision: cycleForm.vision || null,
-          theme: cycleForm.theme || null,
-        }),
-      });
-      if (res.ok) {
-        await fetchCycles();
-        setShowCycleForm(false);
-        setCycleForm({ name: "", startDate: "", endDate: "", vision: "", theme: "" });
-      }
-    } catch (error) {
-      console.error("Failed to create cycle:", error);
-    }
-  };
 
   const handleDeleteCycle = async (id: number) => {
     if (!confirm("Delete this cycle? This will remove all goals and weekly data.")) return;
@@ -218,52 +190,6 @@ export default function TwelveWeekYearPage() {
     }
   };
 
-  const handleCreateGoal = async () => {
-    if (!selectedCycle || !goalForm.name.trim() || !goalForm.targetValue || !goalForm.unit.trim()) return;
-    try {
-      const res = await fetch(`/api/cycles/${selectedCycle.id}/goals`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: goalForm.name,
-          targetValue: parseFloat(goalForm.targetValue),
-          unit: goalForm.unit,
-          linkedOutcomeId: goalForm.linkedOutcomeId ? parseInt(goalForm.linkedOutcomeId) : null,
-        }),
-      });
-      if (res.ok) {
-        await fetchCycleDetail(selectedCycle.id);
-        setShowGoalForm(false);
-        setGoalForm({ name: "", targetValue: "", unit: "", linkedOutcomeId: "" });
-      }
-    } catch (error) {
-      console.error("Failed to create goal:", error);
-    }
-  };
-
-  const handleUpdateGoal = async () => {
-    if (!selectedCycle || !editingGoal) return;
-    try {
-      const res = await fetch(`/api/cycles/${selectedCycle.id}/goals/${editingGoal.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: goalForm.name,
-          targetValue: parseFloat(goalForm.targetValue),
-          unit: goalForm.unit,
-          linkedOutcomeId: goalForm.linkedOutcomeId ? parseInt(goalForm.linkedOutcomeId) : null,
-        }),
-      });
-      if (res.ok) {
-        await fetchCycleDetail(selectedCycle.id);
-        setEditingGoal(null);
-        setShowGoalForm(false);
-        setGoalForm({ name: "", targetValue: "", unit: "", linkedOutcomeId: "" });
-      }
-    } catch (error) {
-      console.error("Failed to update goal:", error);
-    }
-  };
 
   const handleDeleteGoal = async (goalId: number) => {
     if (!selectedCycle || !confirm("Delete this goal and all its weekly data?")) return;
@@ -277,15 +203,9 @@ export default function TwelveWeekYearPage() {
   };
 
   const startEditGoal = (goal: Goal) => {
-    setEditingGoal(goal);
-    setGoalForm({
-      name: goal.name,
-      targetValue: String(goal.targetValue),
-      unit: goal.unit,
-      linkedOutcomeId: goal.linkedOutcomeId ? String(goal.linkedOutcomeId) : "",
-    });
-    setShowGoalForm(true);
+    if (!selectedCycle) return;
     setMenuOpen(null);
+    router.push(`/cycles/${selectedCycle.id}/goals/${goal.id}/edit`);
   };
 
   const handleSaveCycleField = async (updates: Record<string, string | boolean>) => {
@@ -620,9 +540,7 @@ export default function TwelveWeekYearPage() {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => {
-                setEditingGoal(null);
-                setGoalForm({ name: "", targetValue: "", unit: "", linkedOutcomeId: "" });
-                setShowGoalForm(true);
+                if (selectedCycle) router.push(`/cycles/${selectedCycle.id}/goals/new`);
               }}
               className="px-3 py-1.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg text-sm font-medium flex items-center gap-1.5"
             >
@@ -1125,103 +1043,6 @@ export default function TwelveWeekYearPage() {
           )}
         </motion.div>
 
-        {/* Goal Form Modal */}
-        <AnimatePresence>
-          {showGoalForm && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-              onClick={() => { setShowGoalForm(false); setEditingGoal(null); }}
-            >
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md p-6"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                    {editingGoal ? "Edit Goal" : "New Goal"}
-                  </h2>
-                  <button onClick={() => { setShowGoalForm(false); setEditingGoal(null); }} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                    <FaTimes />
-                  </button>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
-                    <input
-                      type="text"
-                      value={goalForm.name}
-                      onChange={(e) => setGoalForm({ ...goalForm, name: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                      placeholder="e.g., LeetCode problems"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Target Value</label>
-                      <input
-                        type="number"
-                        step="any"
-                        value={goalForm.targetValue}
-                        onChange={(e) => setGoalForm({ ...goalForm, targetValue: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                        placeholder="e.g., 60"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unit</label>
-                      <input
-                        type="text"
-                        value={goalForm.unit}
-                        onChange={(e) => setGoalForm({ ...goalForm, unit: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                        placeholder="e.g., problems"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Link to Outcome (optional)</label>
-                    <select
-                      value={goalForm.linkedOutcomeId}
-                      onChange={(e) => setGoalForm({ ...goalForm, linkedOutcomeId: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    >
-                      <option value="">None</option>
-                      {outcomes.map((o) => (
-                        <option key={o.id} value={o.id}>{o.name}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="flex gap-3 pt-2">
-                    <motion.button
-                      whileTap={{ scale: 0.95 }}
-                      onClick={editingGoal ? handleUpdateGoal : handleCreateGoal}
-                      className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium flex items-center justify-center gap-2"
-                    >
-                      <FaCheck /> {editingGoal ? "Update" : "Create"}
-                    </motion.button>
-                    <motion.button
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => { setShowGoalForm(false); setEditingGoal(null); }}
-                      className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-medium"
-                    >
-                      Cancel
-                    </motion.button>
-                  </div>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
     );
   }
@@ -1239,7 +1060,7 @@ export default function TwelveWeekYearPage() {
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => setShowCycleForm(true)}
+            onClick={() => router.push("/cycles/new")}
             className="p-2 md:px-4 md:py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium flex items-center gap-2"
           >
             <FaPlus /> <span className="hidden md:inline">New Cycle</span>
@@ -1392,107 +1213,6 @@ export default function TwelveWeekYearPage() {
         })()}
       </motion.div>
 
-      {/* New Cycle Modal */}
-      <AnimatePresence>
-        {showCycleForm && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowCycleForm(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-sm p-6"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">New Cycle</h2>
-                <button onClick={() => setShowCycleForm(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                  <FaTimes />
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
-                  <input
-                    type="text"
-                    value={cycleForm.name}
-                    onChange={(e) => setCycleForm({ ...cycleForm, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    placeholder="e.g., Q1 2026 Transformation"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date</label>
-                    <input
-                      type="date"
-                      value={cycleForm.startDate}
-                      onChange={(e) => {
-                        const start = e.target.value;
-                        const autoEnd = start ? calculateEndDate(start) : "";
-                        setCycleForm({ ...cycleForm, startDate: start, endDate: cycleForm.endDate || autoEnd });
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">End Date</label>
-                    <input
-                      type="date"
-                      value={cycleForm.endDate}
-                      onChange={(e) => setCycleForm({ ...cycleForm, endDate: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Vision (optional)</label>
-                  <textarea
-                    value={cycleForm.vision}
-                    onChange={(e) => setCycleForm({ ...cycleForm, vision: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
-                    placeholder="Your vision for this cycle..."
-                    rows={2}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Theme (optional)</label>
-                  <input
-                    type="text"
-                    value={cycleForm.theme}
-                    onChange={(e) => setCycleForm({ ...cycleForm, theme: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    placeholder="e.g., Deep Focus"
-                  />
-                </div>
-
-                <div className="flex gap-3 pt-2">
-                  <motion.button
-                    whileTap={{ scale: 0.95 }}
-                    onClick={handleCreateCycle}
-                    className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium flex items-center justify-center gap-2"
-                  >
-                    <FaCheck /> Create
-                  </motion.button>
-                  <motion.button
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setShowCycleForm(false)}
-                    className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-medium"
-                  >
-                    Cancel
-                  </motion.button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

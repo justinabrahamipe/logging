@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaPlus, FaEdit, FaTrash, FaTimes, FaCheck, FaMinus, FaPlay, FaStop, FaEllipsisV, FaCopy, FaChevronRight, FaChevronDown, FaArrowRight, FaCalendarAlt, FaStar } from "react-icons/fa";
+import { FaPlus, FaEdit, FaTrash, FaCheck, FaMinus, FaPlay, FaStop, FaEllipsisV, FaCopy, FaChevronRight, FaChevronDown, FaArrowRight, FaCalendarAlt, FaStar } from "react-icons/fa";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
@@ -42,14 +42,9 @@ interface Task {
   completionType: string;
   target: number | null;
   unit: string | null;
-  flexibilityRule: string;
-  windowStart: number | null;
-  windowEnd: number | null;
-  limitValue: number | null;
   frequency: string;
   customDays: string | null;
-  toleranceBefore: number | null;
-  toleranceAfter: number | null;
+  repeatInterval: number | null;
   isWeekendTask: boolean;
   basePoints: number;
   outcomeId: number | null;
@@ -70,35 +65,9 @@ interface ScoreSummary {
   totalTasks: number;
 }
 
-const COMPLETION_TYPES = [
-  { value: 'checkbox', label: 'Checkbox' },
-  { value: 'count', label: 'Count' },
-  { value: 'duration', label: 'Duration (min)' },
-  { value: 'numeric', label: 'Numeric' },
-];
-
-const FREQUENCY_PRESETS = [
-  { value: 'adhoc', label: 'Does not repeat' },
-  { value: 'daily', label: 'Daily' },
-  { value: 'weekdays', label: 'Every weekday (Mon–Fri)' },
-  { value: 'custom', label: 'Custom...' },
-];
-
-const REPEAT_UNITS = [
-  { value: 'days', label: 'day' },
-  { value: 'weeks', label: 'week' },
-  { value: 'months', label: 'month' },
-];
-
-const FLEXIBILITY_OPTIONS = [
-  { value: 'must_today', label: 'Standard', desc: 'Simple completion' },
-  { value: 'at_least', label: 'At Least', desc: 'Achieve a minimum target' },
-  { value: 'limit_avoid', label: 'Limit', desc: 'Stay under a maximum' },
-];
-
 const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-function getDateBucket(task: { frequency: string; customDays?: string | null; createdAt?: unknown; repeatInterval?: number | null; toleranceBefore?: number | null; toleranceAfter?: number | null; startDate?: string | null }, todayStr: string): string {
+function getDateBucket(task: { frequency: string; customDays?: string | null; createdAt?: unknown; repeatInterval?: number | null; startDate?: string | null }, todayStr: string): string {
   // For daily tasks with no future startDate, bucket as "Today"
   if (task.frequency === 'daily' && (!task.startDate || task.startDate <= todayStr)) return 'Today';
 
@@ -208,9 +177,10 @@ export default function TasksPage() {
   const [outcomes, setOutcomes] = useState<Outcome[]>([]);
   const [cycles, setCycles] = useState<Cycle[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [filter, setFilter] = useState<'today' | 'all'>('today');
+  const [filter, setFilter] = useState<'today' | 'all' | 'past'>('today');
+  const [pastDays, setPastDays] = useState<{ date: string; tasks: { id: number; name: string; completionType: string; target: number | null; unit: string | null; outcomeId: number | null; pillarName: string | null; pillarColor: string | null; pillarEmoji: string | null; completed: boolean; value: number | null; isHighlighted: boolean }[] }[]>([]);
+  const [pastPending, setPastPending] = useState<Record<string, string>>({});
+  const [pastLoading, setPastLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'all' | 'todo' | 'done'>('all');
   const [openSchedules, setOpenSchedules] = useState<Set<string>>(new Set(['Today', 'Tomorrow', 'Rest of the Week']));
   const [scoreSummary, setScoreSummary] = useState<ScoreSummary | null>(null);
@@ -219,28 +189,6 @@ export default function TasksPage() {
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
   const [quickAdd, setQuickAdd] = useState({ name: '', date: new Date().toISOString().split('T')[0] });
   const menuRef = useRef<HTMLDivElement>(null);
-  const [form, setForm] = useState({
-    pillarId: 0,
-    name: '',
-    completionType: 'checkbox',
-    target: '',
-    unit: '',
-
-    frequencyPreset: 'adhoc' as string,
-    frequency: 'adhoc',
-    customDays: [] as number[],
-    repeatInterval: '1',
-    repeatUnit: 'days' as 'days' | 'weeks' | 'months',
-    monthDay: 1,
-    basePoints: '10',
-    flexibilityRule: 'must_today',
-    toleranceBefore: '0',
-    toleranceAfter: '0',
-    limitValue: '',
-    outcomeId: 0,
-    periodId: 0,
-    startDate: '',
-  });
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -259,7 +207,11 @@ export default function TasksPage() {
 
   useEffect(() => {
     if (session?.user?.id) {
-      fetchTasks();
+      if (filter === 'past') {
+        fetchPastTasks();
+      } else {
+        fetchTasks();
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, filter]);
@@ -268,11 +220,7 @@ export default function TasksPage() {
     try {
       const res = await fetch('/api/pillars');
       if (res.ok) {
-        const p = await res.json();
-        setPillars(p);
-        if (p.length > 0 && form.pillarId === 0) {
-          setForm(prev => ({ ...prev, pillarId: p[0].id }));
-        }
+        setPillars(await res.json());
       }
     } catch (error) {
       console.error("Failed to fetch pillars:", error);
@@ -332,6 +280,65 @@ export default function TasksPage() {
       }
     } catch (error) {
       console.error("Failed to fetch score:", error);
+    }
+  };
+
+  const updatePastTask = (date: string, taskId: number, updates: { completed?: boolean; value?: number | null }) => {
+    setPastDays(prev => prev.map(day =>
+      day.date !== date ? day : {
+        ...day,
+        tasks: day.tasks.map(t =>
+          t.id !== taskId ? t : { ...t, ...updates }
+        ),
+      }
+    ));
+  };
+
+  const handlePastComplete = async (date: string, taskId: number, completed: boolean, value?: number) => {
+    updatePastTask(date, taskId, { completed, value: value ?? (completed ? 1 : 0) });
+    const body: Record<string, unknown> = { taskId, date, completed };
+    if (value !== undefined) body.value = value;
+    await fetch('/api/tasks/complete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  };
+
+  const handlePastCountChange = async (date: string, task: { id: number; target: number | null; completed: boolean; value: number | null }, delta: number) => {
+    const newVal = Math.max(0, (task.value || 0) + delta);
+    const done = task.target != null && task.target > 0 && newVal >= task.target;
+    updatePastTask(date, task.id, { completed: done, value: newVal });
+    await fetch('/api/tasks/complete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ taskId: task.id, date, value: newVal }),
+    });
+  };
+
+  const handlePastNumericSubmit = async (date: string, task: { id: number; target: number | null }) => {
+    const key = `${date}-${task.id}`;
+    const val = parseFloat(pastPending[key] || '0');
+    if (isNaN(val)) return;
+    const done = task.target != null && task.target > 0 && val >= task.target;
+    updatePastTask(date, task.id, { completed: done, value: val });
+    setPastPending(prev => { const next = { ...prev }; delete next[key]; return next; });
+    await fetch('/api/tasks/complete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ taskId: task.id, date, value: val }),
+    });
+  };
+
+  const fetchPastTasks = async () => {
+    setPastLoading(true);
+    try {
+      const res = await fetch('/api/tasks/history?limit=30');
+      if (res.ok) setPastDays(await res.json());
+    } catch (error) {
+      console.error("Failed to fetch past tasks:", error);
+    } finally {
+      setPastLoading(false);
     }
   };
 
@@ -497,104 +504,55 @@ export default function TasksPage() {
   // --- CRUD handlers ---
   const handleCopy = (task: Task) => {
     setOpenMenuId(null);
-    setEditingTask(null);
+    // Copy creates a new task with same settings - navigate to new with query params
+    // For simplicity, we create the copy directly via API then refresh
     const freq = taskToPreset(task);
-    setForm({
-      pillarId: task.pillarId,
-      name: task.name + ' (copy)',
-      completionType: task.completionType,
-      target: task.target?.toString() || '',
-      unit: task.unit || '',
-      frequencyPreset: freq.preset,
-      frequency: task.frequency,
-      customDays: freq.customDays,
-      repeatInterval: freq.repeatInterval,
-      repeatUnit: freq.repeatUnit,
-      monthDay: freq.monthDay,
-      basePoints: task.basePoints.toString(),
-      flexibilityRule: task.flexibilityRule,
-      toleranceBefore: task.toleranceBefore?.toString() || '0',
-      toleranceAfter: task.toleranceAfter?.toString() || '0',
-      limitValue: task.limitValue?.toString() || '',
-      outcomeId: task.outcomeId || 0,
-      periodId: task.periodId || 0,
-      startDate: task.startDate || '',
-    });
-    setShowForm(true);
-  };
-
-  const handleSubmit = async () => {
-    if (!form.name.trim()) return;
-
-    // Convert form preset to DB frequency + fields
-    let dbFrequency = form.frequency;
+    let dbFrequency = freq.preset;
     let dbCustomDays: string | null = null;
     let dbRepeatInterval: number | null = null;
 
-    if (form.frequencyPreset === 'weekdays') {
+    if (freq.preset === 'weekdays') {
       dbFrequency = 'custom';
       dbCustomDays = JSON.stringify([1, 2, 3, 4, 5]);
-    } else if (form.frequencyPreset === 'custom') {
-      if (form.repeatUnit === 'weeks') {
+    } else if (freq.preset === 'custom') {
+      if (freq.repeatUnit === 'weeks') {
         dbFrequency = 'custom';
-        dbCustomDays = JSON.stringify(form.customDays);
-        const interval = parseInt(form.repeatInterval) || 1;
+        dbCustomDays = JSON.stringify(freq.customDays);
+        const interval = parseInt(freq.repeatInterval) || 1;
         if (interval > 1) dbRepeatInterval = interval * 7;
-      } else if (form.repeatUnit === 'months') {
+      } else if (freq.repeatUnit === 'months') {
         dbFrequency = 'monthly';
-        dbCustomDays = JSON.stringify([form.monthDay]);
-        const interval = parseInt(form.repeatInterval) || 1;
+        dbCustomDays = JSON.stringify([freq.monthDay]);
+        const interval = parseInt(freq.repeatInterval) || 1;
         if (interval > 1) dbRepeatInterval = interval;
       } else {
-        // days
         dbFrequency = 'interval';
-        dbRepeatInterval = parseInt(form.repeatInterval) || 1;
+        dbRepeatInterval = parseInt(freq.repeatInterval) || 1;
       }
     } else {
-      dbFrequency = form.frequencyPreset; // daily, adhoc
+      dbFrequency = freq.preset;
     }
 
     const body: Record<string, unknown> = {
-      pillarId: form.pillarId || null,
-      name: form.name,
-      completionType: form.completionType,
+      pillarId: task.pillarId || null,
+      name: task.name + ' (copy)',
+      completionType: task.completionType,
       frequency: dbFrequency,
       customDays: dbCustomDays,
       repeatInterval: dbRepeatInterval,
-      basePoints: parseFloat(form.basePoints) || 10,
-      flexibilityRule: form.flexibilityRule,
+      basePoints: task.basePoints,
     };
+    if (task.outcomeId) body.outcomeId = task.outcomeId;
+    if (task.periodId) body.periodId = task.periodId;
+    body.startDate = task.startDate || null;
+    if (task.target) body.target = task.target;
+    if (task.unit) body.unit = task.unit;
 
-    if (form.outcomeId) body.outcomeId = form.outcomeId;
-    if (form.periodId) body.periodId = form.periodId;
-    body.startDate = form.startDate || null;
-    if (form.target) body.target = parseFloat(form.target);
-    if (form.unit) body.unit = form.unit;
-    if (form.toleranceBefore) body.toleranceBefore = parseInt(form.toleranceBefore);
-    if (form.toleranceAfter) body.toleranceAfter = parseInt(form.toleranceAfter);
-    if (form.flexibilityRule === 'limit_avoid' && dbFrequency !== 'adhoc') {
-      if (form.limitValue) body.limitValue = parseFloat(form.limitValue);
-    }
-
-    try {
-      if (editingTask) {
-        await fetch(`/api/tasks/${editingTask.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        });
-      } else {
-        await fetch('/api/tasks', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        });
-      }
-      await fetchTasks();
-      resetForm();
-    } catch (error) {
-      console.error("Failed to save task:", error);
-    }
+    fetch('/api/tasks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }).then(() => fetchTasks());
   };
 
   const handleDelete = async (id: number) => {
@@ -606,73 +564,12 @@ export default function TasksPage() {
     }
   };
 
-  const resetForm = () => {
-    setShowForm(false);
-    setEditingTask(null);
-    setForm({
-      pillarId: pillars[0]?.id || 0,
-      name: '',
-      completionType: 'checkbox',
-      target: '',
-      unit: '',
-      frequencyPreset: 'daily',
-      frequency: 'daily',
-      customDays: [],
-      repeatInterval: '1',
-      repeatUnit: 'days' as 'days' | 'weeks' | 'months',
-      monthDay: 1,
-      basePoints: '10',
-      flexibilityRule: 'must_today',
-      toleranceBefore: '0',
-      toleranceAfter: '0',
-      limitValue: '',
-      outcomeId: 0,
-      periodId: 0,
-      startDate: '',
-    });
-  };
-
-  const startEdit = (task: Task) => {
-    const freq = taskToPreset(task);
-    setEditingTask(task);
-    setForm({
-      pillarId: task.pillarId,
-      name: task.name,
-      completionType: task.completionType,
-      target: task.target?.toString() || '',
-      unit: task.unit || '',
-      frequencyPreset: freq.preset,
-      frequency: task.frequency,
-      customDays: freq.customDays,
-      repeatInterval: freq.repeatInterval,
-      repeatUnit: freq.repeatUnit,
-      monthDay: freq.monthDay,
-      basePoints: task.basePoints.toString(),
-      flexibilityRule: task.flexibilityRule,
-      toleranceBefore: task.toleranceBefore?.toString() || '0',
-      toleranceAfter: task.toleranceAfter?.toString() || '0',
-      limitValue: task.limitValue?.toString() || '',
-      outcomeId: task.outcomeId || 0,
-      periodId: task.periodId || 0,
-      startDate: task.startDate || '',
-    });
-    setShowForm(true);
-  };
-
-  const toggleCustomDay = (day: number) => {
-    setForm(prev => ({
-      ...prev,
-      customDays: prev.customDays.includes(day)
-        ? prev.customDays.filter(d => d !== day)
-        : [...prev.customDays, day],
-    }));
-  };
 
   const handleQuickAdd = async () => {
     if (!quickAdd.name.trim()) return;
     const body: Record<string, unknown> = {
       name: quickAdd.name,
-      frequency: 'adhoc',
+      frequency: 'daily',
       completionType: 'checkbox',
       basePoints: 10,
     };
@@ -691,30 +588,7 @@ export default function TasksPage() {
   };
 
   const handleQuickAddExpand = () => {
-    setEditingTask(null);
-    setForm({
-      pillarId: pillars[0]?.id || 0,
-      name: quickAdd.name,
-      completionType: 'checkbox',
-      target: '',
-      unit: '',
-      frequencyPreset: 'adhoc',
-      frequency: 'adhoc',
-      customDays: [],
-      repeatInterval: '1',
-      repeatUnit: 'days' as 'days' | 'weeks' | 'months',
-      monthDay: 1,
-      basePoints: '10',
-      flexibilityRule: 'must_today',
-      toleranceBefore: '0',
-      toleranceAfter: '0',
-      limitValue: '',
-      outcomeId: 0,
-      periodId: 0,
-      startDate: '',
-    });
-    setShowForm(true);
-    setQuickAdd({ name: '', date: '' });
+    router.push("/tasks/new");
   };
 
   if (loading) {
@@ -740,13 +614,14 @@ export default function TasksPage() {
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Tasks</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
               {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-              {!isToday && ' · Showing all tasks'}
+              {filter === 'all' && ' · Showing all tasks'}
+              {filter === 'past' && ' · Past completions'}
             </p>
           </div>
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => { resetForm(); setShowForm(true); }}
+            onClick={() => router.push("/tasks/new")}
             className="px-4 py-2 text-sm bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium flex items-center gap-2 shadow-sm"
           >
             <FaPlus className="text-xs" /> Add Task
@@ -776,26 +651,38 @@ export default function TasksPage() {
             >
               All
             </button>
+            <button
+              onClick={() => setFilter('past')}
+              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                filter === 'past'
+                  ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              Past
+            </button>
           </div>
-          <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 w-fit">
-            {(['all', 'todo', 'done'] as const).map(s => (
-              <button
-                key={s}
-                onClick={() => setStatusFilter(s)}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                  statusFilter === s
-                    ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                {s === 'all' ? 'All' : s === 'todo' ? 'To Do' : 'Done'}
-              </button>
-            ))}
-          </div>
+          {filter !== 'past' && (
+            <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 w-fit">
+              {(['all', 'todo', 'done'] as const).map(s => (
+                <button
+                  key={s}
+                  onClick={() => setStatusFilter(s)}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                    statusFilter === s
+                      ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  {s === 'all' ? 'All' : s === 'todo' ? 'To Do' : 'Done'}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Quick-Add Bar */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-3 mb-4">
+        {filter !== 'past' && <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-3 mb-4">
             <div className="flex items-center gap-2">
               <input
                 type="text"
@@ -839,10 +726,10 @@ export default function TasksPage() {
                 <FaArrowRight className="text-sm" />
               </motion.button>
             </div>
-          </div>
+          </div>}
 
         {/* Score Summary Bar */}
-        {scoreSummary && (
+        {filter !== 'past' && scoreSummary && (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 mb-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -869,14 +756,14 @@ export default function TasksPage() {
         )}
 
         {/* Task Groups */}
-        {groups.length === 0 && (
+        {filter !== 'past' && groups.length === 0 && (
           <div className="text-center py-8 text-gray-500 dark:text-gray-400">
             <p className="text-base mb-1">No tasks {isToday ? 'for today' : 'yet'}</p>
             <p className="text-sm">Click Add Task to create one</p>
           </div>
         )}
 
-        {(() => {
+        {filter !== 'past' && (() => {
           const allEnrichedTasks = groups.flatMap((group) =>
             group.tasks.filter((task) => {
               if (statusFilter === 'all') return true;
@@ -1083,14 +970,14 @@ export default function TasksPage() {
                                 >
                                   {task.outcomeId ? (
                                     <button
-                                      onClick={() => { setOpenMenuId(null); router.push('/outcomes'); }}
+                                      onClick={() => { setOpenMenuId(null); router.push('/goals'); }}
                                       className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                                     >
                                       <FaArrowRight className="text-xs" /> Edit in Goals
                                     </button>
                                   ) : (
                                     <button
-                                      onClick={() => { setOpenMenuId(null); startEdit(task); }}
+                                      onClick={() => { setOpenMenuId(null); router.push(`/tasks/${task.id}/edit`); }}
                                       className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                                     >
                                       <FaEdit className="text-xs" /> Edit
@@ -1170,391 +1057,141 @@ export default function TasksPage() {
           );
         })()}
 
-        {/* Add/Edit Form Modal */}
-        <AnimatePresence>
-          {showForm && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-              onClick={resetForm}
-            >
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6"
-                onClick={e => e.stopPropagation()}
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                    {editingTask ? 'Edit Task' : 'New Task'}
-                  </h2>
-                  <button onClick={resetForm} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                    <FaTimes />
-                  </button>
-                </div>
-
-                <div className="space-y-4">
-                  {/* Name */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Task Name</label>
-                    <input
-                      type="text"
-                      value={form.name}
-                      onChange={e => setForm({ ...form, name: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                      placeholder="e.g., Gym session"
-                      autoFocus
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Pillar</label>
-                      <select
-                        value={form.pillarId}
-                        onChange={e => setForm({ ...form, pillarId: parseInt(e.target.value) || 0 })}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                      >
-                        <option value={0}>📋 None</option>
-                        {pillars.map(p => (
-                          <option key={p.id} value={p.id}>{p.emoji} {p.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Points</label>
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => setForm({ ...form, basePoints: Math.max(0, (parseFloat(form.basePoints) || 0) - 5).toString() })}
-                          className="w-8 h-9 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600"
-                        >
-                          <FaMinus className="text-[10px]" />
-                        </button>
-                        <input
-                          type="number"
-                          value={form.basePoints}
-                          onChange={e => setForm({ ...form, basePoints: e.target.value })}
-                          className="flex-1 px-2 py-2 text-center border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                          min="0"
-                        />
-                        <button
-                          onClick={() => setForm({ ...form, basePoints: ((parseFloat(form.basePoints) || 0) + 5).toString() })}
-                          className="w-8 h-9 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600"
-                        >
-                          <FaPlus className="text-[10px]" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Linked Outcome */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Linked Goal (optional)</label>
-                    <select
-                      value={form.outcomeId}
-                      onChange={e => setForm({ ...form, outcomeId: parseInt(e.target.value) || 0 })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+        {/* Past Tasks View */}
+        {filter === 'past' && (
+          pastLoading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            </div>
+          ) : pastDays.length === 0 ? (
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+              <p className="text-base mb-1">No past task completions</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {pastDays.map(day => {
+                const dateLabel = new Date(day.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                const completedCount = day.tasks.filter(t => t.completed || (t.target && t.target > 0 && (t.value || 0) >= t.target)).length;
+                const isOpen = openSchedules.has(day.date);
+                return (
+                  <div key={day.date} className="border border-gray-200 dark:border-gray-700 rounded-lg">
+                    <button
+                      onClick={() => setOpenSchedules(prev => {
+                        const next = new Set(prev);
+                        if (next.has(day.date)) next.delete(day.date); else next.add(day.date);
+                        return next;
+                      })}
+                      className="w-full px-4 py-2.5 flex items-center justify-between bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                     >
-                      <option value={0}>None</option>
-                      {outcomes
-                        .filter(o => !form.pillarId || o.pillarId === form.pillarId || !o.pillarId)
-                        .map(o => (
-                          <option key={o.id} value={o.id}>{o.goalType === 'effort' ? '⚡ ' : '📈 '}{o.name}</option>
-                        ))}
-                    </select>
-                  </div>
-
-                  {/* Linked Cycle */}
-                  {cycles.length > 0 && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Linked Cycle (optional)</label>
-                      <select
-                        value={form.periodId}
-                        onChange={e => setForm({ ...form, periodId: parseInt(e.target.value) || 0 })}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                      >
-                        <option value={0}>None</option>
-                        {cycles.map(c => (
-                          <option key={c.id} value={c.id}>{c.name}{c.isActive ? ' (Active)' : ''}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-
-                  {/* Start Date */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date (optional)</label>
-                    <input
-                      type="date"
-                      value={form.startDate}
-                      onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    />
-                    <p className="text-xs text-gray-400 mt-0.5">Task will only appear from this date onwards</p>
-                  </div>
-
-                  {/* Completion Type */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Completion Type</label>
-                    <div className="grid grid-cols-4 gap-2">
-                      {COMPLETION_TYPES.map(ct => (
-                        <button
-                          key={ct.value}
-                          onClick={() => setForm({ ...form, completionType: ct.value })}
-                          className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
-                            form.completionType === ct.value
-                              ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400'
-                              : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300'
-                          }`}
-                        >
-                          {ct.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Target & Unit (for non-checkbox types) */}
-                  {form.completionType !== 'checkbox' && (
-                    <div className={`grid gap-3 ${form.completionType === 'duration' ? 'grid-cols-1' : 'grid-cols-2'}`}>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          {form.completionType === 'duration' ? 'Target (minutes)' : 'Target'}
-                        </label>
-                        <input
-                          type="number"
-                          value={form.target}
-                          onChange={e => setForm({ ...form, target: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                          placeholder={form.completionType === 'duration' ? 'e.g., 30' : 'e.g., 8'}
-                        />
+                      <div className="flex items-center gap-2">
+                        <FaChevronDown className={`text-[10px] text-gray-400 transition-transform ${isOpen ? '' : '-rotate-90'}`} />
+                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{dateLabel}</span>
+                        <span className="text-xs text-gray-400 dark:text-gray-500">{completedCount}/{day.tasks.length}</span>
                       </div>
-                      {form.completionType !== 'duration' && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unit</label>
-                          <input
-                            type="text"
-                            value={form.unit}
-                            onChange={e => setForm({ ...form, unit: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            placeholder="e.g., glasses"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Frequency - Google Calendar style */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Repeat</label>
-                    <select
-                      value={form.frequencyPreset}
-                      onChange={e => setForm({ ...form, frequencyPreset: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    >
-                      {FREQUENCY_PRESETS.map(opt => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </select>
+                    </button>
+                    {isOpen && (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.5rem', padding: '0.5rem' }}>
+                        {day.tasks.map(task => {
+                          const currentValue = task.value || 0;
+                          const isDone = task.completed || (task.target != null && task.target > 0 && currentValue >= task.target);
+                          const pendingKey = `${day.date}-${task.id}`;
+                          return (
+                            <div
+                              key={pendingKey}
+                              className={`rounded-lg px-3 py-2.5 transition-all ${
+                                isDone
+                                  ? 'bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800'
+                                  : task.isHighlighted
+                                  ? 'bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800'
+                                  : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700'
+                              }`}
+                              style={{ borderLeftWidth: 3, borderLeftColor: isDone ? '#4ade80' : task.isHighlighted ? '#F59E0B' : (task.pillarColor || '#6B7280') }}
+                            >
+                              <div className="flex items-center gap-2">
+                                {task.isHighlighted && <FaStar className="text-xs text-amber-500 shrink-0" />}
+                                <div className="flex-1 min-w-0">
+                                  <h3 className={`text-sm font-semibold leading-snug ${isDone ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>
+                                    {task.name}
+                                  </h3>
+                                  <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                                    {task.pillarEmoji && (
+                                      <span className="text-[11px] text-gray-500 dark:text-gray-400">{task.pillarEmoji} {task.pillarName}</span>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  {task.completionType === 'checkbox' && (
+                                    <motion.button
+                                      whileTap={{ scale: 0.9 }}
+                                      onClick={() => handlePastComplete(day.date, task.id, !isDone)}
+                                      className={`w-7 h-7 rounded-md border-2 flex items-center justify-center transition-colors ${
+                                        isDone
+                                          ? 'bg-green-500 border-green-500 text-white'
+                                          : 'border-gray-300 dark:border-gray-600 hover:border-green-500'
+                                      }`}
+                                    >
+                                      {isDone && <FaCheck className="text-xs" />}
+                                    </motion.button>
+                                  )}
+                                  {task.completionType === 'count' && (
+                                    <div className="flex items-center gap-1">
+                                      <motion.button
+                                        whileTap={{ scale: 0.9 }}
+                                        onClick={() => handlePastCountChange(day.date, task, -1)}
+                                        className="w-6 h-6 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-600"
+                                      >
+                                        <FaMinus className="text-[9px]" />
+                                      </motion.button>
+                                      <span className={`text-xs font-bold min-w-[2.5rem] text-center ${
+                                        task.target && currentValue >= task.target ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'
+                                      }`}>
+                                        {currentValue}/{task.target || '?'}
+                                      </span>
+                                      <motion.button
+                                        whileTap={{ scale: 0.9 }}
+                                        onClick={() => handlePastCountChange(day.date, task, 1)}
+                                        className="w-6 h-6 rounded bg-blue-500 text-white flex items-center justify-center hover:bg-blue-600"
+                                      >
+                                        <FaPlus className="text-[9px]" />
+                                      </motion.button>
+                                    </div>
+                                  )}
+                                  {(task.completionType === 'numeric' || task.completionType === 'duration') && (
+                                    <div className="flex items-center gap-1">
+                                      <input
+                                        type="number"
+                                        value={pastPending[pendingKey] ?? (currentValue || '')}
+                                        onChange={(e) => setPastPending(prev => ({ ...prev, [pendingKey]: e.target.value }))}
+                                        onKeyDown={(e) => e.key === 'Enter' && handlePastNumericSubmit(day.date, task)}
+                                        placeholder={task.target ? String(task.target) : '0'}
+                                        className="w-14 px-1.5 py-1 text-xs text-right border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                      />
+                                      {task.completionType === 'duration' && <span className="text-[10px] text-gray-500 dark:text-gray-400">m</span>}
+                                      {pastPending[pendingKey] !== undefined && (
+                                        <motion.button
+                                          whileTap={{ scale: 0.9 }}
+                                          onClick={() => handlePastNumericSubmit(day.date, task)}
+                                          className="w-6 h-6 rounded bg-green-500 text-white flex items-center justify-center hover:bg-green-600"
+                                        >
+                                          <FaCheck className="text-[9px]" />
+                                        </motion.button>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
+                );
+              })}
+            </div>
+          )
+        )}
 
-                  {/* Custom recurrence options */}
-                  {form.frequencyPreset === 'custom' && (
-                    <div className="space-y-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Repeat every</label>
-                        <div className="flex gap-2">
-                          <input
-                            type="number"
-                            value={form.repeatInterval}
-                            onChange={e => setForm({ ...form, repeatInterval: e.target.value })}
-                            className="w-20 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            min="1"
-                          />
-                          <select
-                            value={form.repeatUnit}
-                            onChange={e => setForm({ ...form, repeatUnit: e.target.value as 'days' | 'weeks' | 'months' })}
-                            className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                          >
-                            {REPEAT_UNITS.map(u => (
-                              <option key={u.value} value={u.value}>
-                                {parseInt(form.repeatInterval) > 1 ? u.label + 's' : u.label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-
-                      {/* Day of week picker - shown for weeks */}
-                      {form.repeatUnit === 'weeks' && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Repeat on</label>
-                          <div className="flex gap-1">
-                            {DAYS_OF_WEEK.map((day, idx) => (
-                              <button
-                                key={idx}
-                                onClick={() => toggleCustomDay(idx)}
-                                className={`flex-1 py-2 text-xs rounded-lg border transition-colors ${
-                                  form.customDays.includes(idx)
-                                    ? 'border-blue-500 bg-blue-500 text-white'
-                                    : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300'
-                                }`}
-                              >
-                                {day}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Day of month picker - shown for months */}
-                      {form.repeatUnit === 'months' && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">On day</label>
-                          <select
-                            value={form.monthDay}
-                            onChange={e => setForm({ ...form, monthDay: parseInt(e.target.value) })}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                          >
-                            {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
-                              <option key={d} value={d}>{d}</option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Flexibility Rule (hidden when one-time) */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
-                      <div className="grid grid-cols-3 gap-2">
-                        {FLEXIBILITY_OPTIONS.map(opt => (
-                          <button
-                            key={opt.value}
-                            onClick={() => setForm({ ...form, flexibilityRule: opt.value })}
-                            className={`px-3 py-2 text-sm rounded-lg border transition-colors text-left ${
-                              form.flexibilityRule === opt.value
-                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400'
-                                : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300'
-                            }`}
-                          >
-                            <div className="font-medium">{opt.label}</div>
-                            <div className="text-xs opacity-70">{opt.desc}</div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                  {/* Tolerance */}
-                  {form.flexibilityRule === 'must_today' && (
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Days before</label>
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => setForm({ ...form, toleranceBefore: Math.max(0, (parseInt(form.toleranceBefore) || 0) - 1).toString() })}
-                            className="w-8 h-9 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600"
-                          >
-                            <FaMinus className="text-[10px]" />
-                          </button>
-                          <input
-                            type="number"
-                            value={form.toleranceBefore}
-                            onChange={e => setForm({ ...form, toleranceBefore: e.target.value })}
-                            className="flex-1 px-2 py-2 text-center border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            min="0"
-                          />
-                          <button
-                            onClick={() => setForm({ ...form, toleranceBefore: ((parseInt(form.toleranceBefore) || 0) + 1).toString() })}
-                            className="w-8 h-9 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600"
-                          >
-                            <FaPlus className="text-[10px]" />
-                          </button>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Days after</label>
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => setForm({ ...form, toleranceAfter: Math.max(0, (parseInt(form.toleranceAfter) || 0) - 1).toString() })}
-                            className="w-8 h-9 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600"
-                          >
-                            <FaMinus className="text-[10px]" />
-                          </button>
-                          <input
-                            type="number"
-                            value={form.toleranceAfter}
-                            onChange={e => setForm({ ...form, toleranceAfter: e.target.value })}
-                            className="flex-1 px-2 py-2 text-center border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            min="0"
-                          />
-                          <button
-                            onClick={() => setForm({ ...form, toleranceAfter: ((parseInt(form.toleranceAfter) || 0) + 1).toString() })}
-                            className="w-8 h-9 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600"
-                          >
-                            <FaPlus className="text-[10px]" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* At Least - minimum target */}
-                  {form.flexibilityRule === 'at_least' && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Minimum Value</label>
-                      <input
-                        type="number"
-                        value={form.target}
-                        onChange={e => setForm({ ...form, target: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                        placeholder="e.g., 20"
-                        min="0"
-                      />
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Full points at this value, exceeding is fine</p>
-                    </div>
-                  )}
-
-                  {/* Limit - maximum threshold */}
-                  {form.flexibilityRule === 'limit_avoid' && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Maximum Value</label>
-                      <input
-                        type="number"
-                        value={form.limitValue}
-                        onChange={e => setForm({ ...form, limitValue: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                        placeholder="e.g., 2"
-                        min="0"
-                      />
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Full points under this, penalty above</p>
-                    </div>
-                  )}
-
-                  <div className="flex gap-3 pt-2">
-                    <motion.button
-                      whileTap={{ scale: 0.95 }}
-                      onClick={handleSubmit}
-                      className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium flex items-center justify-center gap-2"
-                    >
-                      <FaCheck /> {editingTask ? 'Update' : 'Create'}
-                    </motion.button>
-                    <motion.button
-                      whileTap={{ scale: 0.95 }}
-                      onClick={resetForm}
-                      className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-medium"
-                    >
-                      Cancel
-                    </motion.button>
-                  </div>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </motion.div>
     </div>
   );

@@ -28,10 +28,8 @@ export async function GET() {
       goalType: outcomes.goalType,
       scheduleDays: outcomes.scheduleDays,
       autoCreateTasks: outcomes.autoCreateTasks,
-      tolerance: outcomes.tolerance,
       completionType: outcomes.completionType,
       dailyTarget: outcomes.dailyTarget,
-      linkedOutcomeId: outcomes.linkedOutcomeId,
       isArchived: outcomes.isArchived,
       createdAt: outcomes.createdAt,
       updatedAt: outcomes.updatedAt,
@@ -53,9 +51,9 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { name, targetValue, unit, pillarId, logFrequency, periodId, goalType, completionType, dailyTarget, scheduleDays, autoCreateTasks, repeatInterval, repeatUnit, linkedOutcomeId, tolerance } = body;
+  const { name, targetValue, unit, pillarId, logFrequency, periodId, goalType, completionType, dailyTarget, scheduleDays, autoCreateTasks, repeatInterval, repeatUnit } = body;
 
-  const isActivityGoal = goalType === 'habitual' || goalType === 'target' || goalType === 'effort';
+  const isActivityGoal = goalType === 'habitual' || goalType === 'target';
 
   if (!name) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -97,8 +95,8 @@ export async function POST(request: Request) {
     dailyTarget: dailyTarget ?? null,
     scheduleDays: scheduleDays ? JSON.stringify(scheduleDays) : null,
     autoCreateTasks: autoCreateTasks || false,
-    tolerance: tolerance ?? null,
-    linkedOutcomeId: linkedOutcomeId || null,
+    tolerance: null,
+    linkedOutcomeId: null,
   }).returning();
 
   // Auto-create a linked task for activity goals
@@ -142,6 +140,8 @@ export async function POST(request: Request) {
       basePoints: 10,
       flexibilityRule: 'must_today',
       importance: 'medium',
+      toleranceBefore: null,
+      toleranceAfter: null,
     });
   }
 

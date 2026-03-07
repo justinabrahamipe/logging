@@ -56,10 +56,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   const previousValue = outcome.currentValue;
-  const isEffort = outcome.goalType === 'effort';
 
-  // For effort goals, value is a delta; for outcomes, value is absolute
-  const newCurrentValue = isEffort ? previousValue + body.value : body.value;
+  // For target goals, value is a delta; for outcomes, value is absolute
+  const isTarget = outcome.goalType === 'target' || outcome.goalType === 'habitual';
+  const newCurrentValue = isTarget ? previousValue + body.value : body.value;
 
   // Create log entry
   const logValues: Record<string, unknown> = {
@@ -89,9 +89,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       action: 'outcome_log',
       previousValue,
       newValue: newCurrentValue,
-      delta: isEffort ? body.value : body.value - previousValue,
+      delta: isTarget ? body.value : body.value - previousValue,
       source: body.source || 'manual',
-      note: isEffort
+      note: isTarget
         ? `${outcome.name}: +${body.value} ${outcome.unit} (total: ${newCurrentValue})${body.note ? ' - ' + body.note : ''}`
         : `${outcome.name}: ${body.value} ${outcome.unit}${body.note ? ' - ' + body.note : ''}`,
       outcomeLogId: log.id,
@@ -151,8 +151,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     .returning();
 
   // Update the outcome's currentValue
-  if (outcome.goalType === 'effort') {
-    // For effort goals, recalculate as sum of all deltas
+  const isTargetGoal = outcome.goalType === 'target' || outcome.goalType === 'habitual';
+  if (isTargetGoal) {
+    // For target/habitual goals, recalculate as sum of all deltas
     const allLogs = await db
       .select({ value: outcomeLogs.value })
       .from(outcomeLogs)
