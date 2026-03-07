@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
     taskId: c.taskId,
     completed: c.completed,
     value: c.value,
+    isHighlighted: c.isHighlighted,
   }));
 
   const { actionScore, pillarScores } = calculateDailyScore(completionsForScoring, tasksForScoring, pillarWeights);

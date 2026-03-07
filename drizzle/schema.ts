@@ -282,6 +282,8 @@ export const outcomes = sqliteTable('Outcome', {
   targetDate: text('targetDate'), // optional YYYY-MM-DD
   periodId: integer('periodId').references(() => twelveWeekYears.id, { onDelete: 'set null' }),
   goalType: text('goalType').notNull().default('outcome'), // 'habitual' | 'target' | 'outcome'
+  completionType: text('completionType').notNull().default('checkbox'), // 'checkbox' | 'count' | 'numeric'
+  dailyTarget: real('dailyTarget'), // per-session target for count/numeric habitual goals
   scheduleDays: text('scheduleDays'), // JSON weekday array e.g. [1,3,5]
   autoCreateTasks: integer('autoCreateTasks', { mode: 'boolean' }).notNull().default(false),
   tolerance: integer('tolerance'), // for habitual: allowed misses per week

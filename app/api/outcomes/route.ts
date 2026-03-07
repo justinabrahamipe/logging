@@ -29,6 +29,8 @@ export async function GET() {
       scheduleDays: outcomes.scheduleDays,
       autoCreateTasks: outcomes.autoCreateTasks,
       tolerance: outcomes.tolerance,
+      completionType: outcomes.completionType,
+      dailyTarget: outcomes.dailyTarget,
       linkedOutcomeId: outcomes.linkedOutcomeId,
       isArchived: outcomes.isArchived,
       createdAt: outcomes.createdAt,
@@ -51,7 +53,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { name, targetValue, unit, pillarId, logFrequency, periodId, goalType, scheduleDays, autoCreateTasks, repeatInterval, repeatUnit, linkedOutcomeId, tolerance } = body;
+  const { name, targetValue, unit, pillarId, logFrequency, periodId, goalType, completionType, dailyTarget, scheduleDays, autoCreateTasks, repeatInterval, repeatUnit, linkedOutcomeId, tolerance } = body;
 
   const isActivityGoal = goalType === 'habitual' || goalType === 'target' || goalType === 'effort';
 
@@ -91,6 +93,8 @@ export async function POST(request: Request) {
     targetDate: effectiveTargetDate,
     periodId: periodId || null,
     goalType: goalType || 'outcome',
+    completionType: completionType || 'checkbox',
+    dailyTarget: dailyTarget ?? null,
     scheduleDays: scheduleDays ? JSON.stringify(scheduleDays) : null,
     autoCreateTasks: autoCreateTasks || false,
     tolerance: tolerance ?? null,
@@ -100,10 +104,11 @@ export async function POST(request: Request) {
   // Auto-create a linked task for activity goals
   if (isActivityGoal && autoCreateTasks && scheduleDays && scheduleDays.length > 0) {
     const isHabitual = goalType === 'habitual';
+    const taskCompletionType = completionType || (isHabitual ? 'checkbox' : 'count');
     const totalScheduledDays = (effectiveStartDate && effectiveTargetDate)
       ? (countScheduledDaysInRange(effectiveStartDate, effectiveTargetDate, scheduleDays) || 1)
       : 1;
-    const dailyTarget = isHabitual ? 1 : Math.ceil((targetValue ?? 1) / totalScheduledDays);
+    const taskDailyTarget = taskCompletionType === 'checkbox' ? null : (dailyTarget || (isHabitual ? null : Math.ceil((targetValue ?? 1) / totalScheduledDays)));
 
     // Convert repeatUnit to task frequency/repeatInterval
     let taskFrequency = 'custom';
@@ -126,9 +131,9 @@ export async function POST(request: Request) {
       userId: session.user.id,
       name,
       pillarId: pillarId || null,
-      completionType: isHabitual ? 'checkbox' : 'count',
-      target: isHabitual ? null : dailyTarget,
-      unit: isHabitual ? null : (unit || null),
+      completionType: taskCompletionType,
+      target: taskDailyTarget,
+      unit: taskCompletionType === 'checkbox' ? null : (unit || null),
       frequency: taskFrequency,
       customDays: JSON.stringify(scheduleDays),
       repeatInterval: taskRepeatInterval,
