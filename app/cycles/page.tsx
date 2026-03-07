@@ -19,6 +19,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { getCurrentWeekNumber, getGoalStatus, getTotalWeeks } from "@/lib/twelve-week-scoring";
 import { computeCycleAnalytics } from "@/lib/twelve-week-analytics";
+import { DEMO_CYCLES } from "@/lib/demo-data";
 
 interface Cycle {
   id: number;
@@ -130,7 +131,8 @@ export default function TwelveWeekYearPage() {
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.push("/login");
+      setCycles(DEMO_CYCLES as Cycle[]);
+      setLoading(false);
       return;
     }
     if (session?.user?.id) {
@@ -351,10 +353,10 @@ export default function TwelveWeekYearPage() {
   const getScoreColor = (score: string | null) => {
     switch (score) {
       case "exceeded": return "text-green-500 bg-green-100 dark:bg-green-900/30";
-      case "good": return "text-blue-500 bg-blue-100 dark:bg-blue-900/30";
+      case "good": return "text-zinc-500 bg-zinc-100 dark:bg-zinc-700";
       case "partial": return "text-yellow-500 bg-yellow-100 dark:bg-yellow-900/30";
       case "missed": return "text-red-500 bg-red-100 dark:bg-red-900/30";
-      default: return "text-gray-400 bg-gray-100 dark:bg-gray-700";
+      default: return "text-zinc-400 bg-zinc-100 dark:bg-zinc-700";
     }
   };
 
@@ -380,7 +382,7 @@ export default function TwelveWeekYearPage() {
   if (loading || loadingDetail) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zinc-900 dark:border-zinc-100"></div>
       </div>
     );
   }
@@ -393,10 +395,8 @@ export default function TwelveWeekYearPage() {
           {/* Header */}
           <div className="flex items-center gap-3 mb-6">
             <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
               onClick={() => setSelectedCycle(null)}
-              className="p-2 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+              className="p-2 rounded-lg text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800"
             >
               <FaArrowLeft />
             </motion.button>
@@ -414,12 +414,12 @@ export default function TwelveWeekYearPage() {
                     if (e.key === "Enter") { setEditingCycleName(false); if (cycleNameDraft.trim()) handleSaveCycleField({ name: cycleNameDraft.trim() }); }
                     if (e.key === "Escape") setEditingCycleName(false);
                   }}
-                  className="text-2xl md:text-3xl font-bold border-b-2 border-blue-400 bg-transparent text-gray-900 dark:text-white outline-none w-full"
+                  className="text-2xl md:text-3xl font-bold border-b-2 border-zinc-400 bg-transparent text-zinc-900 dark:text-white outline-none w-full"
                 />
               ) : (
                 <h1
                   onClick={() => { setEditingCycleName(true); setCycleNameDraft(selectedCycle.name); }}
-                  className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                  className="text-2xl md:text-3xl font-bold text-zinc-900 dark:text-white cursor-pointer hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
                 >
                   {selectedCycle.name}
                 </h1>
@@ -427,21 +427,21 @@ export default function TwelveWeekYearPage() {
               {editingCycleDates ? (
                 <div className="flex flex-wrap items-center gap-2 mt-1">
                   <div>
-                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-0.5">Start</label>
+                    <label className="block text-xs text-zinc-500 dark:text-zinc-400 mb-0.5">Start</label>
                     <input
                       type="date"
                       value={cycleStartDraft}
                       onChange={(e) => setCycleStartDraft(e.target.value)}
-                      className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      className="px-3 py-1.5 text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-0.5">End</label>
+                    <label className="block text-xs text-zinc-500 dark:text-zinc-400 mb-0.5">End</label>
                     <input
                       type="date"
                       value={cycleEndDraft}
                       onChange={(e) => setCycleEndDraft(e.target.value)}
-                      className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      className="px-3 py-1.5 text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
                     />
                   </div>
                   <div className="flex gap-1.5 self-end">
@@ -450,13 +450,13 @@ export default function TwelveWeekYearPage() {
                         setEditingCycleDates(false);
                         if (cycleStartDraft && cycleEndDraft) handleSaveCycleField({ startDate: cycleStartDraft, endDate: cycleEndDraft });
                       }}
-                      className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center gap-1"
+                      className="px-3 py-1.5 text-sm bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg hover:bg-zinc-800 dark:hover:bg-zinc-200 flex items-center gap-1"
                     >
                       <FaCheck className="text-xs" /> Save
                     </button>
                     <button
                       onClick={() => setEditingCycleDates(false)}
-                      className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                      className="px-3 py-1.5 text-sm text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800"
                     >
                       Cancel
                     </button>
@@ -465,7 +465,7 @@ export default function TwelveWeekYearPage() {
               ) : (
                 <p
                   onClick={() => { setEditingCycleDates(true); setCycleStartDraft(selectedCycle.startDate); setCycleEndDraft(selectedCycle.endDate); }}
-                  className="text-sm text-gray-500 dark:text-gray-400 cursor-pointer hover:text-blue-500 dark:hover:text-blue-400 transition-colors flex items-center gap-1.5"
+                  className="text-sm text-zinc-500 dark:text-zinc-400 cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors flex items-center gap-1.5"
                 >
                   {selectedCycle.startDate} &rarr; {selectedCycle.endDate} &middot; Week {currentWeek}/{totalWeeks}
                   <FaEdit className="text-[10px]" />
@@ -473,8 +473,6 @@ export default function TwelveWeekYearPage() {
               )}
             </div>
             <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
               onClick={() => handleDeleteCycle(selectedCycle.id)}
               className="p-2 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
             >
@@ -484,8 +482,8 @@ export default function TwelveWeekYearPage() {
 
           {/* Vision & Theme */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">Vision</label>
+            <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
+              <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Vision</label>
               {editingVision ? (
                 <textarea
                   autoFocus
@@ -496,20 +494,20 @@ export default function TwelveWeekYearPage() {
                     handleSaveVisionTheme("vision", visionDraft);
                   }}
                   onKeyDown={(e) => { if (e.key === "Escape") setEditingVision(false); }}
-                  className="w-full px-2 py-1 text-sm border border-blue-400 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
+                  className="w-full px-2 py-1 text-sm border border-zinc-400 rounded bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white resize-none"
                   rows={2}
                 />
               ) : (
                 <p
                   onClick={() => { setEditingVision(true); setVisionDraft(selectedCycle.vision || ""); }}
-                  className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded px-2 py-1 min-h-[2rem]"
+                  className="text-sm text-zinc-700 dark:text-zinc-300 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50 rounded px-2 py-1 min-h-[2rem]"
                 >
-                  {selectedCycle.vision || <span className="text-gray-400 italic">Click to add vision...</span>}
+                  {selectedCycle.vision || <span className="text-zinc-400 italic">Click to add vision...</span>}
                 </p>
               )}
             </div>
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">Theme</label>
+            <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
+              <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Theme</label>
               {editingTheme ? (
                 <input
                   autoFocus
@@ -520,14 +518,14 @@ export default function TwelveWeekYearPage() {
                     handleSaveVisionTheme("theme", themeDraft);
                   }}
                   onKeyDown={(e) => { if (e.key === "Escape") setEditingTheme(false); if (e.key === "Enter") { setEditingTheme(false); handleSaveVisionTheme("theme", themeDraft); } }}
-                  className="w-full px-2 py-1 text-sm border border-blue-400 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-2 py-1 text-sm border border-zinc-400 rounded bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
                 />
               ) : (
                 <p
                   onClick={() => { setEditingTheme(true); setThemeDraft(selectedCycle.theme || ""); }}
-                  className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded px-2 py-1 min-h-[2rem]"
+                  className="text-sm text-zinc-700 dark:text-zinc-300 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50 rounded px-2 py-1 min-h-[2rem]"
                 >
-                  {selectedCycle.theme || <span className="text-gray-400 italic">Click to add theme...</span>}
+                  {selectedCycle.theme || <span className="text-zinc-400 italic">Click to add theme...</span>}
                 </p>
               )}
             </div>
@@ -535,21 +533,19 @@ export default function TwelveWeekYearPage() {
 
           {/* Goals */}
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Goals</h2>
+            <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">Goals</h2>
             <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
               onClick={() => {
                 if (selectedCycle) router.push(`/cycles/${selectedCycle.id}/goals/new`);
               }}
-              className="px-3 py-1.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg text-sm font-medium flex items-center gap-1.5"
+              className="px-3 py-1.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 rounded-lg text-sm font-medium flex items-center gap-1.5"
             >
               <FaPlus className="text-xs" /> Add Goal
             </motion.button>
           </div>
 
           {selectedCycle.goals.length === 0 ? (
-            <div className="text-center py-8 text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 mb-6">
+            <div className="text-center py-8 text-zinc-500 dark:text-zinc-400 bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 mb-6">
               <p className="mb-1">No goals yet</p>
               <p className="text-sm">Add your first goal to start tracking</p>
             </div>
@@ -558,22 +554,22 @@ export default function TwelveWeekYearPage() {
               {selectedCycle.goals.map((goal) => {
                 const progress = goal.targetValue > 0 ? (goal.currentValue / goal.targetValue) * 100 : 0;
                 const goalStatus = getGoalStatus(goal.currentValue, goal.targetValue, currentWeek - 1, totalWeeks);
-                const statusColor = goalStatus === "Ahead" ? "text-green-500" : goalStatus === "Behind" ? "text-red-500" : "text-blue-500";
+                const statusColor = goalStatus === "Ahead" ? "text-green-500" : goalStatus === "Behind" ? "text-red-500" : "text-zinc-500";
                 const isGoalExpanded = expandedGoal === goal.id;
 
                 return (
                   <motion.div
                     key={goal.id}
                     layout
-                    className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4"
+                    className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4"
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-gray-900 dark:text-white">{goal.name}</h3>
+                          <h3 className="font-semibold text-zinc-900 dark:text-white">{goal.name}</h3>
                           <span className={`text-xs font-medium ${statusColor}`}>{goalStatus}</span>
                           {goal.outcomeName && (
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 flex items-center gap-1">
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400 flex items-center gap-1">
                               <FaLink className="text-[10px]" /> {goal.outcomeName}
                             </span>
                           )}
@@ -581,21 +577,21 @@ export default function TwelveWeekYearPage() {
                             <FaSyncAlt className="text-[10px] text-green-500" title="Synced to outcome" />
                           )}
                         </div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                        <p className="text-sm text-zinc-500 dark:text-zinc-400">
                           {goal.currentValue} / {goal.targetValue} {goal.unit}
                         </p>
                       </div>
                       <div className="relative flex items-center gap-1">
                         <button
                           onClick={() => setExpandedGoal(isGoalExpanded ? null : goal.id)}
-                          className="p-2 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                          className="p-2 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
                           title="Tactics"
                         >
                           {isGoalExpanded ? <FaChevronUp className="text-sm" /> : <FaChevronDown className="text-sm" />}
                         </button>
                         <button
                           onClick={() => setMenuOpen(menuOpen === goal.id ? null : goal.id)}
-                          className="p-2 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                          className="p-2 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
                         >
                           <FaEllipsisV className="text-sm" />
                         </button>
@@ -605,11 +601,11 @@ export default function TwelveWeekYearPage() {
                               initial={{ opacity: 0, scale: 0.95 }}
                               animate={{ opacity: 1, scale: 1 }}
                               exit={{ opacity: 0, scale: 0.95 }}
-                              className="absolute right-0 top-8 w-36 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-20 overflow-hidden"
+                              className="absolute right-0 top-8 w-36 bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-700 z-20 overflow-hidden"
                             >
                               <button
                                 onClick={() => startEditGoal(goal)}
-                                className="w-full px-4 py-2.5 text-left text-sm flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                                className="w-full px-4 py-2.5 text-left text-sm flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700"
                               >
                                 <FaEdit /> Edit
                               </button>
@@ -625,15 +621,15 @@ export default function TwelveWeekYearPage() {
                       </div>
                     </div>
                     {/* Progress bar */}
-                    <div className="w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <div className="w-full h-3 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
                       <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${Math.min(progress, 100)}%` }}
                         transition={{ duration: 0.8, ease: "easeOut" }}
-                        className="h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-500"
+                        className="h-full rounded-full bg-zinc-900 dark:bg-zinc-100"
                       />
                     </div>
-                    <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    <div className="flex justify-between text-xs text-zinc-500 dark:text-zinc-400 mt-1">
                       <span>0</span>
                       <span>{Math.round(progress)}%</span>
                       <span>{goal.targetValue} {goal.unit}</span>
@@ -648,10 +644,10 @@ export default function TwelveWeekYearPage() {
                           exit={{ height: 0, opacity: 0 }}
                           className="overflow-hidden"
                         >
-                          <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">Tactics / Strategies</p>
+                          <div className="mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-700">
+                            <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wide">Tactics / Strategies</p>
                             {goal.tactics.length === 0 && (
-                              <p className="text-xs text-gray-400 mb-2">No tactics yet</p>
+                              <p className="text-xs text-zinc-400 mb-2">No tactics yet</p>
                             )}
                             <div className="space-y-1.5 mb-2">
                               {goal.tactics.map((tactic) => (
@@ -661,12 +657,12 @@ export default function TwelveWeekYearPage() {
                                     className={`w-5 h-5 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${
                                       tactic.isCompleted
                                         ? "bg-green-500 border-green-500 text-white"
-                                        : "border-gray-300 dark:border-gray-600 hover:border-blue-400"
+                                        : "border-zinc-300 dark:border-zinc-600 hover:border-zinc-400"
                                     }`}
                                   >
                                     {tactic.isCompleted && <FaCheck className="text-[10px]" />}
                                   </button>
-                                  <span className={`text-sm flex-1 ${tactic.isCompleted ? "line-through text-gray-400" : "text-gray-700 dark:text-gray-300"}`}>
+                                  <span className={`text-sm flex-1 ${tactic.isCompleted ? "line-through text-zinc-400" : "text-zinc-700 dark:text-zinc-300"}`}>
                                     {tactic.name}
                                   </span>
                                   <button
@@ -685,11 +681,11 @@ export default function TwelveWeekYearPage() {
                                 onChange={(e) => setNewTacticName(e.target.value)}
                                 onKeyDown={(e) => { if (e.key === "Enter") handleAddTactic(goal.id); }}
                                 placeholder="Add tactic..."
-                                className="flex-1 px-2.5 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                className="flex-1 px-2.5 py-1.5 text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
                               />
                               <button
                                 onClick={() => handleAddTactic(goal.id)}
-                                className="px-2.5 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                className="px-2.5 py-1.5 text-sm bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg hover:bg-zinc-800 dark:hover:bg-zinc-200"
                               >
                                 <FaPlus className="text-xs" />
                               </button>
@@ -707,38 +703,38 @@ export default function TwelveWeekYearPage() {
           {/* Analytics Dashboard */}
           {analytics && (
             <>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Analytics</h2>
+              <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">Analytics</h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
                 {/* Overall Completion */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">Completion</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{Math.round(analytics.overallCompletion)}%</p>
-                  <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full mt-2 overflow-hidden">
+                <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
+                  <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Completion</p>
+                  <p className="text-2xl font-bold text-zinc-900 dark:text-white">{Math.round(analytics.overallCompletion)}%</p>
+                  <div className="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-full mt-2 overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all"
+                      className="h-full rounded-full bg-zinc-900 dark:bg-zinc-100 transition-all"
                       style={{ width: `${Math.min(analytics.overallCompletion, 100)}%` }}
                     />
                   </div>
                 </div>
 
                 {/* Pace */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">Pace</p>
+                <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
+                  <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Pace</p>
                   <p className={`text-2xl font-bold ${
-                    analytics.pace === "ahead" ? "text-green-500" : analytics.pace === "behind" ? "text-red-500" : "text-blue-500"
+                    analytics.pace === "ahead" ? "text-green-500" : analytics.pace === "behind" ? "text-red-500" : "text-zinc-500"
                   }`}>
                     {analytics.pace === "ahead" ? "Ahead" : analytics.pace === "behind" ? "Behind" : "On Track"}
                   </p>
-                  <p className="text-xs text-gray-400 mt-1">Projected: {Math.round(analytics.projectedCompletion)}%</p>
+                  <p className="text-xs text-zinc-400 mt-1">Projected: {Math.round(analytics.projectedCompletion)}%</p>
                 </div>
 
                 {/* Consistent Weeks */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">Consistent Weeks</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
+                  <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Consistent Weeks</p>
+                  <p className="text-2xl font-bold text-zinc-900 dark:text-white">
                     {analytics.consistentWeeks}/{analytics.totalReviewedWeeks}
                   </p>
-                  <p className="text-xs text-gray-400 mt-1">
+                  <p className="text-xs text-zinc-400 mt-1">
                     {analytics.totalReviewedWeeks > 0
                       ? `${Math.round((analytics.consistentWeeks / analytics.totalReviewedWeeks) * 100)}% consistency`
                       : "No weeks reviewed yet"}
@@ -746,19 +742,19 @@ export default function TwelveWeekYearPage() {
                 </div>
 
                 {/* Goal Trends */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">Goal Trends</p>
+                <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
+                  <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Goal Trends</p>
                   <div className="space-y-2 mt-1">
                     {analytics.goalTrends.slice(0, 3).map((gt) => {
                       const maxVal = Math.max(...gt.weeklyActuals, 1);
                       return (
                         <div key={gt.goalId}>
-                          <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">{gt.goalName}</p>
+                          <p className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate">{gt.goalName}</p>
                           <div className="flex gap-[2px] items-end h-4">
                             {gt.weeklyActuals.map((val, i) => (
                               <div
                                 key={i}
-                                className={`flex-1 rounded-sm ${i + 1 <= currentWeek ? "bg-blue-500" : "bg-gray-200 dark:bg-gray-700"}`}
+                                className={`flex-1 rounded-sm ${i + 1 <= currentWeek ? "bg-zinc-900 dark:bg-zinc-100" : "bg-zinc-200 dark:bg-zinc-700"}`}
                                 style={{ height: `${Math.max((val / maxVal) * 100, 4)}%` }}
                               />
                             ))}
@@ -775,18 +771,18 @@ export default function TwelveWeekYearPage() {
           {/* Linked Tasks */}
           {selectedCycle.linkedTasks && selectedCycle.linkedTasks.length > 0 && (
             <>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Linked Tasks</h2>
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
-                <div className="divide-y divide-gray-100 dark:divide-gray-700">
+              <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">Linked Tasks</h2>
+              <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 overflow-hidden mb-6">
+                <div className="divide-y divide-zinc-100 dark:divide-zinc-700">
                   {selectedCycle.linkedTasks.map((task) => {
                     return (
                       <div key={task.id} className="px-4 py-3 flex items-center gap-3">
                         <div className="flex-1 min-w-0">
-                          <span className="text-sm font-medium text-gray-900 dark:text-white">{task.name}</span>
-                          <span className="text-xs text-gray-500 dark:text-gray-400 ml-2 capitalize">{task.completionType}</span>
+                          <span className="text-sm font-medium text-zinc-900 dark:text-white">{task.name}</span>
+                          <span className="text-xs text-zinc-500 dark:text-zinc-400 ml-2 capitalize">{task.completionType}</span>
                         </div>
                         {task.frequency !== 'daily' && (
-                          <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400">
                             {task.frequency === 'adhoc' ? 'One-time' :
                              task.frequency === 'monthly' ? 'Monthly' :
                              task.frequency === 'custom' ? 'Weekly' :
@@ -805,21 +801,21 @@ export default function TwelveWeekYearPage() {
           {/* Weekly Breakdown Grid */}
           {selectedCycle.goals.length > 0 && (
             <>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Weekly Breakdown</h2>
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
+              <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">Weekly Breakdown</h2>
+              <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 overflow-hidden mb-6">
                 {/* Grid header */}
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-gray-200 dark:border-gray-700">
-                        <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400 sticky left-0 bg-white dark:bg-gray-800">Goal</th>
+                      <tr className="border-b border-zinc-200 dark:border-zinc-700">
+                        <th className="text-left px-4 py-3 font-medium text-zinc-500 dark:text-zinc-400 sticky left-0 bg-white dark:bg-zinc-800">Goal</th>
                         {Array.from({ length: totalWeeks }, (_, i) => (
                           <th
                             key={i}
                             className={`px-2 py-3 text-center font-medium min-w-[40px] ${
                               i + 1 === currentWeek
-                                ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20"
-                                : "text-gray-500 dark:text-gray-400"
+                                ? "text-zinc-900 dark:text-white bg-zinc-100 dark:bg-zinc-800"
+                                : "text-zinc-500 dark:text-zinc-400"
                             }`}
                           >
                             W{i + 1}
@@ -829,8 +825,8 @@ export default function TwelveWeekYearPage() {
                     </thead>
                     <tbody>
                       {selectedCycle.goals.map((goal) => (
-                        <tr key={goal.id} className="border-b border-gray-100 dark:border-gray-700/50">
-                          <td className="px-4 py-2 font-medium text-gray-700 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 truncate max-w-[150px]">
+                        <tr key={goal.id} className="border-b border-zinc-100 dark:border-zinc-700/50">
+                          <td className="px-4 py-2 font-medium text-zinc-700 dark:text-zinc-300 sticky left-0 bg-white dark:bg-zinc-800 truncate max-w-[150px]">
                             {goal.name}
                           </td>
                           {Array.from({ length: totalWeeks }, (_, i) => {
@@ -853,7 +849,7 @@ export default function TwelveWeekYearPage() {
               </div>
 
               {/* Expandable Week Reviews */}
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Week Reviews</h2>
+              <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">Week Reviews</h2>
               <div className="space-y-2 mb-8">
                 {Array.from({ length: totalWeeks }, (_, i) => i + 1).map((weekNum) => {
                   const isExpanded = expandedWeek === weekNum;
@@ -863,7 +859,7 @@ export default function TwelveWeekYearPage() {
                   const hasReviewNotes = selectedCycle.weeklyReviews?.some((r) => r.weekNumber === weekNum && (r.notes || r.wins || r.blockers));
 
                   return (
-                    <div key={weekNum} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                    <div key={weekNum} className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
                       <button
                         onClick={() => {
                           if (isExpanded) {
@@ -873,14 +869,14 @@ export default function TwelveWeekYearPage() {
                             initWeekEdits(weekNum);
                           }
                         }}
-                        className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                        className="w-full flex items-center justify-between px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-700/50 transition-colors"
                       >
                         <div className="flex items-center gap-3">
-                          <span className={`font-semibold ${weekNum === currentWeek ? "text-blue-600 dark:text-blue-400" : "text-gray-700 dark:text-gray-300"}`}>
+                          <span className={`font-semibold ${weekNum === currentWeek ? "text-zinc-900 dark:text-white" : "text-zinc-700 dark:text-zinc-300"}`}>
                             Week {weekNum}
                           </span>
                           {weekNum === currentWeek && (
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
                               Current
                             </span>
                           )}
@@ -895,12 +891,12 @@ export default function TwelveWeekYearPage() {
                             </span>
                           )}
                           {hasReviewNotes && (
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
                               Notes
                             </span>
                           )}
                         </div>
-                        {isExpanded ? <FaChevronUp className="text-gray-400" /> : <FaChevronDown className="text-gray-400" />}
+                        {isExpanded ? <FaChevronUp className="text-zinc-400" /> : <FaChevronDown className="text-zinc-400" />}
                       </button>
 
                       <AnimatePresence>
@@ -911,7 +907,7 @@ export default function TwelveWeekYearPage() {
                             exit={{ height: 0, opacity: 0 }}
                             className="overflow-hidden"
                           >
-                            <div className="px-4 pb-4 space-y-3 border-t border-gray-200 dark:border-gray-700 pt-3">
+                            <div className="px-4 pb-4 space-y-3 border-t border-zinc-200 dark:border-zinc-700 pt-3">
                               {selectedCycle.goals.map((goal) => {
                                 const target = selectedCycle.weeklyTargets.find(
                                   (t) => t.goalId === goal.id && t.weekNumber === weekNum
@@ -920,9 +916,9 @@ export default function TwelveWeekYearPage() {
                                 if (!target || !edit) return null;
 
                                 return (
-                                  <div key={goal.id} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                                  <div key={goal.id} className="bg-zinc-50 dark:bg-zinc-700/50 rounded-lg p-3">
                                     <div className="flex items-center justify-between mb-2">
-                                      <span className="font-medium text-gray-700 dark:text-gray-300">{goal.name}</span>
+                                      <span className="font-medium text-zinc-700 dark:text-zinc-300">{goal.name}</span>
                                       {target.score && (
                                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getScoreColor(target.score)}`}>
                                           {target.score}
@@ -931,7 +927,7 @@ export default function TwelveWeekYearPage() {
                                     </div>
                                     <div className="grid grid-cols-2 gap-3">
                                       <div>
-                                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                                        <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
                                           Target ({goal.unit})
                                         </label>
                                         <input
@@ -943,11 +939,11 @@ export default function TwelveWeekYearPage() {
                                             [`${goal.id}`]: { ...edit, targetValue: e.target.value },
                                           }))}
                                           disabled={!edit.isOverridden}
-                                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50"
+                                          className="w-full px-2.5 py-1.5 text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white disabled:opacity-50"
                                         />
                                       </div>
                                       <div>
-                                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                                        <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
                                           Actual ({goal.unit})
                                         </label>
                                         <input
@@ -958,11 +954,11 @@ export default function TwelveWeekYearPage() {
                                             ...prev,
                                             [`${goal.id}`]: { ...edit, actualValue: e.target.value },
                                           }))}
-                                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                          className="w-full px-2.5 py-1.5 text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
                                         />
                                       </div>
                                     </div>
-                                    <label className="flex items-center gap-2 mt-2 text-xs text-gray-500 dark:text-gray-400 cursor-pointer">
+                                    <label className="flex items-center gap-2 mt-2 text-xs text-zinc-500 dark:text-zinc-400 cursor-pointer">
                                       <input
                                         type="checkbox"
                                         checked={edit.isOverridden}
@@ -970,7 +966,7 @@ export default function TwelveWeekYearPage() {
                                           ...prev,
                                           [`${goal.id}`]: { ...edit, isOverridden: e.target.checked },
                                         }))}
-                                        className="rounded border-gray-300 dark:border-gray-600"
+                                        className="rounded border-zinc-300 dark:border-zinc-600"
                                       />
                                       Override target
                                     </label>
@@ -979,10 +975,10 @@ export default function TwelveWeekYearPage() {
                               })}
 
                               {/* Weekly Review Notes */}
-                              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 space-y-3">
-                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Weekly Review Notes</p>
+                              <div className="bg-zinc-50 dark:bg-zinc-700/50 rounded-lg p-3 space-y-3">
+                                <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">Weekly Review Notes</p>
                                 <div>
-                                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Wins</label>
+                                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Wins</label>
                                   <textarea
                                     value={reviewEdits[weekNum]?.wins || ""}
                                     onChange={(e) => setReviewEdits((prev) => ({
@@ -991,11 +987,11 @@ export default function TwelveWeekYearPage() {
                                     }))}
                                     placeholder="What went well this week?"
                                     rows={2}
-                                    className="w-full px-2.5 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
+                                    className="w-full px-2.5 py-1.5 text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white resize-none"
                                   />
                                 </div>
                                 <div>
-                                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Blockers</label>
+                                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Blockers</label>
                                   <textarea
                                     value={reviewEdits[weekNum]?.blockers || ""}
                                     onChange={(e) => setReviewEdits((prev) => ({
@@ -1004,11 +1000,11 @@ export default function TwelveWeekYearPage() {
                                     }))}
                                     placeholder="What held you back?"
                                     rows={2}
-                                    className="w-full px-2.5 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
+                                    className="w-full px-2.5 py-1.5 text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white resize-none"
                                   />
                                 </div>
                                 <div>
-                                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Notes</label>
+                                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Notes</label>
                                   <textarea
                                     value={reviewEdits[weekNum]?.notes || ""}
                                     onChange={(e) => setReviewEdits((prev) => ({
@@ -1017,17 +1013,15 @@ export default function TwelveWeekYearPage() {
                                     }))}
                                     placeholder="Additional reflections..."
                                     rows={2}
-                                    className="w-full px-2.5 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
+                                    className="w-full px-2.5 py-1.5 text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white resize-none"
                                   />
                                 </div>
                               </div>
 
                               <motion.button
-                                whileHover={{ scale: 1.02 }}
-                                whileTap={{ scale: 0.98 }}
                                 onClick={() => handleSaveWeekReview(weekNum)}
                                 disabled={savingWeek}
-                                className="w-full py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-50"
+                                className="w-full py-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-50"
                               >
                                 <FaCheck /> {savingWeek ? "Saving..." : "Save Review"}
                               </motion.button>
@@ -1054,14 +1048,12 @@ export default function TwelveWeekYearPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">Goal Cycles</h1>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Plan and execute goal cycles of any duration</p>
+            <h1 className="text-3xl md:text-4xl font-bold text-zinc-900 dark:text-white">Goal Cycles</h1>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">Plan and execute goal cycles of any duration</p>
           </div>
           <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
             onClick={() => router.push("/cycles/new")}
-            className="p-2 md:px-4 md:py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium flex items-center gap-2"
+            className="p-2 md:px-4 md:py-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 rounded-lg font-medium flex items-center gap-2"
           >
             <FaPlus /> <span className="hidden md:inline">New Cycle</span>
           </motion.button>
@@ -1069,7 +1061,7 @@ export default function TwelveWeekYearPage() {
 
         {/* Cycles list */}
         {cycles.length === 0 ? (
-          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+          <div className="text-center py-12 text-zinc-500 dark:text-zinc-400">
             <p className="text-lg mb-2">No cycles yet</p>
             <p className="text-sm">Create your first goal cycle to start planning</p>
           </div>
@@ -1099,26 +1091,25 @@ export default function TwelveWeekYearPage() {
               <motion.div
                 key={cycle.id}
                 layout
-                whileHover={{ scale: 1.01 }}
                 onClick={() => fetchCycleDetail(cycle.id)}
-                className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-5 cursor-pointer hover:border-blue-300 dark:hover:border-blue-600 transition-colors"
+                className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-5 cursor-pointer hover:border-zinc-400 dark:hover:border-zinc-500 transition-colors"
               >
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{cycle.name}</h3>
+                  <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">{cycle.name}</h3>
                   <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
                     status === "Active"
                       ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
                       : status === "Future"
-                      ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-                      : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400"
+                      ? "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                      : "bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400"
                   }`}>
                     {status}
                   </span>
                 </div>
                 {cycle.theme && (
-                  <p className="text-xs text-purple-600 dark:text-purple-400 mb-1 font-medium">{cycle.theme}</p>
+                  <p className="text-xs text-zinc-600 dark:text-zinc-400 mb-1 font-medium">{cycle.theme}</p>
                 )}
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-3">
                   {cycle.startDate} &rarr; {cycle.endDate}
                 </p>
                 <div className="flex gap-1">
@@ -1127,18 +1118,18 @@ export default function TwelveWeekYearPage() {
                       key={i}
                       className={`h-2 flex-1 rounded-full ${
                         i + 1 < weekNum
-                          ? "bg-blue-500"
+                          ? "bg-zinc-900 dark:bg-zinc-100"
                           : i + 1 === weekNum && !isCompleted
-                          ? "bg-blue-300 dark:bg-blue-600"
+                          ? "bg-zinc-400 dark:bg-zinc-500"
                           : isCompleted
-                          ? "bg-blue-500"
-                          : "bg-gray-200 dark:bg-gray-700"
+                          ? "bg-zinc-900 dark:bg-zinc-100"
+                          : "bg-zinc-200 dark:bg-zinc-700"
                       }`}
                     />
                   ))}
                 </div>
                 {status === "Active" && (
-                  <p className="text-xs text-gray-400 mt-1">Week {weekNum} of {cycleTotalWeeks}</p>
+                  <p className="text-xs text-zinc-400 mt-1">Week {weekNum} of {cycleTotalWeeks}</p>
                 )}
               </motion.div>
             );
@@ -1158,7 +1149,7 @@ export default function TwelveWeekYearPage() {
                 <div>
                   <button
                     onClick={() => setFutureAccordionOpen(!futureAccordionOpen)}
-                    className="flex items-center justify-between w-full px-4 py-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl text-blue-700 dark:text-blue-400 font-medium text-sm"
+                    className="flex items-center justify-between w-full px-4 py-3 bg-zinc-100 dark:bg-zinc-800 rounded-xl text-zinc-700 dark:text-zinc-300 font-medium text-sm"
                   >
                     <span>Future ({futureCycles.length})</span>
                     {futureAccordionOpen ? <FaChevronUp /> : <FaChevronDown />}
@@ -1186,7 +1177,7 @@ export default function TwelveWeekYearPage() {
                 <div>
                   <button
                     onClick={() => setPastAccordionOpen(!pastAccordionOpen)}
-                    className="flex items-center justify-between w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 rounded-xl text-gray-600 dark:text-gray-400 font-medium text-sm"
+                    className="flex items-center justify-between w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-800 rounded-xl text-zinc-600 dark:text-zinc-400 font-medium text-sm"
                   >
                     <span>Past ({pastCycles.length})</span>
                     {pastAccordionOpen ? <FaChevronUp /> : <FaChevronDown />}

@@ -6,6 +6,7 @@ import { FaFire, FaStar, FaTrophy, FaBolt, FaTimes, FaChartLine, FaArrowUp, FaAr
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { DEMO_DASHBOARD } from "@/lib/demo-data";
 import {
   LineChart,
   Line,
@@ -136,7 +137,7 @@ function getTierColor(tier: string): string {
 }
 
 function getHeatmapColor(score: number | null): string {
-  if (score === null) return "bg-gray-200 dark:bg-gray-700";
+  if (score === null) return "bg-zinc-200 dark:bg-zinc-700";
   if (score >= 70) return "bg-green-500";
   if (score >= 50) return "bg-yellow-500";
   return "bg-red-500";
@@ -209,8 +210,8 @@ function CalendarHeatmap({ scores }: { scores: HistoryScore[] }) {
   const dayLabels = ["M", "T", "W", "T", "F", "S", "S"];
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 mb-6">
-      <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+    <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-6 mb-6">
+      <h2 className="text-xl font-semibold text-zinc-900 dark:text-white mb-4">
         Last 90 Days
       </h2>
       <div className="relative overflow-x-auto">
@@ -220,7 +221,7 @@ function CalendarHeatmap({ scores }: { scores: HistoryScore[] }) {
             {dayLabels.map((label, i) => (
               <div
                 key={i}
-                className="w-4 h-4 text-[10px] text-gray-400 dark:text-gray-500 flex items-center justify-center"
+                className="w-4 h-4 text-[10px] text-zinc-400 dark:text-zinc-500 flex items-center justify-center"
               >
                 {i % 2 === 0 ? label : ""}
               </div>
@@ -256,9 +257,9 @@ function CalendarHeatmap({ scores }: { scores: HistoryScore[] }) {
         </div>
 
         {/* Legend */}
-        <div className="flex items-center gap-2 mt-3 text-xs text-gray-500 dark:text-gray-400">
+        <div className="flex items-center gap-2 mt-3 text-xs text-zinc-500 dark:text-zinc-400">
           <span>Less</span>
-          <div className="w-3 h-3 rounded-sm bg-gray-200 dark:bg-gray-700 opacity-40" />
+          <div className="w-3 h-3 rounded-sm bg-zinc-200 dark:bg-zinc-700 opacity-40" />
           <div className="w-3 h-3 rounded-sm bg-red-500 opacity-80" />
           <div className="w-3 h-3 rounded-sm bg-yellow-500 opacity-70" />
           <div className="w-3 h-3 rounded-sm bg-green-500 opacity-80" />
@@ -270,7 +271,7 @@ function CalendarHeatmap({ scores }: { scores: HistoryScore[] }) {
       {/* Tooltip */}
       {tooltip && (
         <div
-          className="fixed z-50 px-2 py-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded shadow-lg pointer-events-none"
+          className="fixed z-50 px-2 py-1 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs rounded shadow-sm pointer-events-none"
           style={{ left: tooltip.x, top: tooltip.y }}
         >
           {tooltip.date}: {tooltip.score !== null ? `${tooltip.score}%` : "No data"}
@@ -297,11 +298,11 @@ function ScoreTrendChart({ scores }: { scores: HistoryScore[] }) {
 
   if (data.length === 0) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 mb-6">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+      <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-6 mb-6">
+        <h2 className="text-xl font-semibold text-zinc-900 dark:text-white mb-4">
           Score Trend
         </h2>
-        <p className="text-gray-500 dark:text-gray-400 text-sm text-center py-8">
+        <p className="text-zinc-500 dark:text-zinc-400 text-sm text-center py-8">
           No score data yet. Complete some tasks to see your trend!
         </p>
       </div>
@@ -309,8 +310,8 @@ function ScoreTrendChart({ scores }: { scores: HistoryScore[] }) {
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 mb-6">
-      <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+    <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-6 mb-6">
+      <h2 className="text-xl font-semibold text-zinc-900 dark:text-white mb-4">
         {hasMomentum ? "Action Score & Momentum" : "Score Trend"} (Last 30 Days)
       </h2>
       <ResponsiveContainer width="100%" height={250}>
@@ -416,11 +417,11 @@ function PillarBreakdownChart({
 
   if (data.length === 0) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 mb-6">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+      <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-6 mb-6">
+        <h2 className="text-xl font-semibold text-zinc-900 dark:text-white mb-4">
           Pillar Averages
         </h2>
-        <p className="text-gray-500 dark:text-gray-400 text-sm text-center py-8">
+        <p className="text-zinc-500 dark:text-zinc-400 text-sm text-center py-8">
           No pillar data yet.
         </p>
       </div>
@@ -428,8 +429,8 @@ function PillarBreakdownChart({
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 mb-6">
-      <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+    <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-6 mb-6">
+      <h2 className="text-xl font-semibold text-zinc-900 dark:text-white mb-4">
         Pillar Averages
       </h2>
       <ResponsiveContainer width="100%" height={data.length * 50 + 20}>
@@ -508,15 +509,15 @@ function StreakFlameChain({
   }, [scores]);
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 mb-6">
+    <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-6 mb-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+        <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">
           Streak Chain
         </h2>
         <div className="flex items-center gap-2">
           <FaFire className="text-orange-500 text-lg" />
           <span className="text-2xl font-bold text-orange-500">{currentStreak}</span>
-          <span className="text-sm text-gray-500 dark:text-gray-400">
+          <span className="text-sm text-zinc-500 dark:text-zinc-400">
             {currentStreak === 1 ? "day" : "days"}
           </span>
         </div>
@@ -524,7 +525,7 @@ function StreakFlameChain({
       <div className="flex items-center justify-between gap-0.5 md:gap-1 overflow-x-auto">
         {days.map((day, i) => (
           <div key={i} className="flex flex-col items-center gap-0.5 md:gap-1 min-w-0 shrink-0">
-            <span className="text-[9px] md:text-[10px] text-gray-400 dark:text-gray-500">
+            <span className="text-[9px] md:text-[10px] text-zinc-400 dark:text-zinc-500">
               {day.label}
             </span>
             <div
@@ -533,7 +534,7 @@ function StreakFlameChain({
                   ? "bg-orange-500/20 text-orange-500"
                   : day.status === "fail"
                   ? "bg-red-500/20 text-red-400"
-                  : "bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500"
+                  : "bg-zinc-200 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500"
               }`}
             >
               {day.status === "pass" ? (
@@ -544,7 +545,7 @@ function StreakFlameChain({
                 <span className="text-[8px] md:text-xs">-</span>
               )}
             </div>
-            <span className="text-[8px] md:text-[9px] text-gray-400 dark:text-gray-500">
+            <span className="text-[8px] md:text-[9px] text-zinc-400 dark:text-zinc-500">
               {day.date.slice(8)}
             </span>
           </div>
@@ -566,13 +567,20 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [todayTaskCount, setTodayTaskCount] = useState(0);
   const [seeding, setSeeding] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
   const seedingRef = useRef(false);
 
   const today = new Date().toISOString().split("T")[0];
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.push("/login");
+      // Load demo data for non-logged-in users
+      setScore(DEMO_DASHBOARD.score as DailyScoreData);
+      setStats(DEMO_DASHBOARD.stats as UserStatsData);
+      setHistory(DEMO_DASHBOARD.history as HistoryData);
+      setMomentumData(DEMO_DASHBOARD.momentum as MomentumData);
+      setTodayTaskCount(DEMO_DASHBOARD.todayTaskCount);
+      setLoading(false);
       return;
     }
     if (session?.user?.id) {
@@ -592,8 +600,10 @@ export default function DashboardPage() {
         fetch("/api/momentum"),
       ]);
 
+      let scoreData = null;
       if (scoreRes.ok) {
-        setScore(await scoreRes.json());
+        scoreData = await scoreRes.json();
+        setScore(scoreData);
       }
       if (statsRes.ok) {
         setStats(await statsRes.json());
@@ -612,33 +622,35 @@ export default function DashboardPage() {
         const count = groups.reduce((sum: number, g: { tasks: unknown[] }) => sum + g.tasks.length, 0);
         setTodayTaskCount(count);
       }
+
+      // Auto-seed for new users with no data
+      if (scoreData && scoreData.totalTasks === 0 && !seedingRef.current) {
+        seedingRef.current = true;
+        setSeeding(true);
+        const seedRes = await fetch("/api/seed", { method: "POST" });
+        if (seedRes.ok) {
+          setShowWelcome(true);
+          // Re-fetch all data after seeding
+          const [sr, str, hr, tr] = await Promise.all([
+            fetch(`/api/daily-score?date=${today}`),
+            fetch("/api/user-stats"),
+            fetch("/api/daily-score/history?days=90"),
+            fetch(`/api/tasks?date=${today}`),
+          ]);
+          if (sr.ok) setScore(await sr.json());
+          if (str.ok) setStats(await str.json());
+          if (hr.ok) setHistory(await hr.json());
+          if (tr.ok) {
+            const groups = await tr.json();
+            setTodayTaskCount(groups.reduce((sum: number, g: { tasks: unknown[] }) => sum + g.tasks.length, 0));
+          }
+        }
+        setSeeding(false);
+      }
     } catch (error) {
       console.error("Failed to fetch dashboard data:", error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleSeed = async () => {
-    if (seedingRef.current) return;
-    seedingRef.current = true;
-    setSeeding(true);
-    try {
-      const res = await fetch("/api/seed", { method: "POST" });
-      if (res.ok) {
-        const [scoreRes, statsRes, historyRes] = await Promise.all([
-          fetch(`/api/daily-score?date=${today}`),
-          fetch("/api/user-stats"),
-          fetch("/api/daily-score/history?days=90"),
-        ]);
-        if (scoreRes.ok) setScore(await scoreRes.json());
-        if (statsRes.ok) setStats(await statsRes.json());
-        if (historyRes.ok) setHistory(await historyRes.json());
-      }
-    } catch (error) {
-      console.error("Failed to seed:", error);
-    } finally {
-      setSeeding(false);
     }
   };
 
@@ -654,7 +666,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zinc-900 dark:border-zinc-100"></div>
       </div>
     );
   }
@@ -669,10 +681,10 @@ export default function DashboardPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
+            <h1 className="text-3xl md:text-4xl font-bold text-zinc-900 dark:text-white">
               Dashboard
             </h1>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
               {new Date().toLocaleDateString("en-US", {
                 weekday: "long",
                 month: "long",
@@ -681,13 +693,11 @@ export default function DashboardPage() {
             </p>
           </div>
           <Link href="/tasks">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium"
+            <button
+              className="px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg font-medium"
             >
               Go to Tasks
-            </motion.button>
+            </button>
           </Link>
         </div>
 
@@ -709,10 +719,10 @@ export default function DashboardPage() {
             };
 
             return (
-              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 mb-6">
+              <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-6 mb-6">
                 <div className="flex items-center gap-2 mb-4">
                   <FaSun className="text-2xl text-amber-500" />
-                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">
                     Today&apos;s Briefing
                   </h2>
                 </div>
@@ -720,10 +730,10 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-3 gap-4 mb-4">
                   {/* Yesterday's Score */}
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                    <div className="text-2xl font-bold text-zinc-900 dark:text-white">
                       {yesterdayScore ? `${yesterdayScore.actionScore}%` : "—"}
                     </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                    <div className="text-xs text-zinc-500 dark:text-zinc-400">
                       Yesterday
                     </div>
                   </div>
@@ -733,23 +743,23 @@ export default function DashboardPage() {
                     <div className="text-2xl font-bold text-orange-500">
                       {stats.currentStreak}
                     </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                    <div className="text-xs text-zinc-500 dark:text-zinc-400">
                       Day Streak
                     </div>
                   </div>
 
                   {/* Tasks Due */}
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-500">
+                    <div className="text-2xl font-bold text-zinc-900 dark:text-white">
                       {todayTaskCount}
                     </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                    <div className="text-xs text-zinc-500 dark:text-zinc-400">
                       Tasks Today
                     </div>
                   </div>
                 </div>
 
-                <p className="text-sm text-gray-600 dark:text-gray-400 text-center italic">
+                <p className="text-sm text-zinc-600 dark:text-zinc-400 text-center italic">
                   {getStreakMessage(stats.currentStreak)}
                 </p>
               </div>
@@ -757,28 +767,52 @@ export default function DashboardPage() {
           })()
         )}
 
-        {/* Empty State — Seed Prompt */}
-        {score && score.totalTasks === 0 && (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-8 mb-6 text-center">
-            <p className="text-lg text-gray-600 dark:text-gray-400 mb-4">
-              No pillars or tasks yet. Set up your default data to get started.
-            </p>
-            <button
-              onClick={handleSeed}
-              disabled={seeding}
-              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium disabled:opacity-50"
-            >
-              {seeding ? "Setting up..." : "Load Default Data"}
-            </button>
+        {/* Welcome Banner for new users */}
+        {showWelcome && (
+          <div className="bg-zinc-100 dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 p-4 mb-6">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="font-semibold text-zinc-900 dark:text-white mb-1">Welcome to TotalLogger!</h3>
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                  We&apos;ve loaded sample pillars and tasks to help you get started. Feel free to edit, delete, or add your own.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={async () => {
+                    if (!confirm("Clear all sample data? This will remove all pillars, tasks, and scores.")) return;
+                    await fetch("/api/seed", { method: "DELETE" });
+                    window.location.reload();
+                  }}
+                  className="px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 border border-red-300 dark:border-red-600 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
+                >
+                  Clear Data
+                </button>
+                <button
+                  onClick={() => setShowWelcome(false)}
+                  className="p-1.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                >
+                  <FaTimes className="text-xs" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Loading seed state */}
+        {seeding && (
+          <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-8 mb-6 text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-zinc-900 dark:border-zinc-100 mx-auto mb-3"></div>
+            <p className="text-zinc-600 dark:text-zinc-400">Setting up your sample data...</p>
           </div>
         )}
 
         {/* Action Score */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 mb-6">
+        <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <FaBolt className="text-2xl text-yellow-500" />
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">
                 Action Score
               </h2>
             </div>
@@ -797,7 +831,7 @@ export default function DashboardPage() {
 
           {score && (
             <>
-              <div className="relative w-full h-6 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mb-2">
+              <div className="relative w-full h-6 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden mb-2">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${Math.min(score.actionScore, 100)}%` }}
@@ -807,10 +841,10 @@ export default function DashboardPage() {
                 />
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600 dark:text-gray-400">
+                <span className="text-zinc-600 dark:text-zinc-400">
                   {score.completedTasks}/{score.totalTasks} tasks
                 </span>
-                <span className="font-bold text-gray-900 dark:text-white text-lg">
+                <span className="font-bold text-zinc-900 dark:text-white text-lg">
                   {score.actionScore}%
                 </span>
               </div>
@@ -820,11 +854,11 @@ export default function DashboardPage() {
 
         {/* Momentum */}
         {momentumData && momentumData.goals.length > 0 && (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 mb-6">
+          <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4 mb-6">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <FaChartLine className="text-xl text-amber-500" />
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
                   Momentum
                 </h2>
               </div>
@@ -835,20 +869,20 @@ export default function DashboardPage() {
               </span>
             </div>
 
-            <div className="relative w-full h-4 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mb-3">
+            <div className="relative w-full h-4 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden mb-3">
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${Math.min(momentumData.overall * 50, 100)}%` }}
                 transition={{ duration: 1, ease: "easeOut" }}
                 className={`h-full rounded-full ${
                   momentumData.overall >= 1.0
-                    ? "bg-gradient-to-r from-green-400 to-emerald-500"
-                    : "bg-gradient-to-r from-red-400 to-orange-500"
+                    ? "bg-green-500"
+                    : "bg-red-500"
                 }`}
               />
-              <div className="absolute top-0 left-1/2 w-0.5 h-full bg-gray-400 dark:bg-gray-500" />
+              <div className="absolute top-0 left-1/2 w-0.5 h-full bg-zinc-400 dark:bg-zinc-500" />
             </div>
-            <p className="text-xs text-center text-gray-500 dark:text-gray-400 mb-4">
+            <p className="text-xs text-center text-zinc-500 dark:text-zinc-400 mb-4">
               {momentumData.overall >= 1.05
                 ? "Ahead of pace"
                 : momentumData.overall >= 0.95
@@ -859,12 +893,12 @@ export default function DashboardPage() {
             {/* Per-pillar momentum */}
             {momentumData.pillars.filter(p => p.momentum !== null).length > 0 && (
               <div className="space-y-2 mb-4">
-                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">By Pillar</p>
+                <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">By Pillar</p>
                 {momentumData.pillars.filter(p => p.momentum !== null).map((pillar) => (
                   <div key={pillar.id} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span>{pillar.emoji}</span>
-                      <span className="text-sm text-gray-700 dark:text-gray-300">{pillar.name}</span>
+                      <span className="text-sm text-zinc-700 dark:text-zinc-300">{pillar.name}</span>
                     </div>
                     <span className={`text-sm font-bold ${
                       (pillar.momentum ?? 0) >= 1.0 ? "text-green-500" : "text-red-500"
@@ -878,18 +912,18 @@ export default function DashboardPage() {
 
             {/* Goal spotlight */}
             <div className="space-y-2">
-              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Goals</p>
+              <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">Goals</p>
               {momentumData.goals.map((goal) => (
                 <div key={goal.goalId} className="flex items-center justify-between">
                   <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 shrink-0">
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400 shrink-0">
                       {goal.goalType === "habitual" ? "H" : goal.goalType === "target" ? "T" : "O"}
                     </span>
-                    <span className="text-sm text-gray-700 dark:text-gray-300 truncate">{goal.name}</span>
+                    <span className="text-sm text-zinc-700 dark:text-zinc-300 truncate">{goal.name}</span>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     {goal.bufferDays > 0 && (
-                      <span className="text-xs text-gray-400">{goal.bufferDays}d buffer</span>
+                      <span className="text-xs text-zinc-400">{goal.bufferDays}d buffer</span>
                     )}
                     <span className={`text-sm font-bold ${
                       goal.momentum >= 1.0 ? "text-green-500" : "text-red-500"
@@ -905,16 +939,16 @@ export default function DashboardPage() {
 
         {/* Goals Progress */}
         {outcomesData.length > 0 && (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 mb-6">
+          <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4 mb-6">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <FaChartLine className="text-xl text-emerald-500" />
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
                   Goals Progress
                 </h2>
               </div>
               <Link href="/goals">
-                <span className="text-sm text-blue-500 hover:text-blue-600 dark:text-blue-400">View All</span>
+                <span className="text-sm text-zinc-900 dark:text-white hover:text-zinc-700 dark:hover:text-zinc-300">View All</span>
               </Link>
             </div>
 
@@ -931,21 +965,21 @@ export default function DashboardPage() {
 
               return (
                 <>
-                  <div className="relative w-full h-6 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mb-2">
+                  <div className="relative w-full h-6 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden mb-2">
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${Math.min(progressScore, 100)}%` }}
                       transition={{ duration: 1, ease: "easeOut" }}
-                      className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500"
+                      className="h-full rounded-full bg-emerald-500"
                     />
                   </div>
                   <div className="flex justify-between text-sm mb-3">
-                    <span className="text-gray-600 dark:text-gray-400">
+                    <span className="text-zinc-600 dark:text-zinc-400">
                       {activityCount > 0 && outcomeCount > 0
                         ? `${activityCount} activity, ${outcomeCount} outcome`
                         : `${outcomesData.length} goal${outcomesData.length !== 1 ? "s" : ""}`}
                     </span>
-                    <span className="font-bold text-gray-900 dark:text-white text-lg">
+                    <span className="font-bold text-zinc-900 dark:text-white text-lg">
                       {progressScore}%
                     </span>
                   </div>
@@ -964,21 +998,21 @@ export default function DashboardPage() {
                           <div className="flex items-center justify-between mb-1">
                             <div className="flex items-center gap-2">
                               {isEffort ? (
-                                <FaBolt className="text-xs text-blue-500" />
+                                <FaBolt className="text-xs text-zinc-900 dark:text-white" />
                               ) : goal.direction === "decrease" ? (
                                 <FaArrowDown className="text-xs text-green-500" />
                               ) : (
                                 <FaArrowUp className="text-xs text-green-500" />
                               )}
-                              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                              <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                                 {goal.name}
                               </span>
                             </div>
-                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                            <span className="text-xs text-zinc-500 dark:text-zinc-400">
                               {goal.currentValue} / {goal.targetValue} {goal.unit}
                             </span>
                           </div>
-                          <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                          <div className="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
                             <motion.div
                               initial={{ width: 0 }}
                               animate={{ width: `${Math.min(progress, 100)}%` }}
@@ -999,8 +1033,8 @@ export default function DashboardPage() {
 
         {/* Pillar Breakdown (today) */}
         {score && score.pillarScores.length > 0 && (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+          <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4 mb-6">
+            <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-3">
               Pillar Breakdown
             </h2>
             <div className="space-y-2">
@@ -1009,18 +1043,18 @@ export default function DashboardPage() {
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
                       <span>{pillar.emoji}</span>
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                         {pillar.name}
                       </span>
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-zinc-500">
                         ({pillar.weight}%)
                       </span>
                     </div>
-                    <span className="text-sm font-bold text-gray-900 dark:text-white">
+                    <span className="text-sm font-bold text-zinc-900 dark:text-white">
                       {pillar.score}%
                     </span>
                   </div>
-                  <div className="w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div className="w-full h-3 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${Math.min(pillar.score, 100)}%` }}
@@ -1039,10 +1073,10 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           {/* XP & Level */}
           {stats && (
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+            <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-6">
               <div className="flex items-center gap-2 mb-4">
                 <FaTrophy className="text-2xl text-purple-500" />
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">
                   Level
                 </h2>
               </div>
@@ -1050,19 +1084,19 @@ export default function DashboardPage() {
                 <div className="text-4xl font-bold text-purple-600 dark:text-purple-400">
                   {stats.levelInfo.level}
                 </div>
-                <div className="text-lg text-gray-600 dark:text-gray-400">
+                <div className="text-lg text-zinc-600 dark:text-zinc-400">
                   {stats.levelInfo.title}
                 </div>
               </div>
-              <div className="w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mb-2">
+              <div className="w-full h-3 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden mb-2">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${stats.levelInfo.xpProgress}%` }}
                   transition={{ duration: 0.8 }}
-                  className="h-full rounded-full bg-gradient-to-r from-purple-500 to-pink-500"
+                  className="h-full rounded-full bg-purple-500"
                 />
               </div>
-              <p className="text-xs text-center text-gray-500 dark:text-gray-400">
+              <p className="text-xs text-center text-zinc-500 dark:text-zinc-400">
                 {stats.levelInfo.currentXp} / {stats.levelInfo.xpForNextLevel} XP
                 to next level
               </p>
@@ -1071,10 +1105,10 @@ export default function DashboardPage() {
 
           {/* Streak */}
           {stats && (
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+            <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-6">
               <div className="flex items-center gap-2 mb-4">
                 <FaFire className="text-2xl text-orange-500" />
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">
                   Streak
                 </h2>
               </div>
@@ -1082,10 +1116,10 @@ export default function DashboardPage() {
                 <div className="text-5xl font-bold text-orange-500 mb-2">
                   {stats.currentStreak}
                 </div>
-                <div className="text-lg text-gray-600 dark:text-gray-400">
+                <div className="text-lg text-zinc-600 dark:text-zinc-400">
                   {stats.currentStreak === 1 ? "day" : "days"} in a row
                 </div>
-                <div className="mt-4 text-sm text-gray-500 dark:text-gray-400">
+                <div className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">
                   <FaStar className="inline mr-1 text-yellow-500" />
                   Best: {stats.bestStreak} days
                 </div>

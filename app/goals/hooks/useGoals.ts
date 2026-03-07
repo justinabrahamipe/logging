@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Outcome, Pillar, LinkedTask, LogEntry, CycleOption } from "../types";
+import { DEMO_OUTCOMES, DEMO_PILLARS } from "@/lib/demo-data";
 
 export function useGoals() {
   const { data: session, status } = useSession();
@@ -21,7 +22,20 @@ export function useGoals() {
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.push("/login");
+      // Load demo data for non-logged-in users
+      setAllOutcomes(DEMO_OUTCOMES.map(o => ({
+        ...o,
+        periodId: null,
+        logFrequency: "daily",
+        scheduleDays: null,
+        autoCreateTasks: false,
+        pillarName: DEMO_PILLARS.find(p => p.id === o.pillarId)?.name || null,
+        pillarColor: o.pillarColor,
+        pillarEmoji: DEMO_PILLARS.find(p => p.id === o.pillarId)?.emoji || null,
+      })) as Outcome[]);
+      setPillars(DEMO_PILLARS.map(p => ({ id: p.id, name: p.name, emoji: p.emoji, color: p.color })));
+      setGoalTab("outcome");
+      setLoading(false);
       return;
     }
     if (session?.user?.id) {
@@ -130,7 +144,8 @@ export function useGoals() {
     setMenuOpen(null);
   };
 
-  const handleAddTaskForToday = async (outcome: Outcome) => {
+  const handleAddTaskForToday = async (outcome: Outcome): Promise<boolean> => {
+    if (status !== "authenticated") return false;
     try {
       const res = await fetch('/api/tasks', {
         method: 'POST',
@@ -148,11 +163,20 @@ export function useGoals() {
         }),
       });
       if (res.ok) {
+        const task = await res.json();
+        // Auto-complete the task
+        await fetch('/api/tasks/complete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ taskId: task.id, date: today, completed: true, value: outcome.dailyTarget || 1 }),
+        });
         await fetchLinkedTasks();
+        return true;
       }
     } catch (error) {
       console.error("Failed to add task:", error);
     }
+    return false;
   };
 
   const getProgress = (outcome: Outcome) => {

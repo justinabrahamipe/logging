@@ -4,8 +4,9 @@ import type { NextRequest } from "next/server";
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Define public paths
-  const publicPaths = ["/", "/login", "/verify-request", "/error", "/privacy", "/terms"];
+  // Define public paths (all app pages are viewable; APIs handle their own auth)
+  const publicPaths = ["/", "/login", "/verify-request", "/error", "/privacy", "/terms",
+    "/dashboard", "/tasks", "/goals", "/pillars", "/cycles", "/activity", "/reports", "/settings"];
   const isPublicPath = publicPaths.some(path => pathname === path || pathname.startsWith(path));
 
   // Allow public paths

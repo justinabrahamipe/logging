@@ -235,12 +235,12 @@ export default function SettingsPage() {
       >
         {/* Header */}
         <div className="flex items-center gap-3 mb-6 md:mb-8">
-          <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-            <FaCog className="text-white text-xl md:text-2xl" />
+          <div className="w-10 h-10 md:w-12 md:h-12 bg-zinc-900 dark:bg-zinc-100 rounded-xl flex items-center justify-center shadow-sm">
+            <FaCog className="text-white dark:text-zinc-900 text-xl md:text-2xl" />
           </div>
           <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">Settings</h1>
-            <p className="text-sm text-gray-600 dark:text-gray-400 hidden sm:block">Manage your application preferences</p>
+            <h1 className="text-3xl md:text-4xl font-bold text-zinc-900 dark:text-white">Settings</h1>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400 hidden sm:block">Manage your application preferences</p>
           </div>
         </div>
 
@@ -252,13 +252,11 @@ export default function SettingsPage() {
               return (
                 <motion.button
                   key={tab.id}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
                   onClick={() => setActiveTab(tab.id)}
                   className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors whitespace-nowrap ${
                     isActive
-                      ? "bg-blue-600 text-white shadow-lg"
-                      : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-500"
+                      ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-sm"
+                      : "bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-500"
                   }`}
                 >
                   <tab.icon className="text-sm" />
@@ -273,14 +271,14 @@ export default function SettingsPage() {
         {activeTab === "preferences" && (
           <div className="space-y-4 md:space-y-6">
             {/* Theme Preference */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 md:p-6">
+            <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4 md:p-6">
               <div className="flex items-center gap-2 md:gap-3 mb-3 md:mb-4">
-                <div className="p-2 md:p-3 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
-                  <FaMoon className="text-xl md:text-2xl text-indigo-600 dark:text-indigo-400" />
+                <div className="p-2 md:p-3 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
+                  <FaMoon className="text-xl md:text-2xl text-zinc-600 dark:text-zinc-400" />
                 </div>
                 <div>
-                  <h2 className="text-lg md:text-2xl font-semibold text-gray-900 dark:text-white">Theme</h2>
-                  <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400">Choose your preferred theme</p>
+                  <h2 className="text-lg md:text-2xl font-semibold text-zinc-900 dark:text-white">Theme</h2>
+                  <p className="text-xs md:text-sm text-zinc-600 dark:text-zinc-400">Choose your preferred theme</p>
                 </div>
               </div>
 
@@ -288,23 +286,21 @@ export default function SettingsPage() {
                 {themeOptions.map((option) => (
                   <motion.button
                     key={option.value}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
                     onClick={() => setLocalTheme(option.value)}
                     className={`p-4 rounded-lg border-2 transition-all ${
                       localTheme === option.value
-                        ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20"
-                        : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                        ? "border-zinc-900 dark:border-zinc-100 bg-zinc-100 dark:bg-zinc-800"
+                        : "border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600"
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="text-left">
                         <div className="flex items-center gap-2">
-                          <option.icon className="text-lg text-indigo-600 dark:text-indigo-400" />
-                          <span className="font-semibold text-gray-900 dark:text-white">{option.label}</span>
+                          <option.icon className="text-lg text-zinc-600 dark:text-zinc-400" />
+                          <span className="font-semibold text-zinc-900 dark:text-white">{option.label}</span>
                         </div>
                       </div>
-                      {localTheme === option.value && <FaCheck className="text-indigo-500" />}
+                      {localTheme === option.value && <FaCheck className="text-zinc-900 dark:text-zinc-100" />}
                     </div>
                   </motion.button>
                 ))}
@@ -312,52 +308,52 @@ export default function SettingsPage() {
             </div>
 
             {/* Pass Thresholds */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 md:p-6">
+            <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4 md:p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
                   <FaBolt className="text-2xl text-orange-600 dark:text-orange-400" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Score Thresholds</h2>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Minimum score to count as a passing day</p>
+                  <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white">Score Thresholds</h2>
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400">Minimum score to count as a passing day</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Weekday Pass (%)</label>
+                  <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Weekday Pass (%)</label>
                   <input
                     type="number"
                     min="0"
                     max="100"
                     value={weekdayPassThreshold}
                     onChange={e => setWeekdayPassThreshold(parseInt(e.target.value) || 0)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Weekend Pass (%)</label>
+                  <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Weekend Pass (%)</label>
                   <input
                     type="number"
                     min="0"
                     max="100"
                     value={weekendPassThreshold}
                     onChange={e => setWeekendPassThreshold(parseInt(e.target.value) || 0)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
                   />
                 </div>
               </div>
             </div>
 
             {/* Time Format */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 md:p-6">
+            <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4 md:p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                  <FaClock className="text-2xl text-blue-600 dark:text-blue-400" />
+                <div className="p-3 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
+                  <FaClock className="text-2xl text-zinc-600 dark:text-zinc-400" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Time Format</h2>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Choose how you want time to be displayed</p>
+                  <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white">Time Format</h2>
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400">Choose how you want time to be displayed</p>
                 </div>
               </div>
 
@@ -365,21 +361,19 @@ export default function SettingsPage() {
                 {timeOptions.map((option) => (
                   <motion.button
                     key={option}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
                     onClick={() => setTimeFormat(option)}
                     className={`p-4 rounded-lg border-2 transition-all ${
                       timeFormat === option
-                        ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
-                        : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                        ? "border-zinc-900 dark:border-zinc-100 bg-zinc-100 dark:bg-zinc-800"
+                        : "border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600"
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="text-left">
-                        <div className="font-semibold text-gray-900 dark:text-white">{option === "12h" ? "12-Hour" : "24-Hour"}</div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">{getExampleTime(option)}</div>
+                        <div className="font-semibold text-zinc-900 dark:text-white">{option === "12h" ? "12-Hour" : "24-Hour"}</div>
+                        <div className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">{getExampleTime(option)}</div>
                       </div>
-                      {timeFormat === option && <FaCheck className="text-blue-500" />}
+                      {timeFormat === option && <FaCheck className="text-zinc-900 dark:text-zinc-100" />}
                     </div>
                   </motion.button>
                 ))}
@@ -387,14 +381,14 @@ export default function SettingsPage() {
             </div>
 
             {/* Date Format */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 md:p-6">
+            <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4 md:p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                  <FaCalendar className="text-2xl text-purple-600 dark:text-purple-400" />
+                <div className="p-3 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
+                  <FaCalendar className="text-2xl text-zinc-600 dark:text-zinc-400" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Date Format</h2>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Choose how you want dates to be displayed</p>
+                  <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white">Date Format</h2>
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400">Choose how you want dates to be displayed</p>
                 </div>
               </div>
 
@@ -402,21 +396,19 @@ export default function SettingsPage() {
                 {dateOptions.map((option) => (
                   <motion.button
                     key={option}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
                     onClick={() => setDateFormat(option)}
                     className={`p-4 rounded-lg border-2 transition-all ${
                       dateFormat === option
-                        ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20"
-                        : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                        ? "border-zinc-900 dark:border-zinc-100 bg-zinc-100 dark:bg-zinc-800"
+                        : "border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600"
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="text-left">
-                        <div className="font-semibold text-gray-900 dark:text-white">{option}</div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">{getExampleDate(option)}</div>
+                        <div className="font-semibold text-zinc-900 dark:text-white">{option}</div>
+                        <div className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">{getExampleDate(option)}</div>
                       </div>
-                      {dateFormat === option && <FaCheck className="text-purple-500" />}
+                      {dateFormat === option && <FaCheck className="text-zinc-900 dark:text-zinc-100" />}
                     </div>
                   </motion.button>
                 ))}
@@ -425,13 +417,11 @@ export default function SettingsPage() {
 
             {/* Save Button */}
             <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
               onClick={handleSave}
               className={`w-full py-3 md:py-4 rounded-lg font-semibold text-base md:text-lg transition-all touch-target ${
                 saved
                   ? "bg-green-500 hover:bg-green-600 text-white"
-                  : "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                  : "bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100"
               }`}
             >
               {saved ? (
@@ -449,14 +439,14 @@ export default function SettingsPage() {
         {activeTab === "data" && (
           <div className="space-y-4 md:space-y-6">
             {/* Export Data */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 md:p-6">
+            <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4 md:p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                  <FaDownload className="text-2xl text-blue-600 dark:text-blue-400" />
+                <div className="p-3 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
+                  <FaDownload className="text-2xl text-zinc-600 dark:text-zinc-400" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Export Data</h2>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Download your data as CSV files</p>
+                  <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white">Export Data</h2>
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400">Download your data as CSV files</p>
                 </div>
               </div>
 
@@ -468,11 +458,9 @@ export default function SettingsPage() {
                 ].map(({ type, label, icon: Icon }) => (
                   <motion.button
                     key={type}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
                     onClick={() => handleExportData(type)}
                     disabled={isExporting}
-                    className="px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="px-4 py-3 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200 font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     <Icon className="text-lg" />
                     <span className="text-sm">{label}</span>
@@ -482,14 +470,14 @@ export default function SettingsPage() {
             </div>
 
             {/* Reset Options */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-red-200 dark:border-red-900/50 p-4 md:p-6">
+            <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-red-200 dark:border-red-900/50 p-4 md:p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">
                   <FaTrash className="text-2xl text-red-600 dark:text-red-400" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Reset Data</h2>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Clear your data and start over</p>
+                  <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white">Reset Data</h2>
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400">Clear your data and start over</p>
                 </div>
               </div>
 
@@ -508,8 +496,6 @@ export default function SettingsPage() {
               {!showResetConfirm ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
                     onClick={() => setShowResetConfirm('blank')}
                     className="px-6 py-4 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-all flex flex-col items-center gap-1"
                   >
@@ -519,8 +505,6 @@ export default function SettingsPage() {
                     <span className="text-xs font-normal opacity-80">Delete everything and start fresh</span>
                   </motion.button>
                   <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
                     onClick={() => setShowResetConfirm('defaults')}
                     className="px-6 py-4 bg-orange-600 hover:bg-orange-700 text-white font-semibold rounded-lg transition-all flex flex-col items-center gap-1"
                   >
@@ -532,24 +516,22 @@ export default function SettingsPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <p className="font-semibold text-gray-900 dark:text-white">
+                  <p className="font-semibold text-zinc-900 dark:text-white">
                     {showResetConfirm === 'blank'
                       ? 'This will delete ALL data with nothing re-created.'
                       : 'This will delete ALL data and load default pillars & tasks.'}
                   </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400">
                     Type &quot;DELETE&quot; to confirm:
                   </p>
                   <input
                     type="text"
                     id="confirmDelete"
                     placeholder='Type DELETE to confirm'
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
                   />
                   <div className="flex gap-3">
                     <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
                       onClick={() => {
                         const input = document.getElementById("confirmDelete") as HTMLInputElement;
                         if (input.value === "DELETE") {
@@ -571,10 +553,8 @@ export default function SettingsPage() {
                       }
                     </motion.button>
                     <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
                       onClick={() => setShowResetConfirm(null)}
-                      className="px-6 py-3 bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500 text-gray-900 dark:text-white font-semibold rounded-lg transition-all"
+                      className="px-6 py-3 bg-zinc-300 dark:bg-zinc-600 hover:bg-zinc-400 dark:hover:bg-zinc-500 text-zinc-900 dark:text-white font-semibold rounded-lg transition-all"
                     >
                       Cancel
                     </motion.button>

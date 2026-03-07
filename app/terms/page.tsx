@@ -2,19 +2,19 @@ import Link from "next/link";
 
 export default function TermsOfService() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-950 dark:to-gray-900 p-4 sm:p-8">
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900 p-4 sm:p-8">
       <div className="max-w-4xl mx-auto">
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8">
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+        <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm p-8">
+          <h1 className="text-4xl font-bold text-zinc-900 dark:text-white mb-4">
             Terms of Service
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mb-8">
+          <p className="text-zinc-600 dark:text-zinc-400 mb-8">
             Last updated: February 18, 2026
           </p>
 
-          <div className="space-y-6 text-gray-700 dark:text-gray-300">
+          <div className="space-y-6 text-zinc-700 dark:text-zinc-300">
             <section>
-              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-3">
+              <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-3">
                 1. Acceptance of Terms
               </h2>
               <p>
@@ -24,7 +24,7 @@ export default function TermsOfService() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-3">
+              <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-3">
                 2. Description of Service
               </h2>
               <p>
@@ -40,7 +40,7 @@ export default function TermsOfService() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-3">
+              <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-3">
                 3. User Accounts
               </h2>
               <p className="mb-2">
@@ -58,7 +58,7 @@ export default function TermsOfService() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-3">
+              <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-3">
                 4. Google Account Integration
               </h2>
               <p>
@@ -71,7 +71,7 @@ export default function TermsOfService() {
                   href="https://myaccount.google.com/permissions"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-600 dark:text-blue-400 hover:underline"
+                  className="text-zinc-700 dark:text-zinc-300 underline hover:underline"
                 >
                   Google Account settings
                 </a>.
@@ -79,7 +79,7 @@ export default function TermsOfService() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-3">
+              <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-3">
                 5. User Conduct
               </h2>
               <p className="mb-2">You agree not to:</p>
@@ -93,7 +93,7 @@ export default function TermsOfService() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-3">
+              <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-3">
                 6. Data Ownership
               </h2>
               <p>
@@ -104,7 +104,7 @@ export default function TermsOfService() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-3">
+              <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-3">
                 7. Service Availability
               </h2>
               <p>
@@ -115,7 +115,7 @@ export default function TermsOfService() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-3">
+              <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-3">
                 8. Disclaimer of Warranties
               </h2>
               <p>
@@ -125,7 +125,7 @@ export default function TermsOfService() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-3">
+              <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-3">
                 9. Limitation of Liability
               </h2>
               <p>
@@ -136,7 +136,7 @@ export default function TermsOfService() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-3">
+              <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-3">
                 10. Account Termination
               </h2>
               <p className="mb-2">
@@ -153,7 +153,7 @@ export default function TermsOfService() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-3">
+              <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-3">
                 11. Changes to Terms
               </h2>
               <p>
@@ -164,7 +164,7 @@ export default function TermsOfService() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-3">
+              <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-3">
                 12. Contact Information
               </h2>
               <p>
@@ -174,7 +174,7 @@ export default function TermsOfService() {
                 <strong>Email:</strong>{" "}
                 <a
                   href="mailto:justinabrahamipe@gmail.com"
-                  className="text-blue-600 dark:text-blue-400 hover:underline"
+                  className="text-zinc-700 dark:text-zinc-300 underline hover:underline"
                 >
                   justinabrahamipe@gmail.com
                 </a>
@@ -182,10 +182,10 @@ export default function TermsOfService() {
             </section>
           </div>
 
-          <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+          <div className="mt-8 pt-6 border-t border-zinc-200 dark:border-zinc-700">
             <Link
               href="/"
-              className="text-blue-600 dark:text-blue-400 hover:underline"
+              className="text-zinc-700 dark:text-zinc-300 underline hover:underline"
             >
               &larr; Back to Total Logger
             </Link>

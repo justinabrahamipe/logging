@@ -43,11 +43,11 @@ function getActionIcon(action: string) {
   switch (action) {
     case 'complete': return <FaCheck className="text-green-500" />;
     case 'reverse': return <FaUndo className="text-orange-500" />;
-    case 'add': return <FaPlus className="text-blue-500" />;
+    case 'add': return <FaPlus className="text-zinc-500" />;
     case 'subtract': return <FaMinus className="text-red-500" />;
     case 'adjust': return <FaSlidersH className="text-purple-500" />;
     case 'outcome_log': return <FaBullseye className="text-teal-500" />;
-    default: return <FaCheck className="text-gray-500" />;
+    default: return <FaCheck className="text-zinc-500" />;
   }
 }
 
@@ -91,7 +91,7 @@ export default function ActivityPage() {
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.push("/login");
+      setLoading(false);
       return;
     }
     if (session?.user?.id) {
@@ -168,7 +168,7 @@ export default function ActivityPage() {
   if (loading && entries.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zinc-900 dark:border-zinc-100"></div>
       </div>
     );
   }
@@ -183,14 +183,12 @@ export default function ActivityPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">Activity Log</h1>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Your immutable action history</p>
+            <h1 className="text-3xl md:text-4xl font-bold text-zinc-900 dark:text-white">Activity Log</h1>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">Your immutable action history</p>
           </div>
           <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
             onClick={() => setShowFilters(!showFilters)}
-            className="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg font-medium flex items-center gap-2 border border-gray-200 dark:border-gray-700"
+            className="px-4 py-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-lg font-medium flex items-center gap-2 border border-zinc-200 dark:border-zinc-700"
           >
             <FaFilter className="text-sm" />
             Filters
@@ -204,14 +202,14 @@ export default function ActivityPage() {
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 mb-6 space-y-4"
+            className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4 mb-6 space-y-4"
           >
             {/* Date mode toggle */}
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setUseRange(false)}
                 className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
-                  !useRange ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400' : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300'
+                  !useRange ? 'border-zinc-900 dark:border-zinc-100 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white' : 'border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300'
                 }`}
               >
                 Single Day
@@ -219,7 +217,7 @@ export default function ActivityPage() {
               <button
                 onClick={() => setUseRange(true)}
                 className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
-                  useRange ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400' : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300'
+                  useRange ? 'border-zinc-900 dark:border-zinc-100 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white' : 'border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300'
                 }`}
               >
                 Date Range
@@ -228,32 +226,32 @@ export default function ActivityPage() {
 
             {!useRange ? (
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date</label>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Date</label>
                 <input
                   type="date"
                   value={dateFilter}
                   onChange={e => setDateFilter(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
                 />
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">From</label>
+                  <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">From</label>
                   <input
                     type="date"
                     value={dateFrom}
                     onChange={e => setDateFrom(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">To</label>
+                  <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">To</label>
                   <input
                     type="date"
                     value={dateTo}
                     onChange={e => setDateTo(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
                   />
                 </div>
               </div>
@@ -261,11 +259,11 @@ export default function ActivityPage() {
 
             {/* Pillar filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Pillar</label>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Pillar</label>
               <select
                 value={pillarFilter}
                 onChange={e => setPillarFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
               >
                 <option value="">All Pillars</option>
                 {pillars.map(p => (
@@ -282,12 +280,11 @@ export default function ActivityPage() {
                 onChange={e => setSearch(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSearch()}
                 placeholder="Search by task name..."
-                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                className="flex-1 px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
               />
               <motion.button
-                whileTap={{ scale: 0.95 }}
                 onClick={handleSearch}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg"
+                className="px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg"
               >
                 <FaSearch />
               </motion.button>
@@ -297,7 +294,7 @@ export default function ActivityPage() {
 
         {/* Entries */}
         {entries.length === 0 ? (
-          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+          <div className="text-center py-12 text-zinc-500 dark:text-zinc-400">
             <p className="text-lg mb-2">No activity found</p>
             <p className="text-sm">Complete some tasks to see your activity log</p>
           </div>
@@ -308,11 +305,11 @@ export default function ActivityPage() {
                 key={entry.id}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-200 dark:border-gray-700 px-4 py-3"
+                className="bg-white dark:bg-zinc-800 rounded-xl shadow border border-zinc-200 dark:border-zinc-700 px-4 py-3"
               >
                 <div className="flex items-center gap-3">
                   {/* Action icon */}
-                  <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center flex-shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-700 flex items-center justify-center flex-shrink-0">
                     {getActionIcon(entry.action)}
                   </div>
 
@@ -322,13 +319,13 @@ export default function ActivityPage() {
                       {entry.pillarEmoji && (
                         <span className="text-sm">{entry.pillarEmoji}</span>
                       )}
-                      <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                      <span className="text-sm font-medium text-zinc-900 dark:text-white truncate">
                         {entry.action === 'outcome_log' ? (entry.outcomeName || 'Outcome') : (entry.taskName || 'Unknown Task')}
                       </span>
                       <span className={`text-xs px-1.5 py-0.5 rounded ${
                         entry.action === 'complete' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
                         entry.action === 'reverse' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
-                        entry.action === 'add' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                        entry.action === 'add' ? 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300' :
                         entry.action === 'subtract' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
                         entry.action === 'outcome_log' ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400' :
                         'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
@@ -337,7 +334,7 @@ export default function ActivityPage() {
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    <div className="flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
                       <span>{formatTimestamp(entry.timestamp)}</span>
                       {entry.action === 'outcome_log' && editingId === entry.id ? (
                         <span className="flex items-center gap-1">
@@ -346,16 +343,16 @@ export default function ActivityPage() {
                             step="any"
                             value={editValue}
                             onChange={(e) => setEditValue(e.target.value)}
-                            className="w-20 px-1.5 py-0.5 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            className="w-20 px-1.5 py-0.5 text-xs border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
                             autoFocus
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') handleSaveOutcomeLog(entry);
                               if (e.key === 'Escape') setEditingId(null);
                             }}
                           />
-                          <span className="text-gray-400">{entry.outcomeUnit}</span>
+                          <span className="text-zinc-400">{entry.outcomeUnit}</span>
                           <button onClick={() => handleSaveOutcomeLog(entry)} className="text-green-500 hover:text-green-600"><FaCheck className="text-xs" /></button>
-                          <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-gray-500"><FaTimes className="text-xs" /></button>
+                          <button onClick={() => setEditingId(null)} className="text-zinc-400 hover:text-zinc-500"><FaTimes className="text-xs" /></button>
                         </span>
                       ) : (
                         <>
@@ -364,7 +361,7 @@ export default function ActivityPage() {
                               {entry.outcomeLogValue} {entry.outcomeUnit}
                               <button
                                 onClick={() => { setEditingId(entry.id); setEditValue(String(entry.outcomeLogValue)); }}
-                                className="text-gray-400 hover:text-blue-500"
+                                className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
                               >
                                 <FaEdit className="text-xs" />
                               </button>
@@ -382,14 +379,14 @@ export default function ActivityPage() {
                               {entry.pointsDelta > 0 ? '+' : ''}{entry.pointsDelta.toFixed(1)} pts
                             </span>
                           )}
-                          <span className="text-gray-400 dark:text-gray-500 capitalize">{entry.source}</span>
+                          <span className="text-zinc-400 dark:text-zinc-500 capitalize">{entry.source}</span>
                         </>
                       )}
                     </div>
                   </div>
 
                   {/* Timestamp */}
-                  <div className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
+                  <div className="text-xs text-zinc-400 dark:text-zinc-500 flex-shrink-0">
                     {useRange && formatDate(entry.timestamp)}
                   </div>
                 </div>

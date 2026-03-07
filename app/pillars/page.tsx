@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { FaPlus, FaEdit, FaArchive, FaArrowUp, FaArrowDown } from "react-icons/fa";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { DEMO_PILLARS } from "@/lib/demo-data";
 import {
   LineChart,
   Line,
@@ -51,7 +52,8 @@ export default function PillarsPage() {
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.push("/login");
+      setPillars(DEMO_PILLARS.map(p => ({ ...p, description: p.description })) as Pillar[]);
+      setLoading(false);
       return;
     }
     if (session?.user?.id) {
@@ -166,7 +168,7 @@ export default function PillarsPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zinc-900 dark:border-zinc-100"></div>
       </div>
     );
   }
@@ -181,14 +183,12 @@ export default function PillarsPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">Pillars</h1>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Life areas that matter to you</p>
+            <h1 className="text-3xl md:text-4xl font-bold text-zinc-900 dark:text-white">Pillars</h1>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">Life areas that matter to you</p>
           </div>
           <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
             onClick={() => router.push("/pillars/new")}
-            className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium flex items-center gap-2"
+            className="px-4 py-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 rounded-lg font-medium flex items-center gap-2"
           >
             <FaPlus /> Add Pillar
           </motion.button>
@@ -196,9 +196,9 @@ export default function PillarsPage() {
 
         {/* Weight Distribution + Cycle Selector */}
         {pillars.length > 0 && (
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 mb-6">
+          <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4 mb-6">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400">Weight Distribution</h3>
+              <h3 className="text-sm font-medium text-zinc-600 dark:text-zinc-400">Weight Distribution</h3>
               <div className="flex items-center gap-3">
                 <span className={`text-sm font-bold ${Math.abs(totalWeight - 100) < 1 ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'}`}>
                   {totalWeight}%
@@ -207,7 +207,7 @@ export default function PillarsPage() {
                   <select
                     value={selectedCycleId}
                     onChange={e => setSelectedCycleId(parseInt(e.target.value))}
-                    className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="px-2 py-1 text-xs border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
                   >
                     {cyclesData.map(c => (
                       <option key={c.id} value={c.id}>{c.name}{c.isActive ? ' (Active)' : ''}</option>
@@ -216,7 +216,7 @@ export default function PillarsPage() {
                 )}
               </div>
             </div>
-            <div className="flex h-4 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700">
+            <div className="flex h-4 rounded-full overflow-hidden bg-zinc-200 dark:bg-zinc-700">
               {pillars.map((p) => (
                 <div
                   key={p.id}
@@ -242,16 +242,16 @@ export default function PillarsPage() {
                 layout
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4"
+                className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4"
                 style={{ borderLeftWidth: 4, borderLeftColor: pillar.color }}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <span className="text-2xl">{pillar.emoji}</span>
                     <div>
-                      <h3 className="font-semibold text-gray-900 dark:text-white">{pillar.name}</h3>
+                      <h3 className="font-semibold text-zinc-900 dark:text-white">{pillar.name}</h3>
                       {pillar.description && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{pillar.description}</p>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">{pillar.description}</p>
                       )}
                     </div>
                   </div>
@@ -259,24 +259,24 @@ export default function PillarsPage() {
                     {latestAvg != null && (
                       <span className="text-sm font-bold" style={{ color: pillar.color }}>{latestAvg}%</span>
                     )}
-                    <span className="text-xs text-gray-500 dark:text-gray-400">{pillar.weight}%w</span>
+                    <span className="text-xs text-zinc-500 dark:text-zinc-400">{pillar.weight}%w</span>
                     <button
                       onClick={() => handleReorder(pillar.id, 'up')}
                       disabled={idx === 0}
-                      className="p-1.5 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-30"
+                      className="p-1.5 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 disabled:opacity-30"
                     >
                       <FaArrowUp className="text-xs" />
                     </button>
                     <button
                       onClick={() => handleReorder(pillar.id, 'down')}
                       disabled={idx === pillars.length - 1}
-                      className="p-1.5 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-30"
+                      className="p-1.5 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 disabled:opacity-30"
                     >
                       <FaArrowDown className="text-xs" />
                     </button>
                     <button
                       onClick={() => router.push(`/pillars/${pillar.id}/edit`)}
-                      className="p-1.5 rounded text-blue-500 hover:text-blue-700 dark:hover:text-blue-400"
+                      className="p-1.5 rounded text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-400"
                     >
                       <FaEdit className="text-sm" />
                     </button>
@@ -291,7 +291,7 @@ export default function PillarsPage() {
 
                 {/* Inline performance chart */}
                 {perfLoading && (
-                  <div className="text-center py-3 text-gray-400 text-xs">Loading...</div>
+                  <div className="text-center py-3 text-zinc-400 text-xs">Loading...</div>
                 )}
                 {!perfLoading && hasChartData && (
                   <div className="mt-3">
@@ -333,7 +333,7 @@ export default function PillarsPage() {
                   </div>
                 )}
                 {!perfLoading && !hasChartData && selectedCycleId > 0 && (
-                  <p className="text-gray-400 dark:text-gray-500 text-xs mt-2">No data yet</p>
+                  <p className="text-zinc-400 dark:text-zinc-500 text-xs mt-2">No data yet</p>
                 )}
               </motion.div>
             );
@@ -341,7 +341,7 @@ export default function PillarsPage() {
         </div>
 
         {pillars.length === 0 && (
-          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+          <div className="text-center py-12 text-zinc-500 dark:text-zinc-400">
             <p className="text-lg mb-2">No pillars yet</p>
             <p className="text-sm">Create your first life pillar to get started</p>
           </div>

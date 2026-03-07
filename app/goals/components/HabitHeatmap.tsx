@@ -64,7 +64,7 @@ export default function HabitHeatmap({ startDate, endDate, scheduleDays, doneDat
       <div className="flex gap-0.5">
         <div className="flex flex-col gap-0.5 mr-1">
           {dayLabels.map((label, i) => (
-            <div key={i} className="w-3 h-3 text-[9px] text-gray-400 dark:text-gray-500 flex items-center justify-center">
+            <div key={i} className="w-3 h-3 text-[9px] text-zinc-400 dark:text-zinc-500 flex items-center justify-center">
               {i % 2 === 0 ? label : ''}
             </div>
           ))}
@@ -78,23 +78,23 @@ export default function HabitHeatmap({ startDate, endDate, scheduleDays, doneDat
                   day.status === 'done' ? 'Done' : day.status === 'missed' ? 'Missed' : day.status === 'off' ? 'Off day' : 'Upcoming'
                 }` : ''}
                 className={`w-3 h-3 rounded-sm ${
-                  day.date === '' ? 'bg-gray-200 dark:bg-gray-700' :
+                  day.date === '' ? 'bg-zinc-200 dark:bg-zinc-700' :
                   day.status === 'done' ? 'bg-green-500 dark:bg-green-400' :
                   day.status === 'missed' ? 'bg-red-400 dark:bg-red-500/70' :
-                  day.status === 'off' ? 'bg-gray-200 dark:bg-gray-700' :
-                  'bg-gray-200 dark:bg-gray-700'
+                  day.status === 'off' ? 'bg-zinc-200 dark:bg-zinc-700' :
+                  'bg-zinc-200 dark:bg-zinc-700'
                 }`}
               />
             ))}
           </div>
         ))}
       </div>
-      <div className="flex items-center gap-1.5 mt-2 text-[10px] text-gray-400 dark:text-gray-500">
+      <div className="flex items-center gap-1.5 mt-2 text-[10px] text-zinc-400 dark:text-zinc-500">
         <div className="w-2.5 h-2.5 rounded-sm bg-green-500 dark:bg-green-400" />
         <span>Done</span>
         <div className="w-2.5 h-2.5 rounded-sm bg-red-400 dark:bg-red-500/70 ml-1" />
         <span>Missed</span>
-        <div className="w-2.5 h-2.5 rounded-sm bg-gray-200 dark:bg-gray-700 ml-1" />
+        <div className="w-2.5 h-2.5 rounded-sm bg-zinc-200 dark:bg-zinc-700 ml-1" />
         <span>Upcoming</span>
       </div>
     </div>

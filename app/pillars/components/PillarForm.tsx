@@ -26,10 +26,12 @@ export default function PillarForm({
   editingPillar,
   onCancel,
   onSave,
+  disabled,
 }: {
   editingPillar: Pillar | null;
   onCancel: () => void;
   onSave: (body: Record<string, unknown>, isEdit: boolean) => Promise<void>;
+  disabled?: boolean;
 }) {
   const [form, setForm] = useState({
     name: editingPillar?.name || "",
@@ -54,12 +56,12 @@ export default function PillarForm({
     <div className="space-y-4">
       {/* Name */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
+        <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Name</label>
         <input
           type="text"
           value={form.name}
           onChange={(e) => setForm({ ...form, name: e.target.value })}
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+          className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
           placeholder="e.g., Health & Fitness"
           autoFocus
         />
@@ -68,7 +70,7 @@ export default function PillarForm({
       {/* Emoji + Color side by side */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Emoji</label>
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Emoji</label>
           <div className="flex flex-wrap gap-2">
             {EMOJI_OPTIONS.map((emoji) => (
               <button
@@ -76,8 +78,8 @@ export default function PillarForm({
                 onClick={() => setForm({ ...form, emoji })}
                 className={`w-10 h-10 rounded-lg text-xl flex items-center justify-center ${
                   form.emoji === emoji
-                    ? "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20"
-                    : "bg-gray-100 dark:bg-gray-700"
+                    ? "ring-2 ring-zinc-900 dark:ring-zinc-100 bg-zinc-100 dark:bg-zinc-800"
+                    : "bg-zinc-100 dark:bg-zinc-700"
                 }`}
               >
                 {emoji}
@@ -86,14 +88,14 @@ export default function PillarForm({
           </div>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Color</label>
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Color</label>
           <div className="flex flex-wrap gap-2">
             {COLOR_OPTIONS.map((color) => (
               <button
                 key={color}
                 onClick={() => setForm({ ...form, color })}
                 className={`w-8 h-8 rounded-full ${
-                  form.color === color ? "ring-2 ring-offset-2 ring-blue-500 dark:ring-offset-gray-800" : ""
+                  form.color === color ? "ring-2 ring-offset-2 ring-zinc-900 dark:ring-zinc-100 dark:ring-offset-zinc-800" : ""
                 }`}
                 style={{ backgroundColor: color }}
               />
@@ -105,40 +107,45 @@ export default function PillarForm({
       {/* Weight + Description */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Weight (%)</label>
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Weight (%)</label>
           <input
             type="number"
             min="0"
             max="100"
             value={form.weight}
             onChange={(e) => setForm({ ...form, weight: parseInt(e.target.value) || 0 })}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Description</label>
           <input
             type="text"
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
             placeholder="Optional description"
           />
         </div>
       </div>
 
       {/* Actions */}
+      {disabled && (
+        <p className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg px-4 py-2">
+          You need to sign in to add pillars
+        </p>
+      )}
       <div className="flex gap-3 pt-2 justify-end">
         <button
           onClick={onCancel}
-          className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-medium"
+          className="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-lg font-medium"
         >
           Cancel
         </button>
         <button
           onClick={handleSubmit}
-          disabled={saving}
-          className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg font-medium flex items-center gap-2"
+          disabled={saving || disabled}
+          className="px-6 py-2 bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed text-white dark:text-zinc-900 rounded-lg font-medium flex items-center gap-2"
         >
           <FaCheck /> {editingPillar ? "Update" : "Create"}
         </button>

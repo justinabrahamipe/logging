@@ -35,6 +35,7 @@ export default function GoalForm({
   cycles,
   onCancel,
   onSave,
+  disabled,
 }: {
   editingOutcome: Outcome | null;
   defaultGoalType?: "habitual" | "target" | "outcome";
@@ -42,6 +43,7 @@ export default function GoalForm({
   cycles: CycleOption[];
   onCancel: () => void;
   onSave: (payload: Record<string, unknown>, isEdit: boolean) => Promise<void>;
+  disabled?: boolean;
 }) {
   const [form, setForm] = useState<GoalFormState>(() => {
     if (editingOutcome) {
@@ -175,7 +177,7 @@ export default function GoalForm({
       <div className={`grid gap-3 ${!editingOutcome ? "grid-cols-1 md:grid-cols-[200px_1fr]" : ""}`}>
         {!editingOutcome && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Goal Type</label>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Goal Type</label>
             <select
               value={form.goalType}
               onChange={(e) => {
@@ -186,7 +188,7 @@ export default function GoalForm({
                   completionType: type === "target" ? "count" : type === "outcome" ? "numeric" : prev.completionType,
                 }));
               }}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
             >
               <option value="habitual">Habitual</option>
               <option value="target">Target</option>
@@ -195,12 +197,12 @@ export default function GoalForm({
           </div>
         )}
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Name</label>
           <input
             type="text"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
             placeholder={form.goalType === "habitual" ? "e.g., Go to gym" : form.goalType === "target" ? "e.g., Read 120 chapters" : "e.g., Body Weight"}
           />
         </div>
@@ -209,7 +211,7 @@ export default function GoalForm({
       {/* Tracking Type + Per-session target */}
       {form.goalType !== "outcome" && (
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tracking Type</label>
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Tracking Type</label>
           <div className="flex gap-2 items-center w-full">
             {(form.goalType === "habitual"
               ? (["checkbox", "count", "numeric"] as const)
@@ -221,8 +223,8 @@ export default function GoalForm({
                 onClick={() => setForm({ ...form, completionType: ct })}
                 className={`flex-1 px-3 py-2 text-sm rounded-lg border transition-colors ${
                   form.completionType === ct
-                    ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400"
-                    : "border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
+                    ? "border-zinc-900 dark:border-zinc-100 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white"
+                    : "border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300"
                 }`}
               >
                 {ct === "checkbox" ? "Checkbox" : ct === "count" ? "Count" : "Numeric"}
@@ -234,7 +236,7 @@ export default function GoalForm({
                 step="any"
                 value={form.dailyTarget}
                 onChange={(e) => setForm({ ...form, dailyTarget: e.target.value })}
-                className="w-24 px-2 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-right"
+                className="w-24 px-2 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white text-right"
                 placeholder="/session"
               />
             )}
@@ -249,43 +251,43 @@ export default function GoalForm({
       {form.goalType === "outcome" && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Value</label>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Start Value</label>
             <input
               type="number"
               step="any"
               value={form.startValue}
               onChange={(e) => setForm({ ...form, startValue: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
               placeholder="e.g., 98.6"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Target Value</label>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Target Value</label>
             <input
               type="number"
               step="any"
               value={form.targetValue}
               onChange={(e) => setForm({ ...form, targetValue: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
               placeholder="e.g., 90"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unit</label>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Unit</label>
             <input
               type="text"
               value={form.unit}
               onChange={(e) => setForm({ ...form, unit: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
               placeholder="e.g., kg"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Log Frequency</label>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Log Frequency</label>
             <select
               value={form.logFrequency}
               onChange={(e) => setForm({ ...form, logFrequency: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
             >
               <option value="daily">Daily</option>
               <option value="weekly">Weekly</option>
@@ -298,23 +300,23 @@ export default function GoalForm({
       {form.goalType === "target" && (
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Target Value</label>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Target Value</label>
             <input
               type="number"
               step="any"
               value={form.targetValue}
               onChange={(e) => setForm({ ...form, targetValue: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
               placeholder="e.g., 120"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unit</label>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Unit</label>
             <input
               type="text"
               value={form.unit}
               onChange={(e) => setForm({ ...form, unit: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
               placeholder="e.g., chapters"
             />
           </div>
@@ -325,11 +327,11 @@ export default function GoalForm({
       {(form.goalType === "habitual" || form.goalType === "target") ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Pillar (optional)</label>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Pillar (optional)</label>
             <select
               value={form.pillarId}
               onChange={(e) => setForm({ ...form, pillarId: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
             >
               <option value="">No Pillar</option>
               {pillars.map((p) => (
@@ -338,11 +340,11 @@ export default function GoalForm({
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Repeat</label>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Repeat</label>
             <select
               value={form.frequencyPreset}
               onChange={(e) => setForm({ ...form, frequencyPreset: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
             >
               {FREQUENCY_PRESETS.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -352,11 +354,11 @@ export default function GoalForm({
         </div>
       ) : (
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Pillar (optional)</label>
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Pillar (optional)</label>
           <select
             value={form.pillarId}
             onChange={(e) => setForm({ ...form, pillarId: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
           >
             <option value="">No Pillar</option>
             {pillars.map((p) => (
@@ -368,21 +370,21 @@ export default function GoalForm({
 
       {/* Custom repeat options */}
       {(form.goalType === "habitual" || form.goalType === "target") && form.frequencyPreset === "custom" && (
-        <div className="space-y-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+        <div className="space-y-3 p-3 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Repeat every</label>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Repeat every</label>
             <div className="flex gap-2">
               <input
                 type="number"
                 value={form.repeatInterval}
                 onChange={(e) => setForm({ ...form, repeatInterval: e.target.value })}
-                className="w-20 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                className="w-20 px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
                 min="1"
               />
               <select
                 value={form.repeatUnit}
                 onChange={(e) => setForm({ ...form, repeatUnit: e.target.value as "days" | "weeks" | "months" })}
-                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                className="flex-1 px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
               >
                 {REPEAT_UNITS.map((u) => (
                   <option key={u.value} value={u.value}>
@@ -394,7 +396,7 @@ export default function GoalForm({
           </div>
           {form.repeatUnit === "weeks" && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Repeat on</label>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Repeat on</label>
               <div className="flex gap-1">
                 {DAY_NAMES.map((day, idx) => (
                   <button
@@ -403,8 +405,8 @@ export default function GoalForm({
                     onClick={() => toggleCustomDay(idx)}
                     className={`flex-1 py-2 text-xs rounded-lg border transition-colors ${
                       form.customDays.includes(idx)
-                        ? "border-blue-500 bg-blue-500 text-white"
-                        : "border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
+                        ? "border-zinc-900 dark:border-zinc-100 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900"
+                        : "border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300"
                     }`}
                   >
                     {day}
@@ -415,11 +417,11 @@ export default function GoalForm({
           )}
           {form.repeatUnit === "months" && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">On day</label>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">On day</label>
               <select
                 value={form.monthDay}
                 onChange={(e) => setForm({ ...form, monthDay: parseInt(e.target.value) })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
               >
                 {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
                   <option key={d} value={d}>{d}</option>
@@ -433,7 +435,7 @@ export default function GoalForm({
       {/* Row 4: Cycle + Start Date + Target Date */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Goal Cycle (required)</label>
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Goal Cycle (required)</label>
           <select
             value={form.periodId}
             onChange={(e) => {
@@ -446,7 +448,7 @@ export default function GoalForm({
                 targetDate: cycle ? cycle.endDate : form.targetDate,
               });
             }}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
           >
             <option value="">None</option>
             {cycles.map((c) => (
@@ -455,21 +457,21 @@ export default function GoalForm({
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date</label>
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Start Date</label>
           <input
             type="date"
             value={form.startDate}
             onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Target Date</label>
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Target Date</label>
           <input
             type="date"
             value={form.targetDate}
             onChange={(e) => setForm({ ...form, targetDate: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
           />
         </div>
       </div>
@@ -480,7 +482,7 @@ export default function GoalForm({
           <label className="flex items-center gap-2 cursor-pointer mr-auto">
             <div
               className={`relative w-10 h-6 rounded-full transition-colors ${
-                form.autoCreateTasks ? "bg-blue-600" : "bg-gray-300 dark:bg-gray-600"
+                form.autoCreateTasks ? "bg-zinc-900 dark:bg-zinc-100" : "bg-zinc-300 dark:bg-zinc-600"
               }`}
               onClick={() => setForm((prev) => ({ ...prev, autoCreateTasks: !prev.autoCreateTasks }))}
             >
@@ -490,20 +492,25 @@ export default function GoalForm({
                 }`}
               />
             </div>
-            <span className="text-sm text-gray-700 dark:text-gray-300">Auto-create task</span>
+            <span className="text-sm text-zinc-700 dark:text-zinc-300">Auto-create task</span>
           </label>
+        )}
+        {disabled && (
+          <p className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg px-4 py-2">
+            You need to sign in to add goals
+          </p>
         )}
         <div className="flex gap-3 ml-auto">
           <button
             onClick={onCancel}
-            className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-medium"
+            className="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-lg font-medium"
           >
             Cancel
           </button>
           <button
             onClick={handleSubmit}
-            disabled={saving}
-            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg font-medium flex items-center gap-2"
+            disabled={saving || disabled}
+            className="px-6 py-2 bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed text-white dark:text-zinc-900 rounded-lg font-medium flex items-center gap-2"
           >
             <FaCheck /> {editingOutcome ? "Update" : "Create"}
           </button>

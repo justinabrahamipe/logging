@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { db, pillars } from "@/lib/db";
+import { db, pillars, tasks, taskCompletions, outcomes, outcomeLogs, dailyScores, userStats, activityLog } from "@/lib/db";
 import { eq, sql } from "drizzle-orm";
 import { seedDefaultData } from "@/lib/seed-data";
 
@@ -23,4 +23,25 @@ export async function POST() {
   await seedDefaultData(session.user.id);
 
   return NextResponse.json({ success: true, message: "Default data seeded successfully" });
+}
+
+export async function DELETE() {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const userId = session.user.id;
+
+  // Delete in order respecting foreign keys
+  await db.delete(activityLog).where(eq(activityLog.userId, userId));
+  await db.delete(taskCompletions).where(eq(taskCompletions.userId, userId));
+  await db.delete(outcomeLogs).where(eq(outcomeLogs.userId, userId));
+  await db.delete(dailyScores).where(eq(dailyScores.userId, userId));
+  await db.delete(tasks).where(eq(tasks.userId, userId));
+  await db.delete(outcomes).where(eq(outcomes.userId, userId));
+  await db.delete(pillars).where(eq(pillars.userId, userId));
+  await db.delete(userStats).where(eq(userStats.userId, userId));
+
+  return NextResponse.json({ success: true, message: "All data cleared" });
 }

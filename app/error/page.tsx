@@ -25,10 +25,10 @@ function ErrorContent() {
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
-      <Card className="w-full max-w-md rounded-xl shadow-lg">
+      <Card className="w-full max-w-md rounded-xl shadow-sm">
         <CardContent className="text-center p-6 md:p-8">
-          <h1 className="mb-4 text-xl md:text-2xl font-bold text-gray-900 dark:text-white">Authentication Error</h1>
-          <p className="text-gray-600 dark:text-gray-400 mb-6 text-sm md:text-base">
+          <h1 className="mb-4 text-xl md:text-2xl font-bold text-zinc-900 dark:text-white">Authentication Error</h1>
+          <p className="text-zinc-600 dark:text-zinc-400 mb-6 text-sm md:text-base">
             {getErrorMessage(error)}
           </p>
           <Link href="/login" passHref>
@@ -52,9 +52,9 @@ export default function ErrorPage() {
     <Suspense
       fallback={
         <div className="flex min-h-screen items-center justify-center px-4">
-          <Card className="w-full max-w-md rounded-xl shadow-lg">
+          <Card className="w-full max-w-md rounded-xl shadow-sm">
             <CardContent className="text-center p-6 md:p-8">
-              <h1 className="mb-4 text-xl md:text-2xl font-bold text-gray-900 dark:text-white">Loading...</h1>
+              <h1 className="mb-4 text-xl md:text-2xl font-bold text-zinc-900 dark:text-white">Loading...</h1>
             </CardContent>
           </Card>
         </div>

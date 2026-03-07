@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Header from "./(common)/Header";
+import DemoBanner from "./(common)/DemoBanner";
 import HighlightsBanner from "./(common)/HighlightsBanner";
 import Footer from "./(common)/Footer";
 import { Providers } from "./providers";
@@ -88,6 +89,7 @@ export default async function RootLayout({
           <MuiThemeProvider>
             <Providers session={session}>
               <Header />
+              <DemoBanner />
               <HighlightsBanner />
               <main className="flex-1">{children}</main>
               <Footer />

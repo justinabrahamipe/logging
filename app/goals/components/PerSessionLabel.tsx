@@ -15,7 +15,7 @@ export default function PerSessionLabel({ form }: { form: { targetValue: string;
     : 0;
   const perSession = days > 0 ? Math.ceil(total / days) : 0;
   return (
-    <span className="flex-1 px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 text-center text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700/50">
+    <span className="flex-1 px-3 py-2 text-sm rounded-lg border border-zinc-300 dark:border-zinc-600 text-center text-zinc-700 dark:text-zinc-300 bg-zinc-50 dark:bg-zinc-700/50">
       {perSession > 0 ? <>{perSession} {form.unit || ''}/session</> : '—/session'}
     </span>
   );
