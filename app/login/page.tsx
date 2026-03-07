@@ -29,9 +29,8 @@ export default function LoginPage() {
         alignItems: "center",
         justifyContent: "center",
         px: 2,
-        background: "linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)",
       }}
-      className="dark:from-gray-900 dark:to-gray-950"
+      className="bg-zinc-50 dark:bg-zinc-900"
     >
       <Card
         sx={{
@@ -73,11 +72,11 @@ export default function LoginPage() {
             sx={{ display: "block", textAlign: "center", mt: 3 }}
           >
             By signing in, you agree to our{" "}
-            <a href="/terms" className="text-blue-600 dark:text-blue-400 hover:underline">
+            <a href="/terms" className="text-zinc-900 dark:text-white hover:underline">
               terms of service
             </a>{" "}
             and{" "}
-            <a href="/privacy" className="text-blue-600 dark:text-blue-400 hover:underline">
+            <a href="/privacy" className="text-zinc-900 dark:text-white hover:underline">
               privacy policy
             </a>.
           </Typography>

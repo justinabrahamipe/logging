@@ -38,7 +38,8 @@ export default function GoalCard({
   getProgress: (o: Outcome) => number;
   today: string;
   taskCompletionDates: Record<number, string[]>;
-  onAddTask: (outcome: Outcome) => void;
+  onAddTask: (o: Outcome) => void;
+  onQuickLog: (o: Outcome) => void;
 }) {
   const router = useRouter();
   const progress = getProgress(outcome);
@@ -90,14 +91,14 @@ export default function GoalCard({
       layout
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 cursor-pointer hover:shadow-xl transition-shadow"
+      className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4 cursor-pointer hover:shadow transition-shadow"
       style={{ borderLeftWidth: 4, borderLeftColor: color }}
       onClick={() => router.push(`/goals/${outcome.id}`)}
     >
       <div className="flex items-center justify-between">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <h3 className="font-semibold text-gray-900 dark:text-white truncate">{outcome.name}</h3>
+            <h3 className="font-semibold text-zinc-900 dark:text-white truncate">{outcome.name}</h3>
             {!isActivityGoal && (
               outcome.direction === "decrease" ? (
                 <FaArrowDown className="text-xs text-green-500 shrink-0" />
@@ -108,14 +109,14 @@ export default function GoalCard({
             {isActivityGoal && effortMetrics && (
               <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${
                 effortMetrics.status === 'ahead' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                effortMetrics.status === 'on_track' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                effortMetrics.status === 'on_track' ? 'bg-zinc-100 text-zinc-700 dark:bg-zinc-900/30 dark:text-zinc-400' :
                 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
               }`}>
                 {effortMetrics.status === 'ahead' ? 'Ahead' : effortMetrics.status === 'on_track' ? 'On track' : 'Behind'}
               </span>
             )}
           </div>
-          <div className="flex items-center gap-3 mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+          <div className="flex items-center gap-3 mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
             {isHabitual ? (
               <>
                 {outcome.dailyTarget ? <span>{outcome.dailyTarget} {outcome.unit}/session</span> : <span>{outcome.unit}</span>}
@@ -123,32 +124,36 @@ export default function GoalCard({
                   {streak} day streak
                 </span>
               </>
-            ) : (
+            ) : isActivityGoal ? (
               <>
                 <span>{outcome.currentValue} / {outcome.targetValue} {outcome.unit}</span>
                 <span className="font-medium">{Math.round(progress)}%</span>
                 {effortMetrics && (
-                  <span className="text-xs">{effortMetrics.currentRate}/day</span>
+                  <span className="text-xs text-zinc-400 dark:text-zinc-500">· {effortMetrics.dailyTarget} {outcome.unit}/day</span>
                 )}
+              </>
+            ) : (
+              <>
+                <span>{outcome.currentValue} / {outcome.targetValue} {outcome.unit}</span>
+                <span className="font-medium">{Math.round(progress)}%</span>
               </>
             )}
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
-          {isHabitual && (
-            <motion.button
-              whileTap={{ scale: 0.9 }}
-              onClick={() => onAddTask(outcome)}
-              className="w-8 h-8 rounded-lg border-2 border-blue-400 dark:border-blue-500 flex items-center justify-center text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
-              title="Add task for today"
-            >
-              <FaPlus className="text-xs" />
-            </motion.button>
-          )}
+          <motion.button
+            onClick={() => {
+              openLogModal(outcome);
+            }}
+            className="w-8 h-8 rounded-lg border-2 border-zinc-400 dark:border-zinc-500 flex items-center justify-center text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            title={isHabitual ? "Add task for today" : "Log progress"}
+          >
+            <FaPlus className="text-xs" />
+          </motion.button>
           <div className="relative">
             <button
               onClick={() => setMenuOpen(menuOpen === outcome.id ? null : outcome.id)}
-              className="p-2 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              className="p-2 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
             >
               <FaEllipsisV className="text-sm" />
             </button>
@@ -158,11 +163,11 @@ export default function GoalCard({
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  className="absolute right-0 top-8 w-44 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-20 overflow-hidden"
+                  className="absolute right-0 top-8 w-44 bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-700 z-20 overflow-hidden"
                 >
                   <button
                     onClick={() => openLogModal(outcome)}
-                    className="w-full px-4 py-2.5 text-left text-sm flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    className="w-full px-4 py-2.5 text-left text-sm flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700"
                   >
                     <FaClipboardList /> Log Progress
                   </button>
@@ -171,7 +176,7 @@ export default function GoalCard({
                       setMenuOpen(null);
                       router.push(`/goals/${outcome.id}/edit`);
                     }}
-                    className="w-full px-4 py-2.5 text-left text-sm flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    className="w-full px-4 py-2.5 text-left text-sm flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700"
                   >
                     <FaEdit /> Edit
                   </button>

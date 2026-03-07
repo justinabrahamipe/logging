@@ -20,31 +20,23 @@ interface Outcome {
   goalType: string;
 }
 
-interface Cycle {
-  id: number;
-  name: string;
-  isActive: boolean;
-}
-
 export default function NewTaskPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [pillars, setPillars] = useState<Pillar[]>([]);
   const [outcomes, setOutcomes] = useState<Outcome[]>([]);
-  const [cycles, setCycles] = useState<Cycle[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.push("/login");
+      setLoading(false);
       return;
     }
     if (session?.user?.id) {
       Promise.all([
         fetch("/api/pillars").then((r) => (r.ok ? r.json() : [])),
         fetch("/api/outcomes").then((r) => (r.ok ? r.json() : [])),
-        fetch("/api/cycles").then((r) => (r.ok ? r.json() : [])),
-      ]).then(([p, o, c]) => {
+      ]).then(([p, o]) => {
         setPillars(p);
         setOutcomes(
           o.map((x: Outcome & { pillarId: number | null; goalType: string }) => ({
@@ -54,7 +46,6 @@ export default function NewTaskPage() {
             goalType: x.goalType || "outcome",
           }))
         );
-        setCycles(c.map((x: Cycle) => ({ id: x.id, name: x.name, isActive: x.isActive })));
         setLoading(false);
       });
     }
@@ -74,7 +65,7 @@ export default function NewTaskPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zinc-600"></div>
       </div>
     );
   }
@@ -84,20 +75,20 @@ export default function NewTaskPage() {
       <div className="flex items-center gap-3 mb-6">
         <button
           onClick={() => router.push("/tasks")}
-          className="p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+          className="p-2 rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700"
         >
           <FaArrowLeft />
         </button>
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">New Task</h1>
+        <h1 className="text-2xl md:text-3xl font-bold text-zinc-900 dark:text-white">New Task</h1>
       </div>
 
       <TaskForm
         editingTask={null}
         pillars={pillars}
         outcomes={outcomes}
-        cycles={cycles}
         onCancel={() => router.push("/tasks")}
         onSave={handleSave}
+        disabled={status !== "authenticated"}
       />
     </div>
   );

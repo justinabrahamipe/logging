@@ -2,15 +2,20 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaPlus } from "react-icons/fa";
+import { Snackbar, Alert as MuiAlert } from "@mui/material";
 import { useGoals } from "./hooks/useGoals";
 import { Outcome } from "./types";
 import GoalCard from "./components/GoalCard";
 import LogModal from "./components/LogModal";
 
 export default function GoalsPage() {
+  const { status } = useSession();
   const router = useRouter();
+  const [authSnackbar, setAuthSnackbar] = useState(false);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: "success" | "error" | "info" }>({ open: false, message: "", severity: "info" });
   const {
     allOutcomes,
     loading,
@@ -35,6 +40,7 @@ export default function GoalsPage() {
   const [logTarget, setLogTarget] = useState<Outcome | null>(null);
 
   const openLogModal = (outcome: Outcome) => {
+    if (status !== "authenticated") { setAuthSnackbar(true); return; }
     setLogTarget(outcome);
     setMenuOpen(null);
   };
@@ -47,9 +53,39 @@ export default function GoalsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ value, note, loggedAt: logDate }),
       });
-      if (res.ok) await fetchOutcomes();
+      if (res.ok) {
+        // Also create an ad-hoc task and mark it completed
+        const taskRes = await fetch("/api/tasks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: `${logTarget.name}${note ? ` - ${note}` : ""}`,
+            pillarId: logTarget.pillarId || null,
+            completionType: logTarget.completionType || "numeric",
+            target: value,
+            unit: logTarget.unit || null,
+            frequency: "adhoc",
+            outcomeId: logTarget.id,
+            basePoints: 10,
+            startDate: logDate || today,
+          }),
+        });
+        if (taskRes.ok) {
+          const task = await taskRes.json();
+          await fetch("/api/tasks/complete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ taskId: task.id, date: logDate || today, completed: true, value }),
+          });
+        }
+        await fetchOutcomes();
+        setSnackbar({ open: true, message: "Progress logged successfully", severity: "success" });
+      } else {
+        setSnackbar({ open: true, message: "Failed to log progress", severity: "error" });
+      }
     } catch (error) {
       console.error("Failed to log progress:", error);
+      setSnackbar({ open: true, message: "Failed to log progress", severity: "error" });
     }
     setLogTarget(null);
   };
@@ -81,7 +117,7 @@ export default function GoalsPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zinc-900 dark:border-white"></div>
       </div>
     );
   }
@@ -96,14 +132,12 @@ export default function GoalsPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">Goals</h1>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Track effort-based and outcome-based goals</p>
+            <h1 className="text-3xl md:text-4xl font-bold text-zinc-900 dark:text-white">Goals</h1>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">Track effort-based and outcome-based goals</p>
           </div>
           <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
             onClick={() => router.push("/goals/new")}
-            className="p-2 md:px-4 md:py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium flex items-center gap-2"
+            className="p-2 md:px-4 md:py-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 rounded-lg font-medium flex items-center gap-2"
           >
             <FaPlus /> <span className="hidden md:inline">Add Goal</span>
           </motion.button>
@@ -122,8 +156,8 @@ export default function GoalsPage() {
                 onClick={() => setGoalTab(key)}
                 className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
                   goalTab === key
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                    ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900"
+                    : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
                 }`}
               >
                 {label}
@@ -133,7 +167,7 @@ export default function GoalsPage() {
           <select
             value={goalTab}
             onChange={(e) => setGoalTab(e.target.value as "habitual" | "target" | "outcome")}
-            className="md:hidden px-3 py-2 text-sm font-semibold rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+            className="md:hidden px-3 py-2 text-sm font-semibold rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white"
           >
             <option value="habitual">Habitual</option>
             <option value="target">Target</option>
@@ -151,8 +185,8 @@ export default function GoalsPage() {
                 onClick={() => setTimeTab(key)}
                 className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
                   timeTab === key
-                    ? "bg-gray-700 dark:bg-gray-600 text-white"
-                    : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                    ? "bg-zinc-700 dark:bg-zinc-600 text-white"
+                    : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
                 }`}
               >
                 {label} {timeCounts[key] > 0 && <span className="ml-1 opacity-70">({timeCounts[key]})</span>}
@@ -162,7 +196,7 @@ export default function GoalsPage() {
           <select
             value={timeTab}
             onChange={(e) => setTimeTab(e.target.value as "current" | "future" | "past")}
-            className="md:hidden px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+            className="md:hidden px-3 py-2 text-sm font-medium rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white"
           >
             <option value="current">Current {timeCounts.current > 0 ? `(${timeCounts.current})` : ''}</option>
             <option value="future">Future {timeCounts.future > 0 ? `(${timeCounts.future})` : ''}</option>
@@ -196,7 +230,8 @@ export default function GoalsPage() {
                       getProgress={getProgress}
                       today={today}
                       taskCompletionDates={taskCompletionDates}
-                      onAddTask={handleAddTaskForToday}
+                      onAddTask={async (o) => { if (status !== "authenticated") { setAuthSnackbar(true); return; } const ok = await handleAddTaskForToday(o); setSnackbar({ open: true, message: ok ? "Task added and completed" : "Failed to add task", severity: ok ? "success" : "error" }); }}
+                      onQuickLog={openLogModal}
                     />
                   ))}
                 </div>
@@ -204,7 +239,7 @@ export default function GoalsPage() {
             );
           })
         ) : (
-          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+          <div className="text-center py-12 text-zinc-500 dark:text-zinc-400">
             <p className="text-lg mb-2">No {timeTab} {goalTab} goals</p>
             <p className="text-sm">
               {timeTab === "current" && `Create a ${goalTab} goal to see it here`}
@@ -225,6 +260,28 @@ export default function GoalsPage() {
           )}
         </AnimatePresence>
       </motion.div>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <MuiAlert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} variant="filled" sx={{ width: "100%" }}>
+          {snackbar.message}
+        </MuiAlert>
+      </Snackbar>
+
+      <Snackbar
+        open={authSnackbar}
+        autoHideDuration={3000}
+        onClose={() => setAuthSnackbar(false)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <MuiAlert onClose={() => setAuthSnackbar(false)} severity="info" variant="filled" sx={{ width: "100%" }}>
+          Sign in to track your goals
+        </MuiAlert>
+      </Snackbar>
     </div>
   );
 }

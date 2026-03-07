@@ -78,7 +78,7 @@ interface SavedReport {
 function getTierColor(score: number): string {
   if (score >= 95) return "#FFD700";
   if (score >= 85) return "#22C55E";
-  if (score >= 70) return "#3B82F6";
+  if (score >= 70) return "#71717A";
   if (score >= 50) return "#F59E0B";
   if (score >= 30) return "#F97316";
   return "#EF4444";
@@ -115,7 +115,7 @@ export default function ReportsPage() {
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.push("/login");
+      // allow viewing empty state
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
@@ -217,7 +217,7 @@ export default function ReportsPage() {
   if (loading && !report) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zinc-900 dark:border-zinc-100"></div>
       </div>
     );
   }
@@ -233,18 +233,18 @@ export default function ReportsPage() {
       >
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+          <h1 className="text-3xl md:text-4xl font-bold text-zinc-900 dark:text-white mb-4">
             Reports
           </h1>
 
           {/* Live vs Saved Toggle */}
-          <div className="flex gap-1 mb-4 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 w-fit">
+          <div className="flex gap-1 mb-4 bg-zinc-100 dark:bg-zinc-800 rounded-lg p-1 w-fit">
             <button
               onClick={() => setTab("live")}
               className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
                 tab === "live"
-                  ? "bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm"
-                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                  ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm"
+                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
               }`}
             >
               Live
@@ -253,8 +253,8 @@ export default function ReportsPage() {
               onClick={() => { setTab("saved"); fetchSavedReports(); }}
               className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center gap-1 ${
                 tab === "saved"
-                  ? "bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm"
-                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                  ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm"
+                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
               }`}
             >
               <FaHistory className="text-xs" /> Saved
@@ -267,8 +267,8 @@ export default function ReportsPage() {
               onClick={() => setType("weekly")}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                 type === "weekly"
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                  ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900"
+                  : "bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-600"
               }`}
             >
               Weekly
@@ -277,8 +277,8 @@ export default function ReportsPage() {
               onClick={() => setType("monthly")}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                 type === "monthly"
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                  ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900"
+                  : "bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-600"
               }`}
             >
               Monthly
@@ -290,11 +290,11 @@ export default function ReportsPage() {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => navigatePeriod("prev")}
-                className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                className="p-2 rounded-lg bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-600 transition-colors"
               >
                 <FaChevronLeft />
               </button>
-              <span className="text-lg font-medium text-gray-900 dark:text-white min-w-[200px] text-center">
+              <span className="text-lg font-medium text-zinc-900 dark:text-white min-w-[200px] text-center">
                 {report ? formatDateRange(report.dateRange.start, report.dateRange.end) : "..."}
               </span>
               <button
@@ -302,8 +302,8 @@ export default function ReportsPage() {
                 disabled={isCurrentPeriod}
                 className={`p-2 rounded-lg transition-colors ${
                   isCurrentPeriod
-                    ? "bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed"
-                    : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                    ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600 cursor-not-allowed"
+                    : "bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-600"
                 }`}
               >
                 <FaChevronRight />
@@ -317,34 +317,34 @@ export default function ReportsPage() {
           <div className="space-y-3">
             {savedLoading ? (
               <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-zinc-900 dark:border-zinc-100"></div>
               </div>
             ) : savedReports.length === 0 ? (
-              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-8 text-center">
-                <p className="text-lg text-gray-500 dark:text-gray-400">No saved reports yet</p>
-                <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">Reports are auto-generated weekly on Mondays and monthly on the 1st</p>
+              <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-8 text-center">
+                <p className="text-lg text-zinc-500 dark:text-zinc-400">No saved reports yet</p>
+                <p className="text-sm text-zinc-400 dark:text-zinc-500 mt-1">Reports are auto-generated weekly on Mondays and monthly on the 1st</p>
               </div>
             ) : (
               savedReports.map((saved) => (
                 <button
                   key={saved.id}
                   onClick={() => loadSavedReport(saved)}
-                  className="w-full text-left bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 hover:border-blue-400 dark:hover:border-blue-500 transition-colors"
+                  className="w-full text-left bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4 hover:border-zinc-400 dark:hover:border-zinc-500 transition-colors"
                 >
                   <div className="flex items-center justify-between">
                     <div>
                       <span className={`text-xs font-medium px-2 py-0.5 rounded ${
                         saved.type === "weekly"
-                          ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                          ? "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
                           : "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"
                       }`}>
                         {saved.type === "weekly" ? "Weekly" : "Monthly"}
                       </span>
-                      <span className="ml-2 text-sm font-medium text-gray-900 dark:text-white">
+                      <span className="ml-2 text-sm font-medium text-zinc-900 dark:text-white">
                         {formatDateRange(saved.periodStart, saved.periodEnd)}
                       </span>
                     </div>
-                    <span className="text-xs text-gray-400 dark:text-gray-500">
+                    <span className="text-xs text-zinc-400 dark:text-zinc-500">
                       Generated {new Date(saved.generatedAt).toLocaleDateString()}
                     </span>
                   </div>
@@ -357,14 +357,14 @@ export default function ReportsPage() {
         {/* Loading overlay for period changes */}
         {tab === "live" && loading && report && (
           <div className="flex justify-center py-4 mb-4">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-zinc-900 dark:border-zinc-100"></div>
           </div>
         )}
 
         {/* Empty State */}
         {tab === "live" && !hasData && !loading && (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-8 text-center">
-            <p className="text-lg text-gray-500 dark:text-gray-400">
+          <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-8 text-center">
+            <p className="text-lg text-zinc-500 dark:text-zinc-400">
               No data for this period. Try navigating to a different date range.
             </p>
           </div>
@@ -377,11 +377,11 @@ export default function ReportsPage() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.05 }}
-              className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 mb-6"
+              className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-6 mb-6"
             >
               <div className="flex items-center gap-2 mb-4">
                 <FaBolt className="text-2xl text-yellow-500" />
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Summary</h2>
+                <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">Summary</h2>
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
@@ -393,7 +393,7 @@ export default function ReportsPage() {
                   >
                     {report.summary.avgScore}%
                   </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">Avg Score</div>
+                  <div className="text-sm text-zinc-500 dark:text-zinc-400">Avg Score</div>
                 </div>
 
                 {/* Passing Days */}
@@ -401,17 +401,17 @@ export default function ReportsPage() {
                   <div className="text-4xl font-bold text-green-500">
                     {report.summary.passingDays}
                   </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                  <div className="text-sm text-zinc-500 dark:text-zinc-400">
                     / {report.dailyScores.length} Passing
                   </div>
                 </div>
 
                 {/* Best Day */}
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-500">
+                  <div className="text-2xl font-bold text-zinc-700 dark:text-zinc-300">
                     {report.summary.bestDay.score}%
                   </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                  <div className="text-sm text-zinc-500 dark:text-zinc-400">
                     Best ({formatDate(report.summary.bestDay.date)})
                   </div>
                 </div>
@@ -421,7 +421,7 @@ export default function ReportsPage() {
                   <div className="text-2xl font-bold text-orange-500">
                     {report.summary.worstDay.score}%
                   </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                  <div className="text-sm text-zinc-500 dark:text-zinc-400">
                     Worst ({formatDate(report.summary.worstDay.date)})
                   </div>
                 </div>
@@ -433,9 +433,9 @@ export default function ReportsPage() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 mb-6"
+              className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-6 mb-6"
             >
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+              <h2 className="text-xl font-semibold text-zinc-900 dark:text-white mb-4">
                 Score Trend
               </h2>
               {chartData.length > 0 ? (
@@ -483,7 +483,7 @@ export default function ReportsPage() {
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
-                <p className="text-gray-500 dark:text-gray-400 text-sm text-center py-8">
+                <p className="text-zinc-500 dark:text-zinc-400 text-sm text-center py-8">
                   No score data for this period.
                 </p>
               )}
@@ -495,9 +495,9 @@ export default function ReportsPage() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.15 }}
-                className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 mb-6"
+                className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-6 mb-6"
               >
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                <h2 className="text-xl font-semibold text-zinc-900 dark:text-white mb-4">
                   Pillar Averages
                 </h2>
                 <ResponsiveContainer width="100%" height={pillarChartData.length * 50 + 20}>
@@ -547,9 +547,9 @@ export default function ReportsPage() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
-                className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 mb-6"
+                className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-6 mb-6"
               >
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                <h2 className="text-xl font-semibold text-zinc-900 dark:text-white mb-4">
                   Top Tasks
                 </h2>
                 <div className="space-y-3">
@@ -558,14 +558,14 @@ export default function ReportsPage() {
                       <span className="text-lg">{task.pillarEmoji}</span>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
+                          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300 truncate">
                             {task.name}
                           </span>
-                          <span className="text-sm font-bold text-gray-900 dark:text-white ml-2">
+                          <span className="text-sm font-bold text-zinc-900 dark:text-white ml-2">
                             {task.completionRate}%
                           </span>
                         </div>
-                        <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div className="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
                           <motion.div
                             initial={{ width: 0 }}
                             animate={{ width: `${task.completionRate}%` }}
@@ -586,9 +586,9 @@ export default function ReportsPage() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.25 }}
-                className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 mb-6"
+                className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-6 mb-6"
               >
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                <h2 className="text-xl font-semibold text-zinc-900 dark:text-white mb-4">
                   Most Skipped Tasks
                 </h2>
                 <div className="space-y-3">
@@ -597,14 +597,14 @@ export default function ReportsPage() {
                       <span className="text-lg">{task.pillarEmoji}</span>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
+                          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300 truncate">
                             {task.name}
                           </span>
-                          <span className="text-sm font-bold text-gray-900 dark:text-white ml-2">
+                          <span className="text-sm font-bold text-zinc-900 dark:text-white ml-2">
                             {task.completionRate}%
                           </span>
                         </div>
-                        <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div className="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
                           <motion.div
                             initial={{ width: 0 }}
                             animate={{ width: `${task.completionRate}%` }}
@@ -625,9 +625,9 @@ export default function ReportsPage() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
-                className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 mb-6"
+                className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-6 mb-6"
               >
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                <h2 className="text-xl font-semibold text-zinc-900 dark:text-white mb-4">
                   Outcome Progress
                 </h2>
                 <div className="space-y-4">
@@ -640,7 +640,7 @@ export default function ReportsPage() {
                     return (
                       <div
                         key={i}
-                        className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700 last:border-0"
+                        className="flex items-center justify-between py-2 border-b border-zinc-100 dark:border-zinc-700 last:border-0"
                       >
                         <div className="flex items-center gap-3">
                           <div
@@ -648,10 +648,10 @@ export default function ReportsPage() {
                             style={{ backgroundColor: outcome.pillarColor || "#6B7280" }}
                           />
                           <div>
-                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                               {outcome.name}
                             </span>
-                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                            <div className="text-xs text-zinc-500 dark:text-zinc-400">
                               {outcome.startOfPeriod} → {outcome.endOfPeriod} {outcome.unit}
                             </div>
                           </div>
@@ -673,7 +673,7 @@ export default function ReportsPage() {
                               </span>
                             </>
                           ) : (
-                            <span className="text-sm text-gray-400">No change</span>
+                            <span className="text-sm text-zinc-400">No change</span>
                           )}
                         </div>
                       </div>
@@ -691,30 +691,30 @@ export default function ReportsPage() {
               className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6"
             >
               {/* XP Earned */}
-              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 text-center">
+              <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-6 text-center">
                 <FaTrophy className="text-3xl text-purple-500 mx-auto mb-2" />
                 <div className="text-3xl font-bold text-purple-600 dark:text-purple-400">
                   {report.summary.totalXpEarned}
                 </div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">XP Earned</div>
+                <div className="text-sm text-zinc-500 dark:text-zinc-400">XP Earned</div>
               </div>
 
               {/* Current Streak */}
-              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 text-center">
+              <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-6 text-center">
                 <FaFire className="text-3xl text-orange-500 mx-auto mb-2" />
                 <div className="text-3xl font-bold text-orange-500">
                   {report.summary.currentStreak}
                 </div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">Current Streak</div>
+                <div className="text-sm text-zinc-500 dark:text-zinc-400">Current Streak</div>
               </div>
 
               {/* Best Streak */}
-              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 text-center">
+              <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-6 text-center">
                 <FaStar className="text-3xl text-yellow-500 mx-auto mb-2" />
                 <div className="text-3xl font-bold text-yellow-500">
                   {report.summary.bestStreak}
                 </div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">Best Streak</div>
+                <div className="text-sm text-zinc-500 dark:text-zinc-400">Best Streak</div>
               </div>
             </motion.div>
           </>

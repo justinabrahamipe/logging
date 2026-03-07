@@ -3,21 +3,20 @@
 @tailwind utilities;
 
 :root {
-  --background: #f8fafc;
-  --foreground: #171717;
+  --background: #fafafa;
+  --foreground: #18181b;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0f172a;
-    --foreground: #ededed;
+    --background: #09090b;
+    --foreground: #fafafa;
   }
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
 }
 
 /* Hide number input spinners */
@@ -39,13 +38,11 @@ input[type="number"] {
     display: none;
   }
 
-  /* Mobile-optimized touch targets */
   .touch-target {
     min-height: 44px;
     min-width: 44px;
   }
 
-  /* Prevent text selection on touch */
   .no-select {
     -webkit-user-select: none;
     -moz-user-select: none;
@@ -53,13 +50,11 @@ input[type="number"] {
     user-select: none;
   }
 
-  /* Smooth scrolling for mobile */
   .smooth-scroll {
     -webkit-overflow-scrolling: touch;
     scroll-behavior: smooth;
   }
 
-  /* Hide scrollbar on mobile */
   @media (max-width: 768px) {
     .mobile-scrollbar-hide {
       -ms-overflow-style: none;
@@ -71,65 +66,42 @@ input[type="number"] {
   }
 }
 
-/* Custom Scrollbar Styles */
+/* Scrollbar */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+  scrollbar-color: rgba(161, 161, 170, 0.4) transparent;
 }
 
-/* Dark mode scrollbar */
 .dark * {
-  scrollbar-color: rgba(71, 85, 105, 0.6) transparent;
+  scrollbar-color: rgba(63, 63, 70, 0.5) transparent;
 }
 
-/* Webkit browsers (Chrome, Safari, Edge) */
 *::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 *::-webkit-scrollbar-track {
   background: transparent;
-  margin: 4px;
 }
 
 *::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, rgba(147, 197, 253, 0.5), rgba(167, 139, 250, 0.5));
+  background: rgba(161, 161, 170, 0.4);
   border-radius: 20px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
-  transition: all 0.3s ease;
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(135deg, rgba(96, 165, 250, 0.7), rgba(139, 92, 246, 0.7));
-  background-clip: padding-box;
-  box-shadow: 0 0 6px rgba(139, 92, 246, 0.4);
+  background: rgba(161, 161, 170, 0.6);
 }
 
-*::-webkit-scrollbar-thumb:active {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.9), rgba(124, 58, 237, 0.9));
-  background-clip: padding-box;
-}
-
-/* Dark mode webkit scrollbar */
 .dark *::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.4), rgba(124, 58, 237, 0.4));
-  background-clip: padding-box;
+  background: rgba(63, 63, 70, 0.5);
 }
 
 .dark *::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.6), rgba(124, 58, 237, 0.6));
-  background-clip: padding-box;
-  box-shadow: 0 0 8px rgba(124, 58, 237, 0.5);
+  background: rgba(63, 63, 70, 0.7);
 }
 
-.dark *::-webkit-scrollbar-thumb:active {
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.8), rgba(109, 40, 217, 0.8));
-  background-clip: padding-box;
-}
-
-/* Scrollbar corner */
 *::-webkit-scrollbar-corner {
   background: transparent;
 }

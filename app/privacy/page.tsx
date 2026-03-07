@@ -2,19 +2,19 @@ import Link from "next/link";
 
 export default function PrivacyPolicy() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-950 dark:to-gray-900 p-4 sm:p-8">
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900 p-4 sm:p-8">
       <div className="max-w-4xl mx-auto">
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8">
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+        <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm p-8">
+          <h1 className="text-4xl font-bold text-zinc-900 dark:text-white mb-4">
             Privacy Policy
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mb-8">
+          <p className="text-zinc-600 dark:text-zinc-400 mb-8">
             Last updated: February 18, 2026
           </p>
 
-          <div className="space-y-6 text-gray-700 dark:text-gray-300">
+          <div className="space-y-6 text-zinc-700 dark:text-zinc-300">
             <section>
-              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-3">
+              <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-3">
                 1. Introduction
               </h2>
               <p>
@@ -24,7 +24,7 @@ export default function PrivacyPolicy() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-3">
+              <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-3">
                 2. Information We Collect
               </h2>
               <p className="mb-2">We collect the following types of information:</p>
@@ -37,7 +37,7 @@ export default function PrivacyPolicy() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-3">
+              <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-3">
                 3. How We Use Your Information
               </h2>
               <p className="mb-2">We use your information to:</p>
@@ -51,7 +51,7 @@ export default function PrivacyPolicy() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-3">
+              <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-3">
                 4. Data Storage and Security
               </h2>
               <p>
@@ -62,7 +62,7 @@ export default function PrivacyPolicy() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-3">
+              <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-3">
                 5. Google API Services
               </h2>
               <p className="mb-2">
@@ -72,7 +72,7 @@ export default function PrivacyPolicy() {
                   href="https://developers.google.com/terms/api-services-user-data-policy"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-600 dark:text-blue-400 hover:underline"
+                  className="text-zinc-700 dark:text-zinc-300 underline hover:underline"
                 >
                   Google API Services User Data Policy
                 </a>, including the Limited Use requirements.
@@ -88,7 +88,7 @@ export default function PrivacyPolicy() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-3">
+              <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-3">
                 6. Data Sharing
               </h2>
               <p>
@@ -98,7 +98,7 @@ export default function PrivacyPolicy() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-3">
+              <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-3">
                 7. Your Rights
               </h2>
               <p className="mb-2">You have the right to:</p>
@@ -116,7 +116,7 @@ export default function PrivacyPolicy() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-3">
+              <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-3">
                 8. Revoking Access
               </h2>
               <p>
@@ -125,7 +125,7 @@ export default function PrivacyPolicy() {
                   href="https://myaccount.google.com/permissions"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-600 dark:text-blue-400 hover:underline"
+                  className="text-zinc-700 dark:text-zinc-300 underline hover:underline"
                 >
                   Google Account Permissions page
                 </a>.
@@ -133,7 +133,7 @@ export default function PrivacyPolicy() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-3">
+              <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-3">
                 9. Data Retention
               </h2>
               <p>
@@ -143,7 +143,7 @@ export default function PrivacyPolicy() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-3">
+              <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-3">
                 10. Children&apos;s Privacy
               </h2>
               <p>
@@ -153,7 +153,7 @@ export default function PrivacyPolicy() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-3">
+              <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-3">
                 11. Changes to This Policy
               </h2>
               <p>
@@ -163,7 +163,7 @@ export default function PrivacyPolicy() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-3">
+              <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-3">
                 12. Contact Us
               </h2>
               <p>
@@ -173,7 +173,7 @@ export default function PrivacyPolicy() {
                 <strong>Email:</strong>{" "}
                 <a
                   href="mailto:justinabrahamipe@gmail.com"
-                  className="text-blue-600 dark:text-blue-400 hover:underline"
+                  className="text-zinc-700 dark:text-zinc-300 underline hover:underline"
                 >
                   justinabrahamipe@gmail.com
                 </a>
@@ -181,10 +181,10 @@ export default function PrivacyPolicy() {
             </section>
           </div>
 
-          <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+          <div className="mt-8 pt-6 border-t border-zinc-200 dark:border-zinc-700">
             <Link
               href="/"
-              className="text-blue-600 dark:text-blue-400 hover:underline"
+              className="text-zinc-700 dark:text-zinc-300 underline hover:underline"
             >
               &larr; Back to Total Logger
             </Link>

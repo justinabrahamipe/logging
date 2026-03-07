@@ -38,7 +38,7 @@ export default function GoalDetailPage() {
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.push("/login");
+      setLoading(false);
       return;
     }
     if (session?.user?.id) {
@@ -182,7 +182,7 @@ export default function GoalDetailPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zinc-600"></div>
       </div>
     );
   }
@@ -190,7 +190,7 @@ export default function GoalDetailPage() {
   if (!outcome) {
     return (
       <div className="container mx-auto px-4 py-4 md:py-8 max-w-4xl">
-        <p className="text-gray-500 dark:text-gray-400">Goal not found.</p>
+        <p className="text-zinc-500 dark:text-zinc-400">Goal not found.</p>
       </div>
     );
   }
@@ -201,11 +201,11 @@ export default function GoalDetailPage() {
         <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={() => router.push("/goals")}
-            className="p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 shrink-0"
+            className="p-2 rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 shrink-0"
           >
             <FaArrowLeft />
           </button>
-          <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white truncate">{outcome.name}</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-zinc-900 dark:text-white truncate">{outcome.name}</h1>
           {!isActivityGoal && (
             outcome.direction === "decrease" ? (
               <FaArrowDown className="text-green-500 shrink-0" />
@@ -222,7 +222,7 @@ export default function GoalDetailPage() {
         <div className="flex items-center gap-1 shrink-0">
           <button
             onClick={() => router.push(`/goals/${outcome.id}/edit`)}
-            className="p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+            className="p-2 rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700"
             title="Edit"
           >
             <FaEdit />
@@ -240,7 +240,7 @@ export default function GoalDetailPage() {
 
       <div className="space-y-4">
         {/* Summary row: metrics + status badge inline */}
-        <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600 dark:text-gray-400">
+        <div className="flex flex-wrap items-center gap-3 text-sm text-zinc-600 dark:text-zinc-400">
           {isHabitual ? (
             <>
               {outcome.dailyTarget ? <span>{outcome.dailyTarget} {outcome.unit}/session</span> : <span>{outcome.unit}</span>}
@@ -250,7 +250,7 @@ export default function GoalDetailPage() {
             </>
           ) : (
             <>
-              <span className="text-lg font-semibold text-gray-900 dark:text-white">
+              <span className="text-lg font-semibold text-zinc-900 dark:text-white">
                 {outcome.currentValue} / {outcome.targetValue} {outcome.unit}
               </span>
               <span className="font-medium">{Math.round(progress)}%</span>
@@ -260,7 +260,7 @@ export default function GoalDetailPage() {
           {isActivityGoal && effortMetrics && (
             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
               effortMetrics.status === 'ahead' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-              effortMetrics.status === 'on_track' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+              effortMetrics.status === 'on_track' ? 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300' :
               'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
             }`}>
               {effortMetrics.status === 'ahead' ? 'Ahead' : effortMetrics.status === 'on_track' ? 'On track' : 'Behind'}
@@ -275,7 +275,7 @@ export default function GoalDetailPage() {
           )}
           {/* Schedule days inline */}
           {isActivityGoal && scheduleDays.length > 0 && scheduleDays.length < 7 && (
-            <span className="text-xs text-gray-500 dark:text-gray-400">
+            <span className="text-xs text-zinc-500 dark:text-zinc-400">
               {scheduleDays.map((d) => DAY_NAMES[d]).join(", ")}
             </span>
           )}
@@ -284,7 +284,7 @@ export default function GoalDetailPage() {
         {/* Progress bar (target/outcome) */}
         {!isHabitual && (
           <div>
-            <div className="w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+            <div className="w-full h-3 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${Math.min(progress, 100)}%` }}
@@ -293,7 +293,7 @@ export default function GoalDetailPage() {
                 style={{ backgroundColor: color }}
               />
             </div>
-            <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+            <div className="flex justify-between text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
               <span>{outcome.startValue} {outcome.unit}</span>
               <span>{outcome.targetValue} {outcome.unit}</span>
             </div>
@@ -303,22 +303,22 @@ export default function GoalDetailPage() {
         {/* Effort Metrics - compact grid */}
         {!isHabitual && isActivityGoal && effortMetrics && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg px-3 py-2">
-              <span className="text-gray-500 dark:text-gray-400 text-xs">Today&apos;s target: </span>
-              <span className="font-semibold text-gray-900 dark:text-white">{effortMetrics.dailyTarget} {outcome.unit}</span>
+            <div className="bg-zinc-50 dark:bg-zinc-700/50 rounded-lg px-3 py-2">
+              <span className="text-zinc-500 dark:text-zinc-400 text-xs">Today&apos;s target: </span>
+              <span className="font-semibold text-zinc-900 dark:text-white">{effortMetrics.dailyTarget} {outcome.unit}</span>
             </div>
-            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg px-3 py-2">
-              <span className="text-gray-500 dark:text-gray-400 text-xs">Required: </span>
-              <span className="font-semibold text-gray-900 dark:text-white">{effortMetrics.requiredRate}/day</span>
+            <div className="bg-zinc-50 dark:bg-zinc-700/50 rounded-lg px-3 py-2">
+              <span className="text-zinc-500 dark:text-zinc-400 text-xs">Required: </span>
+              <span className="font-semibold text-zinc-900 dark:text-white">{effortMetrics.requiredRate}/day</span>
             </div>
-            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg px-3 py-2">
-              <span className="text-gray-500 dark:text-gray-400 text-xs">Current: </span>
-              <span className="font-semibold text-gray-900 dark:text-white">{effortMetrics.currentRate}/day</span>
+            <div className="bg-zinc-50 dark:bg-zinc-700/50 rounded-lg px-3 py-2">
+              <span className="text-zinc-500 dark:text-zinc-400 text-xs">Current: </span>
+              <span className="font-semibold text-zinc-900 dark:text-white">{effortMetrics.currentRate}/day</span>
             </div>
             {effortMetrics.projectedDate && (
-              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg px-3 py-2">
-                <span className="text-gray-500 dark:text-gray-400 text-xs">Projected: </span>
-                <span className="font-semibold text-gray-900 dark:text-white">
+              <div className="bg-zinc-50 dark:bg-zinc-700/50 rounded-lg px-3 py-2">
+                <span className="text-zinc-500 dark:text-zinc-400 text-xs">Projected: </span>
+                <span className="font-semibold text-zinc-900 dark:text-white">
                   {new Date(effortMetrics.projectedDate + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                 </span>
               </div>
@@ -349,11 +349,11 @@ export default function GoalDetailPage() {
         {/* Linked Tasks Table */}
         {linkedTasks.length > 0 && (
           <div>
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Linked Tasks</h3>
+            <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-2">Linked Tasks</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-200 dark:border-gray-700 text-left text-xs text-gray-500 dark:text-gray-400">
+                  <tr className="border-b border-zinc-200 dark:border-zinc-700 text-left text-xs text-zinc-500 dark:text-zinc-400">
                     {([
                       { key: "name" as const, label: "Name" },
                       { key: "frequency" as const, label: "Frequency" },
@@ -362,7 +362,7 @@ export default function GoalDetailPage() {
                     ]).map(col => (
                       <th
                         key={col.key}
-                        className="pb-2 pr-3 font-medium cursor-pointer select-none hover:text-gray-700 dark:hover:text-gray-200"
+                        className="pb-2 pr-3 font-medium cursor-pointer select-none hover:text-zinc-700 dark:hover:text-zinc-200"
                         onClick={() => toggleSort(col.key)}
                       >
                         <span className="inline-flex items-center gap-1">
@@ -379,19 +379,19 @@ export default function GoalDetailPage() {
                   {sortedTasks.map(task => (
                     <tr
                       key={task.id}
-                      className="border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30 cursor-pointer"
+                      className="border-b border-zinc-100 dark:border-zinc-700/50 hover:bg-zinc-50 dark:hover:bg-zinc-700/30 cursor-pointer"
                       onClick={() => router.push(`/tasks/${task.id}/edit`)}
                     >
-                      <td className="py-2 pr-3 text-gray-900 dark:text-white">{task.name}</td>
-                      <td className="py-2 pr-3 text-gray-600 dark:text-gray-400">{frequencyLabel(task.frequency)}</td>
-                      <td className="py-2 pr-3 text-gray-600 dark:text-gray-400">{task.basePoints}</td>
+                      <td className="py-2 pr-3 text-zinc-900 dark:text-white">{task.name}</td>
+                      <td className="py-2 pr-3 text-zinc-600 dark:text-zinc-400">{frequencyLabel(task.frequency)}</td>
+                      <td className="py-2 pr-3 text-zinc-600 dark:text-zinc-400">{task.basePoints}</td>
                       <td className="py-2 pr-3">
                         {task.completed ? (
                           <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 font-medium">
                             Done{task.value != null && task.completionType !== "checkbox" ? ` (${task.value}${task.unit ? ` ${task.unit}` : ""})` : ""}
                           </span>
                         ) : (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 font-medium">
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400 font-medium">
                             Pending
                           </span>
                         )}

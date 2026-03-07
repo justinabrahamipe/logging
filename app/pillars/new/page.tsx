@@ -9,11 +9,6 @@ export default function NewPillarPage() {
   const { status } = useSession();
   const router = useRouter();
 
-  if (status === "unauthenticated") {
-    router.push("/login");
-    return null;
-  }
-
   const handleSave = async (body: Record<string, unknown>) => {
     const res = await fetch("/api/pillars", {
       method: "POST",
@@ -30,14 +25,14 @@ export default function NewPillarPage() {
       <div className="flex items-center gap-3 mb-6">
         <button
           onClick={() => router.push("/pillars")}
-          className="p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+          className="p-2 rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700"
         >
           <FaArrowLeft />
         </button>
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">New Pillar</h1>
+        <h1 className="text-2xl md:text-3xl font-bold text-zinc-900 dark:text-white">New Pillar</h1>
       </div>
 
-      <PillarForm editingPillar={null} onCancel={() => router.push("/pillars")} onSave={handleSave} />
+      <PillarForm editingPillar={null} onCancel={() => router.push("/pillars")} onSave={handleSave} disabled={status !== "authenticated"} />
     </div>
   );
 }

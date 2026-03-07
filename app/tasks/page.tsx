@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FaPlus, FaEdit, FaTrash, FaCheck, FaMinus, FaPlay, FaStop, FaEllipsisV, FaCopy, FaChevronRight, FaChevronDown, FaArrowRight, FaCalendarAlt, FaStar } from "react-icons/fa";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { Snackbar, Alert as MuiAlert } from "@mui/material";
+import { DEMO_TASK_GROUPS, DEMO_PILLARS } from "@/lib/demo-data";
 
 interface Pillar {
   id: number;
@@ -188,13 +190,24 @@ export default function TasksPage() {
   const [pendingValues, setPendingValues] = useState<Record<number, string>>({});
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
   const [quickAdd, setQuickAdd] = useState({ name: '', date: new Date().toISOString().split('T')[0] });
+  const [authSnackbar, setAuthSnackbar] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const today = new Date().toISOString().split('T')[0];
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.push("/login");
+      // Load demo data for non-logged-in users
+      setPillars(DEMO_PILLARS.map(p => ({ id: p.id, name: p.name, emoji: p.emoji, color: p.color })));
+      setGroups(DEMO_TASK_GROUPS.map(g => ({
+        pillar: { id: g.pillarId, name: g.pillarName, emoji: g.pillarEmoji, color: g.pillarColor },
+        tasks: g.tasks.map(t => ({
+          ...t, frequency: t.frequency, customDays: null, repeatInterval: null,
+          isWeekendTask: false, outcomeId: null, periodId: null, startDate: null,
+          completion: t.completed ? { id: 0, taskId: t.id, completed: true, value: t.value, pointsEarned: t.basePoints, isHighlighted: false } : null,
+        })),
+      })) as TaskGroup[]);
+      setLoading(false);
       return;
     }
     if (session?.user?.id) {
@@ -344,6 +357,7 @@ export default function TasksPage() {
 
   // --- Completion handlers ---
   const handleComplete = useCallback((taskId: number, completed?: boolean, value?: number) => {
+    if (status !== "authenticated") { setAuthSnackbar(true); return; }
     setGroups(prev => prev.map(g => ({
       ...g,
       tasks: g.tasks.map(t =>
@@ -594,7 +608,7 @@ export default function TasksPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zinc-900 dark:border-white"></div>
       </div>
     );
   }
@@ -611,32 +625,30 @@ export default function TasksPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Tasks</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+            <h1 className="text-2xl md:text-3xl font-bold text-zinc-900 dark:text-white">Tasks</h1>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
               {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
               {filter === 'all' && ' · Showing all tasks'}
               {filter === 'past' && ' · Past completions'}
             </p>
           </div>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+          <button
             onClick={() => router.push("/tasks/new")}
-            className="px-4 py-2 text-sm bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium flex items-center gap-2 shadow-sm"
+            className="px-4 py-2 text-sm bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 rounded-lg font-medium flex items-center gap-2 shadow-sm transition-colors"
           >
             <FaPlus className="text-xs" /> Add Task
-          </motion.button>
+          </button>
         </div>
 
         {/* Filters */}
         <div className="flex items-center gap-3 mb-4">
-          <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 w-fit">
+          <div className="flex gap-1 bg-zinc-100 dark:bg-zinc-800 rounded-lg p-1 w-fit">
             <button
               onClick={() => setFilter('today')}
               className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
                 filter === 'today'
-                  ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
+                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
               }`}
             >
               Today
@@ -645,8 +657,8 @@ export default function TasksPage() {
               onClick={() => setFilter('all')}
               className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
                 filter === 'all'
-                  ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
+                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
               }`}
             >
               All
@@ -655,23 +667,23 @@ export default function TasksPage() {
               onClick={() => setFilter('past')}
               className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
                 filter === 'past'
-                  ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
+                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
               }`}
             >
               Past
             </button>
           </div>
           {filter !== 'past' && (
-            <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 w-fit">
+            <div className="flex gap-1 bg-zinc-100 dark:bg-zinc-800 rounded-lg p-1 w-fit">
               {(['all', 'todo', 'done'] as const).map(s => (
                 <button
                   key={s}
                   onClick={() => setStatusFilter(s)}
                   className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
                     statusFilter === s
-                      ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                      ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
+                      : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
                   }`}
                 >
                   {s === 'all' ? 'All' : s === 'todo' ? 'To Do' : 'Done'}
@@ -682,7 +694,7 @@ export default function TasksPage() {
         </div>
 
         {/* Quick-Add Bar */}
-        {filter !== 'past' && <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-3 mb-4">
+        {filter !== 'past' && <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-3 mb-4">
             <div className="flex items-center gap-2">
               <input
                 type="text"
@@ -690,16 +702,16 @@ export default function TasksPage() {
                 onChange={(e) => setQuickAdd({ ...quickAdd, name: e.target.value })}
                 onKeyDown={(e) => e.key === 'Enter' && handleQuickAdd()}
                 placeholder="Quick add a task..."
-                className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
+                className="flex-1 min-w-0 px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-500"
               />
               <div className="relative shrink-0">
                 <input
                   type="date"
                   value={quickAdd.date}
                   onChange={(e) => setQuickAdd({ ...quickAdd, date: e.target.value })}
-                  className="hidden md:block px-2 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white w-[130px]"
+                  className="hidden md:block px-2 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white w-[130px]"
                 />
-                <label className="md:hidden p-2 text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 cursor-pointer flex items-center">
+                <label className="md:hidden p-2 text-zinc-400 hover:text-zinc-900 dark:hover:text-white cursor-pointer flex items-center">
                   <FaCalendarAlt className="text-sm" />
                   <input
                     type="date"
@@ -709,47 +721,45 @@ export default function TasksPage() {
                   />
                 </label>
               </div>
-              <motion.button
-                whileTap={{ scale: 0.9 }}
+              <button
                 onClick={handleQuickAddExpand}
-                className="p-2 text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors shrink-0"
+                className="p-2 text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors shrink-0"
                 title="Expand to full form"
               >
                 <FaChevronRight className="text-sm" />
-              </motion.button>
-              <motion.button
-                whileTap={{ scale: 0.9 }}
+              </button>
+              <button
                 onClick={handleQuickAdd}
                 disabled={!quickAdd.name.trim()}
-                className="p-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg shrink-0"
+                className="p-2 bg-zinc-900 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-100 disabled:opacity-50 text-white dark:text-zinc-900 rounded-lg shrink-0 transition-colors"
               >
                 <FaArrowRight className="text-sm" />
-              </motion.button>
+              </button>
             </div>
           </div>}
 
         {/* Score Summary Bar */}
         {filter !== 'past' && scoreSummary && (
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 mb-5">
+          <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4 mb-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                <div className="text-2xl font-bold text-zinc-900 dark:text-white">
                   {scoreSummary.actionScore}%
                 </div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">
+                <span className="text-sm text-zinc-500 dark:text-zinc-400">
                   {scoreSummary.scoreTier}
                 </span>
               </div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">
+              <span className="text-sm text-zinc-500 dark:text-zinc-400">
                 {scoreSummary.completedTasks}/{scoreSummary.totalTasks} tasks
               </span>
             </div>
-            <div className="mt-2 w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+            <div className="mt-2 w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${Math.min(scoreSummary.actionScore, 100)}%` }}
                 transition={{ duration: 0.5 }}
-                className="h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-500"
+                className="h-full rounded-full bg-zinc-900 dark:bg-white"
               />
             </div>
           </div>
@@ -757,7 +767,7 @@ export default function TasksPage() {
 
         {/* Task Groups */}
         {filter !== 'past' && groups.length === 0 && (
-          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+          <div className="text-center py-8 text-zinc-500 dark:text-zinc-400">
             <p className="text-base mb-1">No tasks {isToday ? 'for today' : 'yet'}</p>
             <p className="text-sm">Click Add Task to create one</p>
           </div>
@@ -796,7 +806,7 @@ export default function TasksPage() {
                           ? 'bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800'
                           : isHighlighted
                           ? 'bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 hover:shadow-md'
-                          : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600'
+                          : 'bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:shadow-md hover:border-zinc-300 dark:hover:border-zinc-600'
                       }`}
                       style={{ borderLeftWidth: 3, borderLeftColor: isFullyDone ? '#4ade80' : isHighlighted ? '#F59E0B' : task._pillarColor }}
                     >
@@ -808,7 +818,7 @@ export default function TasksPage() {
                             className={`shrink-0 transition-colors ${
                               isHighlighted
                                 ? 'text-amber-500'
-                                : 'text-gray-300 dark:text-gray-600 hover:text-amber-400'
+                                : 'text-zinc-300 dark:text-zinc-600 hover:text-amber-400'
                             }`}
                             title={isHighlighted ? 'Remove highlight' : 'Highlight task (max 3/day)'}
                           >
@@ -816,13 +826,13 @@ export default function TasksPage() {
                           </button>
                         )}
                         <div className="flex-1 min-w-0">
-                          <h3 className={`text-sm font-semibold leading-snug ${isFullyDone ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>
+                          <h3 className={`text-sm font-semibold leading-snug ${isFullyDone ? 'line-through text-zinc-400 dark:text-zinc-500' : 'text-zinc-900 dark:text-white'}`}>
                             {task.name}
                           </h3>
                           <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                            <span className="text-[11px] text-gray-500 dark:text-gray-400 shrink-0">{task._pillarEmoji} {task._pillarName}</span>
+                            <span className="text-[11px] text-zinc-500 dark:text-zinc-400 shrink-0">{task._pillarEmoji} {task._pillarName}</span>
                             {task.outcomeId && outcomes.find(o => o.id === task.outcomeId) && (
-                              <span className="text-[11px] px-1.5 py-px rounded-full font-medium bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 truncate max-w-[120px]">
+                              <span className="text-[11px] px-1.5 py-px rounded-full font-medium bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 truncate max-w-[120px]">
                                 {outcomes.find(o => o.id === task.outcomeId)?.name}
                               </span>
                             )}
@@ -834,7 +844,7 @@ export default function TasksPage() {
                           </div>
                           {task.frequency !== 'daily' && (
                             <div className="mt-0.5">
-                              <span className="text-[11px] px-1.5 py-px rounded-full font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                              <span className="text-[11px] px-1.5 py-px rounded-full font-medium bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400">
                                 {task.frequency === 'adhoc' ? 'One-time' :
                                  task.frequency === 'monthly' ? `Monthly` :
                                  task.frequency === 'custom' ? (task.customDays ? JSON.parse(task.customDays).map((d: number) => DAYS_OF_WEEK[d]).join(', ') : 'Custom') :
@@ -849,47 +859,44 @@ export default function TasksPage() {
                         <div className="flex items-center gap-1.5 shrink-0">
                           <>
                               {task.completionType === 'checkbox' && (
-                                <motion.button
-                                  whileTap={{ scale: 0.9 }}
+                                <button
                                   onClick={() => handleCheckboxToggle(task)}
                                   className={`w-7 h-7 rounded-md border-2 flex items-center justify-center transition-colors ${
                                     isCompleted
                                       ? 'bg-green-500 border-green-500 text-white'
-                                      : 'border-gray-300 dark:border-gray-600 hover:border-green-500'
+                                      : 'border-zinc-300 dark:border-zinc-600 hover:border-green-500'
                                   }`}
                                 >
                                   {isCompleted && <FaCheck className="text-xs" />}
-                                </motion.button>
+                                </button>
                               )}
 
                               {task.completionType === 'count' && (
                                 <div className="flex items-center gap-1">
-                                  <motion.button
-                                    whileTap={{ scale: 0.9 }}
+                                  <button
                                     onClick={() => handleCountChange(task, -1)}
-                                    className="w-6 h-6 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-600"
+                                    className="w-6 h-6 rounded bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center hover:bg-zinc-300 dark:hover:bg-zinc-600"
                                   >
                                     <FaMinus className="text-[9px]" />
-                                  </motion.button>
+                                  </button>
                                   <span className={`text-xs font-bold min-w-[2.5rem] text-center ${
-                                    task.target && currentValue >= task.target ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'
+                                    task.target && currentValue >= task.target ? 'text-green-600 dark:text-green-400' : 'text-zinc-900 dark:text-white'
                                   }`}>
                                     {currentValue}/{task.target || '?'}
                                   </span>
-                                  <motion.button
-                                    whileTap={{ scale: 0.9 }}
+                                  <button
                                     onClick={() => handleCountChange(task, 1)}
-                                    className="w-6 h-6 rounded bg-blue-500 text-white flex items-center justify-center hover:bg-blue-600"
+                                    className="w-6 h-6 rounded bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 flex items-center justify-center hover:bg-zinc-800 dark:hover:bg-zinc-100"
                                   >
                                     <FaPlus className="text-[9px]" />
-                                  </motion.button>
+                                  </button>
                                 </div>
                               )}
 
                               {task.completionType === 'duration' && (
                                 <div className="flex items-center gap-1">
                                   {timers[task.id]?.running ? (
-                                    <span className="text-xs font-mono text-gray-700 dark:text-gray-300 w-12 text-center">
+                                    <span className="text-xs font-mono text-zinc-700 dark:text-zinc-300 w-12 text-center">
                                       {formatTime(timers[task.id].elapsed)}
                                     </span>
                                   ) : (
@@ -900,31 +907,29 @@ export default function TasksPage() {
                                         onChange={(e) => setPendingValues(prev => ({ ...prev, [task.id]: e.target.value }))}
                                         onKeyDown={(e) => e.key === 'Enter' && handleDurationManualSubmit(task)}
                                         placeholder="0"
-                                        className="w-12 px-1.5 py-1 text-xs text-right border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                        className="w-12 px-1.5 py-1 text-xs text-right border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
                                       />
-                                      <span className="text-[10px] text-gray-500 dark:text-gray-400">m</span>
+                                      <span className="text-[10px] text-zinc-500 dark:text-zinc-400">m</span>
                                       {pendingValues[task.id] !== undefined && (
-                                        <motion.button
-                                          whileTap={{ scale: 0.9 }}
+                                        <button
                                           onClick={() => handleDurationManualSubmit(task)}
                                           className="w-6 h-6 rounded bg-green-500 text-white flex items-center justify-center hover:bg-green-600"
                                         >
                                           <FaCheck className="text-[9px]" />
-                                        </motion.button>
+                                        </button>
                                       )}
                                     </>
                                   )}
-                                  <motion.button
-                                    whileTap={{ scale: 0.9 }}
+                                  <button
                                     onClick={() => handleTimerToggle(task)}
                                     className={`w-6 h-6 rounded flex items-center justify-center ${
                                       timers[task.id]?.running
                                         ? 'bg-red-500 text-white'
-                                        : 'bg-blue-500 text-white'
+                                        : 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900'
                                     }`}
                                   >
                                     {timers[task.id]?.running ? <FaStop className="text-[9px]" /> : <FaPlay className="text-[9px]" />}
-                                  </motion.button>
+                                  </button>
                                 </div>
                               )}
 
@@ -936,16 +941,15 @@ export default function TasksPage() {
                                     onChange={(e) => setPendingValues(prev => ({ ...prev, [task.id]: e.target.value }))}
                                     onKeyDown={(e) => e.key === 'Enter' && handleNumericSubmit(task)}
                                     placeholder={task.target ? String(task.target) : '0'}
-                                    className="w-14 px-1.5 py-1 text-xs text-right border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                    className="w-14 px-1.5 py-1 text-xs text-right border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
                                   />
                                   {pendingValues[task.id] !== undefined && (
-                                    <motion.button
-                                      whileTap={{ scale: 0.9 }}
+                                    <button
                                       onClick={() => handleNumericSubmit(task)}
                                       className="w-6 h-6 rounded bg-green-500 text-white flex items-center justify-center hover:bg-green-600"
                                     >
                                       <FaCheck className="text-[9px]" />
-                                    </motion.button>
+                                    </button>
                                   )}
                                 </div>
                               )}
@@ -955,7 +959,7 @@ export default function TasksPage() {
                           <div className="relative" ref={openMenuId === task.id ? menuRef : undefined}>
                             <button
                               onClick={() => setOpenMenuId(openMenuId === task.id ? null : task.id)}
-                              className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                              className="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700"
                             >
                               <FaEllipsisV className="text-[10px]" />
                             </button>
@@ -966,26 +970,26 @@ export default function TasksPage() {
                                   animate={{ opacity: 1, scale: 1 }}
                                   exit={{ opacity: 0, scale: 0.95 }}
                                   transition={{ duration: 0.1 }}
-                                  className="absolute right-0 top-7 z-20 w-36 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden"
+                                  className="absolute right-0 top-7 z-20 w-36 bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-700 overflow-hidden"
                                 >
                                   {task.outcomeId ? (
                                     <button
                                       onClick={() => { setOpenMenuId(null); router.push('/goals'); }}
-                                      className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                      className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                                     >
                                       <FaArrowRight className="text-xs" /> Edit in Goals
                                     </button>
                                   ) : (
                                     <button
                                       onClick={() => { setOpenMenuId(null); router.push(`/tasks/${task.id}/edit`); }}
-                                      className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                      className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                                     >
                                       <FaEdit className="text-xs" /> Edit
                                     </button>
                                   )}
                                   <button
                                     onClick={() => handleCopy(task)}
-                                    className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                    className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                                   >
                                     <FaCopy className="text-xs" /> Duplicate
                                   </button>
@@ -1022,19 +1026,19 @@ export default function TasksPage() {
                   const isOpen = openSchedules.has(label);
                   const tasksInGroup = bucketGroups[label];
                   return (
-                    <div key={label} className="border border-gray-200 dark:border-gray-700 rounded-lg">
+                    <div key={label} className="border border-zinc-200 dark:border-zinc-700 rounded-lg">
                       <button
                         onClick={() => setOpenSchedules(prev => {
                           const next = new Set(prev);
                           if (next.has(label)) next.delete(label); else next.add(label);
                           return next;
                         })}
-                        className="w-full px-4 py-2.5 flex items-center justify-between bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                        className="w-full px-4 py-2.5 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                       >
                         <div className="flex items-center gap-2">
-                          <FaChevronDown className={`text-[10px] text-gray-400 transition-transform ${isOpen ? '' : '-rotate-90'}`} />
-                          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{label}</span>
-                          <span className="text-xs text-gray-400 dark:text-gray-500">({tasksInGroup.length})</span>
+                          <FaChevronDown className={`text-[10px] text-zinc-400 transition-transform ${isOpen ? '' : '-rotate-90'}`} />
+                          <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">{label}</span>
+                          <span className="text-xs text-zinc-400 dark:text-zinc-500">({tasksInGroup.length})</span>
                         </div>
                       </button>
                       {isOpen && (
@@ -1061,10 +1065,10 @@ export default function TasksPage() {
         {filter === 'past' && (
           pastLoading ? (
             <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-zinc-900 dark:border-white mx-auto"></div>
             </div>
           ) : pastDays.length === 0 ? (
-            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+            <div className="text-center py-8 text-zinc-500 dark:text-zinc-400">
               <p className="text-base mb-1">No past task completions</p>
             </div>
           ) : (
@@ -1074,19 +1078,19 @@ export default function TasksPage() {
                 const completedCount = day.tasks.filter(t => t.completed || (t.target && t.target > 0 && (t.value || 0) >= t.target)).length;
                 const isOpen = openSchedules.has(day.date);
                 return (
-                  <div key={day.date} className="border border-gray-200 dark:border-gray-700 rounded-lg">
+                  <div key={day.date} className="border border-zinc-200 dark:border-zinc-700 rounded-lg">
                     <button
                       onClick={() => setOpenSchedules(prev => {
                         const next = new Set(prev);
                         if (next.has(day.date)) next.delete(day.date); else next.add(day.date);
                         return next;
                       })}
-                      className="w-full px-4 py-2.5 flex items-center justify-between bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                      className="w-full px-4 py-2.5 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                     >
                       <div className="flex items-center gap-2">
-                        <FaChevronDown className={`text-[10px] text-gray-400 transition-transform ${isOpen ? '' : '-rotate-90'}`} />
-                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{dateLabel}</span>
-                        <span className="text-xs text-gray-400 dark:text-gray-500">{completedCount}/{day.tasks.length}</span>
+                        <FaChevronDown className={`text-[10px] text-zinc-400 transition-transform ${isOpen ? '' : '-rotate-90'}`} />
+                        <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">{dateLabel}</span>
+                        <span className="text-xs text-zinc-400 dark:text-zinc-500">{completedCount}/{day.tasks.length}</span>
                       </div>
                     </button>
                     {isOpen && (
@@ -1103,57 +1107,54 @@ export default function TasksPage() {
                                   ? 'bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800'
                                   : task.isHighlighted
                                   ? 'bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800'
-                                  : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700'
+                                  : 'bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700'
                               }`}
                               style={{ borderLeftWidth: 3, borderLeftColor: isDone ? '#4ade80' : task.isHighlighted ? '#F59E0B' : (task.pillarColor || '#6B7280') }}
                             >
                               <div className="flex items-center gap-2">
                                 {task.isHighlighted && <FaStar className="text-xs text-amber-500 shrink-0" />}
                                 <div className="flex-1 min-w-0">
-                                  <h3 className={`text-sm font-semibold leading-snug ${isDone ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>
+                                  <h3 className={`text-sm font-semibold leading-snug ${isDone ? 'line-through text-zinc-400 dark:text-zinc-500' : 'text-zinc-900 dark:text-white'}`}>
                                     {task.name}
                                   </h3>
                                   <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                                     {task.pillarEmoji && (
-                                      <span className="text-[11px] text-gray-500 dark:text-gray-400">{task.pillarEmoji} {task.pillarName}</span>
+                                      <span className="text-[11px] text-zinc-500 dark:text-zinc-400">{task.pillarEmoji} {task.pillarName}</span>
                                     )}
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-1.5 shrink-0">
                                   {task.completionType === 'checkbox' && (
-                                    <motion.button
-                                      whileTap={{ scale: 0.9 }}
+                                    <button
                                       onClick={() => handlePastComplete(day.date, task.id, !isDone)}
                                       className={`w-7 h-7 rounded-md border-2 flex items-center justify-center transition-colors ${
                                         isDone
                                           ? 'bg-green-500 border-green-500 text-white'
-                                          : 'border-gray-300 dark:border-gray-600 hover:border-green-500'
+                                          : 'border-zinc-300 dark:border-zinc-600 hover:border-green-500'
                                       }`}
                                     >
                                       {isDone && <FaCheck className="text-xs" />}
-                                    </motion.button>
+                                    </button>
                                   )}
                                   {task.completionType === 'count' && (
                                     <div className="flex items-center gap-1">
-                                      <motion.button
-                                        whileTap={{ scale: 0.9 }}
+                                      <button
                                         onClick={() => handlePastCountChange(day.date, task, -1)}
-                                        className="w-6 h-6 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-600"
+                                        className="w-6 h-6 rounded bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center hover:bg-zinc-300 dark:hover:bg-zinc-600"
                                       >
                                         <FaMinus className="text-[9px]" />
-                                      </motion.button>
+                                      </button>
                                       <span className={`text-xs font-bold min-w-[2.5rem] text-center ${
-                                        task.target && currentValue >= task.target ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'
+                                        task.target && currentValue >= task.target ? 'text-green-600 dark:text-green-400' : 'text-zinc-900 dark:text-white'
                                       }`}>
                                         {currentValue}/{task.target || '?'}
                                       </span>
-                                      <motion.button
-                                        whileTap={{ scale: 0.9 }}
+                                      <button
                                         onClick={() => handlePastCountChange(day.date, task, 1)}
-                                        className="w-6 h-6 rounded bg-blue-500 text-white flex items-center justify-center hover:bg-blue-600"
+                                        className="w-6 h-6 rounded bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 flex items-center justify-center hover:bg-zinc-800 dark:hover:bg-zinc-100"
                                       >
                                         <FaPlus className="text-[9px]" />
-                                      </motion.button>
+                                      </button>
                                     </div>
                                   )}
                                   {(task.completionType === 'numeric' || task.completionType === 'duration') && (
@@ -1164,17 +1165,16 @@ export default function TasksPage() {
                                         onChange={(e) => setPastPending(prev => ({ ...prev, [pendingKey]: e.target.value }))}
                                         onKeyDown={(e) => e.key === 'Enter' && handlePastNumericSubmit(day.date, task)}
                                         placeholder={task.target ? String(task.target) : '0'}
-                                        className="w-14 px-1.5 py-1 text-xs text-right border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                        className="w-14 px-1.5 py-1 text-xs text-right border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
                                       />
-                                      {task.completionType === 'duration' && <span className="text-[10px] text-gray-500 dark:text-gray-400">m</span>}
+                                      {task.completionType === 'duration' && <span className="text-[10px] text-zinc-500 dark:text-zinc-400">m</span>}
                                       {pastPending[pendingKey] !== undefined && (
-                                        <motion.button
-                                          whileTap={{ scale: 0.9 }}
+                                        <button
                                           onClick={() => handlePastNumericSubmit(day.date, task)}
                                           className="w-6 h-6 rounded bg-green-500 text-white flex items-center justify-center hover:bg-green-600"
                                         >
                                           <FaCheck className="text-[9px]" />
-                                        </motion.button>
+                                        </button>
                                       )}
                                     </div>
                                   )}
@@ -1193,6 +1193,17 @@ export default function TasksPage() {
         )}
 
       </motion.div>
+
+      <Snackbar
+        open={authSnackbar}
+        autoHideDuration={3000}
+        onClose={() => setAuthSnackbar(false)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <MuiAlert onClose={() => setAuthSnackbar(false)} severity="info" variant="filled" sx={{ width: "100%" }}>
+          Sign in to track your tasks
+        </MuiAlert>
+      </Snackbar>
     </div>
   );
 }

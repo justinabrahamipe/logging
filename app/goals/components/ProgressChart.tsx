@@ -70,7 +70,7 @@ export default function ProgressChart({ outcome, logs, color }: {
     };
 
     return (
-      <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+      <div className="mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-700">
         <ResponsiveContainer width="100%" height={180}>
           <LineChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
             <XAxis
@@ -176,7 +176,7 @@ export default function ProgressChart({ outcome, logs, color }: {
   };
 
   return (
-    <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+    <div className="mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-700">
       <ResponsiveContainer width="100%" height={180}>
         <LineChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
           <XAxis
