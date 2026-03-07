@@ -73,7 +73,7 @@ export async function saveDailyScore(userId: string, date: string) {
         loggedAt: l.loggedAt instanceof Date ? l.loggedAt.toISOString() : String(l.loggedAt),
       }));
 
-    const goalsForMomentum = userGoals.map(g => ({
+    const goalsForMomentum = userGoals.filter(g => g.goalType !== 'outcome').map(g => ({
       id: g.id,
       goalType: g.goalType,
       pillarId: g.pillarId,

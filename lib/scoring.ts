@@ -112,9 +112,14 @@ export function calculateDailyScore(
   let totalWeightedScore = 0;
   let totalWeight = 0;
 
+  // Default weight for tasks with no pillar (pillarId=0): use average of assigned weights
+  const defaultWeight = pillarWeights.length > 0
+    ? pillarWeights.reduce((s, pw) => s + (pw.weight || autoWeight), 0) / pillarWeights.length
+    : 100;
+
   for (const [pillarIdStr, score] of Object.entries(pillarScores)) {
     const pillarId = Number(pillarIdStr);
-    const weight = weightMap.get(pillarId) || 0;
+    const weight = weightMap.get(pillarId) || defaultWeight;
     totalWeightedScore += score * weight;
     totalWeight += weight;
   }

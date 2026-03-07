@@ -48,7 +48,7 @@ export async function GET() {
 
   const pillarWeights = userPillars.map(p => ({ pillarId: p.id, weight: p.weight }));
 
-  const goalsForMomentum = goals.map(g => ({
+  const goalsForMomentum = goals.filter(g => g.goalType !== 'outcome').map(g => ({
     id: g.id,
     goalType: g.goalType,
     pillarId: g.pillarId,

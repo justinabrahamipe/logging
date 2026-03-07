@@ -23,7 +23,7 @@ import {
 } from "recharts";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { calculateEffortMetrics } from "@/lib/effort-calculations";
+import { calculateEffortMetrics, countScheduledDaysInRange } from "@/lib/effort-calculations";
 
 interface Outcome {
   id: number;
@@ -39,6 +39,8 @@ interface Outcome {
   startDate: string | null;
   targetDate: string | null;
   goalType: string;
+  completionType: string;
+  dailyTarget: number | null;
   scheduleDays: string | null;
   autoCreateTasks: boolean;
   tolerance: number | null;
@@ -120,6 +122,8 @@ export default function GoalsPage() {
     targetDate: "",
     periodId: "",
     goalType: "outcome" as "habitual" | "target" | "outcome",
+    completionType: "checkbox" as "checkbox" | "count" | "numeric",
+    dailyTarget: "",
     autoCreateTasks: true,
     tolerance: "0",
     linkedOutcomeId: "",
@@ -150,6 +154,17 @@ export default function GoalsPage() {
       if (res.ok) {
         const data = await res.json();
         setAllOutcomes(data);
+        // Auto-select the first tab that has goals
+        const typeCounts = { habitual: 0, target: 0, outcome: 0 };
+        for (const o of data) {
+          const t = o.goalType === "effort" ? "target" : (o.goalType || "outcome");
+          if (t in typeCounts) typeCounts[t as keyof typeof typeCounts]++;
+        }
+        if (typeCounts[goalTab] === 0) {
+          if (typeCounts.habitual > 0) setGoalTab("habitual");
+          else if (typeCounts.target > 0) setGoalTab("target");
+          else if (typeCounts.outcome > 0) setGoalTab("outcome");
+        }
         await fetchAllLogs(data);
       }
     } catch (error) {
@@ -240,6 +255,8 @@ export default function GoalsPage() {
       targetDate: form.targetDate || null,
       periodId: form.periodId ? parseInt(form.periodId) : null,
       goalType: form.goalType,
+      completionType: form.completionType,
+      dailyTarget: form.dailyTarget ? parseFloat(form.dailyTarget) : null,
     };
 
     if (isHabitual || isTarget) {
@@ -352,6 +369,8 @@ export default function GoalsPage() {
       targetDate: "",
       periodId: "",
       goalType: goalTab,
+      completionType: "checkbox",
+      dailyTarget: "",
       autoCreateTasks: true,
       tolerance: "0",
       linkedOutcomeId: "",
@@ -391,6 +410,8 @@ export default function GoalsPage() {
       targetDate: outcome.targetDate || "",
       periodId: outcome.periodId ? String(outcome.periodId) : "",
       goalType: (outcome.goalType as "habitual" | "target" | "outcome") || "outcome",
+      completionType: (outcome.completionType as "checkbox" | "count" | "numeric") || "checkbox",
+      dailyTarget: outcome.dailyTarget ? String(outcome.dailyTarget) : "",
       autoCreateTasks: outcome.autoCreateTasks || false,
       tolerance: String(outcome.tolerance || 0),
       linkedOutcomeId: outcome.linkedOutcomeId ? String(outcome.linkedOutcomeId) : "",
@@ -523,7 +544,11 @@ export default function GoalsPage() {
             whileTap={{ scale: 0.95 }}
             onClick={() => {
               resetForm();
-              setForm((prev) => ({ ...prev, goalType: goalTab }));
+              setForm((prev) => ({
+                ...prev,
+                goalType: goalTab,
+                completionType: goalTab === "target" ? "count" : goalTab === "outcome" ? "numeric" : "checkbox",
+              }));
               setShowForm(true);
             }}
             className="p-2 md:px-4 md:py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium flex items-center gap-2"
@@ -532,9 +557,10 @@ export default function GoalsPage() {
           </motion.button>
         </div>
 
-        {/* Goal Type Tabs + Time Tabs on same line */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex gap-2">
+        {/* Goal Type Tabs + Time Tabs */}
+        <div className="flex items-center justify-between mb-6 gap-2">
+          {/* Desktop: buttons, Mobile: dropdown */}
+          <div className="hidden md:flex gap-2">
             {([
               { key: "habitual" as const, label: "Habitual" },
               { key: "target" as const, label: "Target" },
@@ -553,8 +579,17 @@ export default function GoalsPage() {
               </button>
             ))}
           </div>
+          <select
+            value={goalTab}
+            onChange={(e) => setGoalTab(e.target.value as "habitual" | "target" | "outcome")}
+            className="md:hidden px-3 py-2 text-sm font-semibold rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+          >
+            <option value="habitual">Habitual</option>
+            <option value="target">Target</option>
+            <option value="outcome">Outcome</option>
+          </select>
 
-          <div className="flex gap-2">
+          <div className="hidden md:flex gap-2">
             {([
               { key: "current" as const, label: "Current" },
               { key: "future" as const, label: "Future" },
@@ -573,6 +608,15 @@ export default function GoalsPage() {
               </button>
             ))}
           </div>
+          <select
+            value={timeTab}
+            onChange={(e) => setTimeTab(e.target.value as "current" | "future" | "past")}
+            className="md:hidden px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+          >
+            <option value="current">Current {timeCounts.current > 0 ? `(${timeCounts.current})` : ''}</option>
+            <option value="future">Future {timeCounts.future > 0 ? `(${timeCounts.future})` : ''}</option>
+            <option value="past">Past {timeCounts.past > 0 ? `(${timeCounts.past})` : ''}</option>
+          </select>
         </div>
 
         {/* Goal Cards */}
@@ -651,7 +695,11 @@ export default function GoalsPage() {
                     {(["habitual", "target", "outcome"] as const).map((type) => (
                       <button
                         key={type}
-                        onClick={() => setForm((prev) => ({ ...prev, goalType: type }))}
+                        onClick={() => setForm((prev) => ({
+                          ...prev,
+                          goalType: type,
+                          completionType: type === "target" ? "count" : type === "outcome" ? "numeric" : prev.completionType,
+                        }))}
                         className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
                           form.goalType === type
                             ? "bg-blue-600 text-white"
@@ -675,6 +723,61 @@ export default function GoalsPage() {
                       placeholder={form.goalType === "habitual" ? "e.g., Go to gym" : form.goalType === "target" ? "e.g., Read 120 chapters" : "e.g., Body Weight"}
                     />
                   </div>
+
+                  {/* Tracking Type + Per-session target */}
+                  {form.goalType !== "outcome" && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tracking Type</label>
+                      <div className="flex gap-2 items-center w-full">
+                        {(form.goalType === "habitual"
+                          ? (["checkbox", "count", "numeric"] as const)
+                          : (["count", "numeric"] as const)
+                        ).map((ct) => (
+                          <button
+                            key={ct}
+                            type="button"
+                            onClick={() => setForm({ ...form, completionType: ct })}
+                            className={`flex-1 px-3 py-2 text-sm rounded-lg border transition-colors ${
+                              form.completionType === ct
+                                ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400"
+                                : "border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
+                            }`}
+                          >
+                            {ct === "checkbox" ? "Checkbox" : ct === "count" ? "Count" : "Numeric"}
+                          </button>
+                        ))}
+                        {form.completionType !== "checkbox" && (
+                          form.goalType === "target" ? (() => {
+                            let scheduleDays: number[] = [];
+                            if (form.frequencyPreset === 'daily') scheduleDays = [0,1,2,3,4,5,6];
+                            else if (form.frequencyPreset === 'weekdays') scheduleDays = [1,2,3,4,5];
+                            else if (form.frequencyPreset === 'custom') {
+                              scheduleDays = form.repeatUnit === 'weeks' ? form.customDays : [form.monthDay];
+                            }
+                            const total = parseFloat(form.targetValue) || 0;
+                            const days = (form.startDate && form.targetDate && scheduleDays.length > 0)
+                              ? countScheduledDaysInRange(form.startDate, form.targetDate, scheduleDays)
+                              : 0;
+                            const perSession = days > 0 ? Math.ceil(total / days) : 0;
+                            return (
+                              <span className="text-sm text-gray-500 dark:text-gray-400">
+                                {perSession > 0 ? <>{perSession} {form.unit}/session</> : null}
+                              </span>
+                            );
+                          })() : (
+                            <input
+                              type="number"
+                              step="any"
+                              value={form.dailyTarget}
+                              onChange={(e) => setForm({ ...form, dailyTarget: e.target.value })}
+                              className="w-24 px-2 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-right"
+                              placeholder="/session"
+                            />
+                          )
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Pillar (optional)</label>
@@ -952,7 +1055,7 @@ export default function GoalsPage() {
                           }`}
                         />
                       </div>
-                      <span className="text-sm text-gray-700 dark:text-gray-300">Auto-create daily task</span>
+                      <span className="text-sm text-gray-700 dark:text-gray-300">Auto-create task</span>
                     </label>
                   )}
 
@@ -1021,24 +1124,84 @@ export default function GoalsPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      {logTarget.goalType === "outcome"
-                        ? `Value (${logTarget.unit})`
-                        : logTarget.goalType === "habitual" ? "Did you do it? (1 = yes)" : `How many ${logTarget.unit} today?`}
-                    </label>
-                    <input
-                      type="number"
-                      step="any"
-                      value={logValue}
-                      onChange={(e) => setLogValue(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                      autoFocus
-                    />
-                    {logTarget.goalType === "target" && logValue && (
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        Total after: {logTarget.currentValue + parseFloat(logValue || "0")}/{logTarget.targetValue} {logTarget.unit}
-                      </p>
-                    )}
+                    {(() => {
+                      const ct = logTarget.completionType || (logTarget.goalType === "habitual" ? "checkbox" : "numeric");
+                      if (ct === "checkbox") {
+                        return (
+                          <>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Did you complete it?</label>
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setLogValue("1")}
+                                className={`flex-1 py-3 text-sm font-semibold rounded-lg transition-colors ${
+                                  logValue === "1"
+                                    ? "bg-green-500 text-white"
+                                    : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+                                }`}
+                              >
+                                Yes
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setLogValue("0")}
+                                className={`flex-1 py-3 text-sm font-semibold rounded-lg transition-colors ${
+                                  logValue === "0"
+                                    ? "bg-red-500 text-white"
+                                    : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+                                }`}
+                              >
+                                No
+                              </button>
+                            </div>
+                          </>
+                        );
+                      }
+                      if (ct === "count") {
+                        return (
+                          <>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                              How many {logTarget.unit || ""}? {logTarget.dailyTarget ? `(target: ${logTarget.dailyTarget})` : ""}
+                            </label>
+                            <input
+                              type="number"
+                              value={logValue}
+                              onChange={(e) => setLogValue(e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                              placeholder={logTarget.dailyTarget ? String(logTarget.dailyTarget) : "0"}
+                              autoFocus
+                            />
+                            {logTarget.goalType === "target" && logValue && (
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                Total after: {logTarget.currentValue + parseFloat(logValue || "0")}/{logTarget.targetValue} {logTarget.unit}
+                              </p>
+                            )}
+                          </>
+                        );
+                      }
+                      // numeric
+                      return (
+                        <>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Value ({logTarget.unit}) {logTarget.dailyTarget ? `(target: ${logTarget.dailyTarget})` : ""}
+                          </label>
+                          <input
+                            type="number"
+                            step="any"
+                            value={logValue}
+                            onChange={(e) => setLogValue(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            placeholder={logTarget.dailyTarget ? String(logTarget.dailyTarget) : "0"}
+                            autoFocus
+                          />
+                          {logTarget.goalType === "target" && logValue && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                              Total after: {logTarget.currentValue + parseFloat(logValue || "0")}/{logTarget.targetValue} {logTarget.unit}
+                            </p>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
 
                   <div>
