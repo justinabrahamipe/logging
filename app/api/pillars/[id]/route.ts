@@ -3,6 +3,27 @@ import { auth } from "@/auth";
 import { db, pillars } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
 
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await params;
+  const pillarId = parseInt(id);
+
+  const [pillar] = await db
+    .select()
+    .from(pillars)
+    .where(and(eq(pillars.id, pillarId), eq(pillars.userId, session.user.id)));
+
+  if (!pillar) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  return NextResponse.json(pillar);
+}
+
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.id) {

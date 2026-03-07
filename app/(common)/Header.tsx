@@ -68,7 +68,7 @@ export default function Header() {
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: FaBolt },
     { href: "/tasks", label: "Tasks", icon: FaTasks },
-    { href: "/outcomes", label: "Goals", icon: FaChartLine },
+    { href: "/goals", label: "Goals", icon: FaChartLine },
     { href: "/cycles", label: "Cycles", icon: FaCalendarAlt },
     { href: "/pillars", label: "Pillars", icon: FaColumns },
   ];

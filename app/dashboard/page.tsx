@@ -913,7 +913,7 @@ export default function DashboardPage() {
                   Goals Progress
                 </h2>
               </div>
-              <Link href="/outcomes">
+              <Link href="/goals">
                 <span className="text-sm text-blue-500 hover:text-blue-600 dark:text-blue-400">View All</span>
               </Link>
             </div>

@@ -9,7 +9,8 @@ function isTaskForExactDate(task: typeof tasks.$inferSelect, dateStr: string): b
 
   if (task.frequency === 'adhoc') {
     const createdDate = task.createdAt ? new Date(task.createdAt).toISOString().split('T')[0] : null;
-    return createdDate === dateStr;
+    // Show on creation date and carry forward to future dates (overdue until completed)
+    return createdDate != null && dateStr >= createdDate;
   }
 
   if (task.frequency === 'daily') return true;

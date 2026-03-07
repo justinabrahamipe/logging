@@ -1,0 +1,514 @@
+"use client";
+
+import { useState } from "react";
+import { FaCheck } from "react-icons/fa";
+import { countScheduledDaysInRange } from "@/lib/effort-calculations";
+import { Outcome, Pillar, CycleOption, GoalFormState } from "../types";
+import { DAY_NAMES, FREQUENCY_PRESETS, REPEAT_UNITS } from "../constants";
+import PerSessionLabel from "./PerSessionLabel";
+
+const DEFAULT_FORM: GoalFormState = {
+  name: "",
+  startValue: "",
+  targetValue: "",
+  unit: "",
+  pillarId: "",
+  logFrequency: "weekly",
+  startDate: "",
+  targetDate: "",
+  periodId: "",
+  goalType: "outcome",
+  completionType: "checkbox",
+  dailyTarget: "",
+  autoCreateTasks: true,
+  frequencyPreset: "daily",
+  customDays: [],
+  repeatInterval: "1",
+  repeatUnit: "weeks",
+  monthDay: 1,
+};
+
+export default function GoalForm({
+  editingOutcome,
+  defaultGoalType,
+  pillars,
+  cycles,
+  onCancel,
+  onSave,
+}: {
+  editingOutcome: Outcome | null;
+  defaultGoalType?: "habitual" | "target" | "outcome";
+  pillars: Pillar[];
+  cycles: CycleOption[];
+  onCancel: () => void;
+  onSave: (payload: Record<string, unknown>, isEdit: boolean) => Promise<void>;
+}) {
+  const [form, setForm] = useState<GoalFormState>(() => {
+    if (editingOutcome) {
+      const parsedDays: number[] = editingOutcome.scheduleDays ? JSON.parse(editingOutcome.scheduleDays) : [];
+      let frequencyPreset = "daily";
+      let customDays: number[] = [];
+      const sorted = [...parsedDays].sort().join(',');
+      if (sorted === '0,1,2,3,4,5,6') {
+        frequencyPreset = "daily";
+      } else if (sorted === '1,2,3,4,5') {
+        frequencyPreset = "weekdays";
+      } else if (parsedDays.length > 0) {
+        frequencyPreset = "custom";
+        customDays = parsedDays;
+      }
+      return {
+        name: editingOutcome.name,
+        startValue: String(editingOutcome.startValue),
+        targetValue: String(editingOutcome.targetValue),
+        unit: editingOutcome.unit,
+        pillarId: editingOutcome.pillarId ? String(editingOutcome.pillarId) : "",
+        logFrequency: editingOutcome.logFrequency,
+        startDate: editingOutcome.startDate || "",
+        targetDate: editingOutcome.targetDate || "",
+        periodId: editingOutcome.periodId ? String(editingOutcome.periodId) : "",
+        goalType: (editingOutcome.goalType === "effort" ? "target" : editingOutcome.goalType as "habitual" | "target" | "outcome") || "outcome",
+        completionType: (editingOutcome.completionType as "checkbox" | "count" | "numeric") || "checkbox",
+        dailyTarget: editingOutcome.dailyTarget ? String(editingOutcome.dailyTarget) : "",
+        autoCreateTasks: editingOutcome.autoCreateTasks || false,
+        frequencyPreset,
+        customDays,
+        repeatInterval: "1",
+        repeatUnit: "weeks",
+        monthDay: 1,
+      };
+    }
+    const goalType = defaultGoalType || "outcome";
+    return {
+      ...DEFAULT_FORM,
+      goalType,
+      completionType: goalType === "target" ? "count" : goalType === "outcome" ? "numeric" : "checkbox",
+    };
+  });
+
+  const [saving, setSaving] = useState(false);
+
+  const toggleCustomDay = (day: number) => {
+    setForm((prev) => ({
+      ...prev,
+      customDays: prev.customDays.includes(day)
+        ? prev.customDays.filter((d) => d !== day)
+        : [...prev.customDays, day].sort(),
+    }));
+  };
+
+  const handleSubmit = async () => {
+    if (!form.name.trim()) return;
+    const isHabitual = form.goalType === "habitual";
+    const isTarget = form.goalType === "target";
+    const isOutcome = form.goalType === "outcome";
+
+    if ((isTarget || isOutcome) && form.targetValue === "") return;
+    if (isOutcome && form.startValue === "") return;
+    if (!form.periodId) return;
+    if (!isHabitual && !form.unit.trim()) return;
+
+    const start = isOutcome ? parseFloat(form.startValue) : 0;
+    const target = isHabitual ? 0 : parseFloat(form.targetValue);
+
+    const payload: Record<string, unknown> = {
+      name: form.name,
+      startValue: start,
+      targetValue: target,
+      unit: isHabitual ? (form.unit || "days") : form.unit,
+      direction: isOutcome ? (target >= start ? "increase" : "decrease") : "increase",
+      pillarId: form.pillarId ? parseInt(form.pillarId) : null,
+      logFrequency: isOutcome ? form.logFrequency : "daily",
+      startDate: form.startDate || null,
+      targetDate: form.targetDate || null,
+      periodId: form.periodId ? parseInt(form.periodId) : null,
+      goalType: form.goalType,
+      completionType: form.completionType,
+      dailyTarget: form.dailyTarget ? parseFloat(form.dailyTarget) : null,
+    };
+
+    if (isHabitual || isTarget) {
+      payload.autoCreateTasks = form.autoCreateTasks;
+
+      let scheduleDays: number[] = [];
+      const repeatUnit = form.repeatUnit;
+      const repeatInterval = parseInt(form.repeatInterval) || 1;
+
+      if (form.frequencyPreset === 'daily') {
+        scheduleDays = [0, 1, 2, 3, 4, 5, 6];
+      } else if (form.frequencyPreset === 'weekdays') {
+        scheduleDays = [1, 2, 3, 4, 5];
+      } else if (form.frequencyPreset === 'custom') {
+        if (repeatUnit === 'weeks') {
+          scheduleDays = form.customDays;
+        } else if (repeatUnit === 'months') {
+          scheduleDays = [form.monthDay];
+        } else {
+          scheduleDays = [];
+        }
+      }
+
+      payload.scheduleDays = scheduleDays;
+      payload.repeatInterval = repeatInterval;
+      payload.repeatUnit = repeatUnit;
+
+      if (isTarget && form.completionType !== "checkbox" && form.startDate && form.targetDate && scheduleDays.length > 0) {
+        const totalTarget = parseFloat(form.targetValue) || 0;
+        const days = countScheduledDaysInRange(form.startDate, form.targetDate, scheduleDays);
+        if (days > 0) {
+          payload.dailyTarget = Math.ceil(totalTarget / days);
+        }
+      }
+    }
+
+    setSaving(true);
+    try {
+      await onSave(payload, !!editingOutcome);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      {/* Row 1: Goal Type + Name */}
+      <div className={`grid gap-3 ${!editingOutcome ? "grid-cols-1 md:grid-cols-[200px_1fr]" : ""}`}>
+        {!editingOutcome && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Goal Type</label>
+            <select
+              value={form.goalType}
+              onChange={(e) => {
+                const type = e.target.value as "habitual" | "target" | "outcome";
+                setForm((prev) => ({
+                  ...prev,
+                  goalType: type,
+                  completionType: type === "target" ? "count" : type === "outcome" ? "numeric" : prev.completionType,
+                }));
+              }}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              <option value="habitual">Habitual</option>
+              <option value="target">Target</option>
+              <option value="outcome">Outcome</option>
+            </select>
+          </div>
+        )}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
+          <input
+            type="text"
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            placeholder={form.goalType === "habitual" ? "e.g., Go to gym" : form.goalType === "target" ? "e.g., Read 120 chapters" : "e.g., Body Weight"}
+          />
+        </div>
+      </div>
+
+      {/* Tracking Type + Per-session target */}
+      {form.goalType !== "outcome" && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tracking Type</label>
+          <div className="flex gap-2 items-center w-full">
+            {(form.goalType === "habitual"
+              ? (["checkbox", "count", "numeric"] as const)
+              : (["count", "numeric"] as const)
+            ).map((ct) => (
+              <button
+                key={ct}
+                type="button"
+                onClick={() => setForm({ ...form, completionType: ct })}
+                className={`flex-1 px-3 py-2 text-sm rounded-lg border transition-colors ${
+                  form.completionType === ct
+                    ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400"
+                    : "border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
+                }`}
+              >
+                {ct === "checkbox" ? "Checkbox" : ct === "count" ? "Count" : "Numeric"}
+              </button>
+            ))}
+            {form.completionType !== "checkbox" && form.goalType === "habitual" && (
+              <input
+                type="number"
+                step="any"
+                value={form.dailyTarget}
+                onChange={(e) => setForm({ ...form, dailyTarget: e.target.value })}
+                className="w-24 px-2 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-right"
+                placeholder="/session"
+              />
+            )}
+            {form.completionType !== "checkbox" && form.goalType === "target" && (
+              <PerSessionLabel form={form} />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Row 2: Pillar + Values/Unit — varies by goal type */}
+      {form.goalType === "outcome" && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Value</label>
+            <input
+              type="number"
+              step="any"
+              value={form.startValue}
+              onChange={(e) => setForm({ ...form, startValue: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              placeholder="e.g., 98.6"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Target Value</label>
+            <input
+              type="number"
+              step="any"
+              value={form.targetValue}
+              onChange={(e) => setForm({ ...form, targetValue: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              placeholder="e.g., 90"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unit</label>
+            <input
+              type="text"
+              value={form.unit}
+              onChange={(e) => setForm({ ...form, unit: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              placeholder="e.g., kg"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Log Frequency</label>
+            <select
+              value={form.logFrequency}
+              onChange={(e) => setForm({ ...form, logFrequency: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+        </div>
+      )}
+
+      {form.goalType === "target" && (
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Target Value</label>
+            <input
+              type="number"
+              step="any"
+              value={form.targetValue}
+              onChange={(e) => setForm({ ...form, targetValue: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              placeholder="e.g., 120"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unit</label>
+            <input
+              type="text"
+              value={form.unit}
+              onChange={(e) => setForm({ ...form, unit: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              placeholder="e.g., chapters"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Row 3: Pillar + Repeat (or Pillar alone for outcome) */}
+      {(form.goalType === "habitual" || form.goalType === "target") ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Pillar (optional)</label>
+            <select
+              value={form.pillarId}
+              onChange={(e) => setForm({ ...form, pillarId: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              <option value="">No Pillar</option>
+              {pillars.map((p) => (
+                <option key={p.id} value={p.id}>{p.emoji} {p.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Repeat</label>
+            <select
+              value={form.frequencyPreset}
+              onChange={(e) => setForm({ ...form, frequencyPreset: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              {FREQUENCY_PRESETS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      ) : (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Pillar (optional)</label>
+          <select
+            value={form.pillarId}
+            onChange={(e) => setForm({ ...form, pillarId: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+          >
+            <option value="">No Pillar</option>
+            {pillars.map((p) => (
+              <option key={p.id} value={p.id}>{p.emoji} {p.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* Custom repeat options */}
+      {(form.goalType === "habitual" || form.goalType === "target") && form.frequencyPreset === "custom" && (
+        <div className="space-y-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Repeat every</label>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                value={form.repeatInterval}
+                onChange={(e) => setForm({ ...form, repeatInterval: e.target.value })}
+                className="w-20 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                min="1"
+              />
+              <select
+                value={form.repeatUnit}
+                onChange={(e) => setForm({ ...form, repeatUnit: e.target.value as "days" | "weeks" | "months" })}
+                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              >
+                {REPEAT_UNITS.map((u) => (
+                  <option key={u.value} value={u.value}>
+                    {parseInt(form.repeatInterval) > 1 ? u.label + "s" : u.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          {form.repeatUnit === "weeks" && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Repeat on</label>
+              <div className="flex gap-1">
+                {DAY_NAMES.map((day, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => toggleCustomDay(idx)}
+                    className={`flex-1 py-2 text-xs rounded-lg border transition-colors ${
+                      form.customDays.includes(idx)
+                        ? "border-blue-500 bg-blue-500 text-white"
+                        : "border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
+                    }`}
+                  >
+                    {day}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {form.repeatUnit === "months" && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">On day</label>
+              <select
+                value={form.monthDay}
+                onChange={(e) => setForm({ ...form, monthDay: parseInt(e.target.value) })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              >
+                {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Row 4: Cycle + Start Date + Target Date */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Goal Cycle (required)</label>
+          <select
+            value={form.periodId}
+            onChange={(e) => {
+              const pid = e.target.value;
+              const cycle = cycles.find((c) => String(c.id) === pid);
+              setForm({
+                ...form,
+                periodId: pid,
+                startDate: cycle ? cycle.startDate : form.startDate,
+                targetDate: cycle ? cycle.endDate : form.targetDate,
+              });
+            }}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+          >
+            <option value="">None</option>
+            {cycles.map((c) => (
+              <option key={c.id} value={c.id}>{c.name} ({c.startDate} → {c.endDate})</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date</label>
+          <input
+            type="date"
+            value={form.startDate}
+            onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Target Date</label>
+          <input
+            type="date"
+            value={form.targetDate}
+            onChange={(e) => setForm({ ...form, targetDate: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+          />
+        </div>
+      </div>
+
+      {/* Row 5: Auto-create toggle + action buttons */}
+      <div className="flex flex-wrap items-center gap-3 pt-2">
+        {(form.goalType === "habitual" || form.goalType === "target") && !editingOutcome && (
+          <label className="flex items-center gap-2 cursor-pointer mr-auto">
+            <div
+              className={`relative w-10 h-6 rounded-full transition-colors ${
+                form.autoCreateTasks ? "bg-blue-600" : "bg-gray-300 dark:bg-gray-600"
+              }`}
+              onClick={() => setForm((prev) => ({ ...prev, autoCreateTasks: !prev.autoCreateTasks }))}
+            >
+              <div
+                className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                  form.autoCreateTasks ? "translate-x-[18px]" : "translate-x-0.5"
+                }`}
+              />
+            </div>
+            <span className="text-sm text-gray-700 dark:text-gray-300">Auto-create task</span>
+          </label>
+        )}
+        <div className="flex gap-3 ml-auto">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-medium"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={saving}
+            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg font-medium flex items-center gap-2"
+          >
+            <FaCheck /> {editingOutcome ? "Update" : "Create"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
