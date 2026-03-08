@@ -145,42 +145,70 @@ function calculateTargetMomentum(
   return { goalId: goal.id, goalType: goal.goalType, pillarId: goal.pillarId, momentum: Math.round(momentum * 100) / 100, bufferDays, label };
 }
 
+export interface GoalTrajectory {
+  goalId: number;
+  pillarId: number | null;
+  trajectory: number; // 1.0 = on pace, >1 = ahead, <1 = behind
+  label: string;
+}
+
+export interface TrajectorySummary {
+  overall: number;
+  goals: GoalTrajectory[];
+}
+
 /**
- * Calculate momentum for an outcome goal.
- * Momentum = actual progress % / expected progress % (linear through cycle).
+ * Calculate trajectory for outcome goals.
+ * Trajectory = actual progress % / expected progress % (linear through cycle).
+ * Outcome goals are not fully in your control, so we call this "trajectory" not "momentum".
  */
-function calculateOutcomeMomentum(
-  goal: GoalForMomentum,
+export function calculateTrajectory(
+  goals: GoalForMomentum[],
   today: string
-): GoalMomentum {
-  const startDate = goal.startDate || today;
-  const endDate = goal.targetDate || today;
-
-  if (today < startDate) {
-    return { goalId: goal.id, goalType: goal.goalType, pillarId: goal.pillarId, momentum: 1.0, bufferDays: 0, label: 'Not started' };
+): TrajectorySummary {
+  const outcomeGoals = goals.filter(g => g.goalType === 'outcome');
+  if (outcomeGoals.length === 0) {
+    return { overall: 1.0, goals: [] };
   }
 
-  const totalMs = new Date(endDate).getTime() - new Date(startDate).getTime();
-  const elapsedMs = new Date(today > endDate ? endDate : today).getTime() - new Date(startDate).getTime();
+  const results: GoalTrajectory[] = [];
 
-  if (totalMs <= 0) {
-    return { goalId: goal.id, goalType: goal.goalType, pillarId: goal.pillarId, momentum: 1.0, bufferDays: 0, label: 'On track' };
+  for (const goal of outcomeGoals) {
+    const startDate = goal.startDate || today;
+    const endDate = goal.targetDate || today;
+
+    if (today < startDate) {
+      results.push({ goalId: goal.id, pillarId: goal.pillarId, trajectory: 1.0, label: 'Not started' });
+      continue;
+    }
+
+    const totalMs = new Date(endDate).getTime() - new Date(startDate).getTime();
+    const elapsedMs = new Date(today > endDate ? endDate : today).getTime() - new Date(startDate).getTime();
+
+    if (totalMs <= 0) {
+      results.push({ goalId: goal.id, pillarId: goal.pillarId, trajectory: 1.0, label: 'On track' });
+      continue;
+    }
+
+    const timeProgress = elapsedMs / totalMs;
+    const range = Math.abs(goal.targetValue - goal.startValue);
+    if (range === 0) {
+      results.push({ goalId: goal.id, pillarId: goal.pillarId, trajectory: 1.0, label: 'Complete' });
+      continue;
+    }
+
+    const valueProgress = Math.abs(goal.currentValue - goal.startValue) / range;
+    const trajectory = timeProgress > 0 ? valueProgress / timeProgress : (valueProgress > 0 ? 2.0 : 1.0);
+    const label = trajectory >= 1.05 ? `${trajectory.toFixed(1)}x` : trajectory >= 0.95 ? 'On track' : `${trajectory.toFixed(1)}x`;
+
+    results.push({ goalId: goal.id, pillarId: goal.pillarId, trajectory: Math.round(trajectory * 100) / 100, label });
   }
 
-  const timeProgress = elapsedMs / totalMs;
-  const range = Math.abs(goal.targetValue - goal.startValue);
-  if (range === 0) {
-    return { goalId: goal.id, goalType: goal.goalType, pillarId: goal.pillarId, momentum: 1.0, bufferDays: 0, label: 'Complete' };
-  }
+  const overall = results.length > 0
+    ? Math.round((results.reduce((s, g) => s + g.trajectory, 0) / results.length) * 100) / 100
+    : 1.0;
 
-  const valueProgress = Math.abs(goal.currentValue - goal.startValue) / range;
-  const expectedProgress = timeProgress;
-
-  const momentum = expectedProgress > 0 ? valueProgress / expectedProgress : (valueProgress > 0 ? 2.0 : 1.0);
-
-  const label = momentum >= 1.05 ? `${momentum.toFixed(1)}x` : momentum >= 0.95 ? 'On track' : `${momentum.toFixed(1)}x`;
-
-  return { goalId: goal.id, goalType: goal.goalType, pillarId: goal.pillarId, momentum: Math.round(momentum * 100) / 100, bufferDays: 0, label };
+  return { overall, goals: results };
 }
 
 /**
@@ -205,13 +233,12 @@ export function calculateMomentum(
   const goalResults: GoalMomentum[] = [];
 
   for (const goal of goals) {
+    // Only target goals have momentum
+    if (goal.goalType !== 'target') continue;
+
     let result: GoalMomentum;
-    const goalLogs = logsByGoal.get(goal.id) || [];
 
     switch (goal.goalType) {
-      case 'habitual':
-        result = calculateHabitualMomentum(goal, goalLogs, today);
-        break;
       case 'target':
         result = calculateTargetMomentum(goal, today);
         break;

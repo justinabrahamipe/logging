@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db, outcomes, outcomeLogs, pillars } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
-import { calculateMomentum } from "@/lib/momentum";
+import { calculateMomentum, calculateTrajectory } from "@/lib/momentum";
 
 export async function GET() {
   const session = await auth();
@@ -48,7 +48,7 @@ export async function GET() {
 
   const pillarWeights = userPillars.map(p => ({ pillarId: p.id, weight: p.weight }));
 
-  const goalsForMomentum = goals.filter(g => g.goalType !== 'outcome').map(g => ({
+  const mappedGoals = goals.map(g => ({
     id: g.id,
     goalType: g.goalType,
     pillarId: g.pillarId,
@@ -61,7 +61,8 @@ export async function GET() {
     tolerance: g.tolerance,
   }));
 
-  const summary = calculateMomentum(goalsForMomentum, logs, pillarWeights, today);
+  const summary = calculateMomentum(mappedGoals, logs, pillarWeights, today);
+  const trajectorySummary = calculateTrajectory(mappedGoals, today);
 
   // Enrich with pillar info
   const pillarInfo = userPillars.map(p => ({
@@ -73,8 +74,20 @@ export async function GET() {
     momentum: summary.pillarMomentum[p.id] ?? null,
   }));
 
-  // Enrich goals with names
+  // Enrich momentum goals with names
   const goalDetails = summary.goals.map(g => {
+    const goal = goals.find(og => og.id === g.goalId);
+    return {
+      ...g,
+      name: goal?.name || '',
+      currentValue: goal?.currentValue || 0,
+      targetValue: goal?.targetValue || 0,
+      unit: goal?.unit || '',
+    };
+  });
+
+  // Enrich trajectory goals with names
+  const trajectoryDetails = trajectorySummary.goals.map(g => {
     const goal = goals.find(og => og.id === g.goalId);
     return {
       ...g,
@@ -89,5 +102,9 @@ export async function GET() {
     overall: summary.overall,
     pillars: pillarInfo,
     goals: goalDetails,
+    trajectory: {
+      overall: trajectorySummary.overall,
+      goals: trajectoryDetails,
+    },
   });
 }
