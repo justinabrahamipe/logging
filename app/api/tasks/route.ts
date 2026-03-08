@@ -25,7 +25,11 @@ export async function GET(request: NextRequest) {
 
     // For adhoc tasks carried forward, exclude ones already completed on any date
     const adhocIds = filteredTasks
-      .filter(t => t.frequency === 'adhoc' && t.createdAt && new Date(t.createdAt).toISOString().split('T')[0] !== date)
+      .filter(t => {
+        if (t.frequency !== 'adhoc') return false;
+        const effectiveDate = t.startDate || (t.createdAt ? new Date(t.createdAt).toISOString().split('T')[0] : null);
+        return effectiveDate && effectiveDate !== date;
+      })
       .map(t => t.id);
 
     if (adhocIds.length > 0) {
