@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db, tasks, pillars, taskCompletions } from "@/lib/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { calculateDailyScore, getScoreTier } from "@/lib/scoring";
 import { isTaskForDate } from "@/lib/task-schedule";
 import { saveDailyScore } from "@/lib/save-daily-score";
@@ -24,7 +24,25 @@ export async function GET(request: NextRequest) {
     .where(and(eq(tasks.userId, session.user.id), eq(tasks.isActive, true)));
 
   // Filter tasks for the specific date
-  const tasksForDay = allTasks.filter(task => isTaskForDate(task, date));
+  let tasksForDay = allTasks.filter(task => isTaskForDate(task, date));
+
+  // Exclude adhoc tasks that were carried forward and already completed
+  const adhocIds = tasksForDay
+    .filter(t => t.frequency === 'adhoc' && t.createdAt && new Date(t.createdAt).toISOString().split('T')[0] !== date)
+    .map(t => t.id);
+
+  if (adhocIds.length > 0) {
+    const completedAdhoc = await db
+      .select({ taskId: taskCompletions.taskId })
+      .from(taskCompletions)
+      .where(and(
+        eq(taskCompletions.userId, session.user.id),
+        inArray(taskCompletions.taskId, adhocIds),
+        eq(taskCompletions.completed, true),
+      ));
+    const completedSet = new Set(completedAdhoc.map(c => c.taskId));
+    tasksForDay = tasksForDay.filter(t => !(t.frequency === 'adhoc' && completedSet.has(t.id)));
+  }
 
   // Get completions
   const completions = await db
