@@ -5,6 +5,8 @@ import { motion } from "framer-motion";
 import { FaSearch, FaFilter, FaChevronDown, FaChevronUp, FaUndo, FaCheck, FaPlus, FaMinus, FaSlidersH, FaBullseye, FaEdit, FaTimes } from "react-icons/fa";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { formatDate } from "@/lib/format";
+import { useTheme } from "@/components/ThemeProvider";
 
 interface ActivityEntry {
   id: number;
@@ -68,14 +70,15 @@ function formatTimestamp(ts: string) {
   return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 }
 
-function formatDate(ts: string) {
+function formatDateLabel(ts: string, dateFormat: string) {
   const date = new Date(ts);
-  return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  return formatDate(date.toISOString().split('T')[0], dateFormat);
 }
 
 export default function ActivityPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const { dateFormat } = useTheme();
   const [entries, setEntries] = useState<ActivityEntry[]>([]);
   const [pillars, setPillars] = useState<Pillar[]>([]);
   const [loading, setLoading] = useState(true);
@@ -387,7 +390,7 @@ export default function ActivityPage() {
 
                   {/* Timestamp */}
                   <div className="text-xs text-zinc-400 dark:text-zinc-500 flex-shrink-0">
-                    {useRange && formatDate(entry.timestamp)}
+                    {useRange && formatDateLabel(entry.timestamp, dateFormat)}
                   </div>
                 </div>
               </motion.div>

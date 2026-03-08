@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { FaClock, FaCalendar, FaCheck, FaMoon, FaSun, FaDesktop, FaCog, FaSlidersH, FaDatabase, FaTrash, FaDownload, FaExclamationTriangle, FaBolt, FaTasks, FaColumns } from "react-icons/fa";
+import { FaClock, FaCalendar, FaCheck, FaMoon, FaSun, FaDesktop, FaCog, FaDatabase, FaTrash, FaDownload, FaExclamationTriangle, FaTasks, FaColumns } from "react-icons/fa";
 import { useSession } from "next-auth/react";
 import { useTheme } from "@/components/ThemeProvider";
 import { Snackbar, Alert as MuiAlert } from "@mui/material";
@@ -10,17 +10,15 @@ import { Snackbar, Alert as MuiAlert } from "@mui/material";
 type TimeFormat = "12h" | "24h";
 type DateFormat = "DD/MM/YYYY" | "MM/DD/YYYY" | "YYYY-MM-DD" | "DD-MM-YYYY" | "MM-DD-YYYY";
 type Theme = "light" | "dark" | "system";
-type SettingsTab = "preferences" | "data";
+
 
 export default function SettingsPage() {
   const { data: session } = useSession();
-  const { theme, setTheme: setGlobalTheme } = useTheme();
-  const [activeTab, setActiveTab] = useState<SettingsTab>("preferences");
+  const { theme, setTheme: setGlobalTheme, dateFormat: globalDateFormat, timeFormat: globalTimeFormat, setDateFormat: setGlobalDateFormat, setTimeFormat: setGlobalTimeFormat } = useTheme();
   const [localTheme, setLocalTheme] = useState<Theme>(theme);
-  const [timeFormat, setTimeFormat] = useState<TimeFormat>("12h");
-  const [dateFormat, setDateFormat] = useState<DateFormat>("DD/MM/YYYY");
-  const [weekdayPassThreshold, setWeekdayPassThreshold] = useState(70);
-  const [weekendPassThreshold, setWeekendPassThreshold] = useState(70);
+  const [timeFormat, setTimeFormat] = useState<TimeFormat>(globalTimeFormat);
+  const [dateFormat, setDateFormat] = useState<DateFormat>(globalDateFormat);
+
   const [saved, setSaved] = useState(false);
   const [, setLoading] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState<null | 'blank' | 'defaults'>(null);
@@ -36,9 +34,9 @@ export default function SettingsPage() {
     severity: "info",
   });
 
-  useEffect(() => {
-    setLocalTheme(theme);
-  }, [theme]);
+  useEffect(() => { setLocalTheme(theme); }, [theme]);
+  useEffect(() => { setDateFormat(globalDateFormat); }, [globalDateFormat]);
+  useEffect(() => { setTimeFormat(globalTimeFormat); }, [globalTimeFormat]);
 
   useEffect(() => {
     if (session?.user?.id) {
@@ -57,8 +55,6 @@ export default function SettingsPage() {
         setLocalTheme(data.theme || "light");
         setTimeFormat(data.timeFormat || "12h");
         setDateFormat(data.dateFormat || "DD/MM/YYYY");
-        setWeekdayPassThreshold(data.weekdayPassThreshold ?? 70);
-        setWeekendPassThreshold(data.weekendPassThreshold ?? 70);
       } catch {}
     }
 
@@ -69,8 +65,6 @@ export default function SettingsPage() {
         setLocalTheme(data.theme || "light");
         setTimeFormat(data.timeFormat || "12h");
         setDateFormat(data.dateFormat || "DD/MM/YYYY");
-        setWeekdayPassThreshold(data.weekdayPassThreshold ?? 70);
-        setWeekendPassThreshold(data.weekendPassThreshold ?? 70);
         sessionStorage.setItem('userSettings', JSON.stringify(data));
       }
     } catch (error) {
@@ -102,21 +96,19 @@ export default function SettingsPage() {
             theme: localTheme,
             timeFormat,
             dateFormat,
-            weekdayPassThreshold,
-            weekendPassThreshold,
           }),
         });
 
         if (response.ok) {
           setGlobalTheme(localTheme);
+          setGlobalDateFormat(dateFormat);
+          setGlobalTimeFormat(timeFormat);
           setSaved(true);
 
           const settingsData = {
             theme: localTheme,
             timeFormat,
             dateFormat,
-            weekdayPassThreshold,
-            weekendPassThreshold,
           };
           sessionStorage.setItem('userSettings', JSON.stringify(settingsData));
 
@@ -221,11 +213,6 @@ export default function SettingsPage() {
     }
   };
 
-  const tabs = [
-    { id: "preferences" as SettingsTab, label: "Preferences", icon: FaSlidersH },
-    { id: "data" as SettingsTab, label: "Data Management", icon: FaDatabase },
-  ];
-
   return (
     <div className="container mx-auto px-4 py-4 md:py-8 max-w-4xl">
       <motion.div
@@ -244,32 +231,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-2 mb-6 overflow-x-auto overflow-y-hidden -mx-4 px-4 md:mx-0 md:px-0">
-          <div className="flex gap-2 min-w-max md:min-w-0">
-            {tabs.map((tab) => {
-              const isActive = activeTab === tab.id;
-              return (
-                <motion.button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors whitespace-nowrap ${
-                    isActive
-                      ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-sm"
-                      : "bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-500"
-                  }`}
-                >
-                  <tab.icon className="text-sm" />
-                  <span className="font-medium text-sm md:text-base">{tab.label}</span>
-                </motion.button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Tab Content */}
-        {activeTab === "preferences" && (
-          <div className="space-y-4 md:space-y-6">
+        <div className="space-y-4 md:space-y-6">
             {/* Theme Preference */}
             <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4 md:p-6">
               <div className="flex items-center gap-2 md:gap-3 mb-3 md:mb-4">
@@ -304,44 +266,6 @@ export default function SettingsPage() {
                     </div>
                   </motion.button>
                 ))}
-              </div>
-            </div>
-
-            {/* Pass Thresholds */}
-            <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4 md:p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
-                  <FaBolt className="text-2xl text-orange-600 dark:text-orange-400" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white">Score Thresholds</h2>
-                  <p className="text-sm text-zinc-600 dark:text-zinc-400">Minimum score to count as a passing day</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Weekday Pass (%)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={weekdayPassThreshold}
-                    onChange={e => setWeekdayPassThreshold(parseInt(e.target.value) || 0)}
-                    className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Weekend Pass (%)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={weekendPassThreshold}
-                    onChange={e => setWeekendPassThreshold(parseInt(e.target.value) || 0)}
-                    className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
-                  />
-                </div>
               </div>
             </div>
 
@@ -432,12 +356,6 @@ export default function SettingsPage() {
                 "Save Preferences"
               )}
             </motion.button>
-          </div>
-        )}
-
-        {/* Data Management Tab */}
-        {activeTab === "data" && (
-          <div className="space-y-4 md:space-y-6">
             {/* Export Data */}
             <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4 md:p-6">
               <div className="flex items-center gap-3 mb-4">
@@ -563,7 +481,6 @@ export default function SettingsPage() {
               )}
             </div>
           </div>
-        )}
       </motion.div>
 
       <Snackbar
