@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db, twelveWeekGoals, weeklyTargets, twelveWeekYears } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
-import { getTotalWeeks } from "@/lib/twelve-week-scoring";
+import { getTotalWeeks, getCurrentWeekNumber } from "@/lib/twelve-week-scoring";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -55,16 +55,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     linkedOutcomeId: linkedOutcomeId || null,
   }).returning();
 
-  // Auto-generate weekly targets based on cycle duration
+  // Auto-generate weekly targets based on remaining cycle duration
   const totalWeeks = getTotalWeeks(cycle.startDate, cycle.endDate);
-  const weeklyValue = targetValue / totalWeeks;
+  const currentWeek = getCurrentWeekNumber(cycle.startDate, cycle.endDate);
+  const startWeek = Math.max(1, currentWeek);
+  const remainingWeeks = totalWeeks - startWeek + 1;
+  const weeklyValue = targetValue / remainingWeeks;
   const userId = session.user.id;
   const targetRows = Array.from({ length: totalWeeks }, (_, i) => ({
     goalId: goal.id,
     periodId,
     userId,
     weekNumber: i + 1,
-    targetValue: weeklyValue,
+    targetValue: i + 1 >= startWeek ? weeklyValue : 0,
   }));
 
   await db.insert(weeklyTargets).values(targetRows);
