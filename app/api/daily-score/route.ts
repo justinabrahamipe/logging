@@ -110,6 +110,6 @@ export async function GET(request: NextRequest) {
     scoreTier: tier,
     pillarScores: pillarBreakdown,
     totalTasks: tasksForDay.length,
-    completedTasks: completions.filter(c => c.completed).length,
+    completedTasks: completions.filter(c => c.completed && tasksForDay.some(t => t.id === c.taskId)).length,
   });
 }

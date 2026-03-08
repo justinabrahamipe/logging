@@ -64,10 +64,25 @@ interface MomentumPillar {
   momentum: number | null;
 }
 
+interface TrajectoryGoal {
+  goalId: number;
+  pillarId: number | null;
+  trajectory: number;
+  label: string;
+  name: string;
+  currentValue: number;
+  targetValue: number;
+  unit: string;
+}
+
 interface MomentumData {
   overall: number;
   pillars: MomentumPillar[];
   goals: MomentumGoal[];
+  trajectory: {
+    overall: number;
+    goals: TrajectoryGoal[];
+  };
 }
 
 interface UserStatsData {
@@ -916,7 +931,7 @@ export default function DashboardPage() {
                 <div key={goal.goalId} className="flex items-center justify-between">
                   <div className="flex items-center gap-2 min-w-0 flex-1">
                     <span className="text-xs px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400 shrink-0">
-                      {goal.goalType === "habitual" ? "H" : goal.goalType === "target" ? "T" : "O"}
+                      T
                     </span>
                     <span className="text-sm text-zinc-700 dark:text-zinc-300 truncate">{goal.name}</span>
                   </div>
@@ -930,6 +945,65 @@ export default function DashboardPage() {
                       {goal.label}
                     </span>
                   </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Trajectory (Outcome Goals) */}
+        {momentumData && momentumData.trajectory.goals.length > 0 && (
+          <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4 mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <FaChartLine className="text-xl text-purple-500" />
+                <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
+                  Trajectory
+                </h2>
+              </div>
+              <span className={`text-2xl font-bold ${
+                momentumData.trajectory.overall >= 1.0 ? "text-green-500" : "text-red-500"
+              }`}>
+                {momentumData.trajectory.overall.toFixed(1)}x
+              </span>
+            </div>
+
+            <div className="relative w-full h-4 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden mb-3">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${Math.min(momentumData.trajectory.overall * 50, 100)}%` }}
+                transition={{ duration: 1, ease: "easeOut" }}
+                className={`h-full rounded-full ${
+                  momentumData.trajectory.overall >= 1.0
+                    ? "bg-purple-500"
+                    : "bg-red-500"
+                }`}
+              />
+              <div className="absolute top-0 left-1/2 w-0.5 h-full bg-zinc-400 dark:bg-zinc-500" />
+            </div>
+            <p className="text-xs text-center text-zinc-500 dark:text-zinc-400 mb-4">
+              {momentumData.trajectory.overall >= 1.05
+                ? "Trending ahead"
+                : momentumData.trajectory.overall >= 0.95
+                ? "On track"
+                : "Trending behind"}
+            </p>
+
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">Outcome Goals</p>
+              {momentumData.trajectory.goals.map((goal) => (
+                <div key={goal.goalId} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400 shrink-0">
+                      O
+                    </span>
+                    <span className="text-sm text-zinc-700 dark:text-zinc-300 truncate">{goal.name}</span>
+                  </div>
+                  <span className={`text-sm font-bold shrink-0 ${
+                    goal.trajectory >= 1.0 ? "text-green-500" : "text-red-500"
+                  }`}>
+                    {goal.label}
+                  </span>
                 </div>
               ))}
             </div>
