@@ -8,9 +8,9 @@ function isTaskForExactDate(task: typeof tasks.$inferSelect, dateStr: string): b
   const dayOfWeek = date.getDay(); // 0=Sunday
 
   if (task.frequency === 'adhoc') {
-    const createdDate = task.createdAt ? new Date(task.createdAt).toISOString().split('T')[0] : null;
-    // Show on creation date and carry forward to future dates (overdue until completed)
-    return createdDate != null && dateStr >= createdDate;
+    const effectiveDate = task.startDate || (task.createdAt ? new Date(task.createdAt).toISOString().split('T')[0] : null);
+    // Show on effective date and carry forward to future dates (overdue until completed)
+    return effectiveDate != null && dateStr >= effectiveDate;
   }
 
   if (task.frequency === 'daily') return true;
