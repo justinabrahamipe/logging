@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   FaPlus,
   FaEdit,
-  FaArchive,
+  FaTrash,
   FaArrowUp,
   FaArrowDown,
   FaEllipsisV,
@@ -184,7 +184,7 @@ export default function GoalCard({
                     onClick={() => handleArchive(outcome.id)}
                     className="w-full px-4 py-2.5 text-left text-sm flex items-center gap-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
                   >
-                    <FaArchive /> Archive
+                    <FaTrash /> Delete
                   </button>
                 </motion.div>
               )}

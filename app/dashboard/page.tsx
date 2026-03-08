@@ -7,6 +7,8 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { DEMO_DASHBOARD } from "@/lib/demo-data";
+import { formatDate } from "@/lib/format";
+import { useTheme } from "@/components/ThemeProvider";
 import {
   LineChart,
   Line,
@@ -559,6 +561,7 @@ function StreakFlameChain({
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const { dateFormat } = useTheme();
   const [score, setScore] = useState<DailyScoreData | null>(null);
   const [stats, setStats] = useState<UserStatsData | null>(null);
   const [history, setHistory] = useState<HistoryData | null>(null);
@@ -685,11 +688,7 @@ export default function DashboardPage() {
               Dashboard
             </h1>
             <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              {new Date().toLocaleDateString("en-US", {
-                weekday: "long",
-                month: "long",
-                day: "numeric",
-              })}
+              {formatDate(new Date().toISOString().split('T')[0], dateFormat)}
             </p>
           </div>
           <Link href="/tasks">

@@ -7,6 +7,8 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Snackbar, Alert as MuiAlert } from "@mui/material";
 import { DEMO_TASK_GROUPS, DEMO_PILLARS } from "@/lib/demo-data";
+import { useTheme } from "@/components/ThemeProvider";
+import { formatDate } from "@/lib/format";
 
 interface Pillar {
   id: number;
@@ -173,6 +175,7 @@ function taskToPreset(task: { frequency: string; customDays?: string | null; rep
 
 export default function TasksPage() {
   const { data: session, status } = useSession();
+  const { dateFormat } = useTheme();
   const router = useRouter();
   const [groups, setGroups] = useState<TaskGroup[]>([]);
   const [pillars, setPillars] = useState<Pillar[]>([]);
@@ -627,7 +630,7 @@ export default function TasksPage() {
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-zinc-900 dark:text-white">Tasks</h1>
             <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
-              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+              {formatDate(new Date().toISOString().split('T')[0], dateFormat)}
               {filter === 'all' && ' · Showing all tasks'}
               {filter === 'past' && ' · Past completions'}
             </p>
@@ -1074,7 +1077,7 @@ export default function TasksPage() {
           ) : (
             <div className="space-y-2">
               {pastDays.map(day => {
-                const dateLabel = new Date(day.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                const dateLabel = formatDate(day.date, dateFormat);
                 const completedCount = day.tasks.filter(t => t.completed || (t.target && t.target > 0 && (t.value || 0) >= t.target)).length;
                 const isOpen = openSchedules.has(day.date);
                 return (

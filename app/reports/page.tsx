@@ -27,6 +27,8 @@ import {
   Bar,
   Cell,
 } from "recharts";
+import { formatDate } from "@/lib/format";
+import { useTheme } from "@/components/ThemeProvider";
 
 interface ReportData {
   type: "weekly" | "monthly";
@@ -84,12 +86,6 @@ function getTierColor(score: number): string {
   return "#EF4444";
 }
 
-function formatDate(dateStr: string): string {
-  if (!dateStr) return "";
-  const d = new Date(dateStr + "T00:00:00");
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
 function formatDateRange(start: string, end: string): string {
   const s = new Date(start + "T00:00:00");
   const e = new Date(end + "T00:00:00");
@@ -103,6 +99,7 @@ function formatDateRange(start: string, end: string): string {
 
 export default function ReportsPage() {
   const { data: session, status } = useSession();
+  const { dateFormat } = useTheme();
   const router = useRouter();
   const [report, setReport] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -345,7 +342,7 @@ export default function ReportsPage() {
                       </span>
                     </div>
                     <span className="text-xs text-zinc-400 dark:text-zinc-500">
-                      Generated {new Date(saved.generatedAt).toLocaleDateString()}
+                      Generated {formatDate(saved.generatedAt, dateFormat)}
                     </span>
                   </div>
                 </button>
@@ -412,7 +409,7 @@ export default function ReportsPage() {
                     {report.summary.bestDay.score}%
                   </div>
                   <div className="text-sm text-zinc-500 dark:text-zinc-400">
-                    Best ({formatDate(report.summary.bestDay.date)})
+                    Best ({formatDate(report.summary.bestDay.date, dateFormat)})
                   </div>
                 </div>
 
@@ -422,7 +419,7 @@ export default function ReportsPage() {
                     {report.summary.worstDay.score}%
                   </div>
                   <div className="text-sm text-zinc-500 dark:text-zinc-400">
-                    Worst ({formatDate(report.summary.worstDay.date)})
+                    Worst ({formatDate(report.summary.worstDay.date, dateFormat)})
                   </div>
                 </div>
               </div>

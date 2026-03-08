@@ -18,9 +18,12 @@ import { Outcome, LogEntry, LinkedTask } from "../types";
 import { DAY_NAMES } from "../constants";
 import HabitHeatmap from "../components/HabitHeatmap";
 import ProgressChart from "../components/ProgressChart";
+import { formatDate } from "@/lib/format";
+import { useTheme } from "@/components/ThemeProvider";
 
 export default function GoalDetailPage() {
   const { data: session, status } = useSession();
+  const { dateFormat } = useTheme();
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
@@ -269,8 +272,8 @@ export default function GoalDetailPage() {
           {/* Dates inline */}
           {outcome.startDate && (
             <span className="text-xs">
-              {new Date(outcome.startDate + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-              {outcome.targetDate && ` - ${new Date(outcome.targetDate + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" })}`}
+              {formatDate(outcome.startDate, dateFormat)}
+              {outcome.targetDate && ` - ${formatDate(outcome.targetDate, dateFormat)}`}
             </span>
           )}
           {/* Schedule days inline */}
@@ -319,7 +322,7 @@ export default function GoalDetailPage() {
               <div className="bg-zinc-50 dark:bg-zinc-700/50 rounded-lg px-3 py-2">
                 <span className="text-zinc-500 dark:text-zinc-400 text-xs">Projected: </span>
                 <span className="font-semibold text-zinc-900 dark:text-white">
-                  {new Date(effortMetrics.projectedDate + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                  {formatDate(effortMetrics.projectedDate, dateFormat)}
                 </span>
               </div>
             )}

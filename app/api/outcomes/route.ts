@@ -69,8 +69,8 @@ export async function POST(request: Request) {
   if (isActivityGoal && periodId) {
     const [cycle] = await db.select().from(twelveWeekYears).where(eq(twelveWeekYears.id, parseInt(periodId)));
     if (cycle) {
-      effectiveStartDate = cycle.startDate;
-      effectiveTargetDate = cycle.endDate;
+      if (!effectiveStartDate) effectiveStartDate = cycle.startDate;
+      if (!effectiveTargetDate) effectiveTargetDate = cycle.endDate;
     }
   }
 
@@ -137,6 +137,7 @@ export async function POST(request: Request) {
       repeatInterval: taskRepeatInterval,
       outcomeId: outcome.id,
       periodId: periodId || null,
+      startDate: effectiveStartDate || null,
       basePoints: 10,
       flexibilityRule: 'must_today',
       importance: 'medium',

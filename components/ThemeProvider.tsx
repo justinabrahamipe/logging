@@ -3,10 +3,16 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 
 type Theme = "light" | "dark" | "system";
+type DateFormat = "DD/MM/YYYY" | "MM/DD/YYYY" | "YYYY-MM-DD" | "DD-MM-YYYY" | "MM-DD-YYYY";
+type TimeFormat = "12h" | "24h";
 
 interface ThemeContextType {
   theme: Theme;
   setTheme: (theme: Theme) => void;
+  dateFormat: DateFormat;
+  timeFormat: TimeFormat;
+  setDateFormat: (f: DateFormat) => void;
+  setTimeFormat: (f: TimeFormat) => void;
   isLoading: boolean;
 }
 
@@ -37,37 +43,38 @@ function applyTheme(themeValue: Theme) {
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>("light");
+  const [dateFormat, setDateFormatState] = useState<DateFormat>("DD/MM/YYYY");
+  const [timeFormat, setTimeFormatState] = useState<TimeFormat>("12h");
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load theme from database on mount
+  // Load preferences from database on mount
   useEffect(() => {
-    async function loadTheme() {
+    async function loadPreferences() {
       try {
-        const response = await fetch("/api/preferences");
+        const response = await fetch("/api/settings");
         if (response.ok) {
           const data = await response.json();
           const userTheme = (data.theme || "light") as Theme;
           setThemeState(userTheme);
           applyTheme(userTheme);
-          // Save to localStorage for blocking script
           localStorage.setItem("theme", userTheme);
+          if (data.dateFormat) { setDateFormatState(data.dateFormat); localStorage.setItem("dateFormat", data.dateFormat); }
+          if (data.timeFormat) { setTimeFormatState(data.timeFormat); localStorage.setItem("timeFormat", data.timeFormat); }
         }
       } catch (error) {
-        console.error("Failed to load theme:", error);
-        // Try to load from localStorage as fallback
+        console.error("Failed to load preferences:", error);
         const localTheme = localStorage.getItem("theme") as Theme;
-        if (localTheme) {
-          setThemeState(localTheme);
-          applyTheme(localTheme);
-        } else {
-          applyTheme("light");
-        }
+        if (localTheme) { setThemeState(localTheme); applyTheme(localTheme); } else { applyTheme("light"); }
+        const localDateFmt = localStorage.getItem("dateFormat") as DateFormat;
+        if (localDateFmt) setDateFormatState(localDateFmt);
+        const localTimeFmt = localStorage.getItem("timeFormat") as TimeFormat;
+        if (localTimeFmt) setTimeFormatState(localTimeFmt);
       } finally {
         setIsLoading(false);
       }
     }
 
-    loadTheme();
+    loadPreferences();
   }, []);
 
   // Listen for system theme changes when theme is set to "system"
@@ -86,12 +93,21 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);
     applyTheme(newTheme);
-    // Save to localStorage for blocking script
     localStorage.setItem("theme", newTheme);
   };
 
+  const setDateFormat = (f: DateFormat) => {
+    setDateFormatState(f);
+    localStorage.setItem("dateFormat", f);
+  };
+
+  const setTimeFormat = (f: TimeFormat) => {
+    setTimeFormatState(f);
+    localStorage.setItem("timeFormat", f);
+  };
+
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, isLoading }}>
+    <ThemeContext.Provider value={{ theme, setTheme, dateFormat, timeFormat, setDateFormat, setTimeFormat, isLoading }}>
       {children}
     </ThemeContext.Provider>
   );
