@@ -15,6 +15,7 @@ import {
   FaCheck,
   FaPlus,
   FaMinus,
+  FaTrash,
 } from "react-icons/fa";
 import { calculateEffortMetrics } from "@/lib/effort-calculations";
 import { Outcome, LogEntry, LinkedTask } from "../types";
@@ -40,6 +41,7 @@ export default function GoalDetailPage() {
   const [sortCol, setSortCol] = useState<"date" | "points" | "status">("date");
   const [sortAsc, setSortAsc] = useState(false);
   const [pendingValues, setPendingValues] = useState<Record<number, string>>({});
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -53,6 +55,16 @@ export default function GoalDetailPage() {
     } catch (err) {
       console.error("Failed to complete task:", err);
     }
+  };
+
+  const handleTaskDelete = async (taskId: number) => {
+    try {
+      await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
+      setLinkedTasks(prev => prev.filter(t => t.id !== taskId));
+    } catch (err) {
+      console.error("Failed to delete task:", err);
+    }
+    setDeleteConfirmId(null);
   };
 
   useEffect(() => {
@@ -510,11 +522,44 @@ export default function GoalDetailPage() {
                         >
                           <FaEdit className="text-[10px]" />
                         </button>
+                        <button
+                          onClick={() => setDeleteConfirmId(task.id)}
+                          className="p-1 text-zinc-400 hover:text-red-500 dark:hover:text-red-400 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
+                          title="Delete task"
+                        >
+                          <FaTrash className="text-[10px]" />
+                        </button>
                       </div>
                     </div>
                   </div>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {/* Delete confirmation dialog */}
+        {deleteConfirmId !== null && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setDeleteConfirmId(null)}>
+            <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-lg p-5 mx-4 max-w-sm w-full" onClick={e => e.stopPropagation()}>
+              <h3 className="text-lg font-semibold text-zinc-900 dark:text-white mb-2">Delete Task</h3>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
+                This will permanently remove this task from scoring. Are you sure?
+              </p>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setDeleteConfirmId(null)}
+                  className="px-4 py-2 text-sm rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleTaskDelete(deleteConfirmId)}
+                  className="px-4 py-2 text-sm rounded-lg bg-red-500 text-white hover:bg-red-600"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
           </div>
         )}
