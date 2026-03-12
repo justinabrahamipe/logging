@@ -1057,6 +1057,20 @@ export default function DashboardPage() {
         {/* Goals Progress — compact list */}
         {outcomesData.length > 0 && (() => {
           const totalProgress = outcomesData.reduce((sum, o) => {
+            if (o.goalType === 'habitual') {
+              const doneDates = completionDates[o.id] || [];
+              const scheduleDays: number[] = o.scheduleDays ? JSON.parse(o.scheduleDays) : [];
+              const start = o.startDate || today;
+              let expected = 0;
+              const d = new Date(start + 'T00:00:00');
+              const endD = new Date(today + 'T00:00:00');
+              while (d <= endD) {
+                if (scheduleDays.length === 0 || scheduleDays.includes(d.getDay())) expected++;
+                d.setDate(d.getDate() + 1);
+              }
+              const hits = doneDates.filter(dt => dt >= start && dt <= today).length;
+              return sum + (expected > 0 ? Math.min((hits / expected) * 100, 100) : 100);
+            }
             const range = Math.abs(o.targetValue - o.startValue);
             if (range === 0) return sum + 100;
             const p = Math.abs(o.currentValue - o.startValue) / range * 100;
@@ -1089,10 +1103,33 @@ export default function DashboardPage() {
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {outcomesData.map((goal) => {
+                  const isHabitual = goal.goalType === 'habitual';
                   const range = Math.abs(goal.targetValue - goal.startValue);
-                  const progress = range === 0 ? 100 : Math.round(Math.max(0, Math.min(
-                    Math.abs(goal.currentValue - goal.startValue) / range * 100, 100
-                  )));
+
+                  // For habitual goals, compute adherence from completionDates
+                  let progress: number;
+                  let subtitle: string;
+                  if (isHabitual) {
+                    const doneDates = completionDates[goal.id] || [];
+                    const scheduleDays: number[] = goal.scheduleDays ? JSON.parse(goal.scheduleDays) : [];
+                    const start = goal.startDate || today;
+                    const end = today;
+                    let expected = 0;
+                    const d = new Date(start + 'T00:00:00');
+                    const endD = new Date(end + 'T00:00:00');
+                    while (d <= endD) {
+                      if (scheduleDays.length === 0 || scheduleDays.includes(d.getDay())) expected++;
+                      d.setDate(d.getDate() + 1);
+                    }
+                    const hits = doneDates.filter(dt => dt >= start && dt <= end).length;
+                    progress = expected > 0 ? Math.round((hits / expected) * 100) : 100;
+                    subtitle = `${hits} / ${expected} days`;
+                  } else {
+                    progress = range === 0 ? 100 : Math.round(Math.max(0, Math.min(
+                      Math.abs(goal.currentValue - goal.startValue) / range * 100, 100
+                    )));
+                    subtitle = `${goal.currentValue} / ${goal.targetValue} ${goal.unit}`;
+                  }
                   const progressColor = progress < 30 ? "#EF4444" : progress < 60 ? "#F59E0B" : "#22C55E";
 
                   return (
@@ -1112,7 +1149,7 @@ export default function DashboardPage() {
                         <div className="text-sm font-semibold text-zinc-900 dark:text-white truncate">{goal.name}</div>
                         <div className="flex items-center justify-between mt-1">
                           <span className="text-lg font-bold" style={{ color: progressColor }}>{progress}%</span>
-                          <span className="text-xs text-zinc-500 dark:text-zinc-400">{goal.currentValue} / {goal.targetValue} {goal.unit}</span>
+                          <span className="text-xs text-zinc-500 dark:text-zinc-400">{subtitle}</span>
                         </div>
                       </div>
                     </div>

@@ -138,12 +138,6 @@ export default function GoalsPage() {
             <h1 className="text-3xl md:text-4xl font-bold text-zinc-900 dark:text-white">Goals</h1>
             <p className="text-sm text-zinc-600 dark:text-zinc-400">Track effort-based and outcome-based goals</p>
           </div>
-          <motion.button
-            onClick={() => router.push("/goals/new")}
-            className="p-2 md:px-4 md:py-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 rounded-lg font-medium flex items-center gap-2"
-          >
-            <FaPlus /> <span className="hidden md:inline">Add Goal</span>
-          </motion.button>
         </div>
 
         {/* Goal Type Tabs + Time Tabs */}
@@ -287,6 +281,14 @@ export default function GoalsPage() {
           Sign in to track your goals
         </MuiAlert>
       </Snackbar>
+
+      {/* Floating Add Goal button */}
+      <button
+        onClick={() => router.push("/goals/new")}
+        className="fixed bottom-20 md:bottom-14 right-4 md:right-8 z-40 w-12 h-12 rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 shadow-lg flex items-center justify-center hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-colors"
+      >
+        <FaPlus className="text-lg" />
+      </button>
     </div>
   );
 }
