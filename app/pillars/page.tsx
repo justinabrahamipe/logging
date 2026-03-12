@@ -186,12 +186,6 @@ export default function PillarsPage() {
             <h1 className="text-3xl md:text-4xl font-bold text-zinc-900 dark:text-white">Pillars</h1>
             <p className="text-sm text-zinc-600 dark:text-zinc-400">Life areas that matter to you</p>
           </div>
-          <motion.button
-            onClick={() => router.push("/pillars/new")}
-            className="px-4 py-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 rounded-lg font-medium flex items-center gap-2"
-          >
-            <FaPlus /> Add Pillar
-          </motion.button>
         </div>
 
         {/* Weight Distribution + Cycle Selector */}
@@ -348,6 +342,14 @@ export default function PillarsPage() {
         )}
 
       </motion.div>
+
+      {/* Floating Add Pillar button */}
+      <button
+        onClick={() => router.push("/pillars/new")}
+        className="fixed bottom-20 md:bottom-14 right-4 md:right-8 z-40 w-12 h-12 rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 shadow-lg flex items-center justify-center hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-colors"
+      >
+        <FaPlus className="text-lg" />
+      </button>
     </div>
   );
 }

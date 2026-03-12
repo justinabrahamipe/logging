@@ -34,8 +34,8 @@ export default function GoalDetailPage() {
   const [taskCompletionDates, setTaskCompletionDates] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [archiving, setArchiving] = useState(false);
-  const [sortCol, setSortCol] = useState<"name" | "frequency" | "points" | "status">("name");
-  const [sortAsc, setSortAsc] = useState(true);
+  const [sortCol, setSortCol] = useState<"date" | "points" | "status">("date");
+  const [sortAsc, setSortAsc] = useState(false);
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -70,6 +70,7 @@ export default function GoalDetailPage() {
                 unit: task.unit ?? null,
                 completed: task.completion?.completed || false,
                 value: task.completion?.value ?? null,
+                startDate: task.startDate || null,
               });
             }
           }
@@ -136,11 +137,8 @@ export default function GoalDetailPage() {
     const sorted = [...linkedTasks].sort((a, b) => {
       let cmp = 0;
       switch (sortCol) {
-        case "name":
-          cmp = a.name.localeCompare(b.name);
-          break;
-        case "frequency":
-          cmp = a.frequency.localeCompare(b.frequency);
+        case "date":
+          cmp = (a.startDate || "").localeCompare(b.startDate || "");
           break;
         case "points":
           cmp = a.basePoints - b.basePoints;
@@ -358,9 +356,7 @@ export default function GoalDetailPage() {
                 <thead>
                   <tr className="border-b border-zinc-200 dark:border-zinc-700 text-left text-xs text-zinc-500 dark:text-zinc-400">
                     {([
-                      { key: "name" as const, label: "Name" },
-                      { key: "frequency" as const, label: "Frequency" },
-                      { key: "points" as const, label: "Points" },
+                      { key: "date" as const, label: "Date" },
                       { key: "status" as const, label: "Status" },
                     ]).map(col => (
                       <th
@@ -385,13 +381,15 @@ export default function GoalDetailPage() {
                       className="border-b border-zinc-100 dark:border-zinc-700/50 hover:bg-zinc-50 dark:hover:bg-zinc-700/30 cursor-pointer"
                       onClick={() => router.push(`/tasks/${task.id}/edit`)}
                     >
-                      <td className="py-2 pr-3 text-zinc-900 dark:text-white">{task.name}</td>
-                      <td className="py-2 pr-3 text-zinc-600 dark:text-zinc-400">{frequencyLabel(task.frequency)}</td>
-                      <td className="py-2 pr-3 text-zinc-600 dark:text-zinc-400">{task.basePoints}</td>
+                      <td className="py-2 pr-3 text-zinc-900 dark:text-white">
+                        {task.startDate ? formatDate(task.startDate, dateFormat) : "—"}
+                      </td>
                       <td className="py-2 pr-3">
                         {task.completed ? (
                           <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 font-medium">
-                            Done{task.value != null && task.completionType !== "checkbox" ? ` (${task.value}${task.unit ? ` ${task.unit}` : ""})` : ""}
+                            {task.completionType !== "checkbox" && task.value != null
+                              ? `${task.value}${task.unit ? ` ${task.unit}` : ""}`
+                              : "Done"}
                           </span>
                         ) : (
                           <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400 font-medium">

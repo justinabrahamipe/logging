@@ -658,12 +658,6 @@ export default function TasksPage() {
                 </button>
               ))}
             </div>
-            <button
-              onClick={() => router.push("/tasks/new")}
-              className="px-4 py-2 text-sm bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 rounded-lg font-medium flex items-center gap-2 shadow-sm transition-colors"
-            >
-              <FaPlus className="text-xs" /> Add Task
-            </button>
           </div>
           {/* Progress underline */}
           <div className="mt-2 w-full h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden relative">
@@ -675,7 +669,9 @@ export default function TasksPage() {
                 initial={{ width: 0 }}
                 animate={{ width: `${Math.min(scoreSummary.actionScore, 100)}%` }}
                 transition={{ duration: 0.5 }}
-                className="h-full rounded-full bg-zinc-900 dark:bg-white relative z-10"
+                className={`h-full rounded-full relative z-10 ${
+                  scoreSummary.actionScore < 30 ? "bg-red-500" : scoreSummary.actionScore < 60 ? "bg-yellow-500" : "bg-green-500"
+                }`}
               />
             )}
           </div>
@@ -1141,6 +1137,14 @@ export default function TasksPage() {
         })()}
 
       </motion.div>
+
+      {/* Floating Add Task button */}
+      <button
+        onClick={() => router.push("/tasks/new")}
+        className="fixed bottom-20 md:bottom-14 right-4 md:right-8 z-40 w-12 h-12 rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 shadow-lg flex items-center justify-center hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-colors"
+      >
+        <FaPlus className="text-lg" />
+      </button>
 
       <Snackbar
         open={authSnackbar}

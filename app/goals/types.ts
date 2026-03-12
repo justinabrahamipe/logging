@@ -46,6 +46,7 @@ export interface LinkedTask {
   unit: string | null;
   completed: boolean;
   value: number | null;
+  startDate: string | null;
 }
 
 export interface LogEntry {
