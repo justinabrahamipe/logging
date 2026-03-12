@@ -91,8 +91,8 @@ function getDateBucket(task: { frequency: string; customDays?: string | null; cr
     let matches = false;
     const dow = d.getDay();
     if (task.frequency === 'adhoc') {
-      const effectiveDate = task.startDate || (task.createdAt ? new Date(task.createdAt as string | number | Date).toISOString().split('T')[0] : null);
-      matches = effectiveDate != null && dStr >= effectiveDate;
+      if (!task.startDate) return 'No Date';
+      matches = dStr >= task.startDate;
     } else if (task.frequency === 'custom' && task.customDays) {
       try {
         const days: number[] = JSON.parse(task.customDays);

@@ -439,7 +439,7 @@ export default function Header() {
     </nav>
 
       {/* Mobile Bottom Tab Bar — outside nav to avoid sticky/fixed conflict */}
-      {isLoggedIn && (
+      {!isAuthPage && (
         <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md border-t border-zinc-200 dark:border-zinc-800">
           <div className="flex items-center justify-around h-12 pb-[env(safe-area-inset-bottom)]">
             {navItems.map((item) => {

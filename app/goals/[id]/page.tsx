@@ -50,15 +50,28 @@ export default function GoalDetailPage() {
         fetch(`/api/outcomes/${id}/log`).then((r) => r.ok ? r.json() : []),
         fetch("/api/tasks").then((r) => r.ok ? r.json() : []),
         fetch("/api/outcomes/completions").then((r) => r.ok ? r.json() : {}),
-      ]).then(([outcomes, logData, taskGroups, completions]) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ]).then(([outcomes, logData, taskGroups, completions]: [Outcome[], LogEntry[], any[], Record<number, string[]>]) => {
         const found = outcomes.find((o: Outcome) => String(o.id) === id);
         setOutcome(found || null);
         setLogs(logData);
+
+        // Build sets for determining completion status of linked tasks
+        const completionDatesSet = new Set<string>(completions[parseInt(id)] || []);
+        const logValueByDate = new Map<string, number>();
+        for (const log of logData) {
+          const dateStr = log.loggedAt.split('T')[0];
+          logValueByDate.set(dateStr, log.value);
+        }
 
         const tasks: LinkedTask[] = [];
         for (const group of taskGroups) {
           for (const task of group.tasks) {
             if (task.outcomeId === parseInt(id)) {
+              const isCompletedToday = task.completion?.completed || false;
+              const isCompletedOnDate = task.startDate ? completionDatesSet.has(task.startDate) : false;
+              const taskValue = task.completion?.value ?? (task.startDate ? logValueByDate.get(task.startDate) ?? null : null);
+
               tasks.push({
                 id: task.id,
                 name: task.name,
@@ -68,8 +81,8 @@ export default function GoalDetailPage() {
                 basePoints: task.basePoints || 0,
                 target: task.target ?? null,
                 unit: task.unit ?? null,
-                completed: task.completion?.completed || false,
-                value: task.completion?.value ?? null,
+                completed: isCompletedToday || isCompletedOnDate,
+                value: taskValue,
                 startDate: task.startDate || null,
               });
             }
