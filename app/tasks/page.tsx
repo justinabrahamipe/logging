@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaPlus, FaEdit, FaTrash, FaCheck, FaMinus, FaPlay, FaStop, FaEllipsisV, FaCopy, FaChevronDown, FaArrowRight, FaStar, FaTimes } from "react-icons/fa";
+import { FaPlus, FaEdit, FaTrash, FaCheck, FaMinus, FaPlay, FaStop, FaEllipsisV, FaCopy, FaChevronDown, FaStar, FaTimes, FaArrowLeft, FaArrowRight } from "react-icons/fa";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Snackbar, Alert as MuiAlert } from "@mui/material";
@@ -92,7 +92,7 @@ function getDateBucket(task: { frequency: string; customDays?: string | null; cr
     const dow = d.getDay();
     if (task.frequency === 'adhoc') {
       if (!task.startDate) return 'No Date';
-      matches = dStr >= task.startDate;
+      matches = dStr === task.startDate;
     } else if (task.frequency === 'custom' && task.customDays) {
       try {
         const days: number[] = JSON.parse(task.customDays);
@@ -613,6 +613,27 @@ export default function TasksPage() {
     }
   };
 
+  const handleMoveDate = async (task: Task, direction: -1 | 1) => {
+    setOpenMenuId(null);
+    const currentDate = task.startDate || today;
+    const d = new Date(currentDate + 'T12:00:00');
+    d.setDate(d.getDate() + direction);
+    const newDate = d.toISOString().split('T')[0];
+    setActionLoading(prev => ({ ...prev, [task.id]: true }));
+    try {
+      await fetch(`/api/tasks/${task.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ startDate: newDate }),
+      });
+      await fetchTasks();
+    } catch (error) {
+      console.error("Failed to move task:", error);
+    } finally {
+      setActionLoading(prev => ({ ...prev, [task.id]: false }));
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -702,7 +723,8 @@ export default function TasksPage() {
           const renderTaskCard = (task: typeof allEnrichedTasks[number], showDate?: string) => {
             const isCompleted = task.completion?.completed || false;
             const currentValue = task.completion?.value || 0;
-            const isFullyDone = isCompleted || (task.target != null && task.target > 0 && currentValue >= task.target);
+            const isDiscarded = isCompleted && task.completionType === 'checkbox' && currentValue === 0;
+            const isFullyDone = !isDiscarded && (isCompleted || (task.target != null && task.target > 0 && currentValue >= task.target));
             const isHighlighted = task.completion?.isHighlighted || false;
             const isTaskLoading = actionLoading[task.id] || false;
 
@@ -710,13 +732,15 @@ export default function TasksPage() {
               <div
                 key={task.id}
                 className={`rounded-lg px-3 py-2.5 transition-all ${
-                        isFullyDone
+                        isDiscarded
+                          ? 'bg-zinc-100 dark:bg-zinc-800/60 border border-zinc-300 dark:border-zinc-600 opacity-60'
+                          : isFullyDone
                           ? 'bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800'
                           : isHighlighted
                           ? 'bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 hover:shadow-md'
                           : 'bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:shadow-md hover:border-zinc-300 dark:hover:border-zinc-600'
                       } ${isTaskLoading ? 'opacity-60' : ''}`}
-                      style={{ borderLeftWidth: 3, borderLeftColor: isFullyDone ? '#4ade80' : isHighlighted ? '#F59E0B' : task._pillarColor }}
+                      style={{ borderLeftWidth: 3, borderLeftColor: isDiscarded ? '#9CA3AF' : isFullyDone ? '#4ade80' : isHighlighted ? '#F59E0B' : task._pillarColor }}
                     >
                       <div className="flex items-center gap-2">
                         {/* Left: star + name, pillar, badges */}
@@ -734,7 +758,7 @@ export default function TasksPage() {
                           </button>
                         )}
                         <div className="flex-1 min-w-0">
-                          <h3 className={`text-sm font-semibold leading-snug ${isFullyDone ? 'line-through text-zinc-400 dark:text-zinc-500' : 'text-zinc-900 dark:text-white'}`}>
+                          <h3 className={`text-sm font-semibold leading-snug ${isDiscarded ? 'line-through text-zinc-400 dark:text-zinc-500 italic' : isFullyDone ? 'line-through text-zinc-400 dark:text-zinc-500' : 'text-zinc-900 dark:text-white'}`}>
                             {task.name}
                           </h3>
                           <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
@@ -882,20 +906,27 @@ export default function TasksPage() {
                                   transition={{ duration: 0.1 }}
                                   className="absolute right-0 top-7 z-20 w-36 bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-700 overflow-hidden"
                                 >
-                                  {task.outcomeId ? (
-                                    <button
-                                      onClick={() => { setOpenMenuId(null); router.push('/goals'); }}
-                                      className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
-                                    >
-                                      <FaArrowRight className="text-xs" /> Edit in Goals
-                                    </button>
-                                  ) : (
-                                    <button
+                                  <button
                                       onClick={() => { setOpenMenuId(null); router.push(`/tasks/${task.id}/edit`); }}
                                       className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                                     >
                                       <FaEdit className="text-xs" /> Edit
                                     </button>
+                                  {task.startDate && (
+                                    <>
+                                      <button
+                                        onClick={() => handleMoveDate(task, -1)}
+                                        className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                                      >
+                                        <FaArrowLeft className="text-xs" /> Move Back
+                                      </button>
+                                      <button
+                                        onClick={() => handleMoveDate(task, 1)}
+                                        className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                                      >
+                                        <FaArrowRight className="text-xs" /> Move Forward
+                                      </button>
+                                    </>
                                   )}
                                   <button
                                     onClick={() => handleCopy(task)}
@@ -954,11 +985,33 @@ export default function TasksPage() {
             })
           })).filter(day => day.tasks.length > 0);
 
+          // Determine if a bucket spans multiple dates (show per-task dates)
+          const multiDateBuckets = new Set(['Rest of the Week', 'Next Week', 'Rest of the Month', 'Next Month', 'Later']);
+
+          // Build date range label for buckets
+          const getBucketDateRange = (label: string): string | null => {
+            if (label === 'Today') return formatDate(today, dateFormat);
+            if (label === 'Tomorrow') {
+              const tmr = new Date(today + 'T12:00:00');
+              tmr.setDate(tmr.getDate() + 1);
+              return formatDate(tmr.toISOString().split('T')[0], dateFormat);
+            }
+            const tasks = bucketGroups[label];
+            if (!tasks || tasks.length === 0) return null;
+            const dates = tasks.map(t => t.startDate).filter(Boolean).sort() as string[];
+            if (dates.length === 0) return null;
+            const first = formatDate(dates[0], dateFormat);
+            const last = formatDate(dates[dates.length - 1], dateFormat);
+            return first === last ? first : `${first} – ${last}`;
+          };
+
           return (
             <div className="space-y-2">
               {sortedLabels.map(label => {
                 const isOpen = openSchedules.has(label);
                 const tasksInGroup = bucketGroups[label];
+                const dateRange = getBucketDateRange(label);
+                const showPerTaskDate = multiDateBuckets.has(label);
                 return (
                   <div key={label} className="border border-zinc-200 dark:border-zinc-700 rounded-lg">
                     <button
@@ -972,12 +1025,15 @@ export default function TasksPage() {
                       <div className="flex items-center gap-2">
                         <FaChevronDown className={`text-[10px] text-zinc-400 transition-transform ${isOpen ? '' : '-rotate-90'}`} />
                         <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">{label}</span>
+                        {dateRange && (
+                          <span className="text-xs text-zinc-400 dark:text-zinc-500">{dateRange}</span>
+                        )}
                         <span className="text-xs text-zinc-400 dark:text-zinc-500">({tasksInGroup.length})</span>
                       </div>
                     </button>
                     {isOpen && (
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.5rem', padding: '0.5rem' }}>
-                        {tasksInGroup.map(t => renderTaskCard(t))}
+                        {tasksInGroup.map(t => renderTaskCard(t, showPerTaskDate && t.startDate ? formatDate(t.startDate, dateFormat) : undefined))}
                       </div>
                     )}
                   </div>

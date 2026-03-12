@@ -17,7 +17,8 @@ interface CompletionForScoring {
 
 export function calculateTaskScore(task: TaskForScoring, completion: CompletionForScoring): number {
   if (task.completionType === 'checkbox') {
-    return completion.completed ? task.basePoints : 0;
+    // completed=true with value=0 means "discarded" — earns 0 points but stays in denominator
+    return (completion.completed && (completion.value ?? 0) > 0) ? task.basePoints : 0;
   }
 
   // At Least scoring: full points at or above target, partial below
