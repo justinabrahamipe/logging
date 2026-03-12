@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { db, outcomes, outcomeLogs, pillars } from "@/lib/db";
-import { eq, and, inArray } from "drizzle-orm";
+import { db, goals, pillars, tasks, taskCompletions } from "@/lib/db";
+import { eq, and, isNotNull, inArray } from "drizzle-orm";
 import { calculateMomentum, calculateTrajectory } from "@/lib/momentum";
 
 export async function GET() {
@@ -13,40 +13,46 @@ export async function GET() {
   const today = new Date().toISOString().split("T")[0];
 
   // Fetch goals and pillars in parallel
-  const [goals, userPillars] = await Promise.all([
+  const [userGoals, userPillars] = await Promise.all([
     db
       .select()
-      .from(outcomes)
-      .where(and(eq(outcomes.userId, session.user.id), eq(outcomes.isArchived, false))),
+      .from(goals)
+      .where(and(eq(goals.userId, session.user.id), eq(goals.isArchived, false))),
     db
       .select()
       .from(pillars)
       .where(and(eq(pillars.userId, session.user.id), eq(pillars.isArchived, false))),
   ]);
 
-  // Get logs filtered by active goal IDs in the DB
-  const goalIds = goals.map(g => g.id);
+  // Get logs from TaskCompletions joined with Tasks
+  const goalIds = userGoals.map(g => g.id);
   let logs: { outcomeId: number; value: number; loggedAt: string }[] = [];
   if (goalIds.length > 0) {
-    const allLogs = await db
+    const allCompletions = await db
       .select({
-        outcomeId: outcomeLogs.outcomeId,
-        value: outcomeLogs.value,
-        loggedAt: outcomeLogs.loggedAt,
+        goalId: tasks.goalId,
+        value: taskCompletions.value,
+        date: taskCompletions.date,
       })
-      .from(outcomeLogs)
-      .where(and(eq(outcomeLogs.userId, session.user.id), inArray(outcomeLogs.outcomeId, goalIds)));
+      .from(taskCompletions)
+      .innerJoin(tasks, eq(taskCompletions.taskId, tasks.id))
+      .where(and(
+        eq(taskCompletions.userId, session.user.id),
+        eq(taskCompletions.completed, true),
+        isNotNull(tasks.goalId),
+        inArray(tasks.goalId, goalIds),
+      ));
 
-    logs = allLogs.map(l => ({
-      outcomeId: l.outcomeId,
-      value: l.value,
-      loggedAt: l.loggedAt instanceof Date ? l.loggedAt.toISOString() : String(l.loggedAt),
+    logs = allCompletions.map(c => ({
+      outcomeId: c.goalId!,
+      value: c.value ?? 0,
+      loggedAt: c.date + "T12:00:00.000Z",
     }));
   }
 
   const pillarWeights = userPillars.map(p => ({ pillarId: p.id, weight: p.weight }));
 
-  const mappedGoals = goals.map(g => ({
+  const mappedGoals = userGoals.map(g => ({
     id: g.id,
     goalType: g.goalType,
     pillarId: g.pillarId,
@@ -74,7 +80,7 @@ export async function GET() {
 
   // Enrich momentum goals with names
   const goalDetails = summary.goals.map(g => {
-    const goal = goals.find(og => og.id === g.goalId);
+    const goal = userGoals.find(og => og.id === g.goalId);
     return {
       ...g,
       name: goal?.name || '',
@@ -86,7 +92,7 @@ export async function GET() {
 
   // Enrich trajectory goals with names
   const trajectoryDetails = trajectorySummary.goals.map(g => {
-    const goal = goals.find(og => og.id === g.goalId);
+    const goal = userGoals.find(og => og.id === g.goalId);
     return {
       ...g,
       name: goal?.name || '',

@@ -89,9 +89,9 @@ export default function Header() {
     const fetchStats = async () => {
       try {
         const todayStr = new Date().toISOString().split("T")[0];
-        const [scoreRes, statsRes, momRes] = await Promise.all([
+        const [scoreRes, historyRes, momRes] = await Promise.all([
           fetch(`/api/daily-score?date=${todayStr}`),
-          fetch("/api/user-stats"),
+          fetch("/api/daily-score/history?days=30"),
           fetch("/api/momentum"),
         ]);
         let todayScore: number | null = null;
@@ -100,9 +100,18 @@ export default function Header() {
           todayScore = s.actionScore ?? null;
         }
         let streak = 0;
-        if (statsRes.ok) {
-          const st = await statsRes.json();
-          streak = st.currentStreak || 0;
+        if (historyRes.ok) {
+          const hist = await historyRes.json();
+          const scores: { date: string; isPassing: boolean }[] = hist.scores || [];
+          const scoreMap = new Map<string, boolean>();
+          for (const s of scores) scoreMap.set(s.date, s.isPassing);
+          const d = new Date();
+          d.setDate(d.getDate() - 1);
+          while (true) {
+            const ds = d.toISOString().split("T")[0];
+            if (scoreMap.get(ds) === true) { streak++; d.setDate(d.getDate() - 1); }
+            else break;
+          }
         }
         let momentum: number | null = null;
         let trajectory: number | null = null;

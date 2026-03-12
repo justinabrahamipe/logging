@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
       completionType: string;
       target: number | null;
       unit: string | null;
-      outcomeId: number | null;
+      goalId: number | null;
       pillarName: string | null;
       pillarColor: string | null;
       pillarEmoji: string | null;
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
       completionType: row.task.completionType,
       target: row.task.target,
       unit: row.task.unit,
-      outcomeId: row.task.outcomeId,
+      goalId: row.task.goalId,
       pillarName: row.pillar?.name || null,
       pillarColor: row.pillar?.color || null,
       pillarEmoji: row.pillar?.emoji || null,

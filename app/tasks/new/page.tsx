@@ -13,10 +13,19 @@ interface Pillar {
   color: string;
 }
 
+interface Goal {
+  id: number;
+  name: string;
+  goalType: string;
+  pillarEmoji?: string;
+  pillarName?: string;
+}
+
 export default function NewTaskPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [pillars, setPillars] = useState<Pillar[]>([]);
+  const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -25,8 +34,15 @@ export default function NewTaskPage() {
       return;
     }
     if (session?.user?.id) {
-      fetch("/api/pillars").then((r) => (r.ok ? r.json() : [])).then((p) => {
+      Promise.all([
+        fetch("/api/pillars").then((r) => (r.ok ? r.json() : [])),
+        fetch("/api/outcomes").then((r) => (r.ok ? r.json() : [])),
+      ]).then(([p, o]) => {
         setPillars(p);
+        setGoals(o.map((g: Goal & { pillarEmoji?: string; pillarName?: string }) => ({
+          id: g.id, name: g.name, goalType: g.goalType,
+          pillarEmoji: g.pillarEmoji, pillarName: g.pillarName,
+        })));
         setLoading(false);
       });
     }
@@ -66,6 +82,7 @@ export default function NewTaskPage() {
       <TaskForm
         editingTask={null}
         pillars={pillars}
+        goals={goals}
         onCancel={() => router.push("/tasks")}
         onSave={handleSave}
         disabled={status !== "authenticated"}

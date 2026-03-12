@@ -85,20 +85,6 @@ interface MomentumData {
   };
 }
 
-interface UserStatsData {
-  totalXp: number;
-  level: number;
-  levelTitle: string;
-  currentStreak: number;
-  bestStreak: number;
-  levelInfo: {
-    level: number;
-    title: string;
-    currentXp: number;
-    xpForNextLevel: number;
-    xpProgress: number;
-  };
-}
 
 interface HistoryScore {
   date: string;
@@ -711,7 +697,6 @@ export default function DashboardPage() {
   const router = useRouter();
   const { dateFormat } = useTheme();
   const [score, setScore] = useState<DailyScoreData | null>(null);
-  const [stats, setStats] = useState<UserStatsData | null>(null);
   const [history, setHistory] = useState<HistoryData | null>(null);
   const [outcomesData, setOutcomesData] = useState<OutcomeData[]>([]);
   const [completionDates, setCompletionDates] = useState<Record<number, string[]>>({});
@@ -724,11 +709,34 @@ export default function DashboardPage() {
 
   const today = new Date().toISOString().split("T")[0];
 
+  // Compute current streak from history scores
+  const currentStreak = useMemo(() => {
+    if (!history?.scores?.length) return 0;
+    const scoreMap = new Map<string, boolean>();
+    for (const s of history.scores) {
+      scoreMap.set(s.date, s.isPassing);
+    }
+    let streak = 0;
+    const d = new Date();
+    // Start from yesterday (today may not be scored yet)
+    d.setDate(d.getDate() - 1);
+    while (true) {
+      const dateStr = d.toISOString().split("T")[0];
+      const passing = scoreMap.get(dateStr);
+      if (passing === true) {
+        streak++;
+        d.setDate(d.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+    return streak;
+  }, [history]);
+
   useEffect(() => {
     if (status === "unauthenticated") {
       // Load demo data for non-logged-in users
       setScore(DEMO_DASHBOARD.score as DailyScoreData);
-      setStats(DEMO_DASHBOARD.stats as UserStatsData);
       setHistory(DEMO_DASHBOARD.history as HistoryData);
       setMomentumData(DEMO_DASHBOARD.momentum as MomentumData);
       setTodayTaskCount(DEMO_DASHBOARD.todayTaskCount);
@@ -743,9 +751,8 @@ export default function DashboardPage() {
 
   const fetchData = async () => {
     try {
-      const [scoreRes, statsRes, historyRes, outcomesRes, tasksRes, momentumRes, completionsRes] = await Promise.all([
+      const [scoreRes, historyRes, outcomesRes, tasksRes, momentumRes, completionsRes] = await Promise.all([
         fetch(`/api/daily-score?date=${today}`),
-        fetch("/api/user-stats"),
         fetch("/api/daily-score/history?days=90"),
         fetch("/api/outcomes"),
         fetch(`/api/tasks?date=${today}`),
@@ -757,9 +764,6 @@ export default function DashboardPage() {
       if (scoreRes.ok) {
         scoreData = await scoreRes.json();
         setScore(scoreData);
-      }
-      if (statsRes.ok) {
-        setStats(await statsRes.json());
       }
       if (historyRes.ok) {
         setHistory(await historyRes.json());
@@ -787,14 +791,12 @@ export default function DashboardPage() {
         if (seedRes.ok) {
           setShowWelcome(true);
           // Re-fetch all data after seeding
-          const [sr, str, hr, tr] = await Promise.all([
+          const [sr, hr, tr] = await Promise.all([
             fetch(`/api/daily-score?date=${today}`),
-            fetch("/api/user-stats"),
             fetch("/api/daily-score/history?days=90"),
             fetch(`/api/tasks?date=${today}`),
           ]);
           if (sr.ok) setScore(await sr.json());
-          if (str.ok) setStats(await str.json());
           if (hr.ok) setHistory(await hr.json());
           if (tr.ok) {
             const groups = await tr.json();
@@ -846,7 +848,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Morning Briefing */}
-        {stats && history && (
+        {history && (
           (() => {
             const yesterday = new Date();
             yesterday.setDate(yesterday.getDate() - 1);
@@ -885,7 +887,7 @@ export default function DashboardPage() {
                   {/* Current Streak */}
                   <div className="text-center">
                     <div className="text-2xl font-bold text-orange-500">
-                      {stats.currentStreak}
+                      {currentStreak}
                     </div>
                     <div className="text-xs text-zinc-500 dark:text-zinc-400">
                       Day Streak
@@ -904,7 +906,7 @@ export default function DashboardPage() {
                 </div>
 
                 <p className="text-sm text-zinc-600 dark:text-zinc-400 text-center italic">
-                  {getStreakMessage(stats.currentStreak)}
+                  {getStreakMessage(currentStreak)}
                 </p>
               </div>
             );
@@ -1245,10 +1247,10 @@ export default function DashboardPage() {
         {/* === Phase 3: Visualizations === */}
 
         {/* Streak Flame Chain */}
-        {history && stats && (
+        {history && (
           <StreakFlameChain
             scores={history.scores}
-            currentStreak={stats.currentStreak}
+            currentStreak={currentStreak}
           />
         )}
 

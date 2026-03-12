@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { db, outcomeLogs, outcomes, activityLog } from "@/lib/db";
+import { db, goals, activityLog, tasks, taskCompletions } from "@/lib/db";
 import { eq, and, desc } from "drizzle-orm";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -15,20 +15,37 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   // Verify ownership
   const [outcome] = await db
     .select()
-    .from(outcomes)
-    .where(and(eq(outcomes.id, outcomeId), eq(outcomes.userId, session.user.id)));
+    .from(goals)
+    .where(and(eq(goals.id, outcomeId), eq(goals.userId, session.user.id)));
 
   if (!outcome) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  // Query TaskCompletions joined with Tasks where task.goalId = outcomeId
   const logs = await db
-    .select()
-    .from(outcomeLogs)
-    .where(eq(outcomeLogs.outcomeId, outcomeId))
-    .orderBy(desc(outcomeLogs.loggedAt));
+    .select({
+      id: taskCompletions.id,
+      value: taskCompletions.value,
+      loggedAt: taskCompletions.date,
+      note: tasks.name, // Use task name as note placeholder
+      outcomeId: tasks.goalId,
+    })
+    .from(taskCompletions)
+    .innerJoin(tasks, eq(taskCompletions.taskId, tasks.id))
+    .where(and(eq(tasks.goalId, outcomeId), eq(taskCompletions.completed, true)))
+    .orderBy(desc(taskCompletions.date));
 
-  return NextResponse.json(logs);
+  // Map to expected format
+  const mapped = logs.map(l => ({
+    id: l.id,
+    outcomeId: l.outcomeId,
+    value: l.value ?? 0,
+    loggedAt: l.loggedAt + "T12:00:00.000Z",
+    note: null,
+  }));
+
+  return NextResponse.json(mapped);
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -48,59 +65,112 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   // Verify ownership
   const [outcome] = await db
     .select()
-    .from(outcomes)
-    .where(and(eq(outcomes.id, outcomeId), eq(outcomes.userId, session.user.id)));
+    .from(goals)
+    .where(and(eq(goals.id, outcomeId), eq(goals.userId, session.user.id)));
 
   if (!outcome) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
   const previousValue = outcome.currentValue;
+  const today = body.loggedAt || new Date().toISOString().split("T")[0];
 
   // For target goals, value is a delta; for outcomes, value is absolute
   const isTarget = outcome.goalType === 'target' || outcome.goalType === 'habitual';
   const newCurrentValue = isTarget ? previousValue + body.value : body.value;
 
-  // Create log entry
-  const logValues: Record<string, unknown> = {
-    outcomeId,
-    userId: session.user.id,
-    value: body.value,
-    source: body.source || 'manual',
-    note: body.note || null,
-  };
-  if (body.loggedAt) {
-    logValues.loggedAt = new Date(body.loggedAt + "T12:00:00");
-  }
-  const [log] = await db.insert(outcomeLogs).values(logValues as typeof outcomeLogs.$inferInsert).returning();
+  // Find or create a task for this goal on this date
+  let [existingTask] = await db
+    .select()
+    .from(tasks)
+    .where(and(eq(tasks.goalId, outcomeId), eq(tasks.userId, session.user.id), eq(tasks.startDate, today)));
 
-  // Update currentValue on the outcome
+  if (!existingTask) {
+    // Look for any active task linked to this goal
+    [existingTask] = await db
+      .select()
+      .from(tasks)
+      .where(and(eq(tasks.goalId, outcomeId), eq(tasks.userId, session.user.id), eq(tasks.isActive, true)));
+  }
+
+  if (!existingTask) {
+    // Create an adhoc task for this goal
+    [existingTask] = await db.insert(tasks).values({
+      userId: session.user.id,
+      name: `Log ${outcome.name}`,
+      pillarId: outcome.pillarId,
+      goalId: outcomeId,
+      completionType: 'numeric',
+      frequency: 'adhoc',
+      startDate: today,
+      basePoints: 0,
+      isActive: true,
+    }).returning();
+  }
+
+  // Create or update TaskCompletion for that task on this date
+  const [existingCompletion] = await db
+    .select()
+    .from(taskCompletions)
+    .where(and(eq(taskCompletions.taskId, existingTask.id), eq(taskCompletions.date, today)));
+
+  let completion;
+  if (existingCompletion) {
+    [completion] = await db
+      .update(taskCompletions)
+      .set({
+        value: body.value,
+        completed: true,
+        completedAt: new Date(),
+      })
+      .where(eq(taskCompletions.id, existingCompletion.id))
+      .returning();
+  } else {
+    [completion] = await db.insert(taskCompletions).values({
+      taskId: existingTask.id,
+      userId: session.user.id,
+      date: today,
+      completed: true,
+      value: body.value,
+      pointsEarned: 0,
+      completedAt: new Date(),
+    }).returning();
+  }
+
+  // Update currentValue on the goal
   await db
-    .update(outcomes)
+    .update(goals)
     .set({ currentValue: newCurrentValue })
-    .where(eq(outcomes.id, outcomeId));
+    .where(eq(goals.id, outcomeId));
 
   // Create activity log entry
   try {
     await db.insert(activityLog).values({
       userId: session.user.id,
-      timestamp: log.loggedAt,
+      timestamp: new Date(),
       pillarId: outcome.pillarId,
+      taskId: existingTask.id,
       action: 'outcome_log',
       previousValue,
       newValue: newCurrentValue,
       delta: isTarget ? body.value : body.value - previousValue,
       source: body.source || 'manual',
       note: isTarget
-        ? `${outcome.name}: +${body.value} ${outcome.unit} (total: ${newCurrentValue})${body.note ? ' - ' + body.note : ''}`
-        : `${outcome.name}: ${body.value} ${outcome.unit}${body.note ? ' - ' + body.note : ''}`,
-      outcomeLogId: log.id,
+        ? `${outcome.name}: +${body.value} ${outcome.unit} (total: ${newCurrentValue})`
+        : `${outcome.name}: ${body.value} ${outcome.unit}`,
     });
   } catch (err) {
     console.error("Failed to create activity log for outcome:", err);
   }
 
-  return NextResponse.json(log, { status: 201 });
+  // Return in same format as old outcomeLogs
+  return NextResponse.json({
+    id: completion.id,
+    outcomeId,
+    value: body.value,
+    loggedAt: new Date(today + "T12:00:00"),
+    note: null,
+  }, { status: 201 });
 }
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -120,81 +190,74 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   // Verify ownership
   const [outcome] = await db
     .select()
-    .from(outcomes)
-    .where(and(eq(outcomes.id, outcomeId), eq(outcomes.userId, session.user.id)));
+    .from(goals)
+    .where(and(eq(goals.id, outcomeId), eq(goals.userId, session.user.id)));
 
   if (!outcome) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  // Verify the log belongs to this outcome
-  const [existingLog] = await db
-    .select()
-    .from(outcomeLogs)
-    .where(and(eq(outcomeLogs.id, body.logId), eq(outcomeLogs.outcomeId, outcomeId)));
+  // Verify the completion exists and belongs to a task linked to this goal
+  const completionWithTask = await db
+    .select({
+      completion: taskCompletions,
+      taskGoalId: tasks.goalId,
+    })
+    .from(taskCompletions)
+    .innerJoin(tasks, eq(taskCompletions.taskId, tasks.id))
+    .where(and(eq(taskCompletions.id, body.logId), eq(tasks.goalId, outcomeId)));
 
-  if (!existingLog) {
+  if (completionWithTask.length === 0) {
     return NextResponse.json({ error: "Log not found" }, { status: 404 });
   }
 
-  const oldValue = existingLog.value;
+  const existingCompletion = completionWithTask[0].completion;
+  const oldValue = existingCompletion.value ?? 0;
 
-  // Update the log entry
-  const updates: Record<string, unknown> = { value: body.value };
-  if (body.note !== undefined) updates.note = body.note;
-  if (body.loggedAt) updates.loggedAt = new Date(body.loggedAt + "T12:00:00");
-
+  // Update the TaskCompletion
   const [updated] = await db
-    .update(outcomeLogs)
-    .set(updates)
-    .where(eq(outcomeLogs.id, body.logId))
+    .update(taskCompletions)
+    .set({ value: body.value })
+    .where(eq(taskCompletions.id, body.logId))
     .returning();
 
-  // Update the outcome's currentValue
+  // Update the goal's currentValue
   const isTargetGoal = outcome.goalType === 'target' || outcome.goalType === 'habitual';
   if (isTargetGoal) {
-    // For target/habitual goals, recalculate as sum of all deltas
-    const allLogs = await db
-      .select({ value: outcomeLogs.value })
-      .from(outcomeLogs)
-      .where(eq(outcomeLogs.outcomeId, outcomeId));
-    const total = allLogs.reduce((sum, l) => sum + l.value, 0);
+    // For target/habitual goals, recalculate as sum of all completion values
+    const allCompletions = await db
+      .select({ value: taskCompletions.value })
+      .from(taskCompletions)
+      .innerJoin(tasks, eq(taskCompletions.taskId, tasks.id))
+      .where(and(eq(tasks.goalId, outcomeId), eq(taskCompletions.completed, true)));
+    const total = allCompletions.reduce((sum, c) => sum + (c.value ?? 0), 0);
     await db
-      .update(outcomes)
+      .update(goals)
       .set({ currentValue: total })
-      .where(eq(outcomes.id, outcomeId));
+      .where(eq(goals.id, outcomeId));
   } else {
-    const [latestLog] = await db
-      .select()
-      .from(outcomeLogs)
-      .where(eq(outcomeLogs.outcomeId, outcomeId))
-      .orderBy(desc(outcomeLogs.loggedAt))
+    // For outcome goals, use the latest completion value
+    const [latestCompletion] = await db
+      .select({ value: taskCompletions.value, date: taskCompletions.date })
+      .from(taskCompletions)
+      .innerJoin(tasks, eq(taskCompletions.taskId, tasks.id))
+      .where(and(eq(tasks.goalId, outcomeId), eq(taskCompletions.completed, true)))
+      .orderBy(desc(taskCompletions.date))
       .limit(1);
-    if (latestLog) {
+    if (latestCompletion) {
       await db
-        .update(outcomes)
-        .set({ currentValue: latestLog.value })
-        .where(eq(outcomes.id, outcomeId));
+        .update(goals)
+        .set({ currentValue: latestCompletion.value ?? 0 })
+        .where(eq(goals.id, outcomeId));
     }
   }
 
-  // Update the linked activity log entry if it exists
-  const [existingActivity] = await db
-    .select()
-    .from(activityLog)
-    .where(eq(activityLog.outcomeLogId, body.logId));
-
-  if (existingActivity) {
-    await db
-      .update(activityLog)
-      .set({
-        previousValue: oldValue,
-        newValue: body.value,
-        delta: body.value - oldValue,
-        note: `${outcome.name}: ${body.value} ${outcome.unit}${body.note !== undefined ? (body.note ? ' - ' + body.note : '') : (existingLog.note ? ' - ' + existingLog.note : '')}`,
-      })
-      .where(eq(activityLog.id, existingActivity.id));
-  }
-
-  return NextResponse.json(updated);
+  // Return in same format
+  return NextResponse.json({
+    id: updated.id,
+    outcomeId,
+    value: body.value,
+    loggedAt: updated.date + "T12:00:00.000Z",
+    note: null,
+  });
 }

@@ -44,7 +44,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   }
 
   const updateData: Record<string, unknown> = {};
-  const fields = ['name', 'pillarId', 'completionType', 'target', 'unit', 'flexibilityRule', 'frequency', 'customDays', 'repeatInterval', 'toleranceBefore', 'toleranceAfter', 'isWeekendTask', 'basePoints', 'isActive', 'windowStart', 'windowEnd', 'limitValue', 'outcomeId', 'periodId', 'startDate'];
+  const fields = ['name', 'pillarId', 'completionType', 'target', 'unit', 'flexibilityRule', 'frequency', 'customDays', 'repeatInterval', 'toleranceBefore', 'toleranceAfter', 'isWeekendTask', 'basePoints', 'isActive', 'windowStart', 'windowEnd', 'limitValue', 'goalId', 'periodId', 'startDate'];
 
   for (const field of fields) {
     if (body[field] !== undefined) {

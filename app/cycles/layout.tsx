@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   description: "Plan and execute goal cycles of any duration",
 };
 
-export default function TwelveWeekYearLayout({
+export default function CyclesLayout({
   children,
 }: {
   children: React.ReactNode;

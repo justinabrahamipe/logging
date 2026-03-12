@@ -9,7 +9,7 @@ import { DEMO_OUTCOMES, DEMO_PILLARS } from "@/lib/demo-data";
 export function useGoals() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [allOutcomes, setAllOutcomes] = useState<Outcome[]>([]);
+  const [allGoals, setAllGoals] = useState<Outcome[]>([]);
   const [pillars, setPillars] = useState<Pillar[]>([]);
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState<number | null>(null);
@@ -23,7 +23,7 @@ export function useGoals() {
   useEffect(() => {
     if (status === "unauthenticated") {
       // Load demo data for non-logged-in users
-      setAllOutcomes(DEMO_OUTCOMES.map(o => ({
+      setAllGoals(DEMO_OUTCOMES.map(o => ({
         ...o,
         periodId: null,
         logFrequency: "daily",
@@ -57,7 +57,7 @@ export function useGoals() {
 
       if (outcomesRes.ok) {
         const data = await outcomesRes.json();
-        setAllOutcomes(data);
+        setAllGoals(data);
         setGoalTab("all");
       }
       if (logsRes.ok) {
@@ -71,8 +71,8 @@ export function useGoals() {
         const allTasks: LinkedTask[] = [];
         for (const group of groups) {
           for (const task of group.tasks) {
-            if (task.outcomeId) {
-              allTasks.push({ id: task.id, name: task.name, outcomeId: task.outcomeId });
+            if (task.goalId) {
+              allTasks.push({ id: task.id, name: task.name, goalId: task.goalId });
             }
           }
         }
@@ -91,14 +91,14 @@ export function useGoals() {
     }
   };
 
-  const fetchOutcomes = async () => {
+  const fetchGoals = async () => {
     try {
       const [outcomesRes, logsRes] = await Promise.all([
         fetch("/api/outcomes"),
         fetch("/api/outcomes/logs"),
       ]);
       if (outcomesRes.ok) {
-        setAllOutcomes(await outcomesRes.json());
+        setAllGoals(await outcomesRes.json());
         setGoalTab("all");
       }
       if (logsRes.ok) {
@@ -122,8 +122,8 @@ export function useGoals() {
         const allTasks: LinkedTask[] = [];
         for (const group of groups) {
           for (const task of group.tasks) {
-            if (task.outcomeId) {
-              allTasks.push({ id: task.id, name: task.name, outcomeId: task.outcomeId });
+            if (task.goalId) {
+              allTasks.push({ id: task.id, name: task.name, goalId: task.goalId });
             }
           }
         }
@@ -140,7 +140,7 @@ export function useGoals() {
   const handleArchive = async (id: number) => {
     try {
       await fetch(`/api/outcomes/${id}`, { method: "DELETE" });
-      await fetchOutcomes();
+      await fetchGoals();
     } catch (error) {
       console.error("Failed to archive outcome:", error);
     }
@@ -160,7 +160,7 @@ export function useGoals() {
           target: outcome.dailyTarget || null,
           unit: outcome.completionType === 'checkbox' ? null : (outcome.unit || null),
           frequency: 'adhoc',
-          outcomeId: outcome.id,
+          goalId: outcome.id,
           periodId: outcome.periodId || null,
           basePoints: 10,
         }),
@@ -197,8 +197,8 @@ export function useGoals() {
     return "current";
   };
 
-  const filteredOutcomes = useMemo(() => {
-    return allOutcomes
+  const filteredGoals = useMemo(() => {
+    return allGoals
       .filter((o) => {
         if (goalTab === "all") return true;
         const type = o.goalType === "effort" ? "target" : (o.goalType || "outcome");
@@ -206,11 +206,11 @@ export function useGoals() {
       })
       .filter((o) => getTimeCategory(o) === timeTab);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allOutcomes, goalTab, timeTab]);
+  }, [allGoals, goalTab, timeTab]);
 
   const timeCounts = useMemo(() => {
     const counts = { current: 0, future: 0, past: 0 };
-    for (const o of allOutcomes.filter((o) => {
+    for (const o of allGoals.filter((o) => {
       if (goalTab === "all") return true;
       const type = o.goalType === "effort" ? "target" : (o.goalType || "outcome");
       return type === goalTab;
@@ -219,10 +219,10 @@ export function useGoals() {
     }
     return counts;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allOutcomes, goalTab]);
+  }, [allGoals, goalTab]);
 
   return {
-    allOutcomes,
+    allGoals,
     pillars,
     loading,
     menuOpen,
@@ -235,13 +235,13 @@ export function useGoals() {
     linkedTasks,
     taskCompletionDates,
     cycles,
-    filteredOutcomes,
+    filteredGoals,
     timeCounts,
     today,
     handleArchive,
     handleAddTaskForToday,
     getProgress,
-    fetchOutcomes,
+    fetchGoals,
     fetchLinkedTasks,
   };
 }

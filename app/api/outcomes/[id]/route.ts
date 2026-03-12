@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { db, outcomes, tasks } from "@/lib/db";
+import { db, goals, tasks } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -15,8 +15,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
   const existing = await db
     .select()
-    .from(outcomes)
-    .where(and(eq(outcomes.id, outcomeId), eq(outcomes.userId, session.user.id)));
+    .from(goals)
+    .where(and(eq(goals.id, outcomeId), eq(goals.userId, session.user.id)));
 
   if (existing.length === 0) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -39,9 +39,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   if (body.dailyTarget !== undefined) updateData.dailyTarget = body.dailyTarget ?? null;
 
   const [updated] = await db
-    .update(outcomes)
+    .update(goals)
     .set(updateData)
-    .where(and(eq(outcomes.id, outcomeId), eq(outcomes.userId, session.user.id)))
+    .where(and(eq(goals.id, outcomeId), eq(goals.userId, session.user.id)))
     .returning();
 
   return NextResponse.json(updated);
@@ -57,9 +57,9 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   const outcomeId = parseInt(id);
 
   const [updated] = await db
-    .update(outcomes)
+    .update(goals)
     .set({ isArchived: true })
-    .where(and(eq(outcomes.id, outcomeId), eq(outcomes.userId, session.user.id)))
+    .where(and(eq(goals.id, outcomeId), eq(goals.userId, session.user.id)))
     .returning();
 
   if (!updated) {
@@ -70,7 +70,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   await db
     .update(tasks)
     .set({ isActive: false })
-    .where(and(eq(tasks.outcomeId, outcomeId), eq(tasks.userId, session.user.id)));
+    .where(and(eq(tasks.goalId, outcomeId), eq(tasks.userId, session.user.id)));
 
   return NextResponse.json({ success: true });
 }

@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { pillars, tasks, userStats } from '@/lib/db';
+import { pillars, tasks } from '@/lib/db';
 import { eq, sql } from 'drizzle-orm';
 
 interface PillarSeed {
@@ -150,13 +150,4 @@ export async function seedDefaultData(userId: string, skipCheck = false) {
     }
   }
 
-  // Initialize user stats
-  await db.insert(userStats).values({
-    userId,
-    totalXp: 0,
-    level: 1,
-    levelTitle: 'Beginner',
-    currentStreak: 0,
-    bestStreak: 0,
-  }).onConflictDoNothing();
 }

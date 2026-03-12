@@ -4,21 +4,17 @@ import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FaPlus,
-  FaTimes,
   FaCheck,
   FaArrowLeft,
   FaTrash,
   FaEdit,
-  FaEllipsisV,
   FaChevronDown,
   FaChevronUp,
-  FaLink,
-  FaSyncAlt,
 } from "react-icons/fa";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { getCurrentWeekNumber, getGoalStatus, getTotalWeeks } from "@/lib/twelve-week-scoring";
-import { computeCycleAnalytics } from "@/lib/twelve-week-analytics";
+import { getCurrentWeekNumber, getGoalStatus, getTotalWeeks } from "@/lib/cycle-scoring";
+import { computeCycleAnalytics } from "@/lib/cycle-analytics";
 import { DEMO_CYCLES } from "@/lib/demo-data";
 
 interface Cycle {
@@ -32,16 +28,6 @@ interface Cycle {
   createdAt: string;
 }
 
-interface Tactic {
-  id: number;
-  goalId: number;
-  periodId: number;
-  name: string;
-  description: string | null;
-  isCompleted: boolean;
-  sortOrder: number;
-}
-
 interface Goal {
   id: number;
   periodId: number;
@@ -49,30 +35,11 @@ interface Goal {
   targetValue: number;
   currentValue: number;
   unit: string;
-  linkedOutcomeId: number | null;
-  outcomeName: string | null;
-  tactics: Tactic[];
-}
-
-interface WeeklyTarget {
-  id: number;
-  goalId: number;
-  periodId: number;
-  weekNumber: number;
-  targetValue: number;
-  actualValue: number;
-  isOverridden: boolean;
-  score: string | null;
-  reviewedAt: string | null;
-}
-
-interface WeeklyReview {
-  id: number;
-  periodId: number;
-  weekNumber: number;
-  notes: string | null;
-  wins: string | null;
-  blockers: string | null;
+  startValue: number;
+  direction: string;
+  goalType: string;
+  pillarId: number | null;
+  isArchived: boolean;
 }
 
 interface LinkedTask {
@@ -85,32 +52,16 @@ interface LinkedTask {
 
 interface CycleDetail extends Cycle {
   goals: Goal[];
-  weeklyTargets: WeeklyTarget[];
-  weeklyReviews: WeeklyReview[];
   linkedTasks: LinkedTask[];
 }
 
-interface Outcome {
-  id: number;
-  name: string;
-}
-
-export default function TwelveWeekYearPage() {
+export default function CyclesPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [cycles, setCycles] = useState<Cycle[]>([]);
   const [selectedCycle, setSelectedCycle] = useState<CycleDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [expandedWeek, setExpandedWeek] = useState<number | null>(null);
-  const [expandedGoal, setExpandedGoal] = useState<number | null>(null);
-  const [menuOpen, setMenuOpen] = useState<number | null>(null);
-  const [outcomes, setOutcomes] = useState<Outcome[]>([]);
-  const [savingWeek, setSavingWeek] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
-  const [newTacticName, setNewTacticName] = useState("");
-
-  const [weekEdits, setWeekEdits] = useState<Record<string, { actualValue: string; targetValue: string; isOverridden: boolean }>>({});
-  const [reviewEdits, setReviewEdits] = useState<Record<number, { notes: string; wins: string; blockers: string }>>({});
 
   // Accordion state for cycle list
   const [futureAccordionOpen, setFutureAccordionOpen] = useState(false);
@@ -137,7 +88,6 @@ export default function TwelveWeekYearPage() {
     }
     if (session?.user?.id) {
       fetchCycles();
-      fetchOutcomes();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, status]);
@@ -168,21 +118,8 @@ export default function TwelveWeekYearPage() {
     }
   };
 
-  const fetchOutcomes = async () => {
-    try {
-      const res = await fetch("/api/outcomes");
-      if (res.ok) {
-        const data = await res.json();
-        setOutcomes(data.map((o: { id: number; name: string }) => ({ id: o.id, name: o.name })));
-      }
-    } catch (error) {
-      console.error("Failed to fetch outcomes:", error);
-    }
-  };
-
-
   const handleDeleteCycle = async (id: number) => {
-    if (!confirm("Delete this cycle? This will remove all goals and weekly data.")) return;
+    if (!confirm("Delete this cycle? This will remove all goals and data.")) return;
     try {
       await fetch(`/api/cycles/${id}`, { method: "DELETE" });
       setSelectedCycle(null);
@@ -192,23 +129,6 @@ export default function TwelveWeekYearPage() {
     }
   };
 
-
-  const handleDeleteGoal = async (goalId: number) => {
-    if (!selectedCycle || !confirm("Delete this goal and all its weekly data?")) return;
-    try {
-      await fetch(`/api/cycles/${selectedCycle.id}/goals/${goalId}`, { method: "DELETE" });
-      await fetchCycleDetail(selectedCycle.id);
-    } catch (error) {
-      console.error("Failed to delete goal:", error);
-    }
-    setMenuOpen(null);
-  };
-
-  const startEditGoal = (goal: Goal) => {
-    if (!selectedCycle) return;
-    setMenuOpen(null);
-    router.push(`/cycles/${selectedCycle.id}/goals/${goal.id}/edit`);
-  };
 
   const handleSaveCycleField = async (updates: Record<string, string | boolean>) => {
     if (!selectedCycle) return;
@@ -245,138 +165,13 @@ export default function TwelveWeekYearPage() {
     }
   };
 
-  // Tactics handlers
-  const handleAddTactic = async (goalId: number) => {
-    if (!selectedCycle || !newTacticName.trim()) return;
-    try {
-      const res = await fetch(`/api/cycles/${selectedCycle.id}/goals/${goalId}/tactics`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newTacticName.trim() }),
-      });
-      if (res.ok) {
-        setNewTacticName("");
-        await fetchCycleDetail(selectedCycle.id);
-      }
-    } catch (error) {
-      console.error("Failed to add tactic:", error);
-    }
-  };
-
-  const handleToggleTactic = async (goalId: number, tacticId: number, isCompleted: boolean) => {
-    if (!selectedCycle) return;
-    try {
-      await fetch(`/api/cycles/${selectedCycle.id}/goals/${goalId}/tactics`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tacticId, isCompleted: !isCompleted }),
-      });
-      await fetchCycleDetail(selectedCycle.id);
-    } catch (error) {
-      console.error("Failed to toggle tactic:", error);
-    }
-  };
-
-  const handleDeleteTactic = async (goalId: number, tacticId: number) => {
-    if (!selectedCycle) return;
-    try {
-      await fetch(`/api/cycles/${selectedCycle.id}/goals/${goalId}/tactics?tacticId=${tacticId}`, {
-        method: "DELETE",
-      });
-      await fetchCycleDetail(selectedCycle.id);
-    } catch (error) {
-      console.error("Failed to delete tactic:", error);
-    }
-  };
-
-  const initWeekEdits = (weekNum: number) => {
-    if (!selectedCycle) return;
-    const edits: Record<string, { actualValue: string; targetValue: string; isOverridden: boolean }> = {};
-    for (const goal of selectedCycle.goals) {
-      const target = selectedCycle.weeklyTargets.find(
-        (t) => t.goalId === goal.id && t.weekNumber === weekNum
-      );
-      edits[`${goal.id}`] = {
-        actualValue: String(target?.actualValue ?? 0),
-        targetValue: String(target?.targetValue ?? (goal.targetValue / totalWeeks)),
-        isOverridden: target?.isOverridden ?? false,
-      };
-    }
-    setWeekEdits(edits);
-
-    // Load existing review data
-    const existingReview = selectedCycle.weeklyReviews?.find((r) => r.weekNumber === weekNum);
-    setReviewEdits((prev) => ({
-      ...prev,
-      [weekNum]: {
-        notes: existingReview?.notes || "",
-        wins: existingReview?.wins || "",
-        blockers: existingReview?.blockers || "",
-      },
-    }));
-  };
-
-  const handleSaveWeekReview = async (weekNum: number) => {
-    if (!selectedCycle) return;
-    setSavingWeek(true);
-    try {
-      const updates = Object.entries(weekEdits).map(([goalId, vals]) => ({
-        goalId: parseInt(goalId),
-        weekNumber: weekNum,
-        actualValue: parseFloat(vals.actualValue) || 0,
-        ...(vals.isOverridden ? { targetValue: parseFloat(vals.targetValue) || 0 } : {}),
-        isOverridden: vals.isOverridden,
-      }));
-
-      const reviewData = reviewEdits[weekNum];
-      const review = reviewData ? {
-        weekNumber: weekNum,
-        notes: reviewData.notes,
-        wins: reviewData.wins,
-        blockers: reviewData.blockers,
-      } : undefined;
-
-      await fetch(`/api/cycles/${selectedCycle.id}/weekly`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ updates, review }),
-      });
-
-      await fetchCycleDetail(selectedCycle.id);
-    } catch (error) {
-      console.error("Failed to save review:", error);
-    } finally {
-      setSavingWeek(false);
-    }
-  };
-
-  const getScoreColor = (score: string | null) => {
-    switch (score) {
-      case "exceeded": return "text-green-500 bg-green-100 dark:bg-green-900/30";
-      case "good": return "text-zinc-500 bg-zinc-100 dark:bg-zinc-700";
-      case "partial": return "text-yellow-500 bg-yellow-100 dark:bg-yellow-900/30";
-      case "missed": return "text-red-500 bg-red-100 dark:bg-red-900/30";
-      default: return "text-zinc-400 bg-zinc-100 dark:bg-zinc-700";
-    }
-  };
-
-  const getScoreIcon = (score: string | null) => {
-    switch (score) {
-      case "exceeded": return "\u2605";
-      case "good": return "\u2713";
-      case "partial": return "\u25D0";
-      case "missed": return "\u2717";
-      default: return "\u00B7";
-    }
-  };
-
   const totalWeeks = selectedCycle ? getTotalWeeks(selectedCycle.startDate, selectedCycle.endDate) : 12;
   const currentWeek = selectedCycle ? getCurrentWeekNumber(selectedCycle.startDate, selectedCycle.endDate) : 1;
 
   // Analytics
   const analytics = useMemo(() => {
     if (!selectedCycle || selectedCycle.goals.length === 0) return null;
-    return computeCycleAnalytics(selectedCycle.goals, selectedCycle.weeklyTargets, currentWeek, totalWeeks);
+    return computeCycleAnalytics(selectedCycle.goals, currentWeek, totalWeeks);
   }, [selectedCycle, currentWeek, totalWeeks]);
 
   if (loading || loadingDetail) {
@@ -534,14 +329,7 @@ export default function TwelveWeekYearPage() {
           {/* Goals */}
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">Goals</h2>
-            <motion.button
-              onClick={() => {
-                if (selectedCycle) router.push(`/cycles/${selectedCycle.id}/goals/new`);
-              }}
-              className="px-3 py-1.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 rounded-lg text-sm font-medium flex items-center gap-1.5"
-            >
-              <FaPlus className="text-xs" /> Add Goal
-            </motion.button>
+            <p className="text-xs text-zinc-400 dark:text-zinc-500">Assign goals via the Goals page</p>
           </div>
 
           {selectedCycle.goals.length === 0 ? (
@@ -555,8 +343,6 @@ export default function TwelveWeekYearPage() {
                 const progress = goal.targetValue > 0 ? (goal.currentValue / goal.targetValue) * 100 : 0;
                 const goalStatus = getGoalStatus(goal.currentValue, goal.targetValue, currentWeek - 1, totalWeeks);
                 const statusColor = goalStatus === "Ahead" ? "text-green-500" : goalStatus === "Behind" ? "text-red-500" : "text-zinc-500";
-                const isGoalExpanded = expandedGoal === goal.id;
-
                 return (
                   <motion.div
                     key={goal.id}
@@ -568,56 +354,15 @@ export default function TwelveWeekYearPage() {
                         <div className="flex items-center gap-2">
                           <h3 className="font-semibold text-zinc-900 dark:text-white">{goal.name}</h3>
                           <span className={`text-xs font-medium ${statusColor}`}>{goalStatus}</span>
-                          {goal.outcomeName && (
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400 flex items-center gap-1">
-                              <FaLink className="text-[10px]" /> {goal.outcomeName}
+                          {goal.goalType && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400 capitalize">
+                              {goal.goalType}
                             </span>
-                          )}
-                          {goal.linkedOutcomeId && (
-                            <FaSyncAlt className="text-[10px] text-green-500" title="Synced to outcome" />
                           )}
                         </div>
                         <p className="text-sm text-zinc-500 dark:text-zinc-400">
                           {goal.currentValue} / {goal.targetValue} {goal.unit}
                         </p>
-                      </div>
-                      <div className="relative flex items-center gap-1">
-                        <button
-                          onClick={() => setExpandedGoal(isGoalExpanded ? null : goal.id)}
-                          className="p-2 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
-                          title="Tactics"
-                        >
-                          {isGoalExpanded ? <FaChevronUp className="text-sm" /> : <FaChevronDown className="text-sm" />}
-                        </button>
-                        <button
-                          onClick={() => setMenuOpen(menuOpen === goal.id ? null : goal.id)}
-                          className="p-2 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
-                        >
-                          <FaEllipsisV className="text-sm" />
-                        </button>
-                        <AnimatePresence>
-                          {menuOpen === goal.id && (
-                            <motion.div
-                              initial={{ opacity: 0, scale: 0.95 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              exit={{ opacity: 0, scale: 0.95 }}
-                              className="absolute right-0 top-8 w-36 bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-700 z-20 overflow-hidden"
-                            >
-                              <button
-                                onClick={() => startEditGoal(goal)}
-                                className="w-full px-4 py-2.5 text-left text-sm flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700"
-                              >
-                                <FaEdit /> Edit
-                              </button>
-                              <button
-                                onClick={() => handleDeleteGoal(goal.id)}
-                                className="w-full px-4 py-2.5 text-left text-sm flex items-center gap-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
-                              >
-                                <FaTrash /> Delete
-                              </button>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
                       </div>
                     </div>
                     {/* Progress bar */}
@@ -634,66 +379,6 @@ export default function TwelveWeekYearPage() {
                       <span>{Math.round(progress)}%</span>
                       <span>{goal.targetValue} {goal.unit}</span>
                     </div>
-
-                    {/* Tactics (expandable) */}
-                    <AnimatePresence>
-                      {isGoalExpanded && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: "auto", opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          className="overflow-hidden"
-                        >
-                          <div className="mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-700">
-                            <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wide">Tactics / Strategies</p>
-                            {goal.tactics.length === 0 && (
-                              <p className="text-xs text-zinc-400 mb-2">No tactics yet</p>
-                            )}
-                            <div className="space-y-1.5 mb-2">
-                              {goal.tactics.map((tactic) => (
-                                <div key={tactic.id} className="flex items-center gap-2 group">
-                                  <button
-                                    onClick={() => handleToggleTactic(goal.id, tactic.id, tactic.isCompleted)}
-                                    className={`w-5 h-5 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${
-                                      tactic.isCompleted
-                                        ? "bg-green-500 border-green-500 text-white"
-                                        : "border-zinc-300 dark:border-zinc-600 hover:border-zinc-400"
-                                    }`}
-                                  >
-                                    {tactic.isCompleted && <FaCheck className="text-[10px]" />}
-                                  </button>
-                                  <span className={`text-sm flex-1 ${tactic.isCompleted ? "line-through text-zinc-400" : "text-zinc-700 dark:text-zinc-300"}`}>
-                                    {tactic.name}
-                                  </span>
-                                  <button
-                                    onClick={() => handleDeleteTactic(goal.id, tactic.id)}
-                                    className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 p-1 transition-opacity"
-                                  >
-                                    <FaTimes className="text-xs" />
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                            <div className="flex gap-2">
-                              <input
-                                type="text"
-                                value={newTacticName}
-                                onChange={(e) => setNewTacticName(e.target.value)}
-                                onKeyDown={(e) => { if (e.key === "Enter") handleAddTactic(goal.id); }}
-                                placeholder="Add tactic..."
-                                className="flex-1 px-2.5 py-1.5 text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
-                              />
-                              <button
-                                onClick={() => handleAddTactic(goal.id)}
-                                className="px-2.5 py-1.5 text-sm bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg hover:bg-zinc-800 dark:hover:bg-zinc-200"
-                              >
-                                <FaPlus className="text-xs" />
-                              </button>
-                            </div>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
                   </motion.div>
                 );
               })}
@@ -704,7 +389,7 @@ export default function TwelveWeekYearPage() {
           {analytics && (
             <>
               <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">Analytics</h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+              <div className="grid grid-cols-2 gap-3 mb-6">
                 {/* Overall Completion */}
                 <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
                   <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Completion</p>
@@ -726,43 +411,6 @@ export default function TwelveWeekYearPage() {
                     {analytics.pace === "ahead" ? "Ahead" : analytics.pace === "behind" ? "Behind" : "On Track"}
                   </p>
                   <p className="text-xs text-zinc-400 mt-1">Projected: {Math.round(analytics.projectedCompletion)}%</p>
-                </div>
-
-                {/* Consistent Weeks */}
-                <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
-                  <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Consistent Weeks</p>
-                  <p className="text-2xl font-bold text-zinc-900 dark:text-white">
-                    {analytics.consistentWeeks}/{analytics.totalReviewedWeeks}
-                  </p>
-                  <p className="text-xs text-zinc-400 mt-1">
-                    {analytics.totalReviewedWeeks > 0
-                      ? `${Math.round((analytics.consistentWeeks / analytics.totalReviewedWeeks) * 100)}% consistency`
-                      : "No weeks reviewed yet"}
-                  </p>
-                </div>
-
-                {/* Goal Trends */}
-                <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
-                  <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Goal Trends</p>
-                  <div className="space-y-2 mt-1">
-                    {analytics.goalTrends.slice(0, 3).map((gt) => {
-                      const maxVal = Math.max(...gt.weeklyActuals, 1);
-                      return (
-                        <div key={gt.goalId}>
-                          <p className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate">{gt.goalName}</p>
-                          <div className="flex gap-[2px] items-end h-4">
-                            {gt.weeklyActuals.map((val, i) => (
-                              <div
-                                key={i}
-                                className={`flex-1 rounded-sm ${i + 1 <= currentWeek ? "bg-zinc-900 dark:bg-zinc-100" : "bg-zinc-200 dark:bg-zinc-700"}`}
-                                style={{ height: `${Math.max((val / maxVal) * 100, 4)}%` }}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
                 </div>
               </div>
             </>
@@ -798,243 +446,6 @@ export default function TwelveWeekYearPage() {
             </>
           )}
 
-          {/* Weekly Breakdown Grid */}
-          {selectedCycle.goals.length > 0 && (
-            <>
-              <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">Weekly Breakdown</h2>
-              <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 overflow-hidden mb-6">
-                {/* Grid header */}
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-zinc-200 dark:border-zinc-700">
-                        <th className="text-left px-4 py-3 font-medium text-zinc-500 dark:text-zinc-400 sticky left-0 bg-white dark:bg-zinc-800">Goal</th>
-                        {Array.from({ length: totalWeeks }, (_, i) => (
-                          <th
-                            key={i}
-                            className={`px-2 py-3 text-center font-medium min-w-[40px] ${
-                              i + 1 === currentWeek
-                                ? "text-zinc-900 dark:text-white bg-zinc-100 dark:bg-zinc-800"
-                                : "text-zinc-500 dark:text-zinc-400"
-                            }`}
-                          >
-                            W{i + 1}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedCycle.goals.map((goal) => (
-                        <tr key={goal.id} className="border-b border-zinc-100 dark:border-zinc-700/50">
-                          <td className="px-4 py-2 font-medium text-zinc-700 dark:text-zinc-300 sticky left-0 bg-white dark:bg-zinc-800 truncate max-w-[150px]">
-                            {goal.name}
-                          </td>
-                          {Array.from({ length: totalWeeks }, (_, i) => {
-                            const target = selectedCycle.weeklyTargets.find(
-                              (t) => t.goalId === goal.id && t.weekNumber === i + 1
-                            );
-                            return (
-                              <td key={i} className="px-2 py-2 text-center">
-                                <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold ${getScoreColor(target?.score ?? null)}`}>
-                                  {getScoreIcon(target?.score ?? null)}
-                                </span>
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Expandable Week Reviews */}
-              <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">Week Reviews</h2>
-              <div className="space-y-2 mb-8">
-                {Array.from({ length: totalWeeks }, (_, i) => i + 1).map((weekNum) => {
-                  const isExpanded = expandedWeek === weekNum;
-                  const weekTargets = selectedCycle.weeklyTargets.filter((t) => t.weekNumber === weekNum);
-                  const allReviewed = weekTargets.length > 0 && weekTargets.every((t) => t.score);
-                  const someReviewed = weekTargets.some((t) => t.score);
-                  const hasReviewNotes = selectedCycle.weeklyReviews?.some((r) => r.weekNumber === weekNum && (r.notes || r.wins || r.blockers));
-
-                  return (
-                    <div key={weekNum} className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
-                      <button
-                        onClick={() => {
-                          if (isExpanded) {
-                            setExpandedWeek(null);
-                          } else {
-                            setExpandedWeek(weekNum);
-                            initWeekEdits(weekNum);
-                          }
-                        }}
-                        className="w-full flex items-center justify-between px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-700/50 transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className={`font-semibold ${weekNum === currentWeek ? "text-zinc-900 dark:text-white" : "text-zinc-700 dark:text-zinc-300"}`}>
-                            Week {weekNum}
-                          </span>
-                          {weekNum === currentWeek && (
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                              Current
-                            </span>
-                          )}
-                          {allReviewed && (
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                              Reviewed
-                            </span>
-                          )}
-                          {!allReviewed && someReviewed && (
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
-                              Partial
-                            </span>
-                          )}
-                          {hasReviewNotes && (
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                              Notes
-                            </span>
-                          )}
-                        </div>
-                        {isExpanded ? <FaChevronUp className="text-zinc-400" /> : <FaChevronDown className="text-zinc-400" />}
-                      </button>
-
-                      <AnimatePresence>
-                        {isExpanded && (
-                          <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: "auto", opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            className="overflow-hidden"
-                          >
-                            <div className="px-4 pb-4 space-y-3 border-t border-zinc-200 dark:border-zinc-700 pt-3">
-                              {selectedCycle.goals.map((goal) => {
-                                const target = selectedCycle.weeklyTargets.find(
-                                  (t) => t.goalId === goal.id && t.weekNumber === weekNum
-                                );
-                                const edit = weekEdits[`${goal.id}`];
-                                if (!target || !edit) return null;
-
-                                return (
-                                  <div key={goal.id} className="bg-zinc-50 dark:bg-zinc-700/50 rounded-lg p-3">
-                                    <div className="flex items-center justify-between mb-2">
-                                      <span className="font-medium text-zinc-700 dark:text-zinc-300">{goal.name}</span>
-                                      {target.score && (
-                                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getScoreColor(target.score)}`}>
-                                          {target.score}
-                                        </span>
-                                      )}
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-3">
-                                      <div>
-                                        <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
-                                          Target ({goal.unit})
-                                        </label>
-                                        <input
-                                          type="number"
-                                          step="any"
-                                          value={edit.targetValue}
-                                          onChange={(e) => setWeekEdits((prev) => ({
-                                            ...prev,
-                                            [`${goal.id}`]: { ...edit, targetValue: e.target.value },
-                                          }))}
-                                          disabled={!edit.isOverridden}
-                                          className="w-full px-2.5 py-1.5 text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white disabled:opacity-50"
-                                        />
-                                      </div>
-                                      <div>
-                                        <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
-                                          Actual ({goal.unit})
-                                        </label>
-                                        <input
-                                          type="number"
-                                          step="any"
-                                          value={edit.actualValue}
-                                          onChange={(e) => setWeekEdits((prev) => ({
-                                            ...prev,
-                                            [`${goal.id}`]: { ...edit, actualValue: e.target.value },
-                                          }))}
-                                          className="w-full px-2.5 py-1.5 text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
-                                        />
-                                      </div>
-                                    </div>
-                                    <label className="flex items-center gap-2 mt-2 text-xs text-zinc-500 dark:text-zinc-400 cursor-pointer">
-                                      <input
-                                        type="checkbox"
-                                        checked={edit.isOverridden}
-                                        onChange={(e) => setWeekEdits((prev) => ({
-                                          ...prev,
-                                          [`${goal.id}`]: { ...edit, isOverridden: e.target.checked },
-                                        }))}
-                                        className="rounded border-zinc-300 dark:border-zinc-600"
-                                      />
-                                      Override target
-                                    </label>
-                                  </div>
-                                );
-                              })}
-
-                              {/* Weekly Review Notes */}
-                              <div className="bg-zinc-50 dark:bg-zinc-700/50 rounded-lg p-3 space-y-3">
-                                <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">Weekly Review Notes</p>
-                                <div>
-                                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Wins</label>
-                                  <textarea
-                                    value={reviewEdits[weekNum]?.wins || ""}
-                                    onChange={(e) => setReviewEdits((prev) => ({
-                                      ...prev,
-                                      [weekNum]: { ...prev[weekNum], wins: e.target.value },
-                                    }))}
-                                    placeholder="What went well this week?"
-                                    rows={2}
-                                    className="w-full px-2.5 py-1.5 text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white resize-none"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Blockers</label>
-                                  <textarea
-                                    value={reviewEdits[weekNum]?.blockers || ""}
-                                    onChange={(e) => setReviewEdits((prev) => ({
-                                      ...prev,
-                                      [weekNum]: { ...prev[weekNum], blockers: e.target.value },
-                                    }))}
-                                    placeholder="What held you back?"
-                                    rows={2}
-                                    className="w-full px-2.5 py-1.5 text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white resize-none"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Notes</label>
-                                  <textarea
-                                    value={reviewEdits[weekNum]?.notes || ""}
-                                    onChange={(e) => setReviewEdits((prev) => ({
-                                      ...prev,
-                                      [weekNum]: { ...prev[weekNum], notes: e.target.value },
-                                    }))}
-                                    placeholder="Additional reflections..."
-                                    rows={2}
-                                    className="w-full px-2.5 py-1.5 text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white resize-none"
-                                  />
-                                </div>
-                              </div>
-
-                              <motion.button
-                                onClick={() => handleSaveWeekReview(weekNum)}
-                                disabled={savingWeek}
-                                className="w-full py-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-50"
-                              >
-                                <FaCheck /> {savingWeek ? "Saving..." : "Save Review"}
-                              </motion.button>
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  );
-                })}
-              </div>
-            </>
-          )}
         </motion.div>
 
       </div>

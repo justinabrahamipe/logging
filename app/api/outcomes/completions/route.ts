@@ -11,9 +11,9 @@ export async function GET() {
 
   // Get all tasks linked to outcomes
   const linkedTasks = await db
-    .select({ id: tasks.id, outcomeId: tasks.outcomeId })
+    .select({ id: tasks.id, goalId: tasks.goalId })
     .from(tasks)
-    .where(and(eq(tasks.userId, session.user.id), isNotNull(tasks.outcomeId)));
+    .where(and(eq(tasks.userId, session.user.id), isNotNull(tasks.goalId)));
 
   if (linkedTasks.length === 0) return NextResponse.json({});
 
@@ -30,15 +30,15 @@ export async function GET() {
         ))
     : [];
 
-  // Build outcomeId -> dates map
-  const taskToOutcome = new Map(linkedTasks.map(t => [t.id, t.outcomeId]));
+  // Build goalId -> dates map
+  const taskToOutcome = new Map(linkedTasks.map(t => [t.id, t.goalId]));
   const result: Record<number, string[]> = {};
 
   for (const c of completions) {
-    const outcomeId = taskToOutcome.get(c.taskId);
-    if (!outcomeId) continue;
-    if (!result[outcomeId]) result[outcomeId] = [];
-    result[outcomeId].push(c.date);
+    const goalId = taskToOutcome.get(c.taskId);
+    if (!goalId) continue;
+    if (!result[goalId]) result[goalId] = [];
+    result[goalId].push(c.date);
   }
 
   return NextResponse.json(result);
