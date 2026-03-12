@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { db, pillars, tasks, taskCompletions, goals, dailyScores, userStats, activityLog } from "@/lib/db";
+import { db, pillars, tasks, taskCompletions, goals, dailyScores, activityLog } from "@/lib/db";
 import { eq, sql } from "drizzle-orm";
 import { seedDefaultData } from "@/lib/seed-data";
 
@@ -40,7 +40,6 @@ export async function DELETE() {
   await db.delete(tasks).where(eq(tasks.userId, userId));
   await db.delete(goals).where(eq(goals.userId, userId));
   await db.delete(pillars).where(eq(pillars.userId, userId));
-  await db.delete(userStats).where(eq(userStats.userId, userId));
 
   return NextResponse.json({ success: true, message: "All data cleared" });
 }

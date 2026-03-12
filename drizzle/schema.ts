@@ -104,7 +104,7 @@ export const tasks = sqliteTable('Task', {
   toleranceAfter: integer('toleranceAfter'), // days after scheduled date
   isWeekendTask: integer('isWeekendTask', { mode: 'boolean' }).notNull().default(false),
   basePoints: real('basePoints').notNull().default(10),
-  goalId: integer('outcomeId').references(() => goals.id, { onDelete: 'set null' }),
+  goalId: integer('goalId').references(() => goals.id, { onDelete: 'set null' }),
   periodId: integer('periodId').references(() => cycles.id, { onDelete: 'set null' }),
   startDate: text('startDate'), // optional YYYY-MM-DD, task only appears from this date
   isActive: integer('isActive', { mode: 'boolean' }).notNull().default(true),
@@ -113,7 +113,7 @@ export const tasks = sqliteTable('Task', {
 }, (table) => ({
   userIdIdx: index('Task_userId_idx').on(table.userId),
   pillarIdIdx: index('Task_pillarId_idx').on(table.pillarId),
-  goalIdIdx: index('Task_outcomeId_idx').on(table.goalId),
+  goalIdIdx: index('Task_goalId_idx').on(table.goalId),
   periodIdIdx: index('Task_periodId_idx').on(table.periodId),
 }));
 
@@ -146,8 +146,6 @@ export const dailyScores = sqliteTable('DailyScore', {
   momentumScore: real('momentumScore'), // goal-based momentum (0-200+, 100 = on pace)
   pillarScores: text('pillarScores'), // JSON: { pillarId: score }
   pillarMomentum: text('pillarMomentum'), // JSON: { pillarId: momentum }
-  xpEarned: real('xpEarned').notNull().default(0),
-  streakBonus: real('streakBonus').notNull().default(0),
   isPassing: integer('isPassing', { mode: 'boolean' }).notNull().default(false),
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
@@ -155,20 +153,6 @@ export const dailyScores = sqliteTable('DailyScore', {
   userIdIdx: index('DailyScore_userId_idx').on(table.userId),
   dateIdx: index('DailyScore_date_idx').on(table.date),
   userDateUnique: unique().on(table.userId, table.date),
-}));
-
-// UserStats table
-export const userStats = sqliteTable('UserStats', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  userId: text('userId').notNull().unique(),
-  totalXp: real('totalXp').notNull().default(0),
-  level: integer('level').notNull().default(1),
-  levelTitle: text('levelTitle').notNull().default('Beginner'),
-  currentStreak: integer('currentStreak').notNull().default(0),
-  bestStreak: integer('bestStreak').notNull().default(0),
-  updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
-}, (table) => ({
-  userIdIdx: index('UserStats_userId_idx').on(table.userId),
 }));
 
 
@@ -189,7 +173,6 @@ export const activityLog = sqliteTable('ActivityLog', {
   source: text('source').notNull().default('manual'), // manual | timer | auto
   reversalOf: integer('reversalOf'),
   note: text('note'),
-  outcomeLogId: integer('outcomeLogId'), // Legacy field, no longer references outcomeLogs
 }, (table) => ({
   userIdIdx: index('ActivityLog_userId_idx').on(table.userId),
   taskIdIdx: index('ActivityLog_taskId_idx').on(table.taskId),
@@ -264,8 +247,8 @@ export const activityLogRelations = relations(activityLog, ({ one }) => ({
 
 }));
 
-// Outcomes table
-export const goals = sqliteTable('Outcome', {
+// Goals table
+export const goals = sqliteTable('Goal', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: text('userId').notNull(),
   pillarId: integer('pillarId').references(() => pillars.id, { onDelete: 'set null' }),
@@ -290,9 +273,9 @@ export const goals = sqliteTable('Outcome', {
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
-  userIdIdx: index('Outcome_userId_idx').on(table.userId),
-  pillarIdIdx: index('Outcome_pillarId_idx').on(table.pillarId),
-  periodIdIdx: index('Outcome_periodId_idx').on(table.periodId),
+  userIdIdx: index('Goal_userId_idx').on(table.userId),
+  pillarIdIdx: index('Goal_pillarId_idx').on(table.pillarId),
+  periodIdIdx: index('Goal_periodId_idx').on(table.periodId),
 }));
 
 export const goalsRelations = relations(goals, ({ one, many }) => ({
@@ -302,7 +285,7 @@ export const goalsRelations = relations(goals, ({ one, many }) => ({
 }));
 
 // Cycle table
-export const cycles = sqliteTable('TwelveWeekYear', {
+export const cycles = sqliteTable('Cycle', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: text('userId').notNull(),
   name: text('name').notNull(),
@@ -314,82 +297,14 @@ export const cycles = sqliteTable('TwelveWeekYear', {
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
-  userIdIdx: index('TwelveWeekYear_userId_idx').on(table.userId),
+  userIdIdx: index('Cycle_userId_idx').on(table.userId),
 }));
 
-// CycleGoal table
-export const cycleGoals = sqliteTable('TwelveWeekGoal', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  periodId: integer('periodId').notNull().references(() => cycles.id, { onDelete: 'cascade' }),
-  userId: text('userId').notNull(),
-  name: text('name').notNull(),
-  targetValue: real('targetValue').notNull(),
-  currentValue: real('currentValue').notNull().default(0),
-  unit: text('unit').notNull(),
-  linkedOutcomeId: integer('linkedOutcomeId').references(() => goals.id, { onDelete: 'set null' }),
-  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
-  updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
-}, (table) => ({
-  periodIdIdx: index('TwelveWeekGoal_periodId_idx').on(table.periodId),
-  userIdIdx: index('TwelveWeekGoal_userId_idx').on(table.userId),
-}));
-
-// CycleTactic table
-export const cycleTactics = sqliteTable('TwelveWeekTactic', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  goalId: integer('goalId').notNull().references(() => cycleGoals.id, { onDelete: 'cascade' }),
-  periodId: integer('periodId').notNull().references(() => cycles.id, { onDelete: 'cascade' }),
-  userId: text('userId').notNull(),
-  name: text('name').notNull(),
-  description: text('description'),
-  isCompleted: integer('isCompleted', { mode: 'boolean' }).notNull().default(false),
-  sortOrder: integer('sortOrder').notNull().default(0),
-  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
-}, (table) => ({
-  goalIdIdx: index('TwelveWeekTactic_goalId_idx').on(table.goalId),
-  periodIdIdx: index('TwelveWeekTactic_periodId_idx').on(table.periodId),
-  userIdIdx: index('TwelveWeekTactic_userId_idx').on(table.userId),
-}));
-
-// WeeklyReview table
-export const weeklyReviews = sqliteTable('WeeklyReview', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  periodId: integer('periodId').notNull().references(() => cycles.id, { onDelete: 'cascade' }),
-  userId: text('userId').notNull(),
-  weekNumber: integer('weekNumber').notNull(),
-  notes: text('notes'),
-  wins: text('wins'),
-  blockers: text('blockers'),
-  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
-  updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
-}, (table) => ({
-  periodIdIdx: index('WeeklyReview_periodId_idx').on(table.periodId),
-  userIdIdx: index('WeeklyReview_userId_idx').on(table.userId),
-  periodWeekUnique: unique().on(table.periodId, table.weekNumber),
-}));
 
 // Cycle relations
 export const cyclesRelations = relations(cycles, ({ many }) => ({
-  goals: many(cycleGoals),
-  tactics: many(cycleTactics),
-  weeklyReviews: many(weeklyReviews),
   linkedTasks: many(tasks),
-  linkedOutcomes: many(goals),
-}));
-
-export const cycleGoalsRelations = relations(cycleGoals, ({ one, many }) => ({
-  period: one(cycles, { fields: [cycleGoals.periodId], references: [cycles.id] }),
-  linkedOutcome: one(goals, { fields: [cycleGoals.linkedOutcomeId], references: [goals.id] }),
-  tactics: many(cycleTactics),
-}));
-
-export const cycleTacticsRelations = relations(cycleTactics, ({ one }) => ({
-  goal: one(cycleGoals, { fields: [cycleTactics.goalId], references: [cycleGoals.id] }),
-  period: one(cycles, { fields: [cycleTactics.periodId], references: [cycles.id] }),
-}));
-
-export const weeklyReviewsRelations = relations(weeklyReviews, ({ one }) => ({
-  period: one(cycles, { fields: [weeklyReviews.periodId], references: [cycles.id] }),
+  linkedGoals: many(goals),
 }));
 
 // GeneratedReports table

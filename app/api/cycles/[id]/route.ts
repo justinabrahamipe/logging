@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { db, cycles, cycleGoals, goals, cycleTactics, weeklyReviews, tasks } from "@/lib/db";
+import { db, cycles, goals, tasks, pillars } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
 import { calculateEndDate } from "@/lib/cycle-scoring";
 
@@ -22,46 +22,33 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const cycleGoalsList = await db
+  // Fetch goals where periodId matches this cycle
+  const goalsList = await db
     .select({
-      id: cycleGoals.id,
-      periodId: cycleGoals.periodId,
-      userId: cycleGoals.userId,
-      name: cycleGoals.name,
-      targetValue: cycleGoals.targetValue,
-      currentValue: cycleGoals.currentValue,
-      unit: cycleGoals.unit,
-      linkedOutcomeId: cycleGoals.linkedOutcomeId,
-      createdAt: cycleGoals.createdAt,
-      updatedAt: cycleGoals.updatedAt,
-      outcomeName: goals.name,
+      id: goals.id,
+      periodId: goals.periodId,
+      userId: goals.userId,
+      name: goals.name,
+      targetValue: goals.targetValue,
+      currentValue: goals.currentValue,
+      unit: goals.unit,
+      startValue: goals.startValue,
+      direction: goals.direction,
+      goalType: goals.goalType,
+      pillarId: goals.pillarId,
+      isArchived: goals.isArchived,
+      createdAt: goals.createdAt,
+      updatedAt: goals.updatedAt,
     })
-    .from(cycleGoals)
-    .leftJoin(goals, eq(cycleGoals.linkedOutcomeId, goals.id))
-    .where(eq(cycleGoals.periodId, periodId));
-
-  const tactics = await db
-    .select()
-    .from(cycleTactics)
-    .where(eq(cycleTactics.periodId, periodId));
-
-  const reviews = await db
-    .select()
-    .from(weeklyReviews)
-    .where(eq(weeklyReviews.periodId, periodId));
+    .from(goals)
+    .where(and(eq(goals.periodId, periodId), eq(goals.userId, session.user.id)));
 
   const linkedTasks = await db
     .select()
     .from(tasks)
     .where(and(eq(tasks.periodId, periodId), eq(tasks.isActive, true)));
 
-  // Attach tactics to goals
-  const goalsWithTactics = cycleGoalsList.map((g) => ({
-    ...g,
-    tactics: tactics.filter((t) => t.goalId === g.id),
-  }));
-
-  return NextResponse.json({ ...cycle, goals: goalsWithTactics, weeklyReviews: reviews, linkedTasks });
+  return NextResponse.json({ ...cycle, goals: goalsList, linkedTasks });
 }
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {

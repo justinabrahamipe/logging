@@ -96,20 +96,6 @@ export const DEMO_DASHBOARD = {
     totalTasks: 11,
     completedTasks: 4,
   },
-  stats: {
-    totalXp: 1250,
-    level: 3,
-    levelTitle: "Consistent",
-    currentStreak: 5,
-    bestStreak: 12,
-    levelInfo: {
-      level: 3,
-      title: "Consistent",
-      currentXp: 1250,
-      xpForNextLevel: 2000,
-      xpProgress: 62.5,
-    },
-  },
   history: {
     scores: demoHistory,
     pillars: DEMO_PILLARS.map((p) => ({ id: p.id, name: p.name, emoji: p.emoji, color: p.color, weight: p.weight })),

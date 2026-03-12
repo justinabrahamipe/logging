@@ -1,6 +1,6 @@
 import { db, tasks, pillars, taskCompletions, dailyScores, goals } from "@/lib/db";
 import { eq, and, isNotNull } from "drizzle-orm";
-import { calculateDailyScore, getScoreTier, calculateXP } from "@/lib/scoring";
+import { calculateDailyScore, getScoreTier } from "@/lib/scoring";
 import { isTaskForDate } from "@/lib/task-schedule";
 import { calculateMomentum } from "@/lib/momentum";
 
@@ -47,8 +47,6 @@ export async function saveDailyScore(userId: string, date: string) {
   const { actionScore, pillarScores } = calculateDailyScore(completionsForScoring, tasksForScoring, pillarWeights);
   const tier = getScoreTier(actionScore);
   const isPassing = tier !== 'Poor' && tier !== 'Needs Work';
-  const { xp, streakBonus } = calculateXP(actionScore, 0);
-
   // Calculate momentum from goals
   const userGoals = await db
     .select()
@@ -116,8 +114,6 @@ export async function saveDailyScore(userId: string, date: string) {
         momentumScore,
         pillarScores: JSON.stringify(pillarScores),
         pillarMomentum: pillarMomentumJson,
-        xpEarned: xp,
-        streakBonus,
         isPassing,
         updatedAt: new Date(),
       })
@@ -130,8 +126,6 @@ export async function saveDailyScore(userId: string, date: string) {
       momentumScore,
       pillarScores: JSON.stringify(pillarScores),
       pillarMomentum: pillarMomentumJson,
-      xpEarned: xp,
-      streakBonus,
       isPassing,
     });
   }

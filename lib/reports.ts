@@ -1,4 +1,4 @@
-import { db, dailyScores, tasks, taskCompletions, goals, userStats, pillars } from "@/lib/db";
+import { db, dailyScores, tasks, taskCompletions, goals, pillars } from "@/lib/db";
 import { eq, and, gte, lte, asc, isNotNull } from "drizzle-orm";
 
 export interface ReportResult {
@@ -10,7 +10,6 @@ export interface ReportResult {
     totalDays: number;
     bestDay: { date: string; score: number };
     worstDay: { date: string; score: number };
-    totalXpEarned: number;
     currentStreak: number;
     bestStreak: number;
   };
@@ -51,7 +50,7 @@ export async function computeReport(userId: string, type: string, dateParam: str
   const startStr = startDate.toISOString().split("T")[0];
   const endStr = endDate.toISOString().split("T")[0];
 
-  const [scores, taskData, completionData, userPillars, statsData, outcomeData] = await Promise.all([
+  const [scores, taskData, completionData, userPillars, outcomeData] = await Promise.all([
     db.select().from(dailyScores).where(
       and(eq(dailyScores.userId, userId), gte(dailyScores.date, startStr), lte(dailyScores.date, endStr))
     ).orderBy(asc(dailyScores.date)),
@@ -73,8 +72,6 @@ export async function computeReport(userId: string, type: string, dateParam: str
     db.select().from(pillars).where(
       and(eq(pillars.userId, userId), eq(pillars.isArchived, false))
     ),
-
-    db.select().from(userStats).where(eq(userStats.userId, userId)),
 
     db.select({
       id: goals.id,
@@ -123,8 +120,6 @@ export async function computeReport(userId: string, type: string, dateParam: str
   const totalDays = type === "monthly" ? 30 : 7;
   const passingDays = scores.filter(s => s.isPassing).length;
   const avgScore = scores.length > 0 ? Math.round(scores.reduce((sum, s) => sum + s.actionScore, 0) / scores.length) : 0;
-  const totalXpEarned = scores.reduce((sum, s) => sum + s.xpEarned, 0);
-
   let bestDay = { date: "", score: 0 };
   let worstDay = { date: "", score: 100 };
   for (const s of scores) {
@@ -135,8 +130,6 @@ export async function computeReport(userId: string, type: string, dateParam: str
     bestDay = { date: "", score: 0 };
     worstDay = { date: "", score: 0 };
   }
-
-  const stats = statsData[0];
 
   const pillarBreakdown = userPillars.map(p => {
     const pillarScoresArr: number[] = [];
@@ -214,9 +207,8 @@ export async function computeReport(userId: string, type: string, dateParam: str
       totalDays,
       bestDay,
       worstDay,
-      totalXpEarned: Math.round(totalXpEarned),
-      currentStreak: stats?.currentStreak || 0,
-      bestStreak: stats?.bestStreak || 0,
+      currentStreak: 0,
+      bestStreak: 0,
     },
     pillarBreakdown,
     dailyScores: dailyScoresArr,

@@ -11,7 +11,6 @@ import {
   FaArrowDown,
   FaFire,
   FaStar,
-  FaTrophy,
   FaBolt,
   FaHistory,
 } from "react-icons/fa";
@@ -39,7 +38,6 @@ interface ReportData {
     totalDays: number;
     bestDay: { date: string; score: number };
     worstDay: { date: string; score: number };
-    totalXpEarned: number;
     currentStreak: number;
     bestStreak: number;
   };
@@ -687,15 +685,6 @@ export default function ReportsPage() {
               transition={{ delay: 0.35 }}
               className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6"
             >
-              {/* XP Earned */}
-              <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-6 text-center">
-                <FaTrophy className="text-3xl text-purple-500 mx-auto mb-2" />
-                <div className="text-3xl font-bold text-purple-600 dark:text-purple-400">
-                  {report.summary.totalXpEarned}
-                </div>
-                <div className="text-sm text-zinc-500 dark:text-zinc-400">XP Earned</div>
-              </div>
-
               {/* Current Streak */}
               <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-6 text-center">
                 <FaFire className="text-3xl text-orange-500 mx-auto mb-2" />
