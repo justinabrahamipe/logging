@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { db, tasks, pillars, taskCompletions } from "@/lib/db";
 import { eq, and, asc, inArray } from "drizzle-orm";
 import { isTaskForDate } from "@/lib/task-schedule";
+import { ensureUpcomingTasks } from "@/lib/ensure-upcoming-tasks";
 
 export async function GET(request: NextRequest) {
   const session = await auth();
@@ -12,6 +13,9 @@ export async function GET(request: NextRequest) {
 
   const date = request.nextUrl.searchParams.get('date');
   const showAll = request.nextUrl.searchParams.get('all') === 'true';
+
+  // Ensure upcoming tasks exist for goals with autoCreateTasks
+  await ensureUpcomingTasks(session.user.id);
 
   const allTasks = await db
     .select()

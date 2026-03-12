@@ -133,6 +133,7 @@ export const taskCompletions = sqliteTable('TaskCompletion', {
   userIdIdx: index('TaskCompletion_userId_idx').on(table.userId),
   taskIdIdx: index('TaskCompletion_taskId_idx').on(table.taskId),
   dateIdx: index('TaskCompletion_date_idx').on(table.date),
+  userDateIdx: index('TaskCompletion_userId_date_idx').on(table.userId, table.date),
   taskDateUnique: unique().on(table.taskId, table.date),
 }));
 

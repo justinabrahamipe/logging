@@ -70,10 +70,22 @@ export default function Header() {
     streak: number;
     momentum: number | null;
     trajectory: number | null;
-  } | null>(null);
+  } | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const cached = sessionStorage.getItem('header-stats');
+      if (cached) {
+        const { data, date } = JSON.parse(cached);
+        if (date === new Date().toISOString().split("T")[0]) return data;
+      }
+    } catch { /* ignore */ }
+    return null;
+  });
 
   useEffect(() => {
     if (status !== "authenticated") return;
+    // Skip fetch if we already have cached stats for today
+    if (headerStats) return;
     const fetchStats = async () => {
       try {
         const todayStr = new Date().toISOString().split("T")[0];
@@ -99,12 +111,17 @@ export default function Header() {
           if (m.overall != null) momentum = m.overall;
           if (m.trajectory?.overall != null) trajectory = m.trajectory.overall;
         }
-        setHeaderStats({ todayScore, streak, momentum, trajectory });
+        const stats = { todayScore, streak, momentum, trajectory };
+        setHeaderStats(stats);
+        try {
+          sessionStorage.setItem('header-stats', JSON.stringify({ data: stats, date: todayStr }));
+        } catch { /* ignore */ }
       } catch {
         // silently fail
       }
     };
     fetchStats();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
 
   const authPages = ["/login", "/verify-request", "/error"];

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db, tasks, taskCompletions } from "@/lib/db";
-import { eq, and, isNotNull } from "drizzle-orm";
+import { eq, and, isNotNull, inArray } from "drizzle-orm";
 
 export async function GET() {
   const session = await auth();
@@ -17,19 +17,24 @@ export async function GET() {
 
   if (linkedTasks.length === 0) return NextResponse.json({});
 
-  // Get all completions for these tasks
+  // Get completions only for linked task IDs
   const taskIds = linkedTasks.map(t => t.id);
-  const completions = await db
-    .select({ taskId: taskCompletions.taskId, date: taskCompletions.date, completed: taskCompletions.completed })
-    .from(taskCompletions)
-    .where(and(eq(taskCompletions.userId, session.user.id), eq(taskCompletions.completed, true)));
+  const completions = taskIds.length > 0
+    ? await db
+        .select({ taskId: taskCompletions.taskId, date: taskCompletions.date })
+        .from(taskCompletions)
+        .where(and(
+          eq(taskCompletions.userId, session.user.id),
+          eq(taskCompletions.completed, true),
+          inArray(taskCompletions.taskId, taskIds),
+        ))
+    : [];
 
   // Build outcomeId -> dates map
   const taskToOutcome = new Map(linkedTasks.map(t => [t.id, t.outcomeId]));
   const result: Record<number, string[]> = {};
 
   for (const c of completions) {
-    if (!taskIds.includes(c.taskId)) continue;
     const outcomeId = taskToOutcome.get(c.taskId);
     if (!outcomeId) continue;
     if (!result[outcomeId]) result[outcomeId] = [];

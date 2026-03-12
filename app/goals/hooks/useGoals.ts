@@ -39,51 +39,75 @@ export function useGoals() {
       return;
     }
     if (session?.user?.id) {
-      fetchOutcomes();
-      fetchPillars();
-      fetchLinkedTasks();
-      fetchCycles();
+      fetchAll();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, status]);
 
-  const fetchOutcomes = async () => {
+  const fetchAll = async () => {
     try {
-      const res = await fetch("/api/outcomes");
-      if (res.ok) {
-        const data = await res.json();
+      const [outcomesRes, logsRes, pillarsRes, tasksRes, completionsRes, cyclesRes] = await Promise.all([
+        fetch("/api/outcomes"),
+        fetch("/api/outcomes/logs"),
+        fetch("/api/pillars"),
+        fetch("/api/tasks"),
+        fetch("/api/outcomes/completions"),
+        fetch("/api/cycles"),
+      ]);
+
+      if (outcomesRes.ok) {
+        const data = await outcomesRes.json();
         setAllOutcomes(data);
         setGoalTab("all");
-        await fetchAllLogs(data);
+      }
+      if (logsRes.ok) {
+        setLogsMap(await logsRes.json());
+      }
+      if (pillarsRes.ok) {
+        setPillars(await pillarsRes.json());
+      }
+      if (tasksRes.ok) {
+        const groups = await tasksRes.json();
+        const allTasks: LinkedTask[] = [];
+        for (const group of groups) {
+          for (const task of group.tasks) {
+            if (task.outcomeId) {
+              allTasks.push({ id: task.id, name: task.name, outcomeId: task.outcomeId });
+            }
+          }
+        }
+        setLinkedTasks(allTasks);
+      }
+      if (completionsRes.ok) {
+        setTaskCompletionDates(await completionsRes.json());
+      }
+      if (cyclesRes.ok) {
+        setCycles(await cyclesRes.json());
       }
     } catch (error) {
-      console.error("Failed to fetch outcomes:", error);
+      console.error("Failed to fetch goals data:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchAllLogs = async (outcomesList: Outcome[]) => {
-    const entries: Record<number, LogEntry[]> = {};
-    await Promise.all(
-      outcomesList.map(async (o) => {
-        try {
-          const res = await fetch(`/api/outcomes/${o.id}/log`);
-          if (res.ok) entries[o.id] = await res.json();
-        } catch {
-          // ignore individual failures
-        }
-      })
-    );
-    setLogsMap(entries);
-  };
-
-  const fetchPillars = async () => {
+  const fetchOutcomes = async () => {
     try {
-      const res = await fetch("/api/pillars");
-      if (res.ok) setPillars(await res.json());
+      const [outcomesRes, logsRes] = await Promise.all([
+        fetch("/api/outcomes"),
+        fetch("/api/outcomes/logs"),
+      ]);
+      if (outcomesRes.ok) {
+        setAllOutcomes(await outcomesRes.json());
+        setGoalTab("all");
+      }
+      if (logsRes.ok) {
+        setLogsMap(await logsRes.json());
+      }
     } catch (error) {
-      console.error("Failed to fetch pillars:", error);
+      console.error("Failed to fetch outcomes:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -110,15 +134,6 @@ export function useGoals() {
       }
     } catch (error) {
       console.error("Failed to fetch linked tasks:", error);
-    }
-  };
-
-  const fetchCycles = async () => {
-    try {
-      const res = await fetch("/api/cycles");
-      if (res.ok) setCycles(await res.json());
-    } catch (error) {
-      console.error("Failed to fetch cycles:", error);
     }
   };
 
