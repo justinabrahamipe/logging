@@ -12,6 +12,9 @@ import {
   FaArrowDown,
   FaSortAmountDown,
   FaSortAmountUp,
+  FaCheck,
+  FaPlus,
+  FaMinus,
 } from "react-icons/fa";
 import { calculateEffortMetrics } from "@/lib/effort-calculations";
 import { Outcome, LogEntry, LinkedTask } from "../types";
@@ -36,8 +39,21 @@ export default function GoalDetailPage() {
   const [archiving, setArchiving] = useState(false);
   const [sortCol, setSortCol] = useState<"date" | "points" | "status">("date");
   const [sortAsc, setSortAsc] = useState(false);
+  const [pendingValues, setPendingValues] = useState<Record<number, string>>({});
 
   const today = new Date().toISOString().split("T")[0];
+
+  const handleTaskComplete = async (task: LinkedTask, completed: boolean, value?: number) => {
+    const date = task.startDate || today;
+    const body: Record<string, unknown> = { taskId: task.id, date, completed };
+    if (value !== undefined) body.value = value;
+    setLinkedTasks(prev => prev.map(t => t.id === task.id ? { ...t, completed, value: value ?? t.value } : t));
+    try {
+      await fetch('/api/tasks/complete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    } catch (err) {
+      console.error("Failed to complete task:", err);
+    }
+  };
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -360,60 +376,145 @@ export default function GoalDetailPage() {
           />
         )}
 
-        {/* Linked Tasks Table */}
+        {/* Linked Tasks */}
         {linkedTasks.length > 0 && (
           <div>
-            <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-2">Linked Tasks</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-zinc-200 dark:border-zinc-700 text-left text-xs text-zinc-500 dark:text-zinc-400">
-                    {([
-                      { key: "date" as const, label: "Date" },
-                      { key: "status" as const, label: "Status" },
-                    ]).map(col => (
-                      <th
-                        key={col.key}
-                        className="pb-2 pr-3 font-medium cursor-pointer select-none hover:text-zinc-700 dark:hover:text-zinc-200"
-                        onClick={() => toggleSort(col.key)}
-                      >
-                        <span className="inline-flex items-center gap-1">
-                          {col.label}
-                          {sortCol === col.key && (
-                            sortAsc ? <FaSortAmountUp className="text-[9px]" /> : <FaSortAmountDown className="text-[9px]" />
-                          )}
-                        </span>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedTasks.map(task => (
-                    <tr
-                      key={task.id}
-                      className="border-b border-zinc-100 dark:border-zinc-700/50 hover:bg-zinc-50 dark:hover:bg-zinc-700/30 cursor-pointer"
-                      onClick={() => router.push(`/tasks/${task.id}/edit`)}
-                    >
-                      <td className="py-2 pr-3 text-zinc-900 dark:text-white">
-                        {task.startDate ? formatDate(task.startDate, dateFormat) : "—"}
-                      </td>
-                      <td className="py-2 pr-3">
-                        {task.completed ? (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 font-medium">
-                            {task.completionType !== "checkbox" && task.value != null
-                              ? `${task.value}${task.unit ? ` ${task.unit}` : ""}`
-                              : "Done"}
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Linked Tasks</h3>
+              <div className="flex items-center gap-1">
+                {(["date", "status"] as const).map(col => (
+                  <button
+                    key={col}
+                    onClick={() => toggleSort(col)}
+                    className={`text-[11px] px-2 py-0.5 rounded font-medium transition-colors ${
+                      sortCol === col
+                        ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-zinc-200"
+                        : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
+                    }`}
+                  >
+                    {col === "date" ? "Date" : "Status"}
+                    {sortCol === col && (sortAsc ? " ↑" : " ↓")}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              {sortedTasks.map(task => {
+                const currentValue = task.value || 0;
+                const isFullyDone = task.completed || (task.target != null && task.target > 0 && currentValue >= task.target);
+                return (
+                  <div
+                    key={task.id}
+                    className={`rounded-lg px-3 py-2.5 transition-all ${
+                      isFullyDone
+                        ? "bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800"
+                        : "bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700"
+                    }`}
+                    style={{ borderLeftWidth: 3, borderLeftColor: isFullyDone ? "#4ade80" : color }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 min-w-0">
+                        <h4 className={`text-sm font-semibold leading-snug ${isFullyDone ? "line-through text-zinc-400 dark:text-zinc-500" : "text-zinc-900 dark:text-white"}`}>
+                          {task.name}
+                        </h4>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                            {task.startDate ? formatDate(task.startDate, dateFormat) : "No date"}
                           </span>
-                        ) : (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400 font-medium">
-                            Pending
+                          <span className="text-[11px] px-1.5 py-px rounded-full bg-zinc-100 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400">
+                            {frequencyLabel(task.frequency)}
                           </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
+                        {task.completionType === "checkbox" && (
+                          <button
+                            onClick={() => handleTaskComplete(task, !isFullyDone, !isFullyDone ? 1 : 0)}
+                            className={`w-7 h-7 rounded-md border-2 flex items-center justify-center transition-colors ${
+                              isFullyDone
+                                ? "bg-green-500 border-green-500 text-white"
+                                : "border-zinc-300 dark:border-zinc-600 hover:border-green-500"
+                            }`}
+                          >
+                            {isFullyDone && <FaCheck className="text-xs" />}
+                          </button>
                         )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+
+                        {task.completionType === "count" && (
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => {
+                                const newVal = Math.max(0, currentValue - 1);
+                                const done = task.target != null && task.target > 0 && newVal >= task.target;
+                                handleTaskComplete(task, done, newVal);
+                              }}
+                              className="w-6 h-6 rounded bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center hover:bg-zinc-300 dark:hover:bg-zinc-600"
+                            >
+                              <FaMinus className="text-[9px]" />
+                            </button>
+                            <span className={`text-xs font-bold min-w-[2.5rem] text-center ${
+                              task.target && currentValue >= task.target ? "text-green-600 dark:text-green-400" : "text-zinc-900 dark:text-white"
+                            }`}>
+                              {currentValue}/{task.target || "?"}
+                            </span>
+                            <button
+                              onClick={() => {
+                                const newVal = currentValue + 1;
+                                const done = task.target != null && task.target > 0 && newVal >= task.target;
+                                handleTaskComplete(task, done, newVal);
+                              }}
+                              className="w-6 h-6 rounded bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 flex items-center justify-center hover:bg-zinc-800 dark:hover:bg-zinc-100"
+                            >
+                              <FaPlus className="text-[9px]" />
+                            </button>
+                          </div>
+                        )}
+
+                        {(task.completionType === "numeric" || task.completionType === "duration") && (
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              value={pendingValues[task.id] ?? (currentValue || "")}
+                              onChange={e => setPendingValues(prev => ({ ...prev, [task.id]: e.target.value }))}
+                              onKeyDown={e => {
+                                if (e.key === "Enter") {
+                                  const val = parseFloat(pendingValues[task.id] || "0") || 0;
+                                  handleTaskComplete(task, val > 0, val);
+                                  setPendingValues(prev => { const next = { ...prev }; delete next[task.id]; return next; });
+                                }
+                              }}
+                              placeholder={task.target ? String(task.target) : "0"}
+                              className="w-14 px-1.5 py-1 text-xs text-right border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
+                            />
+                            {task.unit && <span className="text-[10px] text-zinc-500 dark:text-zinc-400">{task.unit}</span>}
+                            {pendingValues[task.id] !== undefined && (
+                              <button
+                                onClick={() => {
+                                  const val = parseFloat(pendingValues[task.id] || "0") || 0;
+                                  handleTaskComplete(task, val > 0, val);
+                                  setPendingValues(prev => { const next = { ...prev }; delete next[task.id]; return next; });
+                                }}
+                                className="w-6 h-6 rounded bg-green-500 text-white flex items-center justify-center hover:bg-green-600"
+                              >
+                                <FaCheck className="text-[9px]" />
+                              </button>
+                            )}
+                          </div>
+                        )}
+
+                        <button
+                          onClick={() => router.push(`/tasks/${task.id}/edit`)}
+                          className="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                          title="Edit task"
+                        >
+                          <FaEdit className="text-[10px]" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

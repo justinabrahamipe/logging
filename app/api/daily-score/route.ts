@@ -23,15 +23,17 @@ export async function GET(request: NextRequest) {
     .from(tasks)
     .where(and(eq(tasks.userId, session.user.id), eq(tasks.isActive, true)));
 
-  // Filter tasks for the specific date
-  let tasksForDay = allTasks.filter(task => isTaskForDate(task, date));
+  // Filter tasks for the specific date, excluding adhoc tasks without a startDate
+  let tasksForDay = allTasks.filter(task => {
+    if (task.frequency === 'adhoc' && !task.startDate) return false;
+    return isTaskForDate(task, date);
+  });
 
   // Exclude adhoc tasks that were carried forward and already completed
   const adhocIds = tasksForDay
     .filter(t => {
       if (t.frequency !== 'adhoc') return false;
-      const effectiveDate = t.startDate || (t.createdAt ? new Date(t.createdAt).toISOString().split('T')[0] : null);
-      return effectiveDate && effectiveDate !== date;
+      return t.startDate && t.startDate !== date;
     })
     .map(t => t.id);
 

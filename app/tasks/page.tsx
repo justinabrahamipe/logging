@@ -199,6 +199,7 @@ export default function TasksPage() {
   const [pendingValues, setPendingValues] = useState<Record<number, string>>({});
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
   const [actionLoading, setActionLoading] = useState<Record<number, boolean>>({});
+  const pastFetchedRef = useRef(false);
   const [authSnackbar, setAuthSnackbar] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -229,7 +230,6 @@ export default function TasksPage() {
       fetchOutcomes();
       fetchCycles();
       fetchTasks();
-      fetchPastTasks();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, status]);
@@ -297,6 +297,8 @@ export default function TasksPage() {
           completedTasks: data.completedTasks,
           totalTasks: data.totalTasks,
         });
+        // Invalidate header stats cache so it refreshes on next nav
+        try { sessionStorage.removeItem('header-stats'); } catch { /* ignore */ }
       }
     } catch (error) {
       console.error("Failed to fetch score:", error);
@@ -985,11 +987,17 @@ export default function TasksPage() {
               {/* Past accordion */}
               <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg">
                 <button
-                  onClick={() => setOpenSchedules(prev => {
-                    const next = new Set(prev);
-                    if (next.has('Past')) next.delete('Past'); else next.add('Past');
-                    return next;
-                  })}
+                  onClick={() => {
+                    setOpenSchedules(prev => {
+                      const next = new Set(prev);
+                      if (next.has('Past')) next.delete('Past'); else next.add('Past');
+                      return next;
+                    });
+                    if (!pastFetchedRef.current) {
+                      pastFetchedRef.current = true;
+                      fetchPastTasks();
+                    }
+                  }}
                   className="w-full px-4 py-2.5 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                 >
                   <div className="flex items-center gap-2">
