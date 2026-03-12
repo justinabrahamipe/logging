@@ -13,13 +13,6 @@ interface Pillar {
   color: string;
 }
 
-interface Outcome {
-  id: number;
-  pillarId: number | null;
-  name: string;
-  goalType: string;
-}
-
 interface Task {
   id: number;
   pillarId: number;
@@ -45,7 +38,6 @@ export default function EditTaskPage() {
 
   const [task, setTask] = useState<Task | null>(null);
   const [pillars, setPillars] = useState<Pillar[]>([]);
-  const [outcomes, setOutcomes] = useState<Outcome[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -57,18 +49,9 @@ export default function EditTaskPage() {
       Promise.all([
         fetch(`/api/tasks/${id}`).then((r) => (r.ok ? r.json() : null)),
         fetch("/api/pillars").then((r) => (r.ok ? r.json() : [])),
-        fetch("/api/outcomes").then((r) => (r.ok ? r.json() : [])),
-      ]).then(([t, p, o]) => {
+      ]).then(([t, p]) => {
         setTask(t);
         setPillars(p);
-        setOutcomes(
-          o.map((x: Outcome & { pillarId: number | null; goalType: string }) => ({
-            id: x.id,
-            pillarId: x.pillarId,
-            name: x.name,
-            goalType: x.goalType || "outcome",
-          }))
-        );
         setLoading(false);
       });
     }
@@ -116,7 +99,6 @@ export default function EditTaskPage() {
       <TaskForm
         editingTask={task}
         pillars={pillars}
-        outcomes={outcomes}
         onCancel={() => router.push("/tasks")}
         onSave={handleSave}
       />

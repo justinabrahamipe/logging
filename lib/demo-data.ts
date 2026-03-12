@@ -118,6 +118,10 @@ export const DEMO_DASHBOARD = {
     overall: 1.2,
     pillars: [],
     goals: [],
+    trajectory: {
+      overall: 1.1,
+      goals: [],
+    },
   },
   todayTaskCount: 11,
 };

@@ -10,13 +10,6 @@ interface Pillar {
   color: string;
 }
 
-interface Outcome {
-  id: number;
-  pillarId: number | null;
-  name: string;
-  goalType: string;
-}
-
 interface Task {
   id: number;
   pillarId: number;
@@ -47,7 +40,6 @@ interface TaskFormState {
   repeatUnit: "days" | "weeks" | "months";
   monthDay: number;
   basePoints: string;
-  outcomeId: number;
   startDate: string;
 }
 
@@ -129,14 +121,12 @@ function taskToPreset(task: Task): {
 export default function TaskForm({
   editingTask,
   pillars,
-  outcomes,
   onCancel,
   onSave,
   disabled,
 }: {
   editingTask: Task | null;
   pillars: Pillar[];
-  outcomes: Outcome[];
   onCancel: () => void;
   onSave: (body: Record<string, unknown>, isEdit: boolean) => Promise<void>;
   disabled?: boolean;
@@ -157,24 +147,22 @@ export default function TaskForm({
         repeatUnit: freq.repeatUnit,
         monthDay: freq.monthDay,
         basePoints: editingTask.basePoints.toString(),
-        outcomeId: editingTask.outcomeId || 0,
         startDate: editingTask.startDate || "",
       };
     }
     return {
-      pillarId: pillars[0]?.id || 0,
+      pillarId: 0,
       name: "",
       completionType: "checkbox",
       target: "",
       unit: "",
-      frequencyPreset: "daily",
-      frequency: "daily",
+      frequencyPreset: "adhoc",
+      frequency: "adhoc",
       customDays: [],
       repeatInterval: "1",
       repeatUnit: "days",
       monthDay: 1,
       basePoints: "10",
-      outcomeId: 0,
       startDate: "",
     };
   });
@@ -229,7 +217,6 @@ export default function TaskForm({
       basePoints: parseFloat(form.basePoints) || 10,
     };
 
-    if (form.outcomeId) body.outcomeId = form.outcomeId;
     body.startDate = form.startDate || null;
     if (form.target) body.target = parseFloat(form.target);
     if (form.unit) body.unit = form.unit;
@@ -302,28 +289,6 @@ export default function TaskForm({
             </button>
           </div>
         </div>
-      </div>
-
-      {/* Linked Goal */}
-      <div>
-        <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-          Linked Goal <span className="text-zinc-400 font-normal">(optional)</span>
-        </label>
-        <select
-          value={form.outcomeId}
-          onChange={(e) => setForm({ ...form, outcomeId: parseInt(e.target.value) || 0 })}
-          className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
-        >
-          <option value={0}>None</option>
-          {outcomes
-            .filter((o) => !form.pillarId || o.pillarId === form.pillarId || !o.pillarId)
-            .map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.goalType === "effort" ? "* " : ""}
-                {o.name}
-              </option>
-            ))}
-        </select>
       </div>
 
       {/* Completion Type + Repeat */}

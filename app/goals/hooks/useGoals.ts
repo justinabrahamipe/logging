@@ -14,7 +14,7 @@ export function useGoals() {
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState<number | null>(null);
   const [logsMap, setLogsMap] = useState<Record<number, LogEntry[]>>({});
-  const [goalTab, setGoalTab] = useState<"habitual" | "target" | "outcome">("habitual");
+  const [goalTab, setGoalTab] = useState<"all" | "habitual" | "target" | "outcome">("all");
   const [timeTab, setTimeTab] = useState<"current" | "future" | "past">("current");
   const [linkedTasks, setLinkedTasks] = useState<LinkedTask[]>([]);
   const [taskCompletionDates, setTaskCompletionDates] = useState<Record<number, string[]>>({});
@@ -34,7 +34,7 @@ export function useGoals() {
         pillarEmoji: DEMO_PILLARS.find(p => p.id === o.pillarId)?.emoji || null,
       })) as Outcome[]);
       setPillars(DEMO_PILLARS.map(p => ({ id: p.id, name: p.name, emoji: p.emoji, color: p.color })));
-      setGoalTab("outcome");
+      setGoalTab("all");
       setLoading(false);
       return;
     }
@@ -53,19 +53,7 @@ export function useGoals() {
       if (res.ok) {
         const data = await res.json();
         setAllOutcomes(data);
-        const typeCounts = { habitual: 0, target: 0, outcome: 0 };
-        for (const o of data) {
-          const t = o.goalType === "effort" ? "target" : (o.goalType || "outcome");
-          if (t in typeCounts) typeCounts[t as keyof typeof typeCounts]++;
-        }
-        setGoalTab((prev) => {
-          if (typeCounts[prev] === 0) {
-            if (typeCounts.habitual > 0) return "habitual";
-            if (typeCounts.target > 0) return "target";
-            if (typeCounts.outcome > 0) return "outcome";
-          }
-          return prev;
-        });
+        setGoalTab("all");
         await fetchAllLogs(data);
       }
     } catch (error) {
@@ -197,6 +185,7 @@ export function useGoals() {
   const filteredOutcomes = useMemo(() => {
     return allOutcomes
       .filter((o) => {
+        if (goalTab === "all") return true;
         const type = o.goalType === "effort" ? "target" : (o.goalType || "outcome");
         return type === goalTab;
       })
@@ -207,6 +196,7 @@ export function useGoals() {
   const timeCounts = useMemo(() => {
     const counts = { current: 0, future: 0, past: 0 };
     for (const o of allOutcomes.filter((o) => {
+      if (goalTab === "all") return true;
       const type = o.goalType === "effort" ? "target" : (o.goalType || "outcome");
       return type === goalTab;
     })) {

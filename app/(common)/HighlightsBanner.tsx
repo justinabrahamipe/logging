@@ -12,6 +12,13 @@ interface ScoreData {
   momentumScore: number | null;
 }
 
+interface MomentumData {
+  overall: number;
+  trajectory: {
+    overall: number;
+  };
+}
+
 const TIER_COLORS: Record<string, string> = {
   LEGENDARY: "text-yellow-500",
   Excellent: "text-green-500",
@@ -26,6 +33,7 @@ export default function HighlightsBanner() {
   const pathname = usePathname();
   const [today, setToday] = useState<ScoreData | null>(null);
   const [yesterday, setYesterday] = useState<ScoreData | null>(null);
+  const [momentum, setMomentum] = useState<MomentumData | null>(null);
 
   const authPages = ["/login", "/verify-request", "/error", "/"];
   const isHidden = authPages.includes(pathname);
@@ -46,6 +54,11 @@ export default function HighlightsBanner() {
     fetch(`/api/daily-score?date=${yesterdayStr}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => { if (data) setYesterday(data); })
+      .catch(() => {});
+
+    fetch("/api/momentum")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => { if (data) setMomentum(data); })
       .catch(() => {});
   }, [session?.user?.id, isHidden, pathname]);
 
@@ -77,11 +90,22 @@ export default function HighlightsBanner() {
             </span>
           )}
         </div>
-        {today.momentumScore != null && (
-          <span className="text-zinc-400 dark:text-zinc-500 hidden md:inline">
-            Momentum: {today.momentumScore}%
-          </span>
-        )}
+        <div className="flex items-center gap-3">
+          {momentum && (
+            <>
+              <span className={`font-bold ${momentum.overall >= 1.0 ? "text-green-500" : "text-red-500"}`}>
+                {momentum.overall.toFixed(1)}x
+              </span>
+              <span className="text-zinc-400 dark:text-zinc-500">Momentum</span>
+              <span className="border-l border-zinc-300 dark:border-zinc-700 pl-3">
+                <span className={`font-bold ${momentum.trajectory.overall >= 1.0 ? "text-green-500" : "text-red-500"}`}>
+                  {momentum.trajectory.overall.toFixed(1)}x
+                </span>
+                <span className="text-zinc-400 dark:text-zinc-500 ml-1">Trajectory</span>
+              </span>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

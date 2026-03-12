@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { db, outcomes } from "@/lib/db";
+import { db, outcomes, tasks } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -65,6 +65,12 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   if (!updated) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+
+  // Soft-delete all tasks linked to this outcome
+  await db
+    .update(tasks)
+    .set({ isActive: false })
+    .where(and(eq(tasks.outcomeId, outcomeId), eq(tasks.userId, session.user.id)));
 
   return NextResponse.json({ success: true });
 }

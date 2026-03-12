@@ -233,20 +233,18 @@ export function calculateMomentum(
   const goalResults: GoalMomentum[] = [];
 
   for (const goal of goals) {
-    // Only target goals have momentum
-    if (goal.goalType !== 'target') continue;
-
     let result: GoalMomentum;
 
+    // Skip outcome goals — they have trajectory, not momentum
+    if (goal.goalType === 'outcome') continue;
+
     switch (goal.goalType) {
+      case 'habitual':
+        result = calculateHabitualMomentum(goal, logsByGoal.get(goal.id) || [], today);
+        break;
       case 'target':
-        result = calculateTargetMomentum(goal, today);
-        break;
-      case 'outcome':
-        result = calculateOutcomeMomentum(goal, today);
-        break;
       default:
-        // Legacy 'effort' type — treat as target
+        // target + legacy 'effort' type
         result = calculateTargetMomentum(goal, today);
     }
 

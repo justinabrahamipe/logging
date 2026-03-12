@@ -66,28 +66,26 @@ export default function Header() {
   ];
 
   const [headerStats, setHeaderStats] = useState<{
-    yesterdayScore: number | null;
+    todayScore: number | null;
     streak: number;
     momentum: number | null;
+    trajectory: number | null;
   } | null>(null);
 
   useEffect(() => {
     if (status !== "authenticated") return;
     const fetchStats = async () => {
       try {
-        const [histRes, statsRes, momRes] = await Promise.all([
-          fetch("/api/daily-score/history?days=2"),
+        const todayStr = new Date().toISOString().split("T")[0];
+        const [scoreRes, statsRes, momRes] = await Promise.all([
+          fetch(`/api/daily-score?date=${todayStr}`),
           fetch("/api/user-stats"),
           fetch("/api/momentum"),
         ]);
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayStr = yesterday.toISOString().split("T")[0];
-        let yesterdayScore: number | null = null;
-        if (histRes.ok) {
-          const hist = await histRes.json();
-          const ys = hist.scores?.find((s: { date: string }) => s.date === yesterdayStr);
-          yesterdayScore = ys ? ys.actionScore : null;
+        let todayScore: number | null = null;
+        if (scoreRes.ok) {
+          const s = await scoreRes.json();
+          todayScore = s.actionScore ?? null;
         }
         let streak = 0;
         if (statsRes.ok) {
@@ -95,11 +93,13 @@ export default function Header() {
           streak = st.currentStreak || 0;
         }
         let momentum: number | null = null;
+        let trajectory: number | null = null;
         if (momRes.ok) {
           const m = await momRes.json();
-          if (m.goals?.length > 0) momentum = m.overall;
+          if (m.overall != null) momentum = m.overall;
+          if (m.trajectory?.overall != null) trajectory = m.trajectory.overall;
         }
-        setHeaderStats({ yesterdayScore, streak, momentum });
+        setHeaderStats({ todayScore, streak, momentum, trajectory });
       } catch {
         // silently fail
       }
@@ -126,6 +126,7 @@ export default function Header() {
   };
 
   return (
+    <>
     <nav className="sticky top-0 z-50 backdrop-blur-md bg-white/90 dark:bg-zinc-950/90 border-b border-zinc-200 dark:border-zinc-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-14">
@@ -143,11 +144,11 @@ export default function Header() {
 
           {/* Quick Stats */}
           {headerStats && (
-            <div className="flex items-center gap-3 text-xs">
-              {headerStats.yesterdayScore !== null && (
-                <div className="flex items-center gap-1" title="Yesterday's score">
-                  <FaBolt className={`text-[10px] ${headerStats.yesterdayScore >= 70 ? "text-emerald-500" : headerStats.yesterdayScore >= 50 ? "text-amber-500" : "text-red-500"}`} />
-                  <span className="font-medium text-zinc-600 dark:text-zinc-400">{headerStats.yesterdayScore}%</span>
+            <div className="flex items-center gap-2 md:gap-3 text-xs">
+              {headerStats.todayScore !== null && (
+                <div className="flex items-center gap-1" title="Today's Action Score">
+                  <FaBolt className={`text-[10px] ${headerStats.todayScore >= 70 ? "text-emerald-500" : headerStats.todayScore >= 50 ? "text-amber-500" : "text-red-500"}`} />
+                  <span className="font-medium text-zinc-600 dark:text-zinc-400">{headerStats.todayScore}%</span>
                 </div>
               )}
               {headerStats.streak > 0 && (
@@ -157,10 +158,18 @@ export default function Header() {
                 </div>
               )}
               {headerStats.momentum !== null && (
-                <div className="flex items-center gap-1" title="Momentum">
+                <div className="flex items-center gap-1" title="Momentum: pace of habitual & target goals">
                   <FaChartLine className={`text-[10px] ${headerStats.momentum >= 1.0 ? "text-emerald-500" : "text-red-500"}`} />
                   <span className={`font-medium ${headerStats.momentum >= 1.0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
                     {headerStats.momentum.toFixed(1)}x
+                  </span>
+                </div>
+              )}
+              {headerStats.trajectory !== null && (
+                <div className="flex items-center gap-1" title="Trajectory: pace of outcome goals">
+                  <FaChartLine className={`text-[10px] ${headerStats.trajectory >= 1.0 ? "text-purple-500" : "text-red-500"}`} />
+                  <span className={`font-medium ${headerStats.trajectory >= 1.0 ? "text-purple-600 dark:text-purple-400" : "text-red-600 dark:text-red-400"}`}>
+                    {headerStats.trajectory.toFixed(1)}x
                   </span>
                 </div>
               )}
@@ -426,6 +435,31 @@ export default function Header() {
           )}
         </AnimatePresence>
       </div>
+
     </nav>
+
+      {/* Mobile Bottom Tab Bar — outside nav to avoid sticky/fixed conflict */}
+      {isLoggedIn && (
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md border-t border-zinc-200 dark:border-zinc-800">
+          <div className="flex items-center justify-around h-12 pb-[env(safe-area-inset-bottom)]">
+            {navItems.map((item) => {
+              const isActive = pathname === item.href;
+              return (
+                <Link key={item.href} href={item.href} className="flex-1">
+                  <div className={`flex flex-col items-center gap-0.5 py-1 ${
+                    isActive
+                      ? "text-zinc-900 dark:text-white"
+                      : "text-zinc-400 dark:text-zinc-500"
+                  }`}>
+                    <item.icon className="text-base" />
+                    <span className="text-[10px] font-medium">{item.label}</span>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </>
   );
 }
