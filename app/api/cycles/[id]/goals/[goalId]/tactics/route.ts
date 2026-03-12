@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { db, twelveWeekTactics, twelveWeekGoals } from "@/lib/db";
+import { db, cycleTactics, cycleGoals } from "@/lib/db";
 import { eq, and, asc } from "drizzle-orm";
 
 export async function GET(
@@ -17,9 +17,9 @@ export async function GET(
 
   const tactics = await db
     .select()
-    .from(twelveWeekTactics)
-    .where(and(eq(twelveWeekTactics.goalId, gId), eq(twelveWeekTactics.userId, session.user.id)))
-    .orderBy(asc(twelveWeekTactics.sortOrder));
+    .from(cycleTactics)
+    .where(and(eq(cycleTactics.goalId, gId), eq(cycleTactics.userId, session.user.id)))
+    .orderBy(asc(cycleTactics.sortOrder));
 
   return NextResponse.json(tactics);
 }
@@ -45,8 +45,8 @@ export async function POST(
   // Verify goal ownership
   const [goal] = await db
     .select()
-    .from(twelveWeekGoals)
-    .where(and(eq(twelveWeekGoals.id, gId), eq(twelveWeekGoals.userId, session.user.id)));
+    .from(cycleGoals)
+    .where(and(eq(cycleGoals.id, gId), eq(cycleGoals.userId, session.user.id)));
 
   if (!goal) {
     return NextResponse.json({ error: "Goal not found" }, { status: 404 });
@@ -55,12 +55,12 @@ export async function POST(
   // Get max sort order
   const existing = await db
     .select()
-    .from(twelveWeekTactics)
-    .where(eq(twelveWeekTactics.goalId, gId));
+    .from(cycleTactics)
+    .where(eq(cycleTactics.goalId, gId));
 
   const maxSort = existing.reduce((max, t) => Math.max(max, t.sortOrder), -1);
 
-  const [tactic] = await db.insert(twelveWeekTactics).values({
+  const [tactic] = await db.insert(cycleTactics).values({
     goalId: gId,
     periodId,
     userId: session.user.id,
@@ -91,8 +91,8 @@ export async function PUT(
 
   const [existing] = await db
     .select()
-    .from(twelveWeekTactics)
-    .where(and(eq(twelveWeekTactics.id, tacticId), eq(twelveWeekTactics.userId, session.user.id)));
+    .from(cycleTactics)
+    .where(and(eq(cycleTactics.id, tacticId), eq(cycleTactics.userId, session.user.id)));
 
   if (!existing) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -105,9 +105,9 @@ export async function PUT(
   if (body.sortOrder !== undefined) updateData.sortOrder = body.sortOrder;
 
   const [updated] = await db
-    .update(twelveWeekTactics)
+    .update(cycleTactics)
     .set(updateData)
-    .where(eq(twelveWeekTactics.id, tacticId))
+    .where(eq(cycleTactics.id, tacticId))
     .returning();
 
   return NextResponse.json(updated);
@@ -131,8 +131,8 @@ export async function DELETE(
   }
 
   const deleted = await db
-    .delete(twelveWeekTactics)
-    .where(and(eq(twelveWeekTactics.id, tacticId), eq(twelveWeekTactics.userId, session.user.id)))
+    .delete(cycleTactics)
+    .where(and(eq(cycleTactics.id, tacticId), eq(cycleTactics.userId, session.user.id)))
     .returning();
 
   if (deleted.length === 0) {

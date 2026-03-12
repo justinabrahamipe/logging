@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { db, outcomes, pillars, tasks, twelveWeekYears } from "@/lib/db";
+import { db, goals, pillars, tasks, cycles } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
 import { countScheduledDaysInRange } from "@/lib/effort-calculations";
 
@@ -12,34 +12,34 @@ export async function GET() {
 
   const result = await db
     .select({
-      id: outcomes.id,
-      userId: outcomes.userId,
-      pillarId: outcomes.pillarId,
-      name: outcomes.name,
-      startValue: outcomes.startValue,
-      targetValue: outcomes.targetValue,
-      currentValue: outcomes.currentValue,
-      unit: outcomes.unit,
-      direction: outcomes.direction,
-      logFrequency: outcomes.logFrequency,
-      startDate: outcomes.startDate,
-      targetDate: outcomes.targetDate,
-      periodId: outcomes.periodId,
-      goalType: outcomes.goalType,
-      scheduleDays: outcomes.scheduleDays,
-      autoCreateTasks: outcomes.autoCreateTasks,
-      completionType: outcomes.completionType,
-      dailyTarget: outcomes.dailyTarget,
-      isArchived: outcomes.isArchived,
-      createdAt: outcomes.createdAt,
-      updatedAt: outcomes.updatedAt,
+      id: goals.id,
+      userId: goals.userId,
+      pillarId: goals.pillarId,
+      name: goals.name,
+      startValue: goals.startValue,
+      targetValue: goals.targetValue,
+      currentValue: goals.currentValue,
+      unit: goals.unit,
+      direction: goals.direction,
+      logFrequency: goals.logFrequency,
+      startDate: goals.startDate,
+      targetDate: goals.targetDate,
+      periodId: goals.periodId,
+      goalType: goals.goalType,
+      scheduleDays: goals.scheduleDays,
+      autoCreateTasks: goals.autoCreateTasks,
+      completionType: goals.completionType,
+      dailyTarget: goals.dailyTarget,
+      isArchived: goals.isArchived,
+      createdAt: goals.createdAt,
+      updatedAt: goals.updatedAt,
       pillarName: pillars.name,
       pillarColor: pillars.color,
       pillarEmoji: pillars.emoji,
     })
-    .from(outcomes)
-    .leftJoin(pillars, eq(outcomes.pillarId, pillars.id))
-    .where(and(eq(outcomes.userId, session.user.id), eq(outcomes.isArchived, false)));
+    .from(goals)
+    .leftJoin(pillars, eq(goals.pillarId, pillars.id))
+    .where(and(eq(goals.userId, session.user.id), eq(goals.isArchived, false)));
 
   return NextResponse.json(result);
 }
@@ -67,7 +67,7 @@ export async function POST(request: Request) {
   let effectiveTargetDate = body.targetDate || null;
 
   if (isActivityGoal && periodId) {
-    const [cycle] = await db.select().from(twelveWeekYears).where(eq(twelveWeekYears.id, parseInt(periodId)));
+    const [cycle] = await db.select().from(cycles).where(eq(cycles.id, parseInt(periodId)));
     if (cycle) {
       if (!effectiveStartDate) effectiveStartDate = cycle.startDate;
       if (!effectiveTargetDate) effectiveTargetDate = cycle.endDate;
@@ -77,7 +77,7 @@ export async function POST(request: Request) {
   const effectiveStartValue = isActivityGoal ? 0 : (body.startValue ?? 0);
   const direction = isActivityGoal ? 'increase' : (body.direction || ((targetValue ?? 0) >= effectiveStartValue ? 'increase' : 'decrease'));
 
-  const [outcome] = await db.insert(outcomes).values({
+  const [outcome] = await db.insert(goals).values({
     userId: session.user.id,
     name,
     startValue: effectiveStartValue,
@@ -138,7 +138,7 @@ export async function POST(request: Request) {
         frequency: 'adhoc' as const,
         customDays: null,
         repeatInterval: null,
-        outcomeId: outcome.id,
+        goalId: outcome.id,
         periodId: periodId || null,
         startDate: dateStr,
         basePoints: 10,

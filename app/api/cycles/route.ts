@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { db, twelveWeekYears } from "@/lib/db";
+import { db, cycles } from "@/lib/db";
 import { eq, desc } from "drizzle-orm";
-import { calculateEndDate } from "@/lib/twelve-week-scoring";
+import { calculateEndDate } from "@/lib/cycle-scoring";
 
 export async function GET() {
   const session = await auth();
@@ -12,9 +12,9 @@ export async function GET() {
 
   const result = await db
     .select()
-    .from(twelveWeekYears)
-    .where(eq(twelveWeekYears.userId, session.user.id))
-    .orderBy(desc(twelveWeekYears.startDate));
+    .from(cycles)
+    .where(eq(cycles.userId, session.user.id))
+    .orderBy(desc(cycles.startDate));
 
   return NextResponse.json(result);
 }
@@ -36,11 +36,11 @@ export async function POST(request: Request) {
 
   // Deactivate other active cycles
   await db
-    .update(twelveWeekYears)
+    .update(cycles)
     .set({ isActive: false })
-    .where(eq(twelveWeekYears.userId, session.user.id));
+    .where(eq(cycles.userId, session.user.id));
 
-  const [cycle] = await db.insert(twelveWeekYears).values({
+  const [cycle] = await db.insert(cycles).values({
     userId: session.user.id,
     name,
     startDate,

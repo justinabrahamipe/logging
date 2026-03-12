@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { db, twelveWeekGoals, weeklyTargets, twelveWeekYears } from "@/lib/db";
+import { db, cycleGoals, cycles } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
-import { getTotalWeeks, getCurrentWeekNumber } from "@/lib/twelve-week-scoring";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -15,8 +14,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
   const goals = await db
     .select()
-    .from(twelveWeekGoals)
-    .where(and(eq(twelveWeekGoals.periodId, periodId), eq(twelveWeekGoals.userId, session.user.id)));
+    .from(cycleGoals)
+    .where(and(eq(cycleGoals.periodId, periodId), eq(cycleGoals.userId, session.user.id)));
 
   return NextResponse.json(goals);
 }
@@ -39,14 +38,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   // Verify the cycle exists and belongs to user
   const [cycle] = await db
     .select()
-    .from(twelveWeekYears)
-    .where(and(eq(twelveWeekYears.id, periodId), eq(twelveWeekYears.userId, session.user.id)));
+    .from(cycles)
+    .where(and(eq(cycles.id, periodId), eq(cycles.userId, session.user.id)));
 
   if (!cycle) {
     return NextResponse.json({ error: "Cycle not found" }, { status: 404 });
   }
 
-  const [goal] = await db.insert(twelveWeekGoals).values({
+  const [goal] = await db.insert(cycleGoals).values({
     periodId,
     userId: session.user.id,
     name,
@@ -55,27 +54,5 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     linkedOutcomeId: linkedOutcomeId || null,
   }).returning();
 
-  // Auto-generate weekly targets based on remaining cycle duration
-  const totalWeeks = getTotalWeeks(cycle.startDate, cycle.endDate);
-  const currentWeek = getCurrentWeekNumber(cycle.startDate, cycle.endDate);
-  const startWeek = Math.max(1, currentWeek);
-  const remainingWeeks = totalWeeks - startWeek + 1;
-  const weeklyValue = targetValue / remainingWeeks;
-  const userId = session.user.id;
-  const targetRows = Array.from({ length: totalWeeks }, (_, i) => ({
-    goalId: goal.id,
-    periodId,
-    userId,
-    weekNumber: i + 1,
-    targetValue: i + 1 >= startWeek ? weeklyValue : 0,
-  }));
-
-  await db.insert(weeklyTargets).values(targetRows);
-
-  const targets = await db
-    .select()
-    .from(weeklyTargets)
-    .where(eq(weeklyTargets.goalId, goal.id));
-
-  return NextResponse.json({ ...goal, weeklyTargets: targets }, { status: 201 });
+  return NextResponse.json(goal, { status: 201 });
 }

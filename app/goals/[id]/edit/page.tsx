@@ -28,8 +28,8 @@ export default function EditGoalPage() {
         fetch("/api/outcomes").then((r) => r.ok ? r.json() : []),
         fetch("/api/pillars").then((r) => r.ok ? r.json() : []),
         fetch("/api/cycles").then((r) => r.ok ? r.json() : []),
-      ]).then(([outcomes, p, c]) => {
-        const found = outcomes.find((o: Outcome) => String(o.id) === id);
+      ]).then(([goalsData, p, c]) => {
+        const found = goalsData.find((o: Outcome) => String(o.id) === id);
         setOutcome(found || null);
         setPillars(p);
         setCycles(c);

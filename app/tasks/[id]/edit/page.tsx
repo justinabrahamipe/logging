@@ -13,6 +13,14 @@ interface Pillar {
   color: string;
 }
 
+interface Goal {
+  id: number;
+  name: string;
+  goalType: string;
+  pillarEmoji?: string;
+  pillarName?: string;
+}
+
 interface Task {
   id: number;
   pillarId: number;
@@ -25,7 +33,7 @@ interface Task {
   repeatInterval: number | null;
   isWeekendTask: boolean;
   basePoints: number;
-  outcomeId: number | null;
+  goalId: number | null;
   periodId: number | null;
   startDate: string | null;
 }
@@ -38,6 +46,7 @@ export default function EditTaskPage() {
 
   const [task, setTask] = useState<Task | null>(null);
   const [pillars, setPillars] = useState<Pillar[]>([]);
+  const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -49,9 +58,14 @@ export default function EditTaskPage() {
       Promise.all([
         fetch(`/api/tasks/${id}`).then((r) => (r.ok ? r.json() : null)),
         fetch("/api/pillars").then((r) => (r.ok ? r.json() : [])),
-      ]).then(([t, p]) => {
+        fetch("/api/outcomes").then((r) => (r.ok ? r.json() : [])),
+      ]).then(([t, p, o]) => {
         setTask(t);
         setPillars(p);
+        setGoals(o.map((g: Goal & { pillarEmoji?: string; pillarName?: string }) => ({
+          id: g.id, name: g.name, goalType: g.goalType,
+          pillarEmoji: g.pillarEmoji, pillarName: g.pillarName,
+        })));
         setLoading(false);
       });
     }
@@ -99,6 +113,7 @@ export default function EditTaskPage() {
       <TaskForm
         editingTask={task}
         pillars={pillars}
+        goals={goals}
         onCancel={() => router.push("/tasks")}
         onSave={handleSave}
       />

@@ -1,4 +1,4 @@
-import { db, outcomes, tasks } from "@/lib/db";
+import { db, goals, tasks } from "@/lib/db";
 import { eq, and, inArray } from "drizzle-orm";
 import { countScheduledDaysInRange } from "@/lib/effort-calculations";
 
@@ -19,11 +19,11 @@ export async function ensureUpcomingTasks(userId: string) {
   // Get all active outcomes with autoCreateTasks enabled
   const activeOutcomes = await db
     .select()
-    .from(outcomes)
+    .from(goals)
     .where(and(
-      eq(outcomes.userId, userId),
-      eq(outcomes.isArchived, false),
-      eq(outcomes.autoCreateTasks, true),
+      eq(goals.userId, userId),
+      eq(goals.isArchived, false),
+      eq(goals.autoCreateTasks, true),
     ));
 
   if (activeOutcomes.length === 0) {
@@ -32,22 +32,22 @@ export async function ensureUpcomingTasks(userId: string) {
   }
 
   // Get all existing adhoc tasks linked to these outcomes for upcoming dates
-  const outcomeIds = activeOutcomes.map(o => o.id);
+  const goalIds = activeOutcomes.map(o => o.id);
   const existingTasks = await db
-    .select({ id: tasks.id, outcomeId: tasks.outcomeId, startDate: tasks.startDate })
+    .select({ id: tasks.id, goalId: tasks.goalId, startDate: tasks.startDate })
     .from(tasks)
     .where(and(
       eq(tasks.userId, userId),
       eq(tasks.isActive, true),
       eq(tasks.frequency, 'adhoc'),
-      inArray(tasks.outcomeId, outcomeIds),
+      inArray(tasks.goalId, goalIds),
     ));
 
-  // Build a set of existing (outcomeId, startDate) pairs
+  // Build a set of existing (goalId, startDate) pairs
   const existingSet = new Set(
     existingTasks
-      .filter(t => t.outcomeId && t.startDate)
-      .map(t => `${t.outcomeId}:${t.startDate}`)
+      .filter(t => t.goalId && t.startDate)
+      .map(t => `${t.goalId}:${t.startDate}`)
   );
 
   const today = new Date();
@@ -59,13 +59,13 @@ export async function ensureUpcomingTasks(userId: string) {
 
     const isHabitual = outcome.goalType === 'habitual';
     const isOutcome = outcome.goalType === 'outcome';
-    const taskCompletionType = isOutcome ? 'numeric' : (outcome.completionType || (isHabitual ? 'checkbox' : 'count'));
+    const taskCompletionType = outcome.completionType || (isHabitual ? 'checkbox' : 'numeric');
     const totalScheduledDays = (outcome.startDate && outcome.targetDate)
       ? (countScheduledDaysInRange(outcome.startDate, outcome.targetDate, scheduleDays) || 1)
       : 1;
-    const taskDailyTarget = isOutcome
+    const taskDailyTarget = taskCompletionType === 'checkbox'
       ? null
-      : (taskCompletionType === 'checkbox' ? null : (outcome.dailyTarget || (isHabitual ? null : Math.ceil((outcome.targetValue ?? 1) / totalScheduledDays))));
+      : (outcome.dailyTarget || (isHabitual || isOutcome ? null : Math.ceil((outcome.targetValue ?? 1) / totalScheduledDays)));
 
     for (let i = 0; i < 7; i++) {
       const d = new Date(today);
@@ -91,7 +91,7 @@ export async function ensureUpcomingTasks(userId: string) {
         frequency: 'adhoc' as const,
         customDays: null,
         repeatInterval: null,
-        outcomeId: outcome.id,
+        goalId: outcome.id,
         periodId: outcome.periodId || null,
         startDate: dateStr,
         basePoints: 10,

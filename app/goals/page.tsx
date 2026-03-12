@@ -17,7 +17,7 @@ export default function GoalsPage() {
   const [authSnackbar, setAuthSnackbar] = useState(false);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: "success" | "error" | "info" }>({ open: false, message: "", severity: "info" });
   const {
-    allOutcomes,
+    allGoals,
     loading,
     menuOpen,
     setMenuOpen,
@@ -28,13 +28,13 @@ export default function GoalsPage() {
     setTimeTab,
     linkedTasks,
     taskCompletionDates,
-    filteredOutcomes,
+    filteredGoals,
     timeCounts,
     today,
     handleArchive,
     handleAddTaskForToday,
     getProgress,
-    fetchOutcomes,
+    fetchGoals,
   } = useGoals();
 
   const [logTarget, setLogTarget] = useState<Outcome | null>(null);
@@ -67,7 +67,7 @@ export default function GoalsPage() {
               target: value,
               unit: logTarget.unit || null,
               frequency: "adhoc",
-              outcomeId: logTarget.id,
+              goalId: logTarget.id,
               basePoints: 10,
               startDate: logDate || today,
             }),
@@ -81,7 +81,7 @@ export default function GoalsPage() {
             });
           }
         }
-        await fetchOutcomes();
+        await fetchGoals();
         setSnackbar({ open: true, message: "Progress logged successfully", severity: "success" });
       } else {
         setSnackbar({ open: true, message: "Failed to log progress", severity: "error" });
@@ -95,7 +95,7 @@ export default function GoalsPage() {
 
   // Group filtered outcomes by pillar
   const grouped: Record<string, Outcome[]> = {};
-  for (const o of filteredOutcomes) {
+  for (const o of filteredGoals) {
     const key = o.pillarId ? `${o.pillarId}` : "none";
     if (!grouped[key]) grouped[key] = [];
     grouped[key].push(o);

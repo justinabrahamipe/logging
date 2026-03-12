@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { FaArrowLeft, FaCheck } from "react-icons/fa";
-import { calculateEndDate } from "@/lib/twelve-week-scoring";
+import { calculateEndDate } from "@/lib/cycle-scoring";
 
 export default function NewCyclePage() {
   const { status } = useSession();

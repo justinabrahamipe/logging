@@ -38,7 +38,7 @@ export interface Pillar {
 export interface LinkedTask {
   id: number;
   name: string;
-  outcomeId: number | null;
+  goalId: number | null;
   frequency: string;
   completionType: string;
   basePoints: number;

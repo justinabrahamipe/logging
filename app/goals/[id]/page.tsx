@@ -79,8 +79,8 @@ export default function GoalDetailPage() {
         fetch("/api/tasks").then((r) => r.ok ? r.json() : []),
         fetch("/api/outcomes/completions").then((r) => r.ok ? r.json() : {}),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ]).then(([outcomes, logData, taskGroups, completions]: [Outcome[], LogEntry[], any[], Record<number, string[]>]) => {
-        const found = outcomes.find((o: Outcome) => String(o.id) === id);
+      ]).then(([goalsData, logData, taskGroups, completions]: [Outcome[], LogEntry[], any[], Record<number, string[]>]) => {
+        const found = goalsData.find((o: Outcome) => String(o.id) === id);
         setOutcome(found || null);
         setLogs(logData);
 
@@ -95,7 +95,7 @@ export default function GoalDetailPage() {
         const tasks: LinkedTask[] = [];
         for (const group of taskGroups) {
           for (const task of group.tasks) {
-            if (task.outcomeId === parseInt(id)) {
+            if (task.goalId === parseInt(id)) {
               const isCompletedToday = task.completion?.completed || false;
               const isCompletedOnDate = task.startDate ? completionDatesSet.has(task.startDate) : false;
               const taskValue = task.completion?.value ?? (task.startDate ? logValueByDate.get(task.startDate) ?? null : null);
@@ -103,7 +103,7 @@ export default function GoalDetailPage() {
               tasks.push({
                 id: task.id,
                 name: task.name,
-                outcomeId: task.outcomeId,
+                goalId: task.goalId,
                 frequency: task.frequency || "daily",
                 completionType: task.completionType || "checkbox",
                 basePoints: task.basePoints || 0,

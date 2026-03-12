@@ -1,5 +1,5 @@
-import { db, tasks, pillars, taskCompletions, dailyScores, outcomes, outcomeLogs } from "@/lib/db";
-import { eq, and } from "drizzle-orm";
+import { db, tasks, pillars, taskCompletions, dailyScores, goals } from "@/lib/db";
+import { eq, and, isNotNull } from "drizzle-orm";
 import { calculateDailyScore, getScoreTier, calculateXP } from "@/lib/scoring";
 import { isTaskForDate } from "@/lib/task-schedule";
 import { calculateMomentum } from "@/lib/momentum";
@@ -52,25 +52,36 @@ export async function saveDailyScore(userId: string, date: string) {
   // Calculate momentum from goals
   const userGoals = await db
     .select()
-    .from(outcomes)
-    .where(and(eq(outcomes.userId, userId), eq(outcomes.isArchived, false)));
+    .from(goals)
+    .where(and(eq(goals.userId, userId), eq(goals.isArchived, false)));
 
   let momentumScore: number | null = null;
   let pillarMomentumJson: string | null = null;
 
   if (userGoals.length > 0) {
     const goalIds = userGoals.map(g => g.id);
-    const allLogs = await db
-      .select({ outcomeId: outcomeLogs.outcomeId, value: outcomeLogs.value, loggedAt: outcomeLogs.loggedAt })
-      .from(outcomeLogs)
-      .where(eq(outcomeLogs.userId, userId));
 
-    const logsForMomentum = allLogs
-      .filter(l => goalIds.includes(l.outcomeId))
-      .map(l => ({
-        outcomeId: l.outcomeId,
-        value: l.value,
-        loggedAt: l.loggedAt instanceof Date ? l.loggedAt.toISOString() : String(l.loggedAt),
+    // Query TaskCompletions joined with Tasks where task has a goalId
+    const allCompletions = await db
+      .select({
+        goalId: tasks.goalId,
+        value: taskCompletions.value,
+        date: taskCompletions.date,
+      })
+      .from(taskCompletions)
+      .innerJoin(tasks, eq(taskCompletions.taskId, tasks.id))
+      .where(and(
+        eq(taskCompletions.userId, userId),
+        eq(taskCompletions.completed, true),
+        isNotNull(tasks.goalId),
+      ));
+
+    const logsForMomentum = allCompletions
+      .filter(c => goalIds.includes(c.goalId!))
+      .map(c => ({
+        outcomeId: c.goalId!,
+        value: c.value ?? 0,
+        loggedAt: c.date + "T12:00:00.000Z",
       }));
 
     const goalsForMomentum = userGoals.filter(g => g.goalType !== 'outcome').map(g => ({

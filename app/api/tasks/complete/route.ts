@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { db, tasks, taskCompletions, activityLog, outcomes, outcomeLogs } from "@/lib/db";
+import { db, tasks, taskCompletions, activityLog, goals } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
 import { calculateTaskScore } from "@/lib/scoring";
 import { saveDailyScore } from "@/lib/save-daily-score";
@@ -96,33 +96,32 @@ export async function POST(request: Request) {
     source,
   });
 
-  // Auto-log effort goal progress when completing a linked task
-  if (task.outcomeId && isCompleted && completionValue > 0) {
+  // Update linked goal's currentValue when completing a task
+  if (task.goalId && isCompleted && completionValue > 0) {
     try {
-      const [linkedOutcome] = await db
+      const [linkedGoal] = await db
         .select()
-        .from(outcomes)
-        .where(and(eq(outcomes.id, task.outcomeId), eq(outcomes.userId, session.user.id)));
+        .from(goals)
+        .where(and(eq(goals.id, task.goalId), eq(goals.userId, session.user.id)));
 
-      if (linkedOutcome && linkedOutcome.goalType === 'effort') {
-        const delta = completionValue;
-        const newTotal = linkedOutcome.currentValue + delta;
-
-        await db.insert(outcomeLogs).values({
-          outcomeId: linkedOutcome.id,
-          userId: session.user.id,
-          value: delta,
-          source: 'auto',
-          note: `Auto-logged from task: ${task.name}`,
-        });
+      if (linkedGoal) {
+        let newTotal: number;
+        if (linkedGoal.goalType === 'outcome') {
+          // For outcome goals (e.g., weight), value is absolute
+          newTotal = completionValue;
+        } else {
+          // For target/habitual/effort goals, value is additive delta
+          const delta = completionValue - (previousValue ?? 0);
+          newTotal = linkedGoal.currentValue + delta;
+        }
 
         await db
-          .update(outcomes)
+          .update(goals)
           .set({ currentValue: newTotal })
-          .where(eq(outcomes.id, linkedOutcome.id));
+          .where(eq(goals.id, linkedGoal.id));
       }
     } catch (err) {
-      console.error("Failed to auto-log effort goal:", err);
+      console.error("Failed to update linked goal:", err);
     }
   }
 

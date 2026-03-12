@@ -25,7 +25,7 @@ export default function EditCycleGoalPage() {
   const cycleId = params.id as string;
   const goalId = params.goalId as string;
 
-  const [outcomes, setOutcomes] = useState<Outcome[]>([]);
+  const [goalsList, setGoalsList] = useState<Outcome[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ name: "", targetValue: "", unit: "", linkedOutcomeId: "" });
@@ -40,7 +40,7 @@ export default function EditCycleGoalPage() {
         fetch(`/api/cycles/${cycleId}`).then((r) => (r.ok ? r.json() : null)),
         fetch("/api/outcomes").then((r) => (r.ok ? r.json() : [])),
       ]).then(([cycleDetail, outcomeData]) => {
-        setOutcomes(outcomeData.map((o: { id: number; name: string }) => ({ id: o.id, name: o.name })));
+        setGoalsList(outcomeData.map((o: { id: number; name: string }) => ({ id: o.id, name: o.name })));
         if (cycleDetail?.goals) {
           const goal = cycleDetail.goals.find((g: Goal) => String(g.id) === goalId);
           if (goal) {
@@ -146,7 +146,7 @@ export default function EditCycleGoalPage() {
             className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
           >
             <option value="">None</option>
-            {outcomes.map((o) => (
+            {goalsList.map((o) => (
               <option key={o.id} value={o.id}>
                 {o.name}
               </option>

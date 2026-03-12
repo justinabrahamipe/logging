@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { db, activityLog, tasks, pillars, outcomeLogs, outcomes } from "@/lib/db";
+import { db, activityLog, tasks, pillars } from "@/lib/db";
 import { eq, and, gte, lte, desc } from "drizzle-orm";
 
 export async function GET(request: NextRequest) {
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
   const conditions = [eq(activityLog.userId, session.user.id)];
 
   if (date) {
-    // Filter by specific date — match timestamp range for that day
+    // Filter by specific date -- match timestamp range for that day
     const dayStart = new Date(date + 'T00:00:00');
     const dayEnd = new Date(date + 'T23:59:59');
     conditions.push(gte(activityLog.timestamp, dayStart));
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     conditions.push(eq(activityLog.taskId, parseInt(taskId)));
   }
 
-  // Build the query with joins
+  // Build the query with joins (no longer joining outcomeLogs)
   const query = db
     .select({
       id: activityLog.id,
@@ -67,16 +67,10 @@ export async function GET(request: NextRequest) {
       pillarEmoji: pillars.emoji,
       pillarColor: pillars.color,
       outcomeLogId: activityLog.outcomeLogId,
-      outcomeLogValue: outcomeLogs.value,
-      outcomeId: outcomeLogs.outcomeId,
-      outcomeName: outcomes.name,
-      outcomeUnit: outcomes.unit,
     })
     .from(activityLog)
     .leftJoin(tasks, eq(activityLog.taskId, tasks.id))
     .leftJoin(pillars, eq(activityLog.pillarId, pillars.id))
-    .leftJoin(outcomeLogs, eq(activityLog.outcomeLogId, outcomeLogs.id))
-    .leftJoin(outcomes, eq(outcomeLogs.outcomeId, outcomes.id))
     .where(and(...conditions))
     .orderBy(desc(activityLog.id))
     .limit(limit)
@@ -84,11 +78,20 @@ export async function GET(request: NextRequest) {
 
   const entries = await query;
 
+  // Map to include legacy fields as null for frontend compatibility
+  const mapped = entries.map(e => ({
+    ...e,
+    outcomeLogValue: e.action === 'outcome_log' ? e.newValue : null,
+    outcomeId: null,
+    outcomeName: null,
+    outcomeUnit: null,
+  }));
+
   // Filter by search on task name (done in-app since it's a left join)
-  let filtered = entries;
+  let filtered = mapped;
   if (search) {
     const searchLower = search.toLowerCase();
-    filtered = entries.filter(e => e.taskName?.toLowerCase().includes(searchLower));
+    filtered = mapped.filter(e => e.taskName?.toLowerCase().includes(searchLower));
   }
 
   return NextResponse.json(filtered);

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { db, twelveWeekYears, dailyScores, outcomes, outcomeLogs, pillars } from "@/lib/db";
-import { eq, and, gte, lte, asc } from "drizzle-orm";
+import { db, cycles, dailyScores, goals, pillars, tasks, taskCompletions } from "@/lib/db";
+import { eq, and, gte, lte, asc, isNotNull } from "drizzle-orm";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -14,8 +14,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
   const [cycle] = await db
     .select()
-    .from(twelveWeekYears)
-    .where(and(eq(twelveWeekYears.id, cycleId), eq(twelveWeekYears.userId, session.user.id)));
+    .from(cycles)
+    .where(and(eq(cycles.id, cycleId), eq(cycles.userId, session.user.id)));
 
   if (!cycle) {
     return NextResponse.json({ error: "Cycle not found" }, { status: 404 });
@@ -37,19 +37,35 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   // Get outcomes linked to this cycle
   const cycleOutcomes = await db
     .select()
-    .from(outcomes)
-    .where(and(eq(outcomes.userId, session.user.id), eq(outcomes.periodId, cycleId)));
+    .from(goals)
+    .where(and(eq(goals.userId, session.user.id), eq(goals.periodId, cycleId)));
 
-  // Get outcome logs for these outcomes
+  // Get goal progress from TaskCompletions instead of outcomeLogs
   const outcomeIds = cycleOutcomes.map(o => o.id);
-  let allLogs: { outcomeId: number; value: number; loggedAt: Date }[] = [];
+  let allLogs: { outcomeId: number; value: number; date: string }[] = [];
   if (outcomeIds.length > 0) {
-    allLogs = await db
-      .select({ outcomeId: outcomeLogs.outcomeId, value: outcomeLogs.value, loggedAt: outcomeLogs.loggedAt })
-      .from(outcomeLogs)
-      .where(eq(outcomeLogs.userId, session.user.id))
-      .orderBy(asc(outcomeLogs.loggedAt));
-    allLogs = allLogs.filter(l => outcomeIds.includes(l.outcomeId));
+    const completionsForGoals = await db
+      .select({
+        goalId: tasks.goalId,
+        value: taskCompletions.value,
+        date: taskCompletions.date,
+      })
+      .from(taskCompletions)
+      .innerJoin(tasks, eq(taskCompletions.taskId, tasks.id))
+      .where(and(
+        eq(taskCompletions.userId, session.user.id),
+        eq(taskCompletions.completed, true),
+        isNotNull(tasks.goalId),
+      ))
+      .orderBy(asc(taskCompletions.date));
+
+    allLogs = completionsForGoals
+      .filter(c => outcomeIds.includes(c.goalId!))
+      .map(c => ({
+        outcomeId: c.goalId!,
+        value: c.value ?? 0,
+        date: c.date,
+      }));
   }
 
   // Build effort timeline (daily action scores)
@@ -60,12 +76,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   }));
 
   // Build outcome progress timeline
-  // For each outcome, compute progress % at each log point
   const outcomeTimelines = cycleOutcomes.map(o => {
     const logs = allLogs
       .filter(l => l.outcomeId === o.id)
       .map(l => ({
-        date: new Date(l.loggedAt).toISOString().split('T')[0],
+        date: l.date,
         value: l.value,
         progress: Math.max(0, Math.min(100,
           Math.abs(l.value - o.startValue) / Math.abs(o.targetValue - o.startValue) * 100

@@ -51,7 +51,7 @@ interface Task {
   repeatInterval: number | null;
   isWeekendTask: boolean;
   basePoints: number;
-  outcomeId: number | null;
+  goalId: number | null;
   periodId: number | null;
   startDate: string | null;
   completion?: TaskCompletion | null;
@@ -117,22 +117,8 @@ function getDateBucket(task: { frequency: string; customDays?: string | null; cr
     if (i === 0) return 'Today';
     if (i === 1) return 'Tomorrow';
 
-    // Rest of this week (up to Sunday)
-    const daysUntilSunday = (7 - todayDay) % 7;
-    if (i <= daysUntilSunday) return 'Rest of the Week';
-
-    // Next week
-    if (i <= daysUntilSunday + 7) return 'Next Week';
-
-    // Rest of this month
-    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-    const daysUntilEndOfMonth = Math.round((endOfMonth.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    if (i <= daysUntilEndOfMonth) return 'Rest of the Month';
-
-    // Next month
-    const endOfNextMonth = new Date(today.getFullYear(), today.getMonth() + 2, 0);
-    const daysUntilEndOfNextMonth = Math.round((endOfNextMonth.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    if (i <= daysUntilEndOfNextMonth) return 'Next Month';
+    // Days 2-6: individual date buckets (YYYY-MM-DD format used as key)
+    if (i <= 6) return dStr;
 
     return 'Later';
   }
@@ -179,11 +165,11 @@ export default function TasksPage() {
   const router = useRouter();
   const [groups, setGroups] = useState<TaskGroup[]>([]);
   const [pillars, setPillars] = useState<Pillar[]>([]);
-  const [outcomes, setOutcomes] = useState<Outcome[]>([]);
+  const [goalsList, setGoalsList] = useState<Outcome[]>([]);
   const [cycles, setCycles] = useState<Cycle[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [pastDays, setPastDays] = useState<{ date: string; tasks: { id: number; name: string; completionType: string; target: number | null; unit: string | null; outcomeId: number | null; pillarName: string | null; pillarColor: string | null; pillarEmoji: string | null; completed: boolean; value: number | null; isHighlighted: boolean }[] }[]>([]);
+  const [pastDays, setPastDays] = useState<{ date: string; tasks: { id: number; name: string; completionType: string; target: number | null; unit: string | null; goalId: number | null; pillarName: string | null; pillarColor: string | null; pillarEmoji: string | null; completed: boolean; value: number | null; isHighlighted: boolean }[] }[]>([]);
   const [pastPending, setPastPending] = useState<Record<string, string>>({});
   const [pastLoading, setPastLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'all' | 'todo' | 'done'>(() => {
@@ -218,7 +204,7 @@ export default function TasksPage() {
         pillar: { id: g.pillarId, name: g.pillarName, emoji: g.pillarEmoji, color: g.pillarColor },
         tasks: g.tasks.map(t => ({
           ...t, frequency: t.frequency, customDays: null, repeatInterval: null,
-          isWeekendTask: false, outcomeId: null, periodId: null, startDate: null,
+          isWeekendTask: false, goalId: null, periodId: null, startDate: null,
           completion: t.completed ? { id: 0, taskId: t.id, completed: true, value: t.value, pointsEarned: t.basePoints, isHighlighted: false } : null,
         })),
       })) as TaskGroup[]);
@@ -250,7 +236,7 @@ export default function TasksPage() {
       const res = await fetch('/api/outcomes');
       if (res.ok) {
         const data = await res.json();
-        setOutcomes(data.map((o: Outcome & { pillarId: number | null; goalType: string }) => ({ id: o.id, pillarId: o.pillarId, name: o.name, goalType: o.goalType || 'outcome' })));
+        setGoalsList(data.map((o: Outcome & { pillarId: number | null; goalType: string }) => ({ id: o.id, pillarId: o.pillarId, name: o.name, goalType: o.goalType || 'outcome' })));
       }
     } catch (error) {
       console.error("Failed to fetch outcomes:", error);
@@ -564,7 +550,7 @@ export default function TasksPage() {
       repeatInterval: dbRepeatInterval,
       basePoints: task.basePoints,
     };
-    if (task.outcomeId) body.outcomeId = task.outcomeId;
+    if (task.goalId) body.goalId = task.goalId;
     if (task.periodId) body.periodId = task.periodId;
     body.startDate = task.startDate || null;
     if (task.target) body.target = task.target;
@@ -763,9 +749,9 @@ export default function TasksPage() {
                           </h3>
                           <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                             <span className="text-[11px] text-zinc-500 dark:text-zinc-400 shrink-0">{task._pillarEmoji} {task._pillarName}</span>
-                            {task.outcomeId && outcomes.find(o => o.id === task.outcomeId) && (
+                            {task.goalId && goalsList.find(o => o.id === task.goalId) && (
                               <span className="text-[11px] px-1.5 py-px rounded-full font-medium bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 truncate max-w-[120px]">
-                                {outcomes.find(o => o.id === task.outcomeId)?.name}
+                                {goalsList.find(o => o.id === task.goalId)?.name}
                               </span>
                             )}
                             {task.periodId && cycles.find(c => c.id === task.periodId) && (
@@ -956,15 +942,19 @@ export default function TasksPage() {
             );
           };
 
-          // Build accordion buckets: Today, No Date, Tomorrow, Rest of the Week, Next Week, Rest of the Month, Next Month, Later
-          const bucketOrder = ['Today', 'No Date', 'Tomorrow', 'Rest of the Week', 'Next Week', 'Rest of the Month', 'Next Month', 'Later'];
+          // Build accordion buckets: Today, No Date, Tomorrow, individual dates (2-6 days out), Later
           const bucketGroups: Record<string, typeof allEnrichedTasks> = {};
           for (const task of allEnrichedTasks) {
             const bucket = getDateBucket(task, today);
             if (!bucketGroups[bucket]) bucketGroups[bucket] = [];
             bucketGroups[bucket].push(task);
           }
-          const sortedLabels = bucketOrder.filter(b => bucketGroups[b]);
+          // Build ordered bucket list: Today, No Date, Tomorrow, then date-sorted day buckets, then Later
+          const fixedOrder = ['Today', 'No Date', 'Tomorrow'];
+          const dateBuckets = Object.keys(bucketGroups)
+            .filter(b => !fixedOrder.includes(b) && b !== 'Later' && /^\d{4}-\d{2}-\d{2}$/.test(b))
+            .sort();
+          const sortedLabels = [...fixedOrder, ...dateBuckets, 'Later'].filter(b => bucketGroups[b]);
 
           if (allEnrichedTasks.length === 0 && !pastLoading && pastDays.length === 0) {
             return (
@@ -985,10 +975,15 @@ export default function TasksPage() {
             })
           })).filter(day => day.tasks.length > 0);
 
-          // Determine if a bucket spans multiple dates (show per-task dates)
-          const multiDateBuckets = new Set(['Rest of the Week', 'Next Week', 'Rest of the Month', 'Next Month', 'Later']);
+          // Get display label for bucket
+          const getBucketLabel = (key: string): string => {
+            if (key === 'Today' || key === 'Tomorrow' || key === 'No Date' || key === 'Later') return key;
+            // Date bucket (YYYY-MM-DD) — show formatted date with day name
+            const d = new Date(key + 'T12:00:00');
+            const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()];
+            return `${dayName}, ${formatDate(key, dateFormat)}`;
+          };
 
-          // Build date range label for buckets
           const getBucketDateRange = (label: string): string | null => {
             if (label === 'Today') return formatDate(today, dateFormat);
             if (label === 'Tomorrow') {
@@ -996,13 +991,7 @@ export default function TasksPage() {
               tmr.setDate(tmr.getDate() + 1);
               return formatDate(tmr.toISOString().split('T')[0], dateFormat);
             }
-            const tasks = bucketGroups[label];
-            if (!tasks || tasks.length === 0) return null;
-            const dates = tasks.map(t => t.startDate).filter(Boolean).sort() as string[];
-            if (dates.length === 0) return null;
-            const first = formatDate(dates[0], dateFormat);
-            const last = formatDate(dates[dates.length - 1], dateFormat);
-            return first === last ? first : `${first} – ${last}`;
+            return null;
           };
 
           return (
@@ -1010,8 +999,9 @@ export default function TasksPage() {
               {sortedLabels.map(label => {
                 const isOpen = openSchedules.has(label);
                 const tasksInGroup = bucketGroups[label];
+                const displayLabel = getBucketLabel(label);
                 const dateRange = getBucketDateRange(label);
-                const showPerTaskDate = multiDateBuckets.has(label);
+                const isLater = label === 'Later';
                 return (
                   <div key={label} className="border border-zinc-200 dark:border-zinc-700 rounded-lg">
                     <button
@@ -1024,7 +1014,7 @@ export default function TasksPage() {
                     >
                       <div className="flex items-center gap-2">
                         <FaChevronDown className={`text-[10px] text-zinc-400 transition-transform ${isOpen ? '' : '-rotate-90'}`} />
-                        <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">{label}</span>
+                        <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">{displayLabel}</span>
                         {dateRange && (
                           <span className="text-xs text-zinc-400 dark:text-zinc-500">{dateRange}</span>
                         )}
@@ -1033,7 +1023,7 @@ export default function TasksPage() {
                     </button>
                     {isOpen && (
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.5rem', padding: '0.5rem' }}>
-                        {tasksInGroup.map(t => renderTaskCard(t, showPerTaskDate && t.startDate ? formatDate(t.startDate, dateFormat) : undefined))}
+                        {tasksInGroup.map(t => renderTaskCard(t, isLater && t.startDate ? formatDate(t.startDate, dateFormat) : undefined))}
                       </div>
                     )}
                   </div>

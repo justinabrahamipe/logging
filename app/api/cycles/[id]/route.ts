@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { db, twelveWeekYears, twelveWeekGoals, weeklyTargets, outcomes, twelveWeekTactics, weeklyReviews, tasks } from "@/lib/db";
+import { db, cycles, cycleGoals, goals, cycleTactics, weeklyReviews, tasks } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
-import { calculateEndDate } from "@/lib/twelve-week-scoring";
+import { calculateEndDate } from "@/lib/cycle-scoring";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -15,40 +15,35 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
   const [cycle] = await db
     .select()
-    .from(twelveWeekYears)
-    .where(and(eq(twelveWeekYears.id, periodId), eq(twelveWeekYears.userId, session.user.id)));
+    .from(cycles)
+    .where(and(eq(cycles.id, periodId), eq(cycles.userId, session.user.id)));
 
   if (!cycle) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const goals = await db
+  const cycleGoalsList = await db
     .select({
-      id: twelveWeekGoals.id,
-      periodId: twelveWeekGoals.periodId,
-      userId: twelveWeekGoals.userId,
-      name: twelveWeekGoals.name,
-      targetValue: twelveWeekGoals.targetValue,
-      currentValue: twelveWeekGoals.currentValue,
-      unit: twelveWeekGoals.unit,
-      linkedOutcomeId: twelveWeekGoals.linkedOutcomeId,
-      createdAt: twelveWeekGoals.createdAt,
-      updatedAt: twelveWeekGoals.updatedAt,
-      outcomeName: outcomes.name,
+      id: cycleGoals.id,
+      periodId: cycleGoals.periodId,
+      userId: cycleGoals.userId,
+      name: cycleGoals.name,
+      targetValue: cycleGoals.targetValue,
+      currentValue: cycleGoals.currentValue,
+      unit: cycleGoals.unit,
+      linkedOutcomeId: cycleGoals.linkedOutcomeId,
+      createdAt: cycleGoals.createdAt,
+      updatedAt: cycleGoals.updatedAt,
+      outcomeName: goals.name,
     })
-    .from(twelveWeekGoals)
-    .leftJoin(outcomes, eq(twelveWeekGoals.linkedOutcomeId, outcomes.id))
-    .where(eq(twelveWeekGoals.periodId, periodId));
-
-  const targets = await db
-    .select()
-    .from(weeklyTargets)
-    .where(eq(weeklyTargets.periodId, periodId));
+    .from(cycleGoals)
+    .leftJoin(goals, eq(cycleGoals.linkedOutcomeId, goals.id))
+    .where(eq(cycleGoals.periodId, periodId));
 
   const tactics = await db
     .select()
-    .from(twelveWeekTactics)
-    .where(eq(twelveWeekTactics.periodId, periodId));
+    .from(cycleTactics)
+    .where(eq(cycleTactics.periodId, periodId));
 
   const reviews = await db
     .select()
@@ -61,12 +56,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     .where(and(eq(tasks.periodId, periodId), eq(tasks.isActive, true)));
 
   // Attach tactics to goals
-  const goalsWithTactics = goals.map((g) => ({
+  const goalsWithTactics = cycleGoalsList.map((g) => ({
     ...g,
     tactics: tactics.filter((t) => t.goalId === g.id),
   }));
 
-  return NextResponse.json({ ...cycle, goals: goalsWithTactics, weeklyTargets: targets, weeklyReviews: reviews, linkedTasks });
+  return NextResponse.json({ ...cycle, goals: goalsWithTactics, weeklyReviews: reviews, linkedTasks });
 }
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -81,8 +76,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
   const existing = await db
     .select()
-    .from(twelveWeekYears)
-    .where(and(eq(twelveWeekYears.id, periodId), eq(twelveWeekYears.userId, session.user.id)));
+    .from(cycles)
+    .where(and(eq(cycles.id, periodId), eq(cycles.userId, session.user.id)));
 
   if (existing.length === 0) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -101,17 +96,17 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (body.isActive) {
       // Deactivate others first
       await db
-        .update(twelveWeekYears)
+        .update(cycles)
         .set({ isActive: false })
-        .where(eq(twelveWeekYears.userId, session.user.id));
+        .where(eq(cycles.userId, session.user.id));
     }
     updateData.isActive = body.isActive;
   }
 
   const [updated] = await db
-    .update(twelveWeekYears)
+    .update(cycles)
     .set(updateData)
-    .where(and(eq(twelveWeekYears.id, periodId), eq(twelveWeekYears.userId, session.user.id)))
+    .where(and(eq(cycles.id, periodId), eq(cycles.userId, session.user.id)))
     .returning();
 
   return NextResponse.json(updated);
@@ -127,8 +122,8 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   const periodId = parseInt(id);
 
   const deleted = await db
-    .delete(twelveWeekYears)
-    .where(and(eq(twelveWeekYears.id, periodId), eq(twelveWeekYears.userId, session.user.id)))
+    .delete(cycles)
+    .where(and(eq(cycles.id, periodId), eq(cycles.userId, session.user.id)))
     .returning();
 
   if (deleted.length === 0) {

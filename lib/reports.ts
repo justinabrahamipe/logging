@@ -1,5 +1,5 @@
-import { db, dailyScores, tasks, taskCompletions, outcomes, outcomeLogs, userStats, pillars } from "@/lib/db";
-import { eq, and, gte, lte, asc } from "drizzle-orm";
+import { db, dailyScores, tasks, taskCompletions, goals, userStats, pillars } from "@/lib/db";
+import { eq, and, gte, lte, asc, isNotNull } from "drizzle-orm";
 
 export interface ReportResult {
   type: string;
@@ -61,7 +61,7 @@ export async function computeReport(userId: string, type: string, dateParam: str
       name: tasks.name,
       pillarId: tasks.pillarId,
       pillarEmoji: pillars.emoji,
-      outcomeId: tasks.outcomeId,
+      goalId: tasks.goalId,
     }).from(tasks)
       .leftJoin(pillars, eq(tasks.pillarId, pillars.id))
       .where(eq(tasks.userId, userId)),
@@ -77,32 +77,45 @@ export async function computeReport(userId: string, type: string, dateParam: str
     db.select().from(userStats).where(eq(userStats.userId, userId)),
 
     db.select({
-      id: outcomes.id,
-      name: outcomes.name,
-      unit: outcomes.unit,
-      direction: outcomes.direction,
-      pillarId: outcomes.pillarId,
-    }).from(outcomes).where(
-      and(eq(outcomes.userId, userId), eq(outcomes.isArchived, false))
+      id: goals.id,
+      name: goals.name,
+      unit: goals.unit,
+      direction: goals.direction,
+      pillarId: goals.pillarId,
+    }).from(goals).where(
+      and(eq(goals.userId, userId), eq(goals.isArchived, false))
     ),
   ]);
 
   const outcomeIds = outcomeData.map(o => o.id);
-  const endTimestamp = Math.floor((endDate.getTime() / 1000) + 86400);
 
-  let logData: { outcomeId: number; value: number; loggedAt: Date }[] = [];
+  // Get goal progress from TaskCompletions instead of outcomeLogs
+  let logData: { outcomeId: number; value: number; date: string }[] = [];
   if (outcomeIds.length > 0) {
-    logData = await db.select({
-      outcomeId: outcomeLogs.outcomeId,
-      value: outcomeLogs.value,
-      loggedAt: outcomeLogs.loggedAt,
-    }).from(outcomeLogs).where(
-      and(
-        eq(outcomeLogs.userId, userId),
-        gte(outcomeLogs.loggedAt, startDate),
-        lte(outcomeLogs.loggedAt, new Date(endTimestamp * 1000))
-      )
-    ).orderBy(asc(outcomeLogs.loggedAt));
+    const completionsForGoals = await db
+      .select({
+        goalId: tasks.goalId,
+        value: taskCompletions.value,
+        date: taskCompletions.date,
+      })
+      .from(taskCompletions)
+      .innerJoin(tasks, eq(taskCompletions.taskId, tasks.id))
+      .where(and(
+        eq(taskCompletions.userId, userId),
+        eq(taskCompletions.completed, true),
+        isNotNull(tasks.goalId),
+        gte(taskCompletions.date, startStr),
+        lte(taskCompletions.date, endStr),
+      ))
+      .orderBy(asc(taskCompletions.date));
+
+    logData = completionsForGoals
+      .filter(c => outcomeIds.includes(c.goalId!))
+      .map(c => ({
+        outcomeId: c.goalId!,
+        value: c.value ?? 0,
+        date: c.date,
+      }));
   }
 
   const pillarMap = new Map(userPillars.map(p => [p.id, p]));
@@ -165,7 +178,7 @@ export async function computeReport(userId: string, type: string, dateParam: str
     return {
       name: task?.name || "Unknown",
       completionRate: rate,
-      pillarEmoji: task?.pillarEmoji || "📌",
+      pillarEmoji: task?.pillarEmoji || "\uD83D\uDCCC",
     };
   }).sort((a, b) => b.completionRate - a.completionRate);
 

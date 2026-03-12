@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { db, outcomeLogs } from "@/lib/db";
-import { eq, desc } from "drizzle-orm";
+import { db, tasks, taskCompletions } from "@/lib/db";
+import { eq, and, desc, isNotNull } from "drizzle-orm";
 
 export async function GET() {
   const session = await auth();
@@ -9,24 +9,30 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Query TaskCompletions joined with Tasks where task has a goalId
   const logs = await db
     .select({
-      id: outcomeLogs.id,
-      outcomeId: outcomeLogs.outcomeId,
-      value: outcomeLogs.value,
-      loggedAt: outcomeLogs.loggedAt,
-      note: outcomeLogs.note,
+      id: taskCompletions.id,
+      goalId: tasks.goalId,
+      value: taskCompletions.value,
+      date: taskCompletions.date,
     })
-    .from(outcomeLogs)
-    .where(eq(outcomeLogs.userId, session.user.id))
-    .orderBy(desc(outcomeLogs.loggedAt));
+    .from(taskCompletions)
+    .innerJoin(tasks, eq(taskCompletions.taskId, tasks.id))
+    .where(and(
+      eq(taskCompletions.userId, session.user.id),
+      eq(taskCompletions.completed, true),
+      isNotNull(tasks.goalId),
+    ))
+    .orderBy(desc(taskCompletions.date));
 
-  // Group by outcomeId
+  // Group by goalId (mapped as outcomeId for backward compat)
   const grouped: Record<number, { id: number; value: number; loggedAt: string; note: string | null }[]> = {};
   for (const log of logs) {
-    const loggedAt = log.loggedAt instanceof Date ? log.loggedAt.toISOString() : String(log.loggedAt);
-    if (!grouped[log.outcomeId]) grouped[log.outcomeId] = [];
-    grouped[log.outcomeId].push({ id: log.id, value: log.value, loggedAt, note: log.note });
+    const outcomeId = log.goalId!;
+    const loggedAt = log.date + "T12:00:00.000Z";
+    if (!grouped[outcomeId]) grouped[outcomeId] = [];
+    grouped[outcomeId].push({ id: log.id, value: log.value ?? 0, loggedAt, note: null });
   }
 
   return NextResponse.json(grouped);

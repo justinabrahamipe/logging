@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { db, pillars, tasks, taskCompletions, outcomes, outcomeLogs, dailyScores, userStats, activityLog } from "@/lib/db";
+import { db, pillars, tasks, taskCompletions, goals, dailyScores, userStats, activityLog } from "@/lib/db";
 import { eq, sql } from "drizzle-orm";
 import { seedDefaultData } from "@/lib/seed-data";
 
@@ -36,10 +36,9 @@ export async function DELETE() {
   // Delete in order respecting foreign keys
   await db.delete(activityLog).where(eq(activityLog.userId, userId));
   await db.delete(taskCompletions).where(eq(taskCompletions.userId, userId));
-  await db.delete(outcomeLogs).where(eq(outcomeLogs.userId, userId));
   await db.delete(dailyScores).where(eq(dailyScores.userId, userId));
   await db.delete(tasks).where(eq(tasks.userId, userId));
-  await db.delete(outcomes).where(eq(outcomes.userId, userId));
+  await db.delete(goals).where(eq(goals.userId, userId));
   await db.delete(pillars).where(eq(pillars.userId, userId));
   await db.delete(userStats).where(eq(userStats.userId, userId));
 
