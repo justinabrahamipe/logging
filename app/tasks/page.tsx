@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaPlus, FaEdit, FaTrash, FaCheck, FaMinus, FaPlay, FaStop, FaEllipsisV, FaCopy, FaChevronRight, FaChevronDown, FaArrowRight, FaCalendarAlt, FaStar } from "react-icons/fa";
+import { FaPlus, FaEdit, FaTrash, FaCheck, FaMinus, FaPlay, FaStop, FaEllipsisV, FaCopy, FaChevronDown, FaArrowRight, FaStar, FaTimes } from "react-icons/fa";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Snackbar, Alert as MuiAlert } from "@mui/material";
@@ -182,21 +182,32 @@ export default function TasksPage() {
   const [outcomes, setOutcomes] = useState<Outcome[]>([]);
   const [cycles, setCycles] = useState<Cycle[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'today' | 'all' | 'past'>('today');
+  const [refreshing, setRefreshing] = useState(false);
   const [pastDays, setPastDays] = useState<{ date: string; tasks: { id: number; name: string; completionType: string; target: number | null; unit: string | null; outcomeId: number | null; pillarName: string | null; pillarColor: string | null; pillarEmoji: string | null; completed: boolean; value: number | null; isHighlighted: boolean }[] }[]>([]);
   const [pastPending, setPastPending] = useState<Record<string, string>>({});
   const [pastLoading, setPastLoading] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<'all' | 'todo' | 'done'>('all');
-  const [openSchedules, setOpenSchedules] = useState<Set<string>>(new Set(['Today', 'Tomorrow', 'Rest of the Week']));
+  const [statusFilter, setStatusFilter] = useState<'all' | 'todo' | 'done'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('tasks-status-filter');
+      if (saved === 'all' || saved === 'todo' || saved === 'done') return saved;
+    }
+    return 'all';
+  });
+  const [openSchedules, setOpenSchedules] = useState<Set<string>>(new Set(['Today']));
   const [scoreSummary, setScoreSummary] = useState<ScoreSummary | null>(null);
   const [timers, setTimers] = useState<Record<number, { running: boolean; elapsed: number; interval?: NodeJS.Timeout }>>({});
   const [pendingValues, setPendingValues] = useState<Record<number, string>>({});
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
-  const [quickAdd, setQuickAdd] = useState({ name: '', date: new Date().toISOString().split('T')[0] });
+  const [actionLoading, setActionLoading] = useState<Record<number, boolean>>({});
   const [authSnackbar, setAuthSnackbar] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const today = new Date().toISOString().split('T')[0];
+
+  // Save statusFilter to localStorage
+  useEffect(() => {
+    localStorage.setItem('tasks-status-filter', statusFilter);
+  }, [statusFilter]);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -217,20 +228,11 @@ export default function TasksPage() {
       fetchPillars();
       fetchOutcomes();
       fetchCycles();
+      fetchTasks();
+      fetchPastTasks();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, status]);
-
-  useEffect(() => {
-    if (session?.user?.id) {
-      if (filter === 'past') {
-        fetchPastTasks();
-      } else {
-        fetchTasks();
-      }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session, filter]);
 
   const fetchPillars = async () => {
     try {
@@ -269,7 +271,8 @@ export default function TasksPage() {
 
   const fetchTasks = async () => {
     try {
-      const url = filter === 'today' ? `/api/tasks?date=${today}` : `/api/tasks?date=${today}&all=true`;
+      if (!loading) setRefreshing(true);
+      const url = `/api/tasks?date=${today}&all=true`;
       const res = await fetch(url);
       if (res.ok) {
         setGroups(await res.json());
@@ -279,6 +282,7 @@ export default function TasksPage() {
       console.error("Failed to fetch tasks:", error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -521,8 +525,7 @@ export default function TasksPage() {
   // --- CRUD handlers ---
   const handleCopy = (task: Task) => {
     setOpenMenuId(null);
-    // Copy creates a new task with same settings - navigate to new with query params
-    // For simplicity, we create the copy directly via API then refresh
+    setActionLoading(prev => ({ ...prev, [task.id]: true }));
     const freq = taskToPreset(task);
     let dbFrequency = freq.preset;
     let dbCustomDays: string | null = null;
@@ -569,43 +572,43 @@ export default function TasksPage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
-    }).then(() => fetchTasks());
+    }).then(() => fetchTasks()).finally(() => setActionLoading(prev => ({ ...prev, [task.id]: false })));
   };
 
   const handleDelete = async (id: number) => {
+    setActionLoading(prev => ({ ...prev, [id]: true }));
     try {
       await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
       await fetchTasks();
     } catch (error) {
       console.error("Failed to delete task:", error);
+    } finally {
+      setActionLoading(prev => ({ ...prev, [id]: false }));
     }
   };
 
-
-  const handleQuickAdd = async () => {
-    if (!quickAdd.name.trim()) return;
-    const body: Record<string, unknown> = {
-      name: quickAdd.name,
-      frequency: 'daily',
-      completionType: 'checkbox',
-      basePoints: 10,
-    };
-    if (quickAdd.date) body.startDate = quickAdd.date;
+  const handleDiscard = async (task: Task) => {
+    setOpenMenuId(null);
+    setActionLoading(prev => ({ ...prev, [task.id]: true }));
     try {
-      await fetch('/api/tasks', {
+      await fetch('/api/tasks/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ taskId: task.id, date: today, completed: true, value: 0 }),
       });
-      setQuickAdd({ name: '', date: '' });
-      await fetchTasks();
+      // Optimistic update
+      setGroups(prev => prev.map(g => ({
+        ...g,
+        tasks: g.tasks.map(t =>
+          t.id === task.id ? { ...t, completion: { ...t.completion, taskId: task.id, completed: true, value: 0, pointsEarned: 0, isHighlighted: t.completion?.isHighlighted ?? false } as TaskCompletion } : t
+        ),
+      })));
+      await fetchScore();
     } catch (error) {
-      console.error("Failed to quick-add task:", error);
+      console.error("Failed to discard task:", error);
+    } finally {
+      setActionLoading(prev => ({ ...prev, [task.id]: false }));
     }
-  };
-
-  const handleQuickAddExpand = () => {
-    router.push("/tasks/new");
   };
 
   if (loading) {
@@ -616,8 +619,6 @@ export default function TasksPage() {
     );
   }
 
-  const isToday = filter === 'today';
-
   return (
     <div className="px-3 py-4 md:px-6 md:py-6">
       <motion.div
@@ -625,59 +626,23 @@ export default function TasksPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-zinc-900 dark:text-white">Tasks</h1>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
-              {formatDate(new Date().toISOString().split('T')[0], dateFormat)}
-              {filter === 'all' && ' · Showing all tasks'}
-              {filter === 'past' && ' · Past completions'}
-            </p>
-          </div>
-          <button
-            onClick={() => router.push("/tasks/new")}
-            className="px-4 py-2 text-sm bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 rounded-lg font-medium flex items-center gap-2 shadow-sm transition-colors"
-          >
-            <FaPlus className="text-xs" /> Add Task
-          </button>
-        </div>
-
-        {/* Filters */}
-        <div className="flex items-center gap-3 mb-4">
-          <div className="flex gap-1 bg-zinc-100 dark:bg-zinc-800 rounded-lg p-1 w-fit">
-            <button
-              onClick={() => setFilter('today')}
-              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                filter === 'today'
-                  ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
-                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
-              }`}
-            >
-              Today
-            </button>
-            <button
-              onClick={() => setFilter('all')}
-              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                filter === 'all'
-                  ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
-                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
-              }`}
-            >
-              All
-            </button>
-            <button
-              onClick={() => setFilter('past')}
-              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                filter === 'past'
-                  ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
-                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
-              }`}
-            >
-              Past
-            </button>
-          </div>
-          {filter !== 'past' && (
+        {/* Header: heading, score, filters, add task */}
+        <div className="mb-5">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <div className="flex items-center gap-3">
+                <h1 className="text-2xl md:text-3xl font-bold text-zinc-900 dark:text-white">Tasks</h1>
+                {scoreSummary && (
+                  <span className="text-sm font-semibold text-zinc-500 dark:text-zinc-400">
+                    {scoreSummary.actionScore}%
+                    <span className="font-normal ml-1.5">{scoreSummary.completedTasks}/{scoreSummary.totalTasks}</span>
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
+                {formatDate(new Date().toISOString().split('T')[0], dateFormat)}
+              </p>
+            </div>
             <div className="flex gap-1 bg-zinc-100 dark:bg-zinc-800 rounded-lg p-1 w-fit">
               {(['all', 'todo', 'done'] as const).map(s => (
                 <button
@@ -693,90 +658,31 @@ export default function TasksPage() {
                 </button>
               ))}
             </div>
-          )}
-        </div>
-
-        {/* Quick-Add Bar */}
-        {filter !== 'past' && <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-3 mb-4">
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={quickAdd.name}
-                onChange={(e) => setQuickAdd({ ...quickAdd, name: e.target.value })}
-                onKeyDown={(e) => e.key === 'Enter' && handleQuickAdd()}
-                placeholder="Quick add a task..."
-                className="flex-1 min-w-0 px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-500"
-              />
-              <div className="relative shrink-0">
-                <input
-                  type="date"
-                  value={quickAdd.date}
-                  onChange={(e) => setQuickAdd({ ...quickAdd, date: e.target.value })}
-                  className="hidden md:block px-2 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white w-[130px]"
-                />
-                <label className="md:hidden p-2 text-zinc-400 hover:text-zinc-900 dark:hover:text-white cursor-pointer flex items-center">
-                  <FaCalendarAlt className="text-sm" />
-                  <input
-                    type="date"
-                    value={quickAdd.date}
-                    onChange={(e) => setQuickAdd({ ...quickAdd, date: e.target.value })}
-                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-                  />
-                </label>
-              </div>
-              <button
-                onClick={handleQuickAddExpand}
-                className="p-2 text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors shrink-0"
-                title="Expand to full form"
-              >
-                <FaChevronRight className="text-sm" />
-              </button>
-              <button
-                onClick={handleQuickAdd}
-                disabled={!quickAdd.name.trim()}
-                className="p-2 bg-zinc-900 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-100 disabled:opacity-50 text-white dark:text-zinc-900 rounded-lg shrink-0 transition-colors"
-              >
-                <FaArrowRight className="text-sm" />
-              </button>
-            </div>
-          </div>}
-
-        {/* Score Summary Bar */}
-        {filter !== 'past' && scoreSummary && (
-          <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4 mb-5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="text-2xl font-bold text-zinc-900 dark:text-white">
-                  {scoreSummary.actionScore}%
-                </div>
-                <span className="text-sm text-zinc-500 dark:text-zinc-400">
-                  {scoreSummary.scoreTier}
-                </span>
-              </div>
-              <span className="text-sm text-zinc-500 dark:text-zinc-400">
-                {scoreSummary.completedTasks}/{scoreSummary.totalTasks} tasks
-              </span>
-            </div>
-            <div className="mt-2 w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+            <button
+              onClick={() => router.push("/tasks/new")}
+              className="px-4 py-2 text-sm bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 rounded-lg font-medium flex items-center gap-2 shadow-sm transition-colors"
+            >
+              <FaPlus className="text-xs" /> Add Task
+            </button>
+          </div>
+          {/* Progress underline */}
+          <div className="mt-2 w-full h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden relative">
+            {refreshing && (
+              <div className="absolute inset-0 bg-zinc-300 dark:bg-zinc-600 animate-pulse" />
+            )}
+            {scoreSummary && (
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${Math.min(scoreSummary.actionScore, 100)}%` }}
                 transition={{ duration: 0.5 }}
-                className="h-full rounded-full bg-zinc-900 dark:bg-white"
+                className="h-full rounded-full bg-zinc-900 dark:bg-white relative z-10"
               />
-            </div>
+            )}
           </div>
-        )}
+        </div>
 
-        {/* Task Groups */}
-        {filter !== 'past' && groups.length === 0 && (
-          <div className="text-center py-8 text-zinc-500 dark:text-zinc-400">
-            <p className="text-base mb-1">No tasks {isToday ? 'for today' : 'yet'}</p>
-            <p className="text-sm">Click Add Task to create one</p>
-          </div>
-        )}
-
-        {filter !== 'past' && (() => {
+        {/* Unified accordion view */}
+        {(() => {
           const allEnrichedTasks = groups.flatMap((group) =>
             group.tasks.filter((task) => {
               if (statusFilter === 'all') return true;
@@ -795,11 +701,12 @@ export default function TasksPage() {
           const starredCount = allEnrichedTasks.filter(t => t.completion?.isHighlighted).length;
           const maxStarsReached = starredCount >= 3;
 
-          const renderTaskCard = (task: typeof allEnrichedTasks[number]) => {
+          const renderTaskCard = (task: typeof allEnrichedTasks[number], showDate?: string) => {
             const isCompleted = task.completion?.completed || false;
             const currentValue = task.completion?.value || 0;
             const isFullyDone = isCompleted || (task.target != null && task.target > 0 && currentValue >= task.target);
             const isHighlighted = task.completion?.isHighlighted || false;
+            const isTaskLoading = actionLoading[task.id] || false;
 
             return (
               <div
@@ -810,7 +717,7 @@ export default function TasksPage() {
                           : isHighlighted
                           ? 'bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 hover:shadow-md'
                           : 'bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:shadow-md hover:border-zinc-300 dark:hover:border-zinc-600'
-                      }`}
+                      } ${isTaskLoading ? 'opacity-60' : ''}`}
                       style={{ borderLeftWidth: 3, borderLeftColor: isFullyDone ? '#4ade80' : isHighlighted ? '#F59E0B' : task._pillarColor }}
                     >
                       <div className="flex items-center gap-2">
@@ -844,12 +751,14 @@ export default function TasksPage() {
                                 {cycles.find(c => c.id === task.periodId)?.name}
                               </span>
                             )}
+                            {showDate && (
+                              <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{showDate}</span>
+                            )}
                           </div>
-                          {task.frequency !== 'daily' && (
+                          {task.frequency !== 'daily' && task.frequency !== 'adhoc' && (
                             <div className="mt-0.5">
                               <span className="text-[11px] px-1.5 py-px rounded-full font-medium bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400">
-                                {task.frequency === 'adhoc' ? 'One-time' :
-                                 task.frequency === 'monthly' ? `Monthly` :
+                                {task.frequency === 'monthly' ? `Monthly` :
                                  task.frequency === 'custom' ? (task.customDays ? JSON.parse(task.customDays).map((d: number) => DAYS_OF_WEEK[d]).join(', ') : 'Custom') :
                                  task.frequency === 'interval' ? `Every ${(task as unknown as Record<string, unknown>).repeatInterval || '?'} days` :
                                  task.frequency}
@@ -997,6 +906,12 @@ export default function TasksPage() {
                                     <FaCopy className="text-xs" /> Duplicate
                                   </button>
                                   <button
+                                    onClick={() => handleDiscard(task)}
+                                    className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-zinc-500 dark:text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                                  >
+                                    <FaTimes className="text-xs" /> Discard
+                                  </button>
+                                  <button
                                     onClick={() => { setOpenMenuId(null); handleDelete(task.id); }}
                                     className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
                                   >
@@ -1012,188 +927,218 @@ export default function TasksPage() {
             );
           };
 
-          if (!isToday && allEnrichedTasks.length > 0) {
-            // "All" view: group by date bucket in accordions
-            const bucketOrder = ['Today', 'Tomorrow', 'Rest of the Week', 'Next Week', 'Rest of the Month', 'Next Month', 'Later', 'No Date'];
-            const bucketGroups: Record<string, typeof allEnrichedTasks> = {};
-            for (const task of allEnrichedTasks) {
-              const bucket = getDateBucket(task, today);
-              if (!bucketGroups[bucket]) bucketGroups[bucket] = [];
-              bucketGroups[bucket].push(task);
-            }
-            const sortedLabels = bucketOrder.filter(b => bucketGroups[b]);
+          // Build accordion buckets: Today, No Date, Tomorrow, Rest of the Week, Next Week, Rest of the Month, Next Month, Later
+          const bucketOrder = ['Today', 'No Date', 'Tomorrow', 'Rest of the Week', 'Next Week', 'Rest of the Month', 'Next Month', 'Later'];
+          const bucketGroups: Record<string, typeof allEnrichedTasks> = {};
+          for (const task of allEnrichedTasks) {
+            const bucket = getDateBucket(task, today);
+            if (!bucketGroups[bucket]) bucketGroups[bucket] = [];
+            bucketGroups[bucket].push(task);
+          }
+          const sortedLabels = bucketOrder.filter(b => bucketGroups[b]);
 
+          if (allEnrichedTasks.length === 0 && !pastLoading && pastDays.length === 0) {
             return (
-              <div className="space-y-2">
-                {sortedLabels.map(label => {
-                  const isOpen = openSchedules.has(label);
-                  const tasksInGroup = bucketGroups[label];
-                  return (
-                    <div key={label} className="border border-zinc-200 dark:border-zinc-700 rounded-lg">
-                      <button
-                        onClick={() => setOpenSchedules(prev => {
-                          const next = new Set(prev);
-                          if (next.has(label)) next.delete(label); else next.add(label);
-                          return next;
-                        })}
-                        className="w-full px-4 py-2.5 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                      >
-                        <div className="flex items-center gap-2">
-                          <FaChevronDown className={`text-[10px] text-zinc-400 transition-transform ${isOpen ? '' : '-rotate-90'}`} />
-                          <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">{label}</span>
-                          <span className="text-xs text-zinc-400 dark:text-zinc-500">({tasksInGroup.length})</span>
-                        </div>
-                      </button>
-                      {isOpen && (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.5rem', padding: '0.5rem' }}>
-                          {tasksInGroup.map(renderTaskCard)}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+              <div className="text-center py-8 text-zinc-500 dark:text-zinc-400">
+                <p className="text-base mb-1">No tasks yet</p>
+                <p className="text-sm">Click Add Task to create one</p>
               </div>
             );
           }
 
-          // "Today" view: flat grid
-          return (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
-              {allEnrichedTasks.map(renderTaskCard)}
-            </div>
-          );
-        })()}
+          // Filter past tasks by status filter too
+          const filteredPastDays = pastDays.map(day => ({
+            ...day,
+            tasks: day.tasks.filter(t => {
+              if (statusFilter === 'all') return true;
+              const done = t.completed || (t.target != null && t.target > 0 && (t.value || 0) >= t.target);
+              return statusFilter === 'done' ? done : !done;
+            })
+          })).filter(day => day.tasks.length > 0);
 
-        {/* Past Tasks View */}
-        {filter === 'past' && (
-          pastLoading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-zinc-900 dark:border-white mx-auto"></div>
-            </div>
-          ) : pastDays.length === 0 ? (
-            <div className="text-center py-8 text-zinc-500 dark:text-zinc-400">
-              <p className="text-base mb-1">No past task completions</p>
-            </div>
-          ) : (
+          return (
             <div className="space-y-2">
-              {pastDays.map(day => {
-                const dateLabel = formatDate(day.date, dateFormat);
-                const completedCount = day.tasks.filter(t => t.completed || (t.target && t.target > 0 && (t.value || 0) >= t.target)).length;
-                const isOpen = openSchedules.has(day.date);
+              {sortedLabels.map(label => {
+                const isOpen = openSchedules.has(label);
+                const tasksInGroup = bucketGroups[label];
                 return (
-                  <div key={day.date} className="border border-zinc-200 dark:border-zinc-700 rounded-lg">
+                  <div key={label} className="border border-zinc-200 dark:border-zinc-700 rounded-lg">
                     <button
                       onClick={() => setOpenSchedules(prev => {
                         const next = new Set(prev);
-                        if (next.has(day.date)) next.delete(day.date); else next.add(day.date);
+                        if (next.has(label)) next.delete(label); else next.add(label);
                         return next;
                       })}
                       className="w-full px-4 py-2.5 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                     >
                       <div className="flex items-center gap-2">
                         <FaChevronDown className={`text-[10px] text-zinc-400 transition-transform ${isOpen ? '' : '-rotate-90'}`} />
-                        <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">{dateLabel}</span>
-                        <span className="text-xs text-zinc-400 dark:text-zinc-500">{completedCount}/{day.tasks.length}</span>
+                        <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">{label}</span>
+                        <span className="text-xs text-zinc-400 dark:text-zinc-500">({tasksInGroup.length})</span>
                       </div>
                     </button>
                     {isOpen && (
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.5rem', padding: '0.5rem' }}>
-                        {day.tasks.map(task => {
-                          const currentValue = task.value || 0;
-                          const isDone = task.completed || (task.target != null && task.target > 0 && currentValue >= task.target);
-                          const pendingKey = `${day.date}-${task.id}`;
-                          return (
-                            <div
-                              key={pendingKey}
-                              className={`rounded-lg px-3 py-2.5 transition-all ${
-                                isDone
-                                  ? 'bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800'
-                                  : task.isHighlighted
-                                  ? 'bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800'
-                                  : 'bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700'
-                              }`}
-                              style={{ borderLeftWidth: 3, borderLeftColor: isDone ? '#4ade80' : task.isHighlighted ? '#F59E0B' : (task.pillarColor || '#6B7280') }}
-                            >
-                              <div className="flex items-center gap-2">
-                                {task.isHighlighted && <FaStar className="text-xs text-amber-500 shrink-0" />}
-                                <div className="flex-1 min-w-0">
-                                  <h3 className={`text-sm font-semibold leading-snug ${isDone ? 'line-through text-zinc-400 dark:text-zinc-500' : 'text-zinc-900 dark:text-white'}`}>
-                                    {task.name}
-                                  </h3>
-                                  <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                                    {task.pillarEmoji && (
-                                      <span className="text-[11px] text-zinc-500 dark:text-zinc-400">{task.pillarEmoji} {task.pillarName}</span>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-1.5 shrink-0">
-                                  {task.completionType === 'checkbox' && (
-                                    <button
-                                      onClick={() => handlePastComplete(day.date, task.id, !isDone)}
-                                      className={`w-7 h-7 rounded-md border-2 flex items-center justify-center transition-colors ${
-                                        isDone
-                                          ? 'bg-green-500 border-green-500 text-white'
-                                          : 'border-zinc-300 dark:border-zinc-600 hover:border-green-500'
-                                      }`}
-                                    >
-                                      {isDone && <FaCheck className="text-xs" />}
-                                    </button>
-                                  )}
-                                  {task.completionType === 'count' && (
-                                    <div className="flex items-center gap-1">
-                                      <button
-                                        onClick={() => handlePastCountChange(day.date, task, -1)}
-                                        className="w-6 h-6 rounded bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center hover:bg-zinc-300 dark:hover:bg-zinc-600"
-                                      >
-                                        <FaMinus className="text-[9px]" />
-                                      </button>
-                                      <span className={`text-xs font-bold min-w-[2.5rem] text-center ${
-                                        task.target && currentValue >= task.target ? 'text-green-600 dark:text-green-400' : 'text-zinc-900 dark:text-white'
-                                      }`}>
-                                        {currentValue}/{task.target || '?'}
-                                      </span>
-                                      <button
-                                        onClick={() => handlePastCountChange(day.date, task, 1)}
-                                        className="w-6 h-6 rounded bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 flex items-center justify-center hover:bg-zinc-800 dark:hover:bg-zinc-100"
-                                      >
-                                        <FaPlus className="text-[9px]" />
-                                      </button>
-                                    </div>
-                                  )}
-                                  {(task.completionType === 'numeric' || task.completionType === 'duration') && (
-                                    <div className="flex items-center gap-1">
-                                      <input
-                                        type="number"
-                                        value={pastPending[pendingKey] ?? (currentValue || '')}
-                                        onChange={(e) => setPastPending(prev => ({ ...prev, [pendingKey]: e.target.value }))}
-                                        onKeyDown={(e) => e.key === 'Enter' && handlePastNumericSubmit(day.date, task)}
-                                        placeholder={task.target ? String(task.target) : '0'}
-                                        className="w-14 px-1.5 py-1 text-xs text-right border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
-                                      />
-                                      {task.completionType === 'duration' && <span className="text-[10px] text-zinc-500 dark:text-zinc-400">m</span>}
-                                      {pastPending[pendingKey] !== undefined && (
-                                        <button
-                                          onClick={() => handlePastNumericSubmit(day.date, task)}
-                                          className="w-6 h-6 rounded bg-green-500 text-white flex items-center justify-center hover:bg-green-600"
-                                        >
-                                          <FaCheck className="text-[9px]" />
-                                        </button>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
+                        {tasksInGroup.map(t => renderTaskCard(t))}
                       </div>
                     )}
                   </div>
                 );
               })}
+
+              {/* Past accordion */}
+              <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg">
+                <button
+                  onClick={() => setOpenSchedules(prev => {
+                    const next = new Set(prev);
+                    if (next.has('Past')) next.delete('Past'); else next.add('Past');
+                    return next;
+                  })}
+                  className="w-full px-4 py-2.5 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <FaChevronDown className={`text-[10px] text-zinc-400 transition-transform ${openSchedules.has('Past') ? '' : '-rotate-90'}`} />
+                    <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Past</span>
+                    {pastLoading && (
+                      <div className="animate-spin rounded-full h-3 w-3 border-b border-zinc-400"></div>
+                    )}
+                  </div>
+                </button>
+                {openSchedules.has('Past') && (
+                  pastLoading ? (
+                    <div className="text-center py-4">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-zinc-900 dark:border-white mx-auto"></div>
+                    </div>
+                  ) : filteredPastDays.length === 0 ? (
+                    <div className="text-center py-4 text-zinc-500 dark:text-zinc-400 text-sm">
+                      No past task completions
+                    </div>
+                  ) : (
+                    <div className="p-2 space-y-2">
+                      {filteredPastDays.map(day => {
+                        const dateLabel = formatDate(day.date, dateFormat);
+                        const completedCount = day.tasks.filter(t => t.completed || (t.target && t.target > 0 && (t.value || 0) >= t.target)).length;
+                        const dayKey = `past-${day.date}`;
+                        const isOpen = openSchedules.has(dayKey);
+                        return (
+                          <div key={day.date} className="border border-zinc-200 dark:border-zinc-700 rounded-lg">
+                            <button
+                              onClick={() => setOpenSchedules(prev => {
+                                const next = new Set(prev);
+                                if (next.has(dayKey)) next.delete(dayKey); else next.add(dayKey);
+                                return next;
+                              })}
+                              className="w-full px-4 py-2 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-800/30 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                            >
+                              <div className="flex items-center gap-2">
+                                <FaChevronDown className={`text-[10px] text-zinc-400 transition-transform ${isOpen ? '' : '-rotate-90'}`} />
+                                <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">{dateLabel}</span>
+                                <span className="text-xs text-zinc-400 dark:text-zinc-500">{completedCount}/{day.tasks.length}</span>
+                              </div>
+                            </button>
+                            {isOpen && (
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.5rem', padding: '0.5rem' }}>
+                                {day.tasks.map(task => {
+                                  const currentValue = task.value || 0;
+                                  const isDone = task.completed || (task.target != null && task.target > 0 && currentValue >= task.target);
+                                  const pendingKey = `${day.date}-${task.id}`;
+                                  return (
+                                    <div
+                                      key={pendingKey}
+                                      className={`rounded-lg px-3 py-2.5 transition-all ${
+                                        isDone
+                                          ? 'bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800'
+                                          : task.isHighlighted
+                                          ? 'bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800'
+                                          : 'bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700'
+                                      }`}
+                                      style={{ borderLeftWidth: 3, borderLeftColor: isDone ? '#4ade80' : task.isHighlighted ? '#F59E0B' : (task.pillarColor || '#6B7280') }}
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        {task.isHighlighted && <FaStar className="text-xs text-amber-500 shrink-0" />}
+                                        <div className="flex-1 min-w-0">
+                                          <h3 className={`text-sm font-semibold leading-snug ${isDone ? 'line-through text-zinc-400 dark:text-zinc-500' : 'text-zinc-900 dark:text-white'}`}>
+                                            {task.name}
+                                          </h3>
+                                          <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                                            {task.pillarEmoji && (
+                                              <span className="text-[11px] text-zinc-500 dark:text-zinc-400">{task.pillarEmoji} {task.pillarName}</span>
+                                            )}
+                                            <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{formatDate(day.date, dateFormat)}</span>
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 shrink-0">
+                                          {task.completionType === 'checkbox' && (
+                                            <button
+                                              onClick={() => handlePastComplete(day.date, task.id, !isDone)}
+                                              className={`w-7 h-7 rounded-md border-2 flex items-center justify-center transition-colors ${
+                                                isDone
+                                                  ? 'bg-green-500 border-green-500 text-white'
+                                                  : 'border-zinc-300 dark:border-zinc-600 hover:border-green-500'
+                                              }`}
+                                            >
+                                              {isDone && <FaCheck className="text-xs" />}
+                                            </button>
+                                          )}
+                                          {task.completionType === 'count' && (
+                                            <div className="flex items-center gap-1">
+                                              <button
+                                                onClick={() => handlePastCountChange(day.date, task, -1)}
+                                                className="w-6 h-6 rounded bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center hover:bg-zinc-300 dark:hover:bg-zinc-600"
+                                              >
+                                                <FaMinus className="text-[9px]" />
+                                              </button>
+                                              <span className={`text-xs font-bold min-w-[2.5rem] text-center ${
+                                                task.target && currentValue >= task.target ? 'text-green-600 dark:text-green-400' : 'text-zinc-900 dark:text-white'
+                                              }`}>
+                                                {currentValue}/{task.target || '?'}
+                                              </span>
+                                              <button
+                                                onClick={() => handlePastCountChange(day.date, task, 1)}
+                                                className="w-6 h-6 rounded bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 flex items-center justify-center hover:bg-zinc-800 dark:hover:bg-zinc-100"
+                                              >
+                                                <FaPlus className="text-[9px]" />
+                                              </button>
+                                            </div>
+                                          )}
+                                          {(task.completionType === 'numeric' || task.completionType === 'duration') && (
+                                            <div className="flex items-center gap-1">
+                                              <input
+                                                type="number"
+                                                value={pastPending[pendingKey] ?? (currentValue || '')}
+                                                onChange={(e) => setPastPending(prev => ({ ...prev, [pendingKey]: e.target.value }))}
+                                                onKeyDown={(e) => e.key === 'Enter' && handlePastNumericSubmit(day.date, task)}
+                                                placeholder={task.target ? String(task.target) : '0'}
+                                                className="w-14 px-1.5 py-1 text-xs text-right border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
+                                              />
+                                              {task.completionType === 'duration' && <span className="text-[10px] text-zinc-500 dark:text-zinc-400">m</span>}
+                                              {pastPending[pendingKey] !== undefined && (
+                                                <button
+                                                  onClick={() => handlePastNumericSubmit(day.date, task)}
+                                                  className="w-6 h-6 rounded bg-green-500 text-white flex items-center justify-center hover:bg-green-600"
+                                                >
+                                                  <FaCheck className="text-[9px]" />
+                                                </button>
+                                              )}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )
+                )}
+              </div>
             </div>
-          )
-        )}
+          );
+        })()}
 
       </motion.div>
 

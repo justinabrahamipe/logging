@@ -99,6 +99,9 @@ export default function GoalCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <h3 className="font-semibold text-zinc-900 dark:text-white truncate">{outcome.name}</h3>
+            <span className="text-[11px] px-1.5 py-px rounded-full font-medium bg-zinc-100 text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400 shrink-0">
+              {outcome.goalType === "habitual" ? "Habitual" : outcome.goalType === "target" || outcome.goalType === "effort" ? "Target" : "Outcome"}
+            </span>
             {!isActivityGoal && (
               outcome.direction === "decrease" ? (
                 <FaArrowDown className="text-xs text-green-500 shrink-0" />

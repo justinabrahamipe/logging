@@ -13,18 +13,10 @@ interface Pillar {
   color: string;
 }
 
-interface Outcome {
-  id: number;
-  pillarId: number | null;
-  name: string;
-  goalType: string;
-}
-
 export default function NewTaskPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [pillars, setPillars] = useState<Pillar[]>([]);
-  const [outcomes, setOutcomes] = useState<Outcome[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -33,19 +25,8 @@ export default function NewTaskPage() {
       return;
     }
     if (session?.user?.id) {
-      Promise.all([
-        fetch("/api/pillars").then((r) => (r.ok ? r.json() : [])),
-        fetch("/api/outcomes").then((r) => (r.ok ? r.json() : [])),
-      ]).then(([p, o]) => {
+      fetch("/api/pillars").then((r) => (r.ok ? r.json() : [])).then((p) => {
         setPillars(p);
-        setOutcomes(
-          o.map((x: Outcome & { pillarId: number | null; goalType: string }) => ({
-            id: x.id,
-            pillarId: x.pillarId,
-            name: x.name,
-            goalType: x.goalType || "outcome",
-          }))
-        );
         setLoading(false);
       });
     }
@@ -85,7 +66,6 @@ export default function NewTaskPage() {
       <TaskForm
         editingTask={null}
         pillars={pillars}
-        outcomes={outcomes}
         onCancel={() => router.push("/tasks")}
         onSave={handleSave}
         disabled={status !== "authenticated"}

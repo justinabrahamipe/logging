@@ -129,7 +129,7 @@ export default function GoalForm({
       dailyTarget: form.dailyTarget ? parseFloat(form.dailyTarget) : null,
     };
 
-    if (isHabitual || isTarget) {
+    {
       payload.autoCreateTasks = form.autoCreateTasks;
 
       let scheduleDays: number[] = [];
@@ -323,36 +323,8 @@ export default function GoalForm({
         </div>
       )}
 
-      {/* Row 3: Pillar + Repeat (or Pillar alone for outcome) */}
-      {(form.goalType === "habitual" || form.goalType === "target") ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Pillar (optional)</label>
-            <select
-              value={form.pillarId}
-              onChange={(e) => setForm({ ...form, pillarId: e.target.value })}
-              className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
-            >
-              <option value="">No Pillar</option>
-              {pillars.map((p) => (
-                <option key={p.id} value={p.id}>{p.emoji} {p.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Repeat</label>
-            <select
-              value={form.frequencyPreset}
-              onChange={(e) => setForm({ ...form, frequencyPreset: e.target.value })}
-              className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
-            >
-              {FREQUENCY_PRESETS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-      ) : (
+      {/* Row 3: Pillar + Repeat */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div>
           <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Pillar (optional)</label>
           <select
@@ -366,10 +338,22 @@ export default function GoalForm({
             ))}
           </select>
         </div>
-      )}
+        <div>
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Repeat</label>
+          <select
+            value={form.frequencyPreset}
+            onChange={(e) => setForm({ ...form, frequencyPreset: e.target.value })}
+            className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
+          >
+            {FREQUENCY_PRESETS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+      </div>
 
       {/* Custom repeat options */}
-      {(form.goalType === "habitual" || form.goalType === "target") && form.frequencyPreset === "custom" && (
+      {form.frequencyPreset === "custom" && (
         <div className="space-y-3 p-3 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
           <div>
             <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Repeat every</label>
@@ -478,7 +462,7 @@ export default function GoalForm({
 
       {/* Row 5: Auto-create toggle + action buttons */}
       <div className="flex flex-wrap items-center gap-3 pt-2">
-        {(form.goalType === "habitual" || form.goalType === "target") && !editingOutcome && (
+        {!editingOutcome && (
           <label className="flex items-center gap-2 cursor-pointer mr-auto">
             <div
               className={`relative w-10 h-6 rounded-full transition-colors ${

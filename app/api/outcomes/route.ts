@@ -99,51 +99,59 @@ export async function POST(request: Request) {
     linkedOutcomeId: null,
   }).returning();
 
-  // Auto-create a linked task for activity goals
-  if (isActivityGoal && autoCreateTasks && scheduleDays && scheduleDays.length > 0) {
+  // Auto-create individual tasks for the next 7 days that match the schedule
+  if (autoCreateTasks && scheduleDays && scheduleDays.length > 0) {
     const isHabitual = goalType === 'habitual';
-    const taskCompletionType = completionType || (isHabitual ? 'checkbox' : 'count');
+    const isOutcome = goalType === 'outcome';
+    const taskCompletionType = isOutcome ? 'numeric' : (completionType || (isHabitual ? 'checkbox' : 'count'));
     const totalScheduledDays = (effectiveStartDate && effectiveTargetDate)
       ? (countScheduledDaysInRange(effectiveStartDate, effectiveTargetDate, scheduleDays) || 1)
       : 1;
-    const taskDailyTarget = taskCompletionType === 'checkbox' ? null : (dailyTarget || (isHabitual ? null : Math.ceil((targetValue ?? 1) / totalScheduledDays)));
+    const taskDailyTarget = isOutcome
+      ? null
+      : (taskCompletionType === 'checkbox' ? null : (dailyTarget || (isHabitual ? null : Math.ceil((targetValue ?? 1) / totalScheduledDays))));
 
-    // Convert repeatUnit to task frequency/repeatInterval
-    let taskFrequency = 'custom';
-    let taskRepeatInterval: number | null = null;
-    const interval = parseInt(repeatInterval) || 1;
+    // Generate individual adhoc tasks for each matching day in the next 7 days
+    const today = new Date();
+    const taskValues = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() + i);
+      const dateStr = d.toISOString().split('T')[0];
 
-    if (repeatUnit === 'days') {
-      taskFrequency = 'interval';
-      taskRepeatInterval = interval;
-    } else if (repeatUnit === 'months') {
-      taskFrequency = 'monthly';
-      if (interval > 1) taskRepeatInterval = interval;
-    } else {
-      // weeks (default)
-      taskFrequency = 'custom';
-      if (interval > 1) taskRepeatInterval = interval * 7;
+      // Skip dates before the goal's start date
+      if (effectiveStartDate && dateStr < effectiveStartDate) continue;
+      // Skip dates after the goal's target date
+      if (effectiveTargetDate && dateStr > effectiveTargetDate) continue;
+
+      // Check if this day matches the schedule
+      const dow = d.getDay();
+      if (!scheduleDays.includes(dow)) continue;
+
+      taskValues.push({
+        userId: session.user.id,
+        name,
+        pillarId: pillarId || null,
+        completionType: taskCompletionType,
+        target: taskDailyTarget,
+        unit: taskCompletionType === 'checkbox' ? null : (unit || null),
+        frequency: 'adhoc' as const,
+        customDays: null,
+        repeatInterval: null,
+        outcomeId: outcome.id,
+        periodId: periodId || null,
+        startDate: dateStr,
+        basePoints: 10,
+        flexibilityRule: 'must_today',
+        importance: 'medium',
+        toleranceBefore: null,
+        toleranceAfter: null,
+      });
     }
 
-    await db.insert(tasks).values({
-      userId: session.user.id,
-      name,
-      pillarId: pillarId || null,
-      completionType: taskCompletionType,
-      target: taskDailyTarget,
-      unit: taskCompletionType === 'checkbox' ? null : (unit || null),
-      frequency: taskFrequency,
-      customDays: JSON.stringify(scheduleDays),
-      repeatInterval: taskRepeatInterval,
-      outcomeId: outcome.id,
-      periodId: periodId || null,
-      startDate: effectiveStartDate || null,
-      basePoints: 10,
-      flexibilityRule: 'must_today',
-      importance: 'medium',
-      toleranceBefore: null,
-      toleranceAfter: null,
-    });
+    if (taskValues.length > 0) {
+      await db.insert(tasks).values(taskValues);
+    }
   }
 
   return NextResponse.json(outcome, { status: 201 });

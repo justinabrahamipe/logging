@@ -54,29 +54,32 @@ export default function GoalsPage() {
         body: JSON.stringify({ value, note, loggedAt: logDate }),
       });
       if (res.ok) {
-        // Also create an ad-hoc task and mark it completed
-        const taskRes = await fetch("/api/tasks", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: `${logTarget.name}${note ? ` - ${note}` : ""}`,
-            pillarId: logTarget.pillarId || null,
-            completionType: logTarget.completionType || "numeric",
-            target: value,
-            unit: logTarget.unit || null,
-            frequency: "adhoc",
-            outcomeId: logTarget.id,
-            basePoints: 10,
-            startDate: logDate || today,
-          }),
-        });
-        if (taskRes.ok) {
-          const task = await taskRes.json();
-          await fetch("/api/tasks/complete", {
+        // Only create an ad-hoc task if the outcome does NOT have autoCreateTasks enabled
+        // (when autoCreateTasks is on, a recurring task already exists for this outcome)
+        if (!logTarget.autoCreateTasks) {
+          const taskRes = await fetch("/api/tasks", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ taskId: task.id, date: logDate || today, completed: true, value }),
+            body: JSON.stringify({
+              name: `${logTarget.name}${note ? ` - ${note}` : ""}`,
+              pillarId: logTarget.pillarId || null,
+              completionType: logTarget.completionType || "numeric",
+              target: value,
+              unit: logTarget.unit || null,
+              frequency: "adhoc",
+              outcomeId: logTarget.id,
+              basePoints: 10,
+              startDate: logDate || today,
+            }),
           });
+          if (taskRes.ok) {
+            const task = await taskRes.json();
+            await fetch("/api/tasks/complete", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ taskId: task.id, date: logDate || today, completed: true, value }),
+            });
+          }
         }
         await fetchOutcomes();
         setSnackbar({ open: true, message: "Progress logged successfully", severity: "success" });
@@ -147,6 +150,7 @@ export default function GoalsPage() {
         <div className="flex items-center justify-between mb-6 gap-2">
           <div className="hidden md:flex gap-2">
             {([
+              { key: "all" as const, label: "All" },
               { key: "habitual" as const, label: "Habitual" },
               { key: "target" as const, label: "Target" },
               { key: "outcome" as const, label: "Outcome" },
@@ -166,9 +170,10 @@ export default function GoalsPage() {
           </div>
           <select
             value={goalTab}
-            onChange={(e) => setGoalTab(e.target.value as "habitual" | "target" | "outcome")}
+            onChange={(e) => setGoalTab(e.target.value as "all" | "habitual" | "target" | "outcome")}
             className="md:hidden px-3 py-2 text-sm font-semibold rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white"
           >
+            <option value="all">All</option>
             <option value="habitual">Habitual</option>
             <option value="target">Target</option>
             <option value="outcome">Outcome</option>
@@ -240,9 +245,9 @@ export default function GoalsPage() {
           })
         ) : (
           <div className="text-center py-12 text-zinc-500 dark:text-zinc-400">
-            <p className="text-lg mb-2">No {timeTab} {goalTab} goals</p>
+            <p className="text-lg mb-2">No {timeTab} {goalTab === "all" ? "" : goalTab + " "}goals</p>
             <p className="text-sm">
-              {timeTab === "current" && `Create a ${goalTab} goal to see it here`}
+              {timeTab === "current" && (goalTab === "all" ? "Create a goal to see it here" : `Create a ${goalTab} goal to see it here`)}
               {timeTab === "future" && "Goals with a future start date will appear here"}
               {timeTab === "past" && "Goals whose target date has passed will appear here"}
             </p>
