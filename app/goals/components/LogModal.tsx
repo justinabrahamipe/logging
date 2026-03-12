@@ -28,6 +28,10 @@ export default function LogModal({
       }
       return "1";
     }
+    if (logTarget.goalType === "habitual") {
+      if (logTarget.completionType === "checkbox") return "1";
+      return String(logTarget.dailyTarget || 1);
+    }
     return String(logTarget.currentValue);
   };
 
