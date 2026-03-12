@@ -122,6 +122,65 @@ const runMigrations = async () => {
     console.error('Error setting up auth tables:', error);
   }
 
+  // Schema rename/cleanup migrations (idempotent)
+  console.log('Running schema rename/cleanup...');
+  const tables = await client.execute("SELECT name FROM sqlite_master WHERE type='table'");
+  const tableNames = tables.rows.map(r => r.name as string);
+
+  // Rename Outcome → Goal
+  if (tableNames.includes('Outcome') && !tableNames.includes('Goal')) {
+    console.log('  Renaming Outcome → Goal...');
+    await client.execute('ALTER TABLE "Outcome" RENAME TO "Goal"');
+  }
+
+  // Rename TwelveWeekYear → Cycle
+  if (tableNames.includes('TwelveWeekYear') && !tableNames.includes('Cycle')) {
+    console.log('  Renaming TwelveWeekYear → Cycle...');
+    await client.execute('ALTER TABLE "TwelveWeekYear" RENAME TO "Cycle"');
+  }
+
+  // Rename Task.outcomeId → Task.goalId
+  try {
+    const taskInfo = await client.execute("PRAGMA table_info('Task')");
+    const hasOutcomeId = taskInfo.rows.some(r => r.name === 'outcomeId');
+    const hasGoalId = taskInfo.rows.some(r => r.name === 'goalId');
+    if (hasOutcomeId && !hasGoalId) {
+      console.log('  Renaming Task.outcomeId → Task.goalId...');
+      await client.execute('ALTER TABLE "Task" RENAME COLUMN "outcomeId" TO "goalId"');
+    }
+  } catch (e: any) {
+    console.log('  Column rename skipped:', e.message);
+  }
+
+  // Drop unused tables
+  for (const t of ['OutcomeLog', 'WeeklyTarget', 'WeeklyReview', 'UserStats', 'TwelveWeekGoal', 'TwelveWeekTactic']) {
+    if (tableNames.includes(t)) {
+      console.log(`  Dropping ${t}...`);
+      await client.execute(`DROP TABLE IF EXISTS "${t}"`);
+    }
+  }
+
+  // Drop removed columns
+  const colDrops: [string, string][] = [
+    ['DailyScore', 'xpEarned'],
+    ['DailyScore', 'streakBonus'],
+    ['ActivityLog', 'outcomeLogId'],
+    ['ActivityLog', 'goalLogId'],
+  ];
+  for (const [table, col] of colDrops) {
+    try {
+      const info = await client.execute(`PRAGMA table_info('${table}')`);
+      if (info.rows.some(r => r.name === col)) {
+        console.log(`  Dropping ${table}.${col}...`);
+        await client.execute(`ALTER TABLE "${table}" DROP COLUMN "${col}"`);
+      }
+    } catch (e: any) {
+      console.log(`  ${table}.${col} drop skipped:`, e.message);
+    }
+  }
+
+  console.log('Schema rename/cleanup done.\n');
+
   // Get migration files
   const migrationsDir = path.join(process.cwd(), 'drizzle/migrations');
   const migrationFiles = fs.readdirSync(migrationsDir)
