@@ -31,7 +31,7 @@ function applyTheme(themeValue: Theme) {
     document.documentElement.classList.add("dark");
   } else if (themeValue === "light") {
     document.documentElement.classList.remove("dark");
-  } else if (themeValue === "system") {
+  } else {
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     if (prefersDark) {
       document.documentElement.classList.add("dark");
@@ -42,33 +42,54 @@ function applyTheme(themeValue: Theme) {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("light");
+  const [theme, setThemeState] = useState<Theme>("system");
   const [dateFormat, setDateFormatState] = useState<DateFormat>("DD/MM/YYYY");
   const [timeFormat, setTimeFormatState] = useState<TimeFormat>("12h");
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load preferences from database on mount
+  // Load preferences: localStorage first, then API as fallback, then system default
   useEffect(() => {
     async function loadPreferences() {
+      // 1. Check localStorage first
+      const localTheme = localStorage.getItem("theme") as Theme | null;
+      const localDateFmt = localStorage.getItem("dateFormat") as DateFormat | null;
+      const localTimeFmt = localStorage.getItem("timeFormat") as TimeFormat | null;
+
+      if (localTheme) {
+        setThemeState(localTheme);
+        applyTheme(localTheme);
+      }
+      if (localDateFmt) setDateFormatState(localDateFmt);
+      if (localTimeFmt) setTimeFormatState(localTimeFmt);
+
+      // 2. If localStorage had theme, we're done — no API call needed
+      if (localTheme) {
+        setIsLoading(false);
+        return;
+      }
+
+      // 3. No localStorage — try API
       try {
         const response = await fetch("/api/settings");
         if (response.ok) {
           const data = await response.json();
-          const userTheme = (data.theme || "light") as Theme;
-          setThemeState(userTheme);
-          applyTheme(userTheme);
-          localStorage.setItem("theme", userTheme);
+          if (data.theme) {
+            setThemeState(data.theme);
+            applyTheme(data.theme);
+            localStorage.setItem("theme", data.theme);
+          } else {
+            // API has no theme saved — use system
+            applyTheme("system");
+          }
           if (data.dateFormat) { setDateFormatState(data.dateFormat); localStorage.setItem("dateFormat", data.dateFormat); }
           if (data.timeFormat) { setTimeFormatState(data.timeFormat); localStorage.setItem("timeFormat", data.timeFormat); }
+        } else {
+          // API failed — use system
+          applyTheme("system");
         }
-      } catch (error) {
-        console.error("Failed to load preferences:", error);
-        const localTheme = localStorage.getItem("theme") as Theme;
-        if (localTheme) { setThemeState(localTheme); applyTheme(localTheme); } else { applyTheme("light"); }
-        const localDateFmt = localStorage.getItem("dateFormat") as DateFormat;
-        if (localDateFmt) setDateFormatState(localDateFmt);
-        const localTimeFmt = localStorage.getItem("timeFormat") as TimeFormat;
-        if (localTimeFmt) setTimeFormatState(localTimeFmt);
+      } catch {
+        // Network error — use system
+        applyTheme("system");
       } finally {
         setIsLoading(false);
       }
@@ -77,14 +98,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     loadPreferences();
   }, []);
 
-  // Listen for system theme changes when theme is set to "system"
+  // Listen for system theme changes when theme is "system"
   useEffect(() => {
     if (theme !== "system") return;
 
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const handleChange = () => {
-      applyTheme("system");
-    };
+    const handleChange = () => applyTheme("system");
 
     mediaQuery.addEventListener("change", handleChange);
     return () => mediaQuery.removeEventListener("change", handleChange);
@@ -94,6 +113,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setThemeState(newTheme);
     applyTheme(newTheme);
     localStorage.setItem("theme", newTheme);
+
+    // Lazy save to DB
+    fetch("/api/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ theme: newTheme }),
+    }).catch(() => {});
   };
 
   const setDateFormat = (f: DateFormat) => {

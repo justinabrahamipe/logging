@@ -307,17 +307,4 @@ export const cyclesRelations = relations(cycles, ({ many }) => ({
   linkedGoals: many(goals),
 }));
 
-// GeneratedReports table
-export const generatedReports = sqliteTable('GeneratedReport', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  userId: text('userId').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  type: text('type').notNull(), // 'weekly' | 'monthly'
-  periodStart: text('periodStart').notNull(), // YYYY-MM-DD
-  periodEnd: text('periodEnd').notNull(), // YYYY-MM-DD
-  data: text('data').notNull(), // JSON string of the full report payload
-  generatedAt: integer('generatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
-}, (table) => ({
-  userIdIdx: index('GeneratedReport_userId_idx').on(table.userId),
-  userTypePeriodUnique: unique().on(table.userId, table.type, table.periodStart),
-}));
 

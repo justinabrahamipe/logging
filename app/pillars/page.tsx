@@ -165,6 +165,13 @@ export default function PillarsPage() {
 
   const totalWeight = pillars.reduce((sum, p) => sum + p.weight, 0);
 
+  // Compute effective weights: unweighted pillars share remaining weight equally
+  const assignedWeight = pillars.reduce((sum, p) => sum + (p.weight || 0), 0);
+  const unweightedCount = pillars.filter(p => !p.weight || p.weight === 0).length;
+  const remainingWeight = Math.max(0, 100 - assignedWeight);
+  const autoWeight = unweightedCount > 0 ? Math.round(remainingWeight / unweightedCount) : 0;
+  const getEffectiveWeight = (p: { weight: number }) => p.weight || autoWeight;
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -210,15 +217,24 @@ export default function PillarsPage() {
                 )}
               </div>
             </div>
-            <div className="flex h-4 rounded-full overflow-hidden bg-zinc-200 dark:bg-zinc-700">
-              {pillars.map((p) => (
-                <div
-                  key={p.id}
-                  style={{ width: `${p.weight}%`, backgroundColor: p.color }}
-                  className="transition-all"
-                  title={`${p.name}: ${p.weight}%`}
-                />
-              ))}
+            <div className="flex h-6 rounded-full overflow-hidden bg-zinc-200 dark:bg-zinc-700">
+              {pillars.map((p) => {
+                const ew = getEffectiveWeight(p);
+                return (
+                  <div
+                    key={p.id}
+                    style={{ width: `${ew}%`, backgroundColor: p.color }}
+                    className="transition-all flex items-center justify-center overflow-hidden"
+                    title={`${p.name}: ${ew}%`}
+                  >
+                    {ew >= 15 && (
+                      <span className="text-[10px] font-medium text-white truncate px-1">
+                        {p.name} {ew}%
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -253,7 +269,7 @@ export default function PillarsPage() {
                     {latestAvg != null && (
                       <span className="text-sm font-bold" style={{ color: pillar.color }}>{latestAvg}%</span>
                     )}
-                    <span className="text-xs text-zinc-500 dark:text-zinc-400">{pillar.weight}%w</span>
+                    <span className="text-xs text-zinc-500 dark:text-zinc-400">{getEffectiveWeight(pillar)}%</span>
                     <button
                       onClick={() => handleReorder(pillar.id, 'up')}
                       disabled={idx === 0}

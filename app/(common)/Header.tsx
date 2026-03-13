@@ -15,6 +15,7 @@ import { useTheme } from "@/components/ThemeProvider";
 
 export default function Header() {
   const { theme, setTheme } = useTheme();
+  const [isDark, setIsDark] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
@@ -35,6 +36,15 @@ export default function Header() {
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [isProfileMenuOpen]);
+
+  // Track actual dark mode state reactively
+  useEffect(() => {
+    const check = () => setIsDark(document.documentElement.classList.contains('dark'));
+    check();
+    const observer = new MutationObserver(check);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -70,17 +80,18 @@ export default function Header() {
     streak: number;
     momentum: number | null;
     trajectory: number | null;
-  } | null>(() => {
-    if (typeof window === 'undefined') return null;
+  } | null>(null);
+
+  // Load cached stats from sessionStorage on mount
+  useEffect(() => {
     try {
       const cached = sessionStorage.getItem('header-stats');
       if (cached) {
         const { data, date } = JSON.parse(cached);
-        if (date === new Date().toISOString().split("T")[0]) return data;
+        if (date === new Date().toISOString().split("T")[0]) setHeaderStats(data);
       }
     } catch { /* ignore */ }
-    return null;
-  });
+  }, []);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -224,21 +235,21 @@ export default function Header() {
 
             {/* Theme Toggle */}
             <button
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              onClick={() => setTheme(isDark ? "light" : "dark")}
               className="ml-2 p-1.5 rounded-md text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
               aria-label="Toggle theme"
             >
-              {theme === "dark" ? <FaSun className="text-sm" /> : <FaMoon className="text-sm" />}
+              {isDark ? <FaSun className="text-sm" /> : <FaMoon className="text-sm" />}
             </button>
 
             {/* Install App (visible regardless of login) */}
             {isInstallable && (
               <button
                 onClick={handleInstallClick}
-                className="ml-2 px-3 py-1.5 rounded-md text-sm flex items-center gap-1.5 text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                title="Install App"
+                className="ml-2 p-1.5 rounded-md text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
               >
-                <FaDownload className="text-xs" />
-                Install App
+                <FaDownload className="text-sm" />
               </button>
             )}
 
@@ -284,16 +295,6 @@ export default function Header() {
                           </button>
                         </Link>
 
-                        <Link href="/reports">
-                          <button
-                            onClick={() => setIsProfileMenuOpen(false)}
-                            className="w-full px-3 py-2 text-left flex items-center gap-2.5 text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
-                          >
-                            <FaChartLine className="text-xs" />
-                            Reports
-                          </button>
-                        </Link>
-
                         <Link href="/settings">
                           <button
                             onClick={() => setIsProfileMenuOpen(false)}
@@ -330,11 +331,11 @@ export default function Header() {
           {/* Mobile Menu Button */}
           <div className="md:hidden flex items-center gap-1.5">
             <button
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              onClick={() => setTheme(isDark ? "light" : "dark")}
               className="p-1.5 rounded-md text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
               aria-label="Toggle theme"
             >
-              {theme === "dark" ? <FaSun className="text-sm" /> : <FaMoon className="text-sm" />}
+              {isDark ? <FaSun className="text-sm" /> : <FaMoon className="text-sm" />}
             </button>
 
             {isLoggedIn && (

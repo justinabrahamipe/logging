@@ -2,20 +2,18 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { FaClock, FaCalendar, FaCheck, FaMoon, FaSun, FaDesktop, FaCog, FaDatabase, FaTrash, FaDownload, FaExclamationTriangle, FaTasks, FaColumns } from "react-icons/fa";
+import { FaClock, FaCalendar, FaCheck, FaCog, FaDatabase, FaTrash, FaDownload, FaExclamationTriangle, FaTasks, FaColumns } from "react-icons/fa";
 import { useSession } from "next-auth/react";
 import { useTheme } from "@/components/ThemeProvider";
 import { Snackbar, Alert as MuiAlert } from "@mui/material";
 
 type TimeFormat = "12h" | "24h";
 type DateFormat = "DD/MM/YYYY" | "MM/DD/YYYY" | "YYYY-MM-DD" | "DD-MM-YYYY" | "MM-DD-YYYY";
-type Theme = "light" | "dark" | "system";
 
 
 export default function SettingsPage() {
   const { data: session } = useSession();
-  const { theme, setTheme: setGlobalTheme, dateFormat: globalDateFormat, timeFormat: globalTimeFormat, setDateFormat: setGlobalDateFormat, setTimeFormat: setGlobalTimeFormat } = useTheme();
-  const [localTheme, setLocalTheme] = useState<Theme>(theme);
+  const { dateFormat: globalDateFormat, timeFormat: globalTimeFormat, setDateFormat: setGlobalDateFormat, setTimeFormat: setGlobalTimeFormat } = useTheme();
   const [timeFormat, setTimeFormat] = useState<TimeFormat>(globalTimeFormat);
   const [dateFormat, setDateFormat] = useState<DateFormat>(globalDateFormat);
 
@@ -34,7 +32,6 @@ export default function SettingsPage() {
     severity: "info",
   });
 
-  useEffect(() => { setLocalTheme(theme); }, [theme]);
   useEffect(() => { setDateFormat(globalDateFormat); }, [globalDateFormat]);
   useEffect(() => { setTimeFormat(globalTimeFormat); }, [globalTimeFormat]);
 
@@ -52,7 +49,6 @@ export default function SettingsPage() {
     if (cached) {
       try {
         const data = JSON.parse(cached);
-        setLocalTheme(data.theme || "light");
         setTimeFormat(data.timeFormat || "12h");
         setDateFormat(data.dateFormat || "DD/MM/YYYY");
       } catch {}
@@ -62,7 +58,6 @@ export default function SettingsPage() {
       const response = await fetch("/api/settings");
       if (response.ok) {
         const data = await response.json();
-        setLocalTheme(data.theme || "light");
         setTimeFormat(data.timeFormat || "12h");
         setDateFormat(data.dateFormat || "DD/MM/YYYY");
         sessionStorage.setItem('userSettings', JSON.stringify(data));
@@ -76,11 +71,9 @@ export default function SettingsPage() {
   };
 
   const loadFromLocalStorage = () => {
-    const savedTheme = localStorage.getItem("theme") as Theme;
     const savedTimeFormat = localStorage.getItem("timeFormat") as TimeFormat;
     const savedDateFormat = localStorage.getItem("dateFormat") as DateFormat;
 
-    if (savedTheme) setLocalTheme(savedTheme);
     if (savedTimeFormat) setTimeFormat(savedTimeFormat);
     if (savedDateFormat) setDateFormat(savedDateFormat);
     setLoading(false);
@@ -93,20 +86,17 @@ export default function SettingsPage() {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            theme: localTheme,
             timeFormat,
             dateFormat,
           }),
         });
 
         if (response.ok) {
-          setGlobalTheme(localTheme);
           setGlobalDateFormat(dateFormat);
           setGlobalTimeFormat(timeFormat);
           setSaved(true);
 
           const settingsData = {
-            theme: localTheme,
             timeFormat,
             dateFormat,
           };
@@ -118,10 +108,8 @@ export default function SettingsPage() {
         console.error("Error saving settings:", error);
       }
     } else {
-      localStorage.setItem("theme", localTheme);
       localStorage.setItem("timeFormat", timeFormat);
       localStorage.setItem("dateFormat", dateFormat);
-      setGlobalTheme(localTheme);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     }
@@ -152,12 +140,6 @@ export default function SettingsPage() {
 
   const timeOptions: TimeFormat[] = ["12h", "24h"];
   const dateOptions: DateFormat[] = ["DD/MM/YYYY", "MM/DD/YYYY", "YYYY-MM-DD", "DD-MM-YYYY", "MM-DD-YYYY"];
-
-  const themeOptions: { value: Theme; label: string; icon: typeof FaMoon }[] = [
-    { value: "light", label: "Light", icon: FaSun },
-    { value: "dark", label: "Dark", icon: FaMoon },
-    { value: "system", label: "System", icon: FaDesktop },
-  ];
 
   const handleExportData = async (type: string) => {
     setIsExporting(true);
@@ -225,53 +207,35 @@ export default function SettingsPage() {
         transition={{ duration: 0.3 }}
       >
         {/* Header */}
-        <div className="flex items-center gap-3 mb-6 md:mb-8">
-          <div className="w-10 h-10 md:w-12 md:h-12 bg-zinc-900 dark:bg-zinc-100 rounded-xl flex items-center justify-center shadow-sm">
-            <FaCog className="text-white dark:text-zinc-900 text-xl md:text-2xl" />
+        <div className="flex items-center justify-between mb-6 md:mb-8">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 md:w-12 md:h-12 bg-zinc-900 dark:bg-zinc-100 rounded-xl flex items-center justify-center shadow-sm">
+              <FaCog className="text-white dark:text-zinc-900 text-xl md:text-2xl" />
+            </div>
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold text-zinc-900 dark:text-white">Settings</h1>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400 hidden sm:block">Manage your application preferences</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-zinc-900 dark:text-white">Settings</h1>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400 hidden sm:block">Manage your application preferences</p>
-          </div>
+          <motion.button
+            onClick={handleSave}
+            className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+              saved
+                ? "bg-green-500 hover:bg-green-600 text-white"
+                : "bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100"
+            }`}
+          >
+            {saved ? (
+              <span className="flex items-center gap-1.5">
+                <FaCheck className="text-xs" /> Saved!
+              </span>
+            ) : (
+              "Save"
+            )}
+          </motion.button>
         </div>
 
         <div className="space-y-4 md:space-y-6">
-            {/* Theme Preference */}
-            <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4 md:p-6">
-              <div className="flex items-center gap-2 md:gap-3 mb-3 md:mb-4">
-                <div className="p-2 md:p-3 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
-                  <FaMoon className="text-xl md:text-2xl text-zinc-600 dark:text-zinc-400" />
-                </div>
-                <div>
-                  <h2 className="text-lg md:text-2xl font-semibold text-zinc-900 dark:text-white">Theme</h2>
-                  <p className="text-xs md:text-sm text-zinc-600 dark:text-zinc-400">Choose your preferred theme</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
-                {themeOptions.map((option) => (
-                  <motion.button
-                    key={option.value}
-                    onClick={() => setLocalTheme(option.value)}
-                    className={`p-4 rounded-lg border-2 transition-all ${
-                      localTheme === option.value
-                        ? "border-zinc-900 dark:border-zinc-100 bg-zinc-100 dark:bg-zinc-800"
-                        : "border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="text-left">
-                        <div className="flex items-center gap-2">
-                          <option.icon className="text-lg text-zinc-600 dark:text-zinc-400" />
-                          <span className="font-semibold text-zinc-900 dark:text-white">{option.label}</span>
-                        </div>
-                      </div>
-                      {localTheme === option.value && <FaCheck className="text-zinc-900 dark:text-zinc-100" />}
-                    </div>
-                  </motion.button>
-                ))}
-              </div>
-            </div>
 
             {/* Time Format */}
             <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4 md:p-6">
@@ -343,23 +307,6 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            {/* Save Button */}
-            <motion.button
-              onClick={handleSave}
-              className={`w-full py-3 md:py-4 rounded-lg font-semibold text-base md:text-lg transition-all touch-target ${
-                saved
-                  ? "bg-green-500 hover:bg-green-600 text-white"
-                  : "bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100"
-              }`}
-            >
-              {saved ? (
-                <span className="flex items-center justify-center gap-2">
-                  <FaCheck /> Saved Successfully!
-                </span>
-              ) : (
-                "Save Preferences"
-              )}
-            </motion.button>
             {/* Export Data */}
             <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4 md:p-6">
               <div className="flex items-center gap-3 mb-4">
