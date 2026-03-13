@@ -102,12 +102,16 @@ export async function GET() {
     };
   });
 
+  // Return null for overall when there are no goals, so the UI hides the stat
+  const hasMomentumGoals = userGoals.some(g => g.goalType === 'habitual' || g.goalType === 'target');
+  const hasOutcomeGoals = userGoals.some(g => g.goalType === 'outcome');
+
   return NextResponse.json({
-    overall: summary.overall,
+    overall: hasMomentumGoals ? summary.overall : null,
     pillars: pillarInfo,
     goals: goalDetails,
     trajectory: {
-      overall: trajectorySummary.overall,
+      overall: hasOutcomeGoals ? trajectorySummary.overall : null,
       goals: trajectoryDetails,
     },
   });
