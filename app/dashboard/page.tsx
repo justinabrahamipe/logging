@@ -783,8 +783,9 @@ export default function DashboardPage() {
         setTodayTaskCount(count);
       }
 
-      // Auto-seed for new users with no data
-      if (scoreData && scoreData.totalTasks === 0 && !seedingRef.current) {
+      // Auto-seed for new users with no data (skip if user just did a blank reset)
+      const skipSeed = sessionStorage.getItem('skip-auto-seed');
+      if (scoreData && scoreData.totalTasks === 0 && !seedingRef.current && !skipSeed) {
         seedingRef.current = true;
         setSeeding(true);
         const seedRes = await fetch("/api/seed", { method: "POST" });
@@ -928,6 +929,7 @@ export default function DashboardPage() {
                   onClick={async () => {
                     if (!confirm("Clear all sample data? This will remove all pillars, tasks, and scores.")) return;
                     await fetch("/api/seed", { method: "DELETE" });
+                    sessionStorage.setItem('skip-auto-seed', 'true');
                     window.location.reload();
                   }}
                   className="px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 border border-red-300 dark:border-red-600 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
