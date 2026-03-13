@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { db, userPreferences } from "@/lib/db";
+import { db, userPreferences, users } from "@/lib/db";
 import { eq } from "drizzle-orm";
 
 export async function GET() {
@@ -16,6 +16,20 @@ export async function GET() {
     });
 
     if (!preferences) {
+      // Verify user exists before attempting insert
+      const user = await db.query.users.findFirst({
+        where: eq(users.id, session.user.id),
+        columns: { id: true },
+      });
+      if (!user) {
+        return NextResponse.json({
+          theme: "light",
+          timeFormat: "12h",
+          dateFormat: "DD/MM/YYYY",
+          weekdayPassThreshold: 70,
+          weekendPassThreshold: 70,
+        });
+      }
       const [created] = await db.insert(userPreferences).values({
         userId: session.user.id,
         theme: "light",

@@ -305,26 +305,39 @@ export default function TaskForm({
         </div>
       </div>
 
-      {/* Goal */}
-      {goals.length > 0 && (
+      {/* Goal + Task Date */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {goals.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+              Linked Goal <span className="text-zinc-400 font-normal">(optional)</span>
+            </label>
+            <select
+              value={form.goalId}
+              onChange={(e) => setForm({ ...form, goalId: parseInt(e.target.value) || 0 })}
+              className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
+            >
+              <option value={0}>None</option>
+              {goals.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.pillarEmoji ? `${g.pillarEmoji} ` : ''}{g.name} ({g.goalType})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <div>
           <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-            Linked Goal <span className="text-zinc-400 font-normal">(optional)</span>
+            Task Date <span className="text-zinc-400 font-normal">(optional)</span>
           </label>
-          <select
-            value={form.goalId}
-            onChange={(e) => setForm({ ...form, goalId: parseInt(e.target.value) || 0 })}
+          <input
+            type="date"
+            value={form.startDate}
+            onChange={(e) => setForm({ ...form, startDate: e.target.value })}
             className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
-          >
-            <option value={0}>None</option>
-            {goals.map((g) => (
-              <option key={g.id} value={g.id}>
-                {g.pillarEmoji ? `${g.pillarEmoji} ` : ''}{g.name} ({g.goalType})
-              </option>
-            ))}
-          </select>
+          />
         </div>
-      )}
+      </div>
 
       {/* Completion Type + Repeat */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -362,48 +375,35 @@ export default function TaskForm({
         </div>
       </div>
 
-      {/* Target & Unit + Task Date */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {form.completionType !== "checkbox" && (
-          <>
+      {/* Target & Unit */}
+      {form.completionType !== "checkbox" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+              {form.completionType === "duration" ? "Target (minutes)" : "Target"}
+            </label>
+            <input
+              type="number"
+              value={form.target}
+              onChange={(e) => setForm({ ...form, target: e.target.value })}
+              className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
+              placeholder={form.completionType === "duration" ? "e.g., 30" : "e.g., 8"}
+            />
+          </div>
+          {form.completionType !== "duration" && (
             <div>
-              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                {form.completionType === "duration" ? "Target (minutes)" : "Target"}
-              </label>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Unit</label>
               <input
-                type="number"
-                value={form.target}
-                onChange={(e) => setForm({ ...form, target: e.target.value })}
+                type="text"
+                value={form.unit}
+                onChange={(e) => setForm({ ...form, unit: e.target.value })}
                 className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
-                placeholder={form.completionType === "duration" ? "e.g., 30" : "e.g., 8"}
+                placeholder="e.g., glasses"
               />
             </div>
-            {form.completionType !== "duration" && (
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Unit</label>
-                <input
-                  type="text"
-                  value={form.unit}
-                  onChange={(e) => setForm({ ...form, unit: e.target.value })}
-                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
-                  placeholder="e.g., glasses"
-                />
-              </div>
-            )}
-          </>
-        )}
-        <div>
-          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-            Task Date <span className="text-zinc-400 font-normal">(optional)</span>
-          </label>
-          <input
-            type="date"
-            value={form.startDate}
-            onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-            className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
-          />
+          )}
         </div>
-      </div>
+      )}
 
       {/* Custom recurrence */}
       {form.frequencyPreset === "custom" && (

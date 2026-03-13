@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaPlus, FaEdit, FaTrash, FaCheck, FaMinus, FaPlay, FaStop, FaEllipsisV, FaCopy, FaChevronDown, FaStar, FaTimes, FaArrowLeft, FaArrowRight } from "react-icons/fa";
 import { useSession } from "next-auth/react";
@@ -9,6 +9,8 @@ import { Snackbar, Alert as MuiAlert } from "@mui/material";
 import { DEMO_TASK_GROUPS, DEMO_PILLARS } from "@/lib/demo-data";
 import { useTheme } from "@/components/ThemeProvider";
 import { formatDate } from "@/lib/format";
+import { DayPicker } from "react-day-picker";
+import "react-day-picker/style.css";
 
 interface Pillar {
   id: number;
@@ -172,29 +174,91 @@ export default function TasksPage() {
   const [pastDays, setPastDays] = useState<{ date: string; tasks: { id: number; name: string; completionType: string; target: number | null; unit: string | null; goalId: number | null; pillarName: string | null; pillarColor: string | null; pillarEmoji: string | null; completed: boolean; value: number | null; isHighlighted: boolean }[] }[]>([]);
   const [pastPending, setPastPending] = useState<Record<string, string>>({});
   const [pastLoading, setPastLoading] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<'all' | 'todo' | 'done'>(() => {
+  const [filters, setFilters] = useState<{
+    date: { type: 'today' | 'tomorrow' | 'week' | 'single' | 'range' | 'no-date'; value?: string; endDate?: string };
+    status: 'all' | 'todo' | 'done' | 'discarded';
+    pillars: number[];
+    goals: number[];
+  }>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('tasks-status-filter');
-      if (saved === 'all' || saved === 'todo' || saved === 'done') return saved;
+      const saved = localStorage.getItem('tasks-filters');
+      if (saved) {
+        try { return JSON.parse(saved); } catch { /* ignore */ }
+      }
+      const oldDate = localStorage.getItem('tasks-date-filter');
+      const oldStatus = localStorage.getItem('tasks-status-filter');
+      if (oldDate || oldStatus) {
+        const migrated = {
+          date: { type: (['today', 'tomorrow', 'week', 'no-date'].includes(oldDate || '') ? oldDate : 'today') as 'today' | 'tomorrow' | 'week' | 'single' | 'range' | 'no-date' },
+          status: (['todo', 'done'].includes(oldStatus || '') ? oldStatus : 'all') as 'all' | 'todo' | 'done' | 'discarded',
+          pillars: [] as number[],
+          goals: [] as number[],
+        };
+        localStorage.removeItem('tasks-date-filter');
+        localStorage.removeItem('tasks-status-filter');
+        return migrated;
+      }
     }
-    return 'all';
+    return { date: { type: 'today' as const }, status: 'all' as const, pillars: [] as number[], goals: [] as number[] };
   });
+  const [activePopover, setActivePopover] = useState<null | 'add' | 'date' | 'status' | 'pillar' | 'goal'>(null);
+  const [datePickerMode, setDatePickerMode] = useState<null | 'single' | 'range'>(null);
+  const [pendingRange, setPendingRange] = useState<{ from: Date; to?: Date } | undefined>(undefined);
   const [openSchedules, setOpenSchedules] = useState<Set<string>>(new Set(['Today']));
   const [scoreSummary, setScoreSummary] = useState<ScoreSummary | null>(null);
   const [timers, setTimers] = useState<Record<number, { running: boolean; elapsed: number; interval?: NodeJS.Timeout }>>({});
   const [pendingValues, setPendingValues] = useState<Record<number, string>>({});
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
   const [actionLoading, setActionLoading] = useState<Record<number, boolean>>({});
-  const pastFetchedRef = useRef(false);
   const [authSnackbar, setAuthSnackbar] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const today = new Date().toISOString().split('T')[0];
 
-  // Save statusFilter to localStorage
+  // Date label for chip display
+  const getDateLabel = useCallback(() => {
+    const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const todayDate = new Date(today + 'T12:00:00');
+    switch (filters.date.type) {
+      case 'today': return `Today (${fmt(todayDate)})`;
+      case 'tomorrow': { const d = new Date(todayDate); d.setDate(d.getDate() + 1); return `Tomorrow (${fmt(d)})`; }
+      case 'week': {
+        const dayOfWeek = todayDate.getDay();
+        const daysUntilFriday = dayOfWeek <= 5 ? 5 - dayOfWeek : 5 + 7 - dayOfWeek;
+        const weekEnd = new Date(todayDate); weekEnd.setDate(weekEnd.getDate() + daysUntilFriday);
+        return `This Week (${fmt(todayDate)} – ${fmt(weekEnd)})`;
+      }
+      case 'single': return filters.date.value ? formatDate(filters.date.value, dateFormat) : 'Pick Date';
+      case 'range': {
+        if (filters.date.value && filters.date.endDate) {
+          return `${fmt(new Date(filters.date.value + 'T12:00:00'))} – ${fmt(new Date(filters.date.endDate + 'T12:00:00'))}`;
+        }
+        return 'Date Range';
+      }
+      case 'no-date': return 'No Date';
+    }
+  }, [today, filters.date, dateFormat]);
+
+  const closePopover = useCallback(() => {
+    setActivePopover(null);
+    setDatePickerMode(null);
+    setPendingRange(undefined);
+  }, []);
+
+  // Save filters to localStorage
   useEffect(() => {
-    localStorage.setItem('tasks-status-filter', statusFilter);
-  }, [statusFilter]);
+    localStorage.setItem('tasks-filters', JSON.stringify(filters));
+  }, [filters]);
+
+  // Fetch tasks for past dates (single past date only)
+  useEffect(() => {
+    if (filters.date.type === 'single' && filters.date.value && filters.date.value < today) {
+      fetchPastTasks(filters.date.value);
+    } else {
+      setPastDays([]);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.date.type, filters.date.value]);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -338,10 +402,11 @@ export default function TasksPage() {
     });
   };
 
-  const fetchPastTasks = async () => {
+  const fetchPastTasks = async (date?: string) => {
     setPastLoading(true);
     try {
-      const res = await fetch('/api/tasks/history?limit=30');
+      const url = date ? `/api/tasks/history?date=${date}` : '/api/tasks/history?limit=30';
+      const res = await fetch(url);
       if (res.ok) setPastDays(await res.json());
     } catch (error) {
       console.error("Failed to fetch past tasks:", error);
@@ -635,41 +700,342 @@ export default function TasksPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        {/* Header: heading, score, filters, add task */}
-        <div className="mb-5">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl md:text-3xl font-bold text-zinc-900 dark:text-white">Tasks</h1>
-                {scoreSummary && (
-                  <span className="text-sm font-semibold text-zinc-500 dark:text-zinc-400">
-                    {scoreSummary.actionScore}%
-                    <span className="font-normal ml-1.5">{scoreSummary.completedTasks}/{scoreSummary.totalTasks}</span>
-                  </span>
+        {/* Header row: title + score + filter chips inline */}
+        <div className="mb-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-2xl md:text-3xl font-bold text-zinc-900 dark:text-white">Tasks</h1>
+            {scoreSummary && (
+              <span className="text-sm font-semibold text-zinc-500 dark:text-zinc-400">
+                {scoreSummary.actionScore}%
+                <span className="font-normal ml-1">{scoreSummary.completedTasks}/{scoreSummary.totalTasks}</span>
+              </span>
+            )}
+
+            {/* Filter chips - inline with heading */}
+            {activePopover && (
+              <div className="fixed inset-0 z-40" onClick={closePopover} />
+            )}
+            <div className="flex flex-wrap items-center gap-1.5 ml-auto relative z-50">
+              {/* Date chip */}
+              <div className="relative">
+                <button
+                  onClick={() => { setActivePopover(activePopover === 'date' ? null : 'date'); setDatePickerMode(null); setPendingRange(undefined); }}
+                  className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-500 transition-colors"
+                >
+                  {getDateLabel()}
+                  <FaChevronDown className="text-[8px] text-zinc-400" />
+                </button>
+                {activePopover === 'date' && (
+                  <div className="absolute top-full right-0 mt-1 z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-lg p-1.5 min-w-[200px]">
+                    {!datePickerMode ? (
+                      <div className="space-y-0.5">
+                        {(['today', 'tomorrow', 'week', 'no-date'] as const).map(type => (
+                          <button
+                            key={type}
+                            onClick={() => { setFilters(f => ({ ...f, date: { type } })); setActivePopover(null); }}
+                            className={`w-full px-3 py-1.5 text-left text-sm rounded-lg transition-colors ${
+                              filters.date.type === type ? 'bg-zinc-100 dark:bg-zinc-700 font-medium text-zinc-900 dark:text-white' : 'hover:bg-zinc-50 dark:hover:bg-zinc-700/50 text-zinc-600 dark:text-zinc-400'
+                            }`}
+                          >
+                            {type === 'today' ? 'Today' : type === 'tomorrow' ? 'Tomorrow' : type === 'week' ? 'This Week' : 'No Date'}
+                          </button>
+                        ))}
+                        <div className="border-t border-zinc-100 dark:border-zinc-700 my-1" />
+                        <button
+                          onClick={() => { setDatePickerMode('single'); setPendingRange(undefined); }}
+                          className={`w-full px-3 py-1.5 text-left text-sm rounded-lg transition-colors ${
+                            (filters.date.type === 'single' || filters.date.type === 'range') ? 'bg-zinc-100 dark:bg-zinc-700 font-medium text-zinc-900 dark:text-white' : 'hover:bg-zinc-50 dark:hover:bg-zinc-700/50 text-zinc-600 dark:text-zinc-400'
+                          }`}
+                        >
+                          Custom
+                        </button>
+                      </div>
+                    ) : (
+                      <div>
+                        <button
+                          onClick={() => { setDatePickerMode(null); setPendingRange(undefined); }}
+                          className="px-2 py-1 text-xs text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 mb-1"
+                        >
+                          &larr; Back
+                        </button>
+                        <p className="px-2 text-[11px] text-zinc-400 dark:text-zinc-500 mb-1">Pick a date or select a range (max 7 days)</p>
+                        <style>{`
+                          [data-date-picker] {
+                            color: #18181b !important;
+                            --rdp-accent-color: #18181b !important;
+                            --rdp-accent-background-color: #fff !important;
+                          }
+                          [data-date-picker] .rdp-chevron { fill: currentColor !important; }
+                          [data-date-picker] .rdp-day_button { color: inherit !important; border: none !important; outline: none !important; }
+                          [data-date-picker] .rdp-selected { outline: none !important; border: none !important; }
+                          [data-date-picker] .rdp-selected .rdp-day_button {
+                            background: #fff !important; color: #18181b !important; font-weight: 600;
+                            border: none !important; outline: none !important;
+                          }
+                          [data-date-picker] .rdp-range_start.rdp-range_end .rdp-day_button {
+                            border-radius: 9999px !important;
+                            border: 1.5px solid #a1a1aa !important; outline: none !important;
+                          }
+                          [data-date-picker] .rdp-range_start:not(.rdp-range_end) .rdp-day_button,
+                          [data-date-picker] .rdp-range_end:not(.rdp-range_start) .rdp-day_button {
+                            border: none !important;
+                          }
+                          [data-date-picker] .rdp-range_start {
+                            background: #fff !important;
+                            border-radius: 9999px 0 0 9999px !important;
+                          }
+                          [data-date-picker] .rdp-range_end {
+                            background: #fff !important;
+                            border-radius: 0 9999px 9999px 0 !important;
+                          }
+                          [data-date-picker] .rdp-range_start.rdp-range_end {
+                            border-radius: 9999px !important;
+                          }
+                          [data-date-picker] .rdp-range_middle,
+                          [data-date-picker] .rdp-selected:not(.rdp-range_start):not(.rdp-range_end):not(.rdp-range_middle) {
+                            background: #fff !important;
+                          }
+                          [data-date-picker] .rdp-today:not(.rdp-selected) .rdp-day_button {
+                            background: #dbeafe !important; border-radius: 9999px; font-weight: 600;
+                          }
+                          .dark [data-date-picker] .rdp-today:not(.rdp-selected) .rdp-day_button {
+                            background: #1e3a5f !important; border-radius: 9999px; font-weight: 600; color: #fff !important;
+                          }
+                          .dark [data-date-picker] {
+                            color: #e4e4e7 !important;
+                            --rdp-accent-color: #fff !important;
+                            --rdp-accent-background-color: #3f3f46 !important;
+                          }
+                          .dark [data-date-picker] .rdp-selected { outline: none !important; border: none !important; }
+                          .dark [data-date-picker] .rdp-selected .rdp-day_button {
+                            background: #3f3f46 !important; color: #fff !important; font-weight: 600;
+                            border: none !important; outline: none !important;
+                          }
+                          .dark [data-date-picker] .rdp-range_start.rdp-range_end .rdp-day_button {
+                            border-radius: 9999px !important;
+                            border: 1.5px solid #71717a !important; outline: none !important;
+                          }
+                          .dark [data-date-picker] .rdp-range_start:not(.rdp-range_end) .rdp-day_button,
+                          .dark [data-date-picker] .rdp-range_end:not(.rdp-range_start) .rdp-day_button {
+                            border: none !important;
+                          }
+                          .dark [data-date-picker] .rdp-range_start {
+                            background: #3f3f46 !important;
+                            border-radius: 9999px 0 0 9999px !important;
+                          }
+                          .dark [data-date-picker] .rdp-range_end {
+                            background: #3f3f46 !important;
+                            border-radius: 0 9999px 9999px 0 !important;
+                          }
+                          .dark [data-date-picker] .rdp-range_start.rdp-range_end {
+                            border-radius: 9999px !important;
+                          }
+                          .dark [data-date-picker] .rdp-range_middle,
+                          .dark [data-date-picker] .rdp-selected:not(.rdp-range_start):not(.rdp-range_end):not(.rdp-range_middle) {
+                            background: #3f3f46 !important;
+                          }
+                        `}</style>
+                        <div data-date-picker>
+                          <DayPicker
+                            mode="range"
+                            min={0}
+                            max={7}
+                            disabled={pendingRange?.from && !pendingRange?.to ? (date: Date) => {
+                              const diffMs = date.getTime() - pendingRange.from.getTime();
+                              const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+                              return diffDays > 7 || diffDays < -7;
+                            } : undefined}
+                            selected={pendingRange ?? (filters.date.type === 'range' && filters.date.value && filters.date.endDate
+                              ? { from: new Date(filters.date.value + 'T12:00:00'), to: new Date(filters.date.endDate + 'T12:00:00') }
+                              : filters.date.type === 'single' && filters.date.value
+                              ? { from: new Date(filters.date.value + 'T12:00:00'), to: new Date(filters.date.value + 'T12:00:00') }
+                              : undefined)}
+                            onSelect={(range: { from?: Date; to?: Date } | undefined, triggerDate: Date) => {
+                              // Click on already-pending from (no to yet, or same as from) → deselect
+                              if (pendingRange?.from && triggerDate.toDateString() === pendingRange.from.toDateString() && (!pendingRange.to || pendingRange.to.toDateString() === pendingRange.from.toDateString())) {
+                                setPendingRange(undefined);
+                                return;
+                              }
+                              // Click on the end date of a pending range → deselect
+                              if (pendingRange?.to && triggerDate.toDateString() === pendingRange.to.toDateString()) {
+                                setPendingRange(undefined);
+                                return;
+                              }
+                              if (range?.from) {
+                                setPendingRange({ from: range.from, to: range.to });
+                              } else {
+                                // min=0 means first click sets both from and to to same date
+                                setPendingRange(undefined);
+                              }
+                            }}
+                          />
+                        </div>
+                        {pendingRange?.from && (
+                          <button
+                            onClick={() => {
+                              const from = pendingRange.from.toISOString().split('T')[0];
+                              const to = pendingRange.to ? pendingRange.to.toISOString().split('T')[0] : from;
+                              if (from === to) {
+                                setFilters(f => ({ ...f, date: { type: 'single', value: from } }));
+                              } else {
+                                setFilters(f => ({ ...f, date: { type: 'range', value: from, endDate: to } }));
+                              }
+                              setPendingRange(undefined);
+                              closePopover();
+                            }}
+                            className="w-full mt-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-colors"
+                          >
+                            Apply{pendingRange.to && pendingRange.from.getTime() !== pendingRange.to.getTime()
+                              ? ` (${Math.round((pendingRange.to.getTime() - pendingRange.from.getTime()) / 86400000) + 1} days)`
+                              : ''}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
-                {formatDate(new Date().toISOString().split('T')[0], dateFormat)}
-              </p>
-            </div>
-            <div className="flex gap-1 bg-zinc-100 dark:bg-zinc-800 rounded-lg p-1 w-fit">
-              {(['all', 'todo', 'done'] as const).map(s => (
+
+              {/* Status chip */}
+              {filters.status !== 'all' && (
+                <div className="relative">
+                  <button
+                    onClick={() => setActivePopover(activePopover === 'status' ? null : 'status')}
+                    className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-500 transition-colors"
+                  >
+                    {filters.status === 'todo' ? 'To Do' : filters.status === 'done' ? 'Done' : 'Discarded'}
+                    <span
+                      className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                      onClick={(e) => { e.stopPropagation(); setFilters(f => ({ ...f, status: 'all' })); }}
+                    >
+                      <FaTimes className="text-[8px]" />
+                    </span>
+                  </button>
+                  {activePopover === 'status' && (
+                    <div className="absolute top-full left-0 mt-1 z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-lg p-1.5 min-w-[120px]">
+                      {(['todo', 'done', 'discarded'] as const).map(s => (
+                        <button
+                          key={s}
+                          onClick={() => { setFilters(f => ({ ...f, status: s })); setActivePopover(null); }}
+                          className={`w-full px-3 py-1.5 text-left text-sm rounded-lg transition-colors ${
+                            filters.status === s ? 'bg-zinc-100 dark:bg-zinc-700 font-medium text-zinc-900 dark:text-white' : 'hover:bg-zinc-50 dark:hover:bg-zinc-700/50 text-zinc-600 dark:text-zinc-400'
+                          }`}
+                        >
+                          {s === 'todo' ? 'To Do' : s === 'done' ? 'Done' : 'Discarded'}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Pillar chips */}
+              {filters.pillars.map(pillarId => {
+                const p = pillars.find(pl => pl.id === pillarId);
+                if (!p) return null;
+                return (
+                  <span
+                    key={`pillar-${pillarId}`}
+                    className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700"
+                  >
+                    {p.emoji} {p.name}
+                    <FaTimes
+                      className="text-[8px] text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 cursor-pointer"
+                      onClick={() => setFilters(f => ({ ...f, pillars: f.pillars.filter(id => id !== pillarId), goals: f.goals.filter(gId => { const gl = goalsList.find(g => g.id === gId); return !(gl && gl.pillarId === pillarId); }) }))}
+                    />
+                  </span>
+                );
+              })}
+
+              {/* Goal chips */}
+              {filters.goals.map(goalId => {
+                const g = goalsList.find(gl => gl.id === goalId);
+                if (!g) return null;
+                return (
+                  <span
+                    key={`goal-${goalId}`}
+                    className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700"
+                  >
+                    {g.name}
+                    <FaTimes
+                      className="text-[8px] text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 cursor-pointer"
+                      onClick={() => setFilters(f => ({ ...f, goals: f.goals.filter(id => id !== goalId) }))}
+                    />
+                  </span>
+                );
+              })}
+
+              {/* + Filter button */}
+              <div className="relative">
                 <button
-                  key={s}
-                  onClick={() => setStatusFilter(s)}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                    statusFilter === s
-                      ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
-                      : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
-                  }`}
+                  onClick={() => setActivePopover(activePopover === 'add' ? null : 'add')}
+                  className="flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border border-dashed border-zinc-300 dark:border-zinc-600 text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 hover:border-zinc-400 dark:hover:border-zinc-500 transition-colors"
                 >
-                  {s === 'all' ? 'All' : s === 'todo' ? 'To Do' : 'Done'}
+                  <FaPlus className="text-[8px]" /> Filter
                 </button>
-              ))}
+                {activePopover === 'add' && (
+                  <div className="absolute top-full right-0 mt-1 z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-lg p-1.5 min-w-[180px] max-h-[360px] overflow-y-auto">
+                    {/* Status section */}
+                    {filters.status === 'all' && (
+                      <>
+                        <p className="px-3 py-1 text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Status</p>
+                        {(['todo', 'done', 'discarded'] as const).map(s => (
+                          <button
+                            key={s}
+                            onClick={() => { setFilters(f => ({ ...f, status: s })); setActivePopover(null); }}
+                            className="w-full px-3 py-1.5 text-left text-sm rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-700/50 text-zinc-600 dark:text-zinc-400"
+                          >
+                            {s === 'todo' ? 'To Do' : s === 'done' ? 'Done' : 'Discarded'}
+                          </button>
+                        ))}
+                        <div className="border-t border-zinc-100 dark:border-zinc-700 my-1" />
+                      </>
+                    )}
+                    {/* Pillar section */}
+                    <p className="px-3 py-1 text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Pillar</p>
+                    {pillars.map(p => (
+                      <button
+                        key={p.id}
+                        onClick={() => setFilters(f => ({
+                          ...f,
+                          pillars: f.pillars.includes(p.id) ? f.pillars.filter(id => id !== p.id) : [...f.pillars, p.id],
+                        }))}
+                        className={`w-full px-3 py-1.5 text-left text-sm rounded-lg transition-colors flex items-center gap-2 ${
+                          filters.pillars.includes(p.id) ? 'bg-zinc-100 dark:bg-zinc-700 font-medium text-zinc-900 dark:text-white' : 'hover:bg-zinc-50 dark:hover:bg-zinc-700/50 text-zinc-600 dark:text-zinc-400'
+                        }`}
+                      >
+                        <span>{p.emoji}</span> {p.name}
+                        {filters.pillars.includes(p.id) && <FaCheck className="text-[10px] ml-auto text-green-500" />}
+                      </button>
+                    ))}
+                    {pillars.length === 0 && <p className="px-3 py-1.5 text-sm text-zinc-400">No pillars</p>}
+                    <div className="border-t border-zinc-100 dark:border-zinc-700 my-1" />
+                    {/* Goal section */}
+                    <p className="px-3 py-1 text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Goal</p>
+                    {(filters.pillars.length > 0 ? goalsList.filter(g => g.pillarId && filters.pillars.includes(g.pillarId)) : goalsList).map(g => (
+                      <button
+                        key={g.id}
+                        onClick={() => setFilters(f => ({
+                          ...f,
+                          goals: f.goals.includes(g.id) ? f.goals.filter(id => id !== g.id) : [...f.goals, g.id],
+                        }))}
+                        className={`w-full px-3 py-1.5 text-left text-sm rounded-lg transition-colors flex items-center gap-2 ${
+                          filters.goals.includes(g.id) ? 'bg-zinc-100 dark:bg-zinc-700 font-medium text-zinc-900 dark:text-white' : 'hover:bg-zinc-50 dark:hover:bg-zinc-700/50 text-zinc-600 dark:text-zinc-400'
+                        }`}
+                      >
+                        {g.name}
+                        {filters.goals.includes(g.id) && <FaCheck className="text-[10px] ml-auto text-green-500" />}
+                      </button>
+                    ))}
+                    {goalsList.length === 0 && <p className="px-3 py-1.5 text-sm text-zinc-400">No goals</p>}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
+
           {/* Progress underline */}
-          <div className="mt-2 w-full h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden relative">
+          <div className="mt-1.5 w-full h-1 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden relative">
             {refreshing && (
               <div className="absolute inset-0 bg-zinc-300 dark:bg-zinc-600 animate-pulse" />
             )}
@@ -689,11 +1055,7 @@ export default function TasksPage() {
         {/* Unified accordion view */}
         {(() => {
           const allEnrichedTasks = groups.flatMap((group) =>
-            group.tasks.filter((task) => {
-              if (statusFilter === 'all') return true;
-              const done = task.completion?.completed || (task.target != null && task.target > 0 && (task.completion?.value || 0) >= task.target);
-              return statusFilter === 'done' ? done : !done;
-            }).map((task) => ({ ...task, _pillarColor: group.pillar.color, _pillarEmoji: group.pillar.emoji, _pillarName: group.pillar.name }))
+            group.tasks.map((task) => ({ ...task, _pillarColor: group.pillar.color, _pillarEmoji: group.pillar.emoji, _pillarName: group.pillar.name }))
           ).sort((a, b) => {
               const aStarred = a.completion?.isHighlighted ? 1 : 0;
               const bStarred = b.completion?.isHighlighted ? 1 : 0;
@@ -942,19 +1304,102 @@ export default function TasksPage() {
             );
           };
 
-          // Build accordion buckets: Today, No Date, Tomorrow, individual dates (2-6 days out), Later
-          const bucketGroups: Record<string, typeof allEnrichedTasks> = {};
-          for (const task of allEnrichedTasks) {
+          // Filter helpers
+          const getEndOfWeek = () => {
+            const d = new Date(today + 'T12:00:00');
+            const dayOfWeek = d.getDay();
+            const daysUntilFriday = dayOfWeek <= 5 ? 5 - dayOfWeek : 5 + 7 - dayOfWeek;
+            d.setDate(d.getDate() + daysUntilFriday);
+            return d.toISOString().split('T')[0];
+          };
+
+          const getTomorrow = () => {
+            const d = new Date(today + 'T12:00:00');
+            d.setDate(d.getDate() + 1);
+            return d.toISOString().split('T')[0];
+          };
+
+          const getTaskDate = (bucket: string): string | null => {
+            if (bucket === 'Today') return today;
+            if (bucket === 'Tomorrow') return getTomorrow();
+            if (bucket === 'No Date' || bucket === 'Later') return null;
+            return bucket; // YYYY-MM-DD
+          };
+
+          const isTaskInDateRange = (task: typeof allEnrichedTasks[number]): boolean => {
             const bucket = getDateBucket(task, today);
-            if (!bucketGroups[bucket]) bucketGroups[bucket] = [];
-            bucketGroups[bucket].push(task);
-          }
-          // Build ordered bucket list: Today, No Date, Tomorrow, then date-sorted day buckets, then Later
-          const fixedOrder = ['Today', 'No Date', 'Tomorrow'];
-          const dateBuckets = Object.keys(bucketGroups)
-            .filter(b => !fixedOrder.includes(b) && b !== 'Later' && /^\d{4}-\d{2}-\d{2}$/.test(b))
-            .sort();
-          const sortedLabels = [...fixedOrder, ...dateBuckets, 'Later'].filter(b => bucketGroups[b]);
+            switch (filters.date.type) {
+              case 'today':
+                return bucket === 'Today';
+              case 'tomorrow':
+                return bucket === 'Tomorrow';
+              case 'week': {
+                if (bucket === 'No Date' || bucket === 'Later' || bucket === 'Today' || bucket === 'Tomorrow') return false;
+                const dayAfterTomorrow = (() => { const d = new Date(today + 'T12:00:00'); d.setDate(d.getDate() + 2); return d.toISOString().split('T')[0]; })();
+                return bucket >= dayAfterTomorrow && bucket <= getEndOfWeek();
+              }
+              case 'single': {
+                if (!filters.date.value) return false;
+                if (filters.date.value >= today) {
+                  if (filters.date.value === today) return bucket === 'Today';
+                  if (filters.date.value === getTomorrow()) return bucket === 'Tomorrow';
+                  if (bucket === 'No Date') return false;
+                  if (bucket === 'Later') return task.startDate === filters.date.value;
+                  return bucket === filters.date.value;
+                }
+                return false;
+              }
+              case 'range': {
+                if (!filters.date.value || !filters.date.endDate) return false;
+                const taskDate = getTaskDate(bucket);
+                if (!taskDate && bucket === 'Later') {
+                  return task.startDate ? task.startDate >= filters.date.value && task.startDate <= filters.date.endDate : false;
+                }
+                if (!taskDate) return false;
+                return taskDate >= filters.date.value && taskDate <= filters.date.endDate;
+              }
+              case 'no-date':
+                return bucket === 'No Date';
+              default:
+                return true;
+            }
+          };
+
+          const passesStatusFilter = (completed: boolean, value: number | null) => {
+            if (filters.status === 'all') return true;
+            const val = value || 0;
+            const isDiscarded = completed && val === 0;
+            const isDone = !isDiscarded && completed;
+            if (filters.status === 'discarded') return isDiscarded;
+            if (filters.status === 'done') return isDone;
+            if (filters.status === 'todo') return !completed;
+            return true;
+          };
+
+          const isPastDateView = filters.date.type === 'single' && filters.date.value && filters.date.value < today;
+          const filteredTasks = isPastDateView ? [] : allEnrichedTasks.filter(task => {
+            if (!isTaskInDateRange(task)) return false;
+            const completed = task.completion?.completed || (task.target != null && task.target > 0 && (task.completion?.value || 0) >= task.target);
+            if (!passesStatusFilter(completed, task.completion?.value ?? null)) return false;
+            if (filters.pillars.length > 0 && !filters.pillars.includes(task.pillarId)) return false;
+            if (filters.goals.length > 0 && !(task.goalId && filters.goals.includes(task.goalId))) return false;
+            return true;
+          });
+
+          // Filter past tasks too
+          const filteredPastDays = pastDays.map(day => ({
+            ...day,
+            tasks: day.tasks.filter(t => {
+              const completed = t.completed || (t.target != null && t.target > 0 && (t.value || 0) >= t.target);
+              if (!passesStatusFilter(completed, t.value)) return false;
+              if (filters.pillars.length > 0) {
+                const pillar = pillars.find(p => p.name === t.pillarName);
+                if (pillar && !filters.pillars.includes(pillar.id)) return false;
+              }
+              if (filters.goals.length > 0 && !(t.goalId && filters.goals.includes(t.goalId))) return false;
+              return true;
+            })
+          })).filter(day => day.tasks.length > 0);
 
           if (allEnrichedTasks.length === 0 && !pastLoading && pastDays.length === 0) {
             return (
@@ -965,227 +1410,156 @@ export default function TasksPage() {
             );
           }
 
-          // Filter past tasks by status filter too
-          const filteredPastDays = pastDays.map(day => ({
-            ...day,
-            tasks: day.tasks.filter(t => {
-              if (statusFilter === 'all') return true;
-              const done = t.completed || (t.target != null && t.target > 0 && (t.value || 0) >= t.target);
-              return statusFilter === 'done' ? done : !done;
-            })
-          })).filter(day => day.tasks.length > 0);
-
-          // Get display label for bucket
-          const getBucketLabel = (key: string): string => {
-            if (key === 'Today' || key === 'Tomorrow' || key === 'No Date' || key === 'Later') return key;
-            // Date bucket (YYYY-MM-DD) — show formatted date with day name
-            const d = new Date(key + 'T12:00:00');
-            const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()];
-            return `${dayName}, ${formatDate(key, dateFormat)}`;
-          };
-
-          const getBucketDateRange = (label: string): string | null => {
-            if (label === 'Today') return formatDate(today, dateFormat);
-            if (label === 'Tomorrow') {
-              const tmr = new Date(today + 'T12:00:00');
-              tmr.setDate(tmr.getDate() + 1);
-              return formatDate(tmr.toISOString().split('T')[0], dateFormat);
-            }
-            return null;
-          };
-
           return (
-            <div className="space-y-2">
-              {sortedLabels.map(label => {
-                const isOpen = openSchedules.has(label);
-                const tasksInGroup = bucketGroups[label];
-                const displayLabel = getBucketLabel(label);
-                const dateRange = getBucketDateRange(label);
-                const isLater = label === 'Later';
-                return (
-                  <div key={label} className="border border-zinc-200 dark:border-zinc-700 rounded-lg">
-                    <button
-                      onClick={() => setOpenSchedules(prev => {
-                        const next = new Set(prev);
-                        if (next.has(label)) next.delete(label); else next.add(label);
-                        return next;
-                      })}
-                      className="w-full px-4 py-2.5 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                    >
-                      <div className="flex items-center gap-2">
-                        <FaChevronDown className={`text-[10px] text-zinc-400 transition-transform ${isOpen ? '' : '-rotate-90'}`} />
-                        <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">{displayLabel}</span>
-                        {dateRange && (
-                          <span className="text-xs text-zinc-400 dark:text-zinc-500">{dateRange}</span>
-                        )}
-                        <span className="text-xs text-zinc-400 dark:text-zinc-500">({tasksInGroup.length})</span>
-                      </div>
-                    </button>
-                    {isOpen && (
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.5rem', padding: '0.5rem' }}>
-                        {tasksInGroup.map(t => renderTaskCard(t, isLater && t.startDate ? formatDate(t.startDate, dateFormat) : undefined))}
-                      </div>
-                    )}
+            <div>
+              {!isPastDateView ? (
+                filteredTasks.length === 0 ? (
+                  <div className="text-center py-8 text-zinc-500 dark:text-zinc-400">
+                    <p className="text-sm">No tasks for this period</p>
                   </div>
-                );
-              })}
-
-              {/* Past accordion */}
-              <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg">
-                <button
-                  onClick={() => {
-                    setOpenSchedules(prev => {
-                      const next = new Set(prev);
-                      if (next.has('Past')) next.delete('Past'); else next.add('Past');
-                      return next;
-                    });
-                    if (!pastFetchedRef.current) {
-                      pastFetchedRef.current = true;
-                      fetchPastTasks();
-                    }
-                  }}
-                  className="w-full px-4 py-2.5 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                >
-                  <div className="flex items-center gap-2">
-                    <FaChevronDown className={`text-[10px] text-zinc-400 transition-transform ${openSchedules.has('Past') ? '' : '-rotate-90'}`} />
-                    <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Past</span>
-                    {pastLoading && (
-                      <div className="animate-spin rounded-full h-3 w-3 border-b border-zinc-400"></div>
-                    )}
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.5rem' }}>
+                    {filteredTasks.map(t => {
+                      const bucket = getDateBucket(t, today);
+                      const showDate = (filters.date.type !== 'today' && bucket !== 'Today') ? (
+                        bucket === 'Tomorrow' ? 'Tomorrow' :
+                        bucket === 'No Date' ? undefined :
+                        t.startDate ? formatDate(t.startDate, dateFormat) : undefined
+                      ) : undefined;
+                      return renderTaskCard(t, showDate);
+                    })}
                   </div>
-                </button>
-                {openSchedules.has('Past') && (
-                  pastLoading ? (
-                    <div className="text-center py-4">
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-zinc-900 dark:border-white mx-auto"></div>
-                    </div>
-                  ) : filteredPastDays.length === 0 ? (
-                    <div className="text-center py-4 text-zinc-500 dark:text-zinc-400 text-sm">
-                      No past task completions
-                    </div>
-                  ) : (
-                    <div className="p-2 space-y-2">
-                      {filteredPastDays.map(day => {
-                        const dateLabel = formatDate(day.date, dateFormat);
-                        const completedCount = day.tasks.filter(t => t.completed || (t.target && t.target > 0 && (t.value || 0) >= t.target)).length;
-                        const dayKey = `past-${day.date}`;
-                        const isOpen = openSchedules.has(dayKey);
-                        return (
-                          <div key={day.date} className="border border-zinc-200 dark:border-zinc-700 rounded-lg">
-                            <button
-                              onClick={() => setOpenSchedules(prev => {
-                                const next = new Set(prev);
-                                if (next.has(dayKey)) next.delete(dayKey); else next.add(dayKey);
-                                return next;
-                              })}
-                              className="w-full px-4 py-2 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-800/30 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                            >
-                              <div className="flex items-center gap-2">
-                                <FaChevronDown className={`text-[10px] text-zinc-400 transition-transform ${isOpen ? '' : '-rotate-90'}`} />
-                                <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">{dateLabel}</span>
-                                <span className="text-xs text-zinc-400 dark:text-zinc-500">{completedCount}/{day.tasks.length}</span>
-                              </div>
-                            </button>
-                            {isOpen && (
-                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.5rem', padding: '0.5rem' }}>
-                                {day.tasks.map(task => {
-                                  const currentValue = task.value || 0;
-                                  const isDone = task.completed || (task.target != null && task.target > 0 && currentValue >= task.target);
-                                  const pendingKey = `${day.date}-${task.id}`;
-                                  return (
-                                    <div
-                                      key={pendingKey}
-                                      className={`rounded-lg px-3 py-2.5 transition-all ${
-                                        isDone
-                                          ? 'bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800'
-                                          : task.isHighlighted
-                                          ? 'bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800'
-                                          : 'bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700'
-                                      }`}
-                                      style={{ borderLeftWidth: 3, borderLeftColor: isDone ? '#4ade80' : task.isHighlighted ? '#F59E0B' : (task.pillarColor || '#6B7280') }}
-                                    >
-                                      <div className="flex items-center gap-2">
-                                        {task.isHighlighted && <FaStar className="text-xs text-amber-500 shrink-0" />}
-                                        <div className="flex-1 min-w-0">
-                                          <h3 className={`text-sm font-semibold leading-snug ${isDone ? 'line-through text-zinc-400 dark:text-zinc-500' : 'text-zinc-900 dark:text-white'}`}>
-                                            {task.name}
-                                          </h3>
-                                          <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                                            {task.pillarEmoji && (
-                                              <span className="text-[11px] text-zinc-500 dark:text-zinc-400">{task.pillarEmoji} {task.pillarName}</span>
-                                            )}
-                                            <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{formatDate(day.date, dateFormat)}</span>
-                                          </div>
-                                        </div>
-                                        <div className="flex items-center gap-1.5 shrink-0">
-                                          {task.completionType === 'checkbox' && (
-                                            <button
-                                              onClick={() => handlePastComplete(day.date, task.id, !isDone)}
-                                              className={`w-7 h-7 rounded-md border-2 flex items-center justify-center transition-colors ${
-                                                isDone
-                                                  ? 'bg-green-500 border-green-500 text-white'
-                                                  : 'border-zinc-300 dark:border-zinc-600 hover:border-green-500'
-                                              }`}
-                                            >
-                                              {isDone && <FaCheck className="text-xs" />}
-                                            </button>
+                )
+              ) : (
+                // Past date view
+                pastLoading ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-zinc-900 dark:border-white mx-auto"></div>
+                  </div>
+                ) : filteredPastDays.length === 0 ? (
+                  <div className="text-center py-8 text-zinc-500 dark:text-zinc-400 text-sm">
+                    No tasks for this date
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {filteredPastDays.map(day => {
+                      const dateLabel = formatDate(day.date, dateFormat);
+                      const completedCount = day.tasks.filter(t => t.completed || (t.target && t.target > 0 && (t.value || 0) >= t.target)).length;
+                      const dayKey = `past-${day.date}`;
+                      const isOpen = openSchedules.has(dayKey);
+                      return (
+                        <div key={day.date}>
+                          <button
+                            onClick={() => setOpenSchedules(prev => {
+                              const next = new Set(prev);
+                              if (next.has(dayKey)) next.delete(dayKey); else next.add(dayKey);
+                              return next;
+                            })}
+                            className="w-full px-3 py-2 flex items-center gap-2 text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
+                          >
+                            <FaChevronDown className={`text-[10px] text-zinc-400 transition-transform ${isOpen ? '' : '-rotate-90'}`} />
+                            <span>{dateLabel}</span>
+                            <span className="text-xs text-zinc-400 dark:text-zinc-500">{completedCount}/{day.tasks.length}</span>
+                          </button>
+                          {isOpen && (
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.5rem' }}>
+                              {day.tasks.map(task => {
+                                const currentValue = task.value || 0;
+                                const isDone = task.completed || (task.target != null && task.target > 0 && currentValue >= task.target);
+                                const pendingKey = `${day.date}-${task.id}`;
+                                return (
+                                  <div
+                                    key={pendingKey}
+                                    className={`rounded-lg px-3 py-2.5 transition-all ${
+                                      isDone
+                                        ? 'bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800'
+                                        : task.isHighlighted
+                                        ? 'bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800'
+                                        : 'bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700'
+                                    }`}
+                                    style={{ borderLeftWidth: 3, borderLeftColor: isDone ? '#4ade80' : task.isHighlighted ? '#F59E0B' : (task.pillarColor || '#6B7280') }}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      {task.isHighlighted && <FaStar className="text-xs text-amber-500 shrink-0" />}
+                                      <div className="flex-1 min-w-0">
+                                        <h3 className={`text-sm font-semibold leading-snug ${isDone ? 'line-through text-zinc-400 dark:text-zinc-500' : 'text-zinc-900 dark:text-white'}`}>
+                                          {task.name}
+                                        </h3>
+                                        <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                                          {task.pillarEmoji && (
+                                            <span className="text-[11px] text-zinc-500 dark:text-zinc-400">{task.pillarEmoji} {task.pillarName}</span>
                                           )}
-                                          {task.completionType === 'count' && (
-                                            <div className="flex items-center gap-1">
-                                              <button
-                                                onClick={() => handlePastCountChange(day.date, task, -1)}
-                                                className="w-6 h-6 rounded bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center hover:bg-zinc-300 dark:hover:bg-zinc-600"
-                                              >
-                                                <FaMinus className="text-[9px]" />
-                                              </button>
-                                              <span className={`text-xs font-bold min-w-[2.5rem] text-center ${
-                                                task.target && currentValue >= task.target ? 'text-green-600 dark:text-green-400' : 'text-zinc-900 dark:text-white'
-                                              }`}>
-                                                {currentValue}/{task.target || '?'}
-                                              </span>
-                                              <button
-                                                onClick={() => handlePastCountChange(day.date, task, 1)}
-                                                className="w-6 h-6 rounded bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 flex items-center justify-center hover:bg-zinc-800 dark:hover:bg-zinc-100"
-                                              >
-                                                <FaPlus className="text-[9px]" />
-                                              </button>
-                                            </div>
-                                          )}
-                                          {(task.completionType === 'numeric' || task.completionType === 'duration') && (
-                                            <div className="flex items-center gap-1">
-                                              <input
-                                                type="number"
-                                                value={pastPending[pendingKey] ?? (currentValue || '')}
-                                                onChange={(e) => setPastPending(prev => ({ ...prev, [pendingKey]: e.target.value }))}
-                                                onKeyDown={(e) => e.key === 'Enter' && handlePastNumericSubmit(day.date, task)}
-                                                placeholder={task.target ? String(task.target) : '0'}
-                                                className="w-14 px-1.5 py-1 text-xs text-right border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
-                                              />
-                                              {task.completionType === 'duration' && <span className="text-[10px] text-zinc-500 dark:text-zinc-400">m</span>}
-                                              {pastPending[pendingKey] !== undefined && (
-                                                <button
-                                                  onClick={() => handlePastNumericSubmit(day.date, task)}
-                                                  className="w-6 h-6 rounded bg-green-500 text-white flex items-center justify-center hover:bg-green-600"
-                                                >
-                                                  <FaCheck className="text-[9px]" />
-                                                </button>
-                                              )}
-                                            </div>
-                                          )}
+                                          <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{formatDate(day.date, dateFormat)}</span>
                                         </div>
                                       </div>
+                                      <div className="flex items-center gap-1.5 shrink-0">
+                                        {task.completionType === 'checkbox' && (
+                                          <button
+                                            onClick={() => handlePastComplete(day.date, task.id, !isDone)}
+                                            className={`w-7 h-7 rounded-md border-2 flex items-center justify-center transition-colors ${
+                                              isDone
+                                                ? 'bg-green-500 border-green-500 text-white'
+                                                : 'border-zinc-300 dark:border-zinc-600 hover:border-green-500'
+                                            }`}
+                                          >
+                                            {isDone && <FaCheck className="text-xs" />}
+                                          </button>
+                                        )}
+                                        {task.completionType === 'count' && (
+                                          <div className="flex items-center gap-1">
+                                            <button
+                                              onClick={() => handlePastCountChange(day.date, task, -1)}
+                                              className="w-6 h-6 rounded bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center hover:bg-zinc-300 dark:hover:bg-zinc-600"
+                                            >
+                                              <FaMinus className="text-[9px]" />
+                                            </button>
+                                            <span className={`text-xs font-bold min-w-[2.5rem] text-center ${
+                                              task.target && currentValue >= task.target ? 'text-green-600 dark:text-green-400' : 'text-zinc-900 dark:text-white'
+                                            }`}>
+                                              {currentValue}/{task.target || '?'}
+                                            </span>
+                                            <button
+                                              onClick={() => handlePastCountChange(day.date, task, 1)}
+                                              className="w-6 h-6 rounded bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 flex items-center justify-center hover:bg-zinc-800 dark:hover:bg-zinc-100"
+                                            >
+                                              <FaPlus className="text-[9px]" />
+                                            </button>
+                                          </div>
+                                        )}
+                                        {(task.completionType === 'numeric' || task.completionType === 'duration') && (
+                                          <div className="flex items-center gap-1">
+                                            <input
+                                              type="number"
+                                              value={pastPending[pendingKey] ?? (currentValue || '')}
+                                              onChange={(e) => setPastPending(prev => ({ ...prev, [pendingKey]: e.target.value }))}
+                                              onKeyDown={(e) => e.key === 'Enter' && handlePastNumericSubmit(day.date, task)}
+                                              placeholder={task.target ? String(task.target) : '0'}
+                                              className="w-14 px-1.5 py-1 text-xs text-right border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
+                                            />
+                                            {task.completionType === 'duration' && <span className="text-[10px] text-zinc-500 dark:text-zinc-400">m</span>}
+                                            {pastPending[pendingKey] !== undefined && (
+                                              <button
+                                                onClick={() => handlePastNumericSubmit(day.date, task)}
+                                                className="w-6 h-6 rounded bg-green-500 text-white flex items-center justify-center hover:bg-green-600"
+                                              >
+                                                <FaCheck className="text-[9px]" />
+                                              </button>
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
                                     </div>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )
-                )}
-              </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )
+              )}
             </div>
           );
         })()}

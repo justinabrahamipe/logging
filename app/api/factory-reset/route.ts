@@ -8,7 +8,6 @@ const TABLES_TO_DELETE = [
   "TaskCompletion",
   "DailyScore",
   "ActivityLog",
-  "GeneratedReport",
   "Cycle",
   "Goal",
   "Task",

@@ -10,9 +10,14 @@ export async function GET(request: NextRequest) {
   }
 
   const today = new Date().toISOString().split("T")[0];
+  const specificDate = request.nextUrl.searchParams.get("date");
   const limit = parseInt(request.nextUrl.searchParams.get("limit") || "30");
 
-  // Get all past completions (before today) with task and pillar info
+  // Get past completions (before today) with task and pillar info
+  const dateCondition = specificDate
+    ? eq(taskCompletions.date, specificDate)
+    : lt(taskCompletions.date, today);
+
   const completions = await db
     .select({
       completion: taskCompletions,
@@ -25,11 +30,11 @@ export async function GET(request: NextRequest) {
     .where(
       and(
         eq(taskCompletions.userId, session.user.id),
-        lt(taskCompletions.date, today)
+        dateCondition
       )
     )
     .orderBy(desc(taskCompletions.date), asc(tasks.pillarId))
-    .limit(limit * 20); // fetch enough rows to cover `limit` days
+    .limit(specificDate ? 200 : limit * 20);
 
   // Group by date
   const dateMap = new Map<string, {
