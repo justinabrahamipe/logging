@@ -231,6 +231,17 @@ export default function Header() {
               {theme === "dark" ? <FaSun className="text-sm" /> : <FaMoon className="text-sm" />}
             </button>
 
+            {/* Install App (visible regardless of login) */}
+            {isInstallable && (
+              <button
+                onClick={handleInstallClick}
+                className="ml-2 px-3 py-1.5 rounded-md text-sm flex items-center gap-1.5 text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              >
+                <FaDownload className="text-xs" />
+                Install App
+              </button>
+            )}
+
             {/* Profile Menu / Sign In */}
             {isLoggedIn ? (
               <div className="relative ml-1" ref={profileMenuRef}>
@@ -263,16 +274,6 @@ export default function Header() {
                       </div>
 
                       <div className="py-1">
-                        {isInstallable && (
-                          <button
-                            onClick={handleInstallClick}
-                            className="w-full px-3 py-2 text-left flex items-center gap-2.5 text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
-                          >
-                            <FaDownload className="text-xs" />
-                            Install App
-                          </button>
-                        )}
-
                         <Link href="/activity">
                           <button
                             onClick={() => setIsProfileMenuOpen(false)}
@@ -395,6 +396,16 @@ export default function Header() {
                 <div className="border-t border-zinc-200 dark:border-zinc-800 my-2" />
 
                 <div className="px-3 py-2">
+                  {isInstallable && (
+                    <div
+                      onClick={handleInstallClick}
+                      className="flex items-center gap-2.5 px-3 py-2.5 rounded-md text-sm text-zinc-600 dark:text-zinc-300 cursor-pointer"
+                    >
+                      <FaDownload className="text-sm" />
+                      Install App
+                    </div>
+                  )}
+
                   {isLoggedIn ? (
                     <div className="space-y-0.5">
                       <div className="flex items-center gap-2.5 mb-3">
@@ -412,16 +423,6 @@ export default function Header() {
                           <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{session?.user?.email || ""}</p>
                         </div>
                       </div>
-
-                      {isInstallable && (
-                        <div
-                          onClick={handleInstallClick}
-                          className="flex items-center gap-2.5 px-3 py-2.5 rounded-md text-sm text-zinc-600 dark:text-zinc-300 cursor-pointer"
-                        >
-                          <FaDownload className="text-sm" />
-                          Install App
-                        </div>
-                      )}
 
                       <Link href="/activity">
                         <div onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2.5 px-3 py-2.5 rounded-md text-sm text-zinc-600 dark:text-zinc-300">
