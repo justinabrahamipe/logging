@@ -199,6 +199,7 @@ export default function SettingsPage() {
           ? "All data has been reset and default data loaded! Redirecting..."
           : "All data has been cleared! Redirecting...";
         setSnackbar({ open: true, message: msg, severity: "success" });
+        sessionStorage.clear();
         setTimeout(() => { window.location.href = "/dashboard"; }, 2000);
       } else {
         const detail = data?.details || data?.error || "Unknown error";
