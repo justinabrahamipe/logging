@@ -93,6 +93,69 @@ export default function GoalsPage() {
     setLogTarget(null);
   };
 
+  const handleTimerLog = async (outcome: Outcome, minutes: number) => {
+    if (status !== "authenticated") { setAuthSnackbar(true); return; }
+    try {
+      const res = await fetch(`/api/outcomes/${outcome.id}/log`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ value: minutes, note: null, loggedAt: today }),
+      });
+      if (res.ok) {
+        if (!outcome.autoCreateTasks) {
+          const taskRes = await fetch("/api/tasks", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: outcome.name,
+              pillarId: outcome.pillarId || null,
+              completionType: "duration",
+              target: outcome.dailyTarget || null,
+              unit: outcome.unit || "min",
+              frequency: "adhoc",
+              goalId: outcome.id,
+              basePoints: 10,
+              startDate: today,
+            }),
+          });
+          if (taskRes.ok) {
+            const task = await taskRes.json();
+            await fetch("/api/tasks/complete", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ taskId: task.id, date: today, completed: true, value: minutes }),
+            });
+          }
+        } else {
+          // For autoCreateTasks goals, find and complete today's task
+          const tasksRes = await fetch(`/api/tasks?date=${today}`);
+          if (tasksRes.ok) {
+            const groups = await tasksRes.json();
+            for (const group of groups) {
+              for (const task of group.tasks) {
+                if (task.goalId === outcome.id && task.startDate === today && !task.completion?.completed) {
+                  await fetch("/api/tasks/complete", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ taskId: task.id, date: today, completed: true, value: minutes }),
+                  });
+                  break;
+                }
+              }
+            }
+          }
+        }
+        await fetchGoals();
+        setSnackbar({ open: true, message: `Logged ${minutes} min`, severity: "success" });
+      } else {
+        setSnackbar({ open: true, message: "Failed to log", severity: "error" });
+      }
+    } catch (error) {
+      console.error("Failed to log timer:", error);
+      setSnackbar({ open: true, message: "Failed to log", severity: "error" });
+    }
+  };
+
   // Group filtered outcomes by pillar
   const grouped: Record<string, Outcome[]> = {};
   for (const o of filteredGoals) {
@@ -231,6 +294,7 @@ export default function GoalsPage() {
                       taskCompletionDates={taskCompletionDates}
                       onAddTask={async (o) => { if (status !== "authenticated") { setAuthSnackbar(true); return; } const ok = await handleAddTaskForToday(o); setSnackbar({ open: true, message: ok ? "Task added and completed" : "Failed to add task", severity: ok ? "success" : "error" }); }}
                       onQuickLog={openLogModal}
+                      onTimerLog={handleTimerLog}
                     />
                   ))}
                 </div>

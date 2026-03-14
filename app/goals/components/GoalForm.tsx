@@ -70,7 +70,7 @@ export default function GoalForm({
         targetDate: editingOutcome.targetDate || "",
         periodId: editingOutcome.periodId ? String(editingOutcome.periodId) : "",
         goalType: (editingOutcome.goalType === "effort" ? "target" : editingOutcome.goalType as "habitual" | "target" | "outcome") || "outcome",
-        completionType: (editingOutcome.completionType as "checkbox" | "count" | "numeric") || "checkbox",
+        completionType: (editingOutcome.completionType as "checkbox" | "count" | "numeric" | "duration") || "checkbox",
         dailyTarget: editingOutcome.dailyTarget ? String(editingOutcome.dailyTarget) : "",
         autoCreateTasks: editingOutcome.autoCreateTasks || false,
         frequencyPreset,
@@ -214,8 +214,8 @@ export default function GoalForm({
           <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Tracking Type</label>
           <div className="flex gap-2 items-center w-full">
             {(form.goalType === "habitual"
-              ? (["checkbox", "count", "numeric"] as const)
-              : (["count", "numeric"] as const)
+              ? (["checkbox", "count", "numeric", "duration"] as const)
+              : (["count", "numeric", "duration"] as const)
             ).map((ct) => (
               <button
                 key={ct}
@@ -227,7 +227,7 @@ export default function GoalForm({
                     : "border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300"
                 }`}
               >
-                {ct === "checkbox" ? "Checkbox" : ct === "count" ? "Count" : "Numeric"}
+                {ct === "checkbox" ? "Checkbox" : ct === "count" ? "Count" : ct === "duration" ? "Timer" : "Numeric"}
               </button>
             ))}
             {form.completionType !== "checkbox" && form.goalType === "habitual" && (

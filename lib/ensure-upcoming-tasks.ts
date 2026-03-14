@@ -6,8 +6,8 @@ import { countScheduledDaysInRange } from "@/lib/effort-calculations";
 const lastRunCache = new Map<string, string>();
 
 /**
- * For goals with autoCreateTasks enabled, ensure adhoc tasks exist
- * for each scheduled day in the upcoming 7 days.
+ * Ensure upcoming task entries exist for goals with autoCreateTasks.
+ * Generates for the full cycle period (startDate to targetDate).
  * Runs at most once per day per user.
  */
 export async function ensureUpcomingTasks(userId: string) {
@@ -67,39 +67,44 @@ export async function ensureUpcomingTasks(userId: string) {
       ? null
       : (outcome.dailyTarget || (isHabitual || isOutcome ? null : Math.ceil((outcome.targetValue ?? 1) / totalScheduledDays)));
 
-    for (let i = 0; i < 7; i++) {
+    // Generate for the full cycle (startDate to targetDate) instead of just 7 days
+    const rangeStart = outcome.startDate && outcome.startDate > todayStr ? outcome.startDate : todayStr;
+    const rangeEnd = outcome.targetDate || (() => {
       const d = new Date(today);
-      d.setDate(d.getDate() + i);
-      const dateStr = d.toISOString().split('T')[0];
+      d.setDate(d.getDate() + 7);
+      return d.toISOString().split('T')[0];
+    })();
 
-      if (outcome.startDate && dateStr < outcome.startDate) continue;
-      if (outcome.targetDate && dateStr > outcome.targetDate) continue;
-      if (dateStr < todayStr) continue;
+    const current = new Date(rangeStart + 'T12:00:00');
+    const endDate = new Date(rangeEnd + 'T12:00:00');
 
-      const dow = d.getDay();
-      if (!scheduleDays.includes(dow)) continue;
+    while (current <= endDate) {
+      const dateStr = current.toISOString().split('T')[0];
+      const dow = current.getDay();
 
-      if (existingSet.has(`${outcome.id}:${dateStr}`)) continue;
+      if (scheduleDays.includes(dow) && !existingSet.has(`${outcome.id}:${dateStr}`)) {
+        taskValues.push({
+          userId,
+          name: outcome.name,
+          pillarId: outcome.pillarId || null,
+          completionType: taskCompletionType,
+          target: taskDailyTarget,
+          unit: taskCompletionType === 'checkbox' ? null : (outcome.unit || null),
+          frequency: 'adhoc' as const,
+          customDays: null,
+          repeatInterval: null,
+          goalId: outcome.id,
+          periodId: outcome.periodId || null,
+          startDate: dateStr,
+          basePoints: 10,
+          flexibilityRule: 'must_today',
+          importance: 'medium',
+          toleranceBefore: null,
+          toleranceAfter: null,
+        });
+      }
 
-      taskValues.push({
-        userId,
-        name: outcome.name,
-        pillarId: outcome.pillarId || null,
-        completionType: taskCompletionType,
-        target: taskDailyTarget,
-        unit: taskCompletionType === 'checkbox' ? null : (outcome.unit || null),
-        frequency: 'adhoc' as const,
-        customDays: null,
-        repeatInterval: null,
-        goalId: outcome.id,
-        periodId: outcome.periodId || null,
-        startDate: dateStr,
-        basePoints: 10,
-        flexibilityRule: 'must_today',
-        importance: 'medium',
-        toleranceBefore: null,
-        toleranceAfter: null,
-      });
+      current.setDate(current.getDate() + 1);
     }
   }
 
