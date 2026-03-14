@@ -87,6 +87,12 @@ export default function Home() {
           variants={containerVariants}
           className="relative z-10 text-center px-4 max-w-5xl mx-auto"
         >
+          <motion.img
+            variants={itemVariants}
+            src="/icons/brand-icons/pwa_icon.png"
+            alt="Grind Console"
+            className="w-24 h-24 md:w-32 md:h-32 mx-auto mb-6 rounded-2xl shadow-lg"
+          />
           <motion.h1
             variants={itemVariants}
             className="text-6xl md:text-8xl font-bold text-white mb-6 tracking-tight"
