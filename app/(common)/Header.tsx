@@ -170,9 +170,7 @@ export default function Header() {
           {/* Logo */}
           <Link href="/">
             <div className="flex items-center gap-2 cursor-pointer">
-              <div className="w-7 h-7 bg-zinc-900 dark:bg-white rounded-md flex items-center justify-center">
-                <span className="text-white dark:text-zinc-900 font-bold text-sm">G</span>
-              </div>
+              <img src="/icons/icon-96x96.png" alt="Grind Console" className="w-11 h-11 rounded-lg" />
               <span className="text-lg font-semibold text-zinc-900 dark:text-white">
                 Grind Console
               </span>
