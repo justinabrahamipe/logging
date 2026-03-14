@@ -18,7 +18,7 @@ export default function TermsOfService() {
                 1. Acceptance of Terms
               </h2>
               <p>
-                By accessing and using Total Logger, you accept and agree to be bound by these Terms of Service.
+                By accessing and using Grind Console, you accept and agree to be bound by these Terms of Service.
                 If you do not agree to these terms, please do not use our service.
               </p>
             </section>
@@ -28,7 +28,7 @@ export default function TermsOfService() {
                 2. Description of Service
               </h2>
               <p>
-                Total Logger is a life gamification and productivity application that allows you to:
+                Grind Console is a life gamification and productivity application that allows you to:
               </p>
               <ul className="list-disc list-inside space-y-2 ml-4 mt-2">
                 <li>Define life pillars and set weighted priorities</li>
@@ -44,7 +44,7 @@ export default function TermsOfService() {
                 3. User Accounts
               </h2>
               <p className="mb-2">
-                To use Total Logger, you must:
+                To use Grind Console, you must:
               </p>
               <ul className="list-disc list-inside space-y-2 ml-4">
                 <li>Have a valid Google account</li>
@@ -62,7 +62,7 @@ export default function TermsOfService() {
                 4. Google Account Integration
               </h2>
               <p>
-                By connecting your Google account, you grant Total Logger permission to access your basic
+                By connecting your Google account, you grant Grind Console permission to access your basic
                 profile information (name, email, profile picture) for authentication purposes.
               </p>
               <p className="mt-2">
@@ -97,7 +97,7 @@ export default function TermsOfService() {
                 6. Data Ownership
               </h2>
               <p>
-                You retain all rights to the data you create and store in Total Logger. We claim no ownership
+                You retain all rights to the data you create and store in Grind Console. We claim no ownership
                 over your pillars, tasks, scores, or any other data. You can export or delete your
                 data at any time.
               </p>
@@ -108,7 +108,7 @@ export default function TermsOfService() {
                 7. Service Availability
               </h2>
               <p>
-                We strive to provide a reliable service, but we do not guarantee that Total Logger will be
+                We strive to provide a reliable service, but we do not guarantee that Grind Console will be
                 available at all times. We may need to perform maintenance, updates, or make changes to the
                 service without prior notice.
               </p>
@@ -119,7 +119,7 @@ export default function TermsOfService() {
                 8. Disclaimer of Warranties
               </h2>
               <p>
-                Total Logger is provided &quot;as is&quot; and &quot;as available&quot; without warranties of any kind, either
+                Grind Console is provided &quot;as is&quot; and &quot;as available&quot; without warranties of any kind, either
                 express or implied. We do not warrant that the service will be uninterrupted, secure, or error-free.
               </p>
             </section>
@@ -129,7 +129,7 @@ export default function TermsOfService() {
                 9. Limitation of Liability
               </h2>
               <p>
-                To the maximum extent permitted by law, Total Logger and its developers shall not be liable
+                To the maximum extent permitted by law, Grind Console and its developers shall not be liable
                 for any indirect, incidental, special, consequential, or punitive damages resulting from your
                 use or inability to use the service.
               </p>
@@ -158,7 +158,7 @@ export default function TermsOfService() {
               </h2>
               <p>
                 We may modify these Terms of Service at any time. We will notify users of significant changes
-                by posting a notice in the application or via email. Your continued use of Total Logger after
+                by posting a notice in the application or via email. Your continued use of Grind Console after
                 such modifications constitutes acceptance of the updated terms.
               </p>
             </section>
@@ -187,7 +187,7 @@ export default function TermsOfService() {
               href="/"
               className="text-zinc-700 dark:text-zinc-300 underline hover:underline"
             >
-              &larr; Back to Total Logger
+              &larr; Back to Grind Console
             </Link>
           </div>
         </div>

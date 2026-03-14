@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -11,8 +11,12 @@ import {
   FaArrowDown,
   FaEllipsisV,
   FaClipboardList,
+  FaPlay,
+  FaStop,
 } from "react-icons/fa";
 import { calculateEffortMetrics } from "@/lib/effort-calculations";
+import { formatDate } from "@/lib/format";
+import { useTheme } from "@/components/ThemeProvider";
 import { Outcome, LogEntry, LinkedTask } from "../types";
 
 export default function GoalCard({
@@ -27,6 +31,8 @@ export default function GoalCard({
   today,
   taskCompletionDates,
   onAddTask,
+  onQuickLog,
+  onTimerLog,
 }: {
   outcome: Outcome;
   logsMap: Record<number, LogEntry[]>;
@@ -40,13 +46,57 @@ export default function GoalCard({
   taskCompletionDates: Record<number, string[]>;
   onAddTask: (o: Outcome) => void;
   onQuickLog: (o: Outcome) => void;
+  onTimerLog?: (o: Outcome, minutes: number) => void;
 }) {
   const router = useRouter();
+  const { dateFormat } = useTheme();
   const progress = getProgress(outcome);
   const color = outcome.pillarColor || "#3B82F6";
   const isHabitual = outcome.goalType === "habitual";
   const isActivityGoal = outcome.goalType === "target" || outcome.goalType === "habitual";
   const scheduleDays: number[] = outcome.scheduleDays ? JSON.parse(outcome.scheduleDays) : [];
+  const isTimer = outcome.completionType === "duration";
+
+  // Timer state
+  const [timerRunning, setTimerRunning] = useState(false);
+  const [timerElapsed, setTimerElapsed] = useState(0);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, []);
+
+  const handleTimerToggle = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (timerRunning) {
+      // Stop timer
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      intervalRef.current = null;
+      const minutes = Math.round(timerElapsed / 60);
+      setTimerRunning(false);
+      if (minutes > 0 && onTimerLog) {
+        onTimerLog(outcome, minutes);
+      }
+      setTimerElapsed(0);
+    } else {
+      // Start timer
+      setTimerRunning(true);
+      intervalRef.current = setInterval(() => {
+        setTimerElapsed(prev => prev + 1);
+      }, 1000);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timerRunning, timerElapsed, outcome, onTimerLog]);
+
+  const formatTime = (seconds: number) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    return `${m}:${String(s).padStart(2, '0')}`;
+  };
 
   const effortMetrics = useMemo(() => {
     if (!isActivityGoal || !outcome.startDate || !outcome.targetDate || scheduleDays.length === 0) return null;
@@ -141,18 +191,51 @@ export default function GoalCard({
                 <span className="font-medium">{Math.round(progress)}%</span>
               </>
             )}
+            {outcome.startDate && (
+              <span className="text-[11px] text-zinc-400 dark:text-zinc-500">
+                {formatDate(outcome.startDate, dateFormat)}{outcome.targetDate ? ` – ${formatDate(outcome.targetDate, dateFormat)}` : ''}
+              </span>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
-          <motion.button
-            onClick={() => {
-              openLogModal(outcome);
-            }}
-            className="w-8 h-8 rounded-lg border-2 border-zinc-400 dark:border-zinc-500 flex items-center justify-center text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-            title={isHabitual ? "Add task for today" : "Log progress"}
-          >
-            <FaPlus className="text-xs" />
-          </motion.button>
+          {/* Timer controls for duration goals */}
+          {isTimer ? (
+            <div className="flex items-center gap-1.5">
+              {timerRunning && (
+                <span className="text-xs font-mono text-zinc-700 dark:text-zinc-300 min-w-[3rem] text-center">
+                  {formatTime(timerElapsed)}
+                </span>
+              )}
+              <button
+                onClick={handleTimerToggle}
+                className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                  timerRunning
+                    ? 'bg-red-500 text-white hover:bg-red-600'
+                    : 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100'
+                }`}
+                title={timerRunning ? 'Stop timer and log' : 'Start timer'}
+              >
+                {timerRunning ? <FaStop className="text-xs" /> : <FaPlay className="text-xs" />}
+              </button>
+              {/* Also keep the + button for manual logging */}
+              <motion.button
+                onClick={() => openLogModal(outcome)}
+                className="w-8 h-8 rounded-lg border-2 border-zinc-400 dark:border-zinc-500 flex items-center justify-center text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                title="Log manually"
+              >
+                <FaPlus className="text-xs" />
+              </motion.button>
+            </div>
+          ) : (
+            <motion.button
+              onClick={() => openLogModal(outcome)}
+              className="w-8 h-8 rounded-lg border-2 border-zinc-400 dark:border-zinc-500 flex items-center justify-center text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              title={isHabitual ? "Add task for today" : "Log progress"}
+            >
+              <FaPlus className="text-xs" />
+            </motion.button>
+          )}
           <div className="relative">
             <button
               onClick={() => setMenuOpen(menuOpen === outcome.id ? null : outcome.id)}

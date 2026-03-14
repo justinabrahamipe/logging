@@ -175,7 +175,7 @@ export default function TasksPage() {
   const [pastPending, setPastPending] = useState<Record<string, string>>({});
   const [pastLoading, setPastLoading] = useState(false);
   const [filters, setFilters] = useState<{
-    date: { type: 'today' | 'tomorrow' | 'week' | 'single' | 'range' | 'no-date'; value?: string; endDate?: string };
+    date: { type: 'today' | 'tomorrow' | 'week' | 'month' | 'single' | 'range' | 'no-date' | 'scheduled'; value?: string; endDate?: string };
     status: 'all' | 'todo' | 'done' | 'discarded';
     pillars: number[];
     goals: number[];
@@ -189,7 +189,7 @@ export default function TasksPage() {
       const oldStatus = localStorage.getItem('tasks-status-filter');
       if (oldDate || oldStatus) {
         const migrated = {
-          date: { type: (['today', 'tomorrow', 'week', 'no-date'].includes(oldDate || '') ? oldDate : 'today') as 'today' | 'tomorrow' | 'week' | 'single' | 'range' | 'no-date' },
+          date: { type: (['today', 'tomorrow', 'week', 'month', 'no-date', 'scheduled'].includes(oldDate || '') ? oldDate : 'today') as 'today' | 'tomorrow' | 'week' | 'month' | 'single' | 'range' | 'no-date' | 'scheduled' },
           status: (['todo', 'done'].includes(oldStatus || '') ? oldStatus : 'all') as 'all' | 'todo' | 'done' | 'discarded',
           pillars: [] as number[],
           goals: [] as number[],
@@ -228,6 +228,10 @@ export default function TasksPage() {
         const weekEnd = new Date(todayDate); weekEnd.setDate(weekEnd.getDate() + daysUntilFriday);
         return `This Week (${fmt(todayDate)} – ${fmt(weekEnd)})`;
       }
+      case 'month': {
+        const monthName = todayDate.toLocaleDateString('en-US', { month: 'long' });
+        return `This Month (${monthName})`;
+      }
       case 'single': return filters.date.value ? formatDate(filters.date.value, dateFormat) : 'Pick Date';
       case 'range': {
         if (filters.date.value && filters.date.endDate) {
@@ -236,6 +240,7 @@ export default function TasksPage() {
         return 'Date Range';
       }
       case 'no-date': return 'No Date';
+      case 'scheduled': return 'Scheduled';
     }
   }, [today, filters.date, dateFormat]);
 
@@ -704,9 +709,9 @@ export default function TasksPage() {
         <div className="mb-3">
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-2xl md:text-3xl font-bold text-zinc-900 dark:text-white">Tasks</h1>
-            {scoreSummary && (
+            {scoreSummary && filters.date.type !== 'scheduled' && (
               <span className="text-sm font-semibold text-zinc-500 dark:text-zinc-400">
-                {scoreSummary.actionScore}%
+                {scoreSummary.totalTasks > 0 ? Math.round((scoreSummary.completedTasks / scoreSummary.totalTasks) * 100) : 0}%
                 <span className="font-normal ml-1">{scoreSummary.completedTasks}/{scoreSummary.totalTasks}</span>
               </span>
             )}
@@ -726,10 +731,10 @@ export default function TasksPage() {
                   <FaChevronDown className="text-[8px] text-zinc-400" />
                 </button>
                 {activePopover === 'date' && (
-                  <div className="absolute top-full right-0 mt-1 z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-lg p-1.5 min-w-[200px]">
+                  <div className="absolute top-full left-0 mt-1 z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-lg p-1.5 min-w-[200px]">
                     {!datePickerMode ? (
                       <div className="space-y-0.5">
-                        {(['today', 'tomorrow', 'week', 'no-date'] as const).map(type => (
+                        {(['today', 'tomorrow', 'week', 'month', 'no-date'] as const).map(type => (
                           <button
                             key={type}
                             onClick={() => { setFilters(f => ({ ...f, date: { type } })); setActivePopover(null); }}
@@ -737,9 +742,18 @@ export default function TasksPage() {
                               filters.date.type === type ? 'bg-zinc-100 dark:bg-zinc-700 font-medium text-zinc-900 dark:text-white' : 'hover:bg-zinc-50 dark:hover:bg-zinc-700/50 text-zinc-600 dark:text-zinc-400'
                             }`}
                           >
-                            {type === 'today' ? 'Today' : type === 'tomorrow' ? 'Tomorrow' : type === 'week' ? 'This Week' : 'No Date'}
+                            {type === 'today' ? 'Today' : type === 'tomorrow' ? 'Tomorrow' : type === 'week' ? 'This Week' : type === 'month' ? 'This Month' : 'No Date'}
                           </button>
                         ))}
+                        <div className="border-t border-zinc-100 dark:border-zinc-700 my-1" />
+                        <button
+                          onClick={() => { setFilters(f => ({ ...f, date: { type: 'scheduled' } })); setActivePopover(null); }}
+                          className={`w-full px-3 py-1.5 text-left text-sm rounded-lg transition-colors ${
+                            filters.date.type === 'scheduled' ? 'bg-zinc-100 dark:bg-zinc-700 font-medium text-zinc-900 dark:text-white' : 'hover:bg-zinc-50 dark:hover:bg-zinc-700/50 text-zinc-600 dark:text-zinc-400'
+                          }`}
+                        >
+                          Scheduled
+                        </button>
                         <div className="border-t border-zinc-100 dark:border-zinc-700 my-1" />
                         <button
                           onClick={() => { setDatePickerMode('single'); setPendingRange(undefined); }}
@@ -974,7 +988,7 @@ export default function TasksPage() {
                   <FaPlus className="text-[8px]" /> Filter
                 </button>
                 {activePopover === 'add' && (
-                  <div className="absolute top-full right-0 mt-1 z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-lg p-1.5 min-w-[180px] max-h-[360px] overflow-y-auto">
+                  <div className="absolute top-full right-0 mt-1 z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-lg p-1.5 w-[180px] max-h-[360px] overflow-y-auto">
                     {/* Status section */}
                     {filters.status === 'all' && (
                       <>
@@ -1035,21 +1049,23 @@ export default function TasksPage() {
           </div>
 
           {/* Progress underline */}
-          <div className="mt-1.5 w-full h-1 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden relative">
-            {refreshing && (
-              <div className="absolute inset-0 bg-zinc-300 dark:bg-zinc-600 animate-pulse" />
-            )}
-            {scoreSummary && (
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${Math.min(scoreSummary.actionScore, 100)}%` }}
-                transition={{ duration: 0.5 }}
-                className={`h-full rounded-full relative z-10 ${
-                  scoreSummary.actionScore < 30 ? "bg-red-500" : scoreSummary.actionScore < 60 ? "bg-yellow-500" : "bg-green-500"
-                }`}
-              />
-            )}
-          </div>
+          {filters.date.type !== 'scheduled' && (
+            <div className="mt-1.5 w-full h-1 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden relative">
+              {refreshing && (
+                <div className="absolute inset-0 bg-zinc-300 dark:bg-zinc-600 animate-pulse" />
+              )}
+              {scoreSummary && (
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.min(scoreSummary.actionScore, 100)}%` }}
+                  transition={{ duration: 0.5 }}
+                  className={`h-full rounded-full relative z-10 ${
+                    scoreSummary.actionScore < 30 ? "bg-red-500" : scoreSummary.actionScore < 60 ? "bg-yellow-500" : "bg-green-500"
+                  }`}
+                />
+              )}
+            </div>
+          )}
         </div>
 
         {/* Unified accordion view */}
@@ -1326,6 +1342,12 @@ export default function TasksPage() {
             return bucket; // YYYY-MM-DD
           };
 
+          const getEndOfMonth = () => {
+            const d = new Date(today + 'T12:00:00');
+            const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+            return lastDay.toISOString().split('T')[0];
+          };
+
           const isTaskInDateRange = (task: typeof allEnrichedTasks[number]): boolean => {
             const bucket = getDateBucket(task, today);
             switch (filters.date.type) {
@@ -1334,9 +1356,40 @@ export default function TasksPage() {
               case 'tomorrow':
                 return bucket === 'Tomorrow';
               case 'week': {
-                if (bucket === 'No Date' || bucket === 'Later' || bucket === 'Today' || bucket === 'Tomorrow') return false;
-                const dayAfterTomorrow = (() => { const d = new Date(today + 'T12:00:00'); d.setDate(d.getDate() + 2); return d.toISOString().split('T')[0]; })();
-                return bucket >= dayAfterTomorrow && bucket <= getEndOfWeek();
+                if (bucket === 'No Date' || bucket === 'Later') return false;
+                if (bucket === 'Today' || bucket === 'Tomorrow') return true;
+                return bucket >= today && bucket <= getEndOfWeek();
+              }
+              case 'month': {
+                if (bucket === 'Today' || bucket === 'Tomorrow') return true;
+                if (bucket === 'No Date') return false;
+                const monthEnd = getEndOfMonth();
+                if (bucket === 'Later') {
+                  // For adhoc tasks, check startDate
+                  if (task.frequency === 'adhoc') {
+                    return task.startDate ? task.startDate >= today && task.startDate <= monthEnd : false;
+                  }
+                  // For recurring tasks, check if any occurrence falls within the remaining month
+                  const d = new Date(today + 'T12:00:00');
+                  d.setDate(d.getDate() + 7); // "Later" starts after 6 days
+                  while (d.toISOString().split('T')[0] <= monthEnd) {
+                    const dStr = d.toISOString().split('T')[0];
+                    const dow = d.getDay();
+                    let matches = false;
+                    if (task.frequency === 'daily') matches = true;
+                    else if (task.frequency === 'custom' && task.customDays) {
+                      try { matches = JSON.parse(task.customDays).includes(dow); } catch { /* ignore */ }
+                    } else if (task.frequency === 'monthly' && task.customDays) {
+                      try { matches = JSON.parse(task.customDays).includes(d.getDate()); } catch { /* ignore */ }
+                    } else if (task.frequency === 'weekly') {
+                      matches = dow === 1;
+                    }
+                    if (matches && (!task.startDate || dStr >= task.startDate)) return true;
+                    d.setDate(d.getDate() + 1);
+                  }
+                  return false;
+                }
+                return bucket >= today && bucket <= monthEnd;
               }
               case 'single': {
                 if (!filters.date.value) return false;
@@ -1376,8 +1429,9 @@ export default function TasksPage() {
             return true;
           };
 
-          const isPastDateView = filters.date.type === 'single' && filters.date.value && filters.date.value < today;
-          const filteredTasks = isPastDateView ? [] : allEnrichedTasks.filter(task => {
+          const isScheduledView = filters.date.type === 'scheduled';
+          const isPastDateView = !isScheduledView && filters.date.type === 'single' && filters.date.value && filters.date.value < today;
+          const filteredTasks = (isPastDateView || isScheduledView) ? [] : allEnrichedTasks.filter(task => {
             if (!isTaskInDateRange(task)) return false;
             const completed = task.completion?.completed || (task.target != null && task.target > 0 && (task.completion?.value || 0) >= task.target);
             if (!passesStatusFilter(completed, task.completion?.value ?? null)) return false;
@@ -1385,6 +1439,14 @@ export default function TasksPage() {
             if (filters.goals.length > 0 && !(task.goalId && filters.goals.includes(task.goalId))) return false;
             return true;
           });
+
+          // For scheduled view: show only recurring task definitions (not adhoc instances)
+          const scheduledTasks = isScheduledView ? allEnrichedTasks.filter(task => {
+            if (task.frequency === 'adhoc') return false;
+            if (filters.pillars.length > 0 && !filters.pillars.includes(task.pillarId)) return false;
+            if (filters.goals.length > 0 && !(task.goalId && filters.goals.includes(task.goalId))) return false;
+            return true;
+          }) : [];
 
           // Filter past tasks too
           const filteredPastDays = pastDays.map(day => ({
@@ -1410,9 +1472,106 @@ export default function TasksPage() {
             );
           }
 
+          const getScheduleLabel = (task: typeof allEnrichedTasks[number]) => {
+            if (task.frequency === 'daily') return 'Every day';
+            if (task.frequency === 'weekly') return 'Every Monday';
+            if (task.frequency === 'custom' && task.customDays) {
+              try {
+                const days: number[] = JSON.parse(task.customDays);
+                const dayLabels = days.map((d: number) => DAYS_OF_WEEK[d]).join(', ');
+                const interval = task.repeatInterval && task.repeatInterval > 7 ? Math.round(task.repeatInterval / 7) : 1;
+                return interval > 1 ? `${dayLabels} (every ${interval} weeks)` : dayLabels;
+              } catch { return 'Custom'; }
+            }
+            if (task.frequency === 'monthly' && task.customDays) {
+              try {
+                const days: number[] = JSON.parse(task.customDays);
+                const interval = task.repeatInterval && task.repeatInterval > 1 ? task.repeatInterval : 1;
+                const dayStr = days.map(d => `${d}${d === 1 ? 'st' : d === 2 ? 'nd' : d === 3 ? 'rd' : 'th'}`).join(', ');
+                return interval > 1 ? `${dayStr} of every ${interval} months` : `${dayStr} of every month`;
+              } catch { return 'Monthly'; }
+            }
+            if (task.frequency === 'interval') return `Every ${task.repeatInterval || '?'} days`;
+            return task.frequency;
+          };
+
+          const getCompletionTypeLabel = (type: string) => {
+            switch (type) {
+              case 'checkbox': return 'Checkbox';
+              case 'count': return 'Counter';
+              case 'numeric': return 'Numeric';
+              case 'duration': return 'Timer';
+              default: return type;
+            }
+          };
+
           return (
             <div>
-              {!isPastDateView ? (
+              {isScheduledView ? (
+                scheduledTasks.length === 0 ? (
+                  <div className="text-center py-8 text-zinc-500 dark:text-zinc-400">
+                    <p className="text-sm">No scheduled (recurring) tasks</p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.5rem' }}>
+                    {scheduledTasks.map(task => (
+                      <div
+                        key={task.id}
+                        className="rounded-lg px-3 py-2.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:shadow-md hover:border-zinc-300 dark:hover:border-zinc-600 transition-all"
+                        style={{ borderLeftWidth: 3, borderLeftColor: task._pillarColor }}
+                      >
+                        <div className="flex items-start gap-2">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-sm font-semibold leading-snug text-zinc-900 dark:text-white">
+                              {task.name}
+                            </h3>
+                            <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                              <span className="text-[11px] text-zinc-500 dark:text-zinc-400 shrink-0">{task._pillarEmoji} {task._pillarName}</span>
+                              {task.goalId && goalsList.find(o => o.id === task.goalId) && (
+                                <span className="text-[11px] px-1.5 py-px rounded-full font-medium bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 truncate max-w-[120px]">
+                                  {goalsList.find(o => o.id === task.goalId)?.name}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                              <span className="text-[11px] px-1.5 py-0.5 rounded-full font-medium bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+                                {getScheduleLabel(task)}
+                              </span>
+                              <span className="text-[11px] px-1.5 py-0.5 rounded-full font-medium bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400">
+                                {getCompletionTypeLabel(task.completionType)}
+                              </span>
+                              {task.target && (
+                                <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                                  Target: {task.target}{task.unit ? ` ${task.unit}` : ''}
+                                </span>
+                              )}
+                              <span className="text-[11px] text-zinc-400 dark:text-zinc-500">
+                                {task.basePoints}pts
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              onClick={() => router.push(`/tasks/${task.id}/edit`)}
+                              className="p-1.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                              title="Edit"
+                            >
+                              <FaEdit className="text-xs" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(task.id)}
+                              className="p-1.5 text-zinc-400 hover:text-red-500 dark:hover:text-red-400 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
+                              title="Delete"
+                            >
+                              <FaTrash className="text-xs" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              ) : !isPastDateView ? (
                 filteredTasks.length === 0 ? (
                   <div className="text-center py-8 text-zinc-500 dark:text-zinc-400">
                     <p className="text-sm">No tasks for this period</p>

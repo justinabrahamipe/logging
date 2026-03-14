@@ -171,10 +171,10 @@ export default function Header() {
           <Link href="/">
             <div className="flex items-center gap-2 cursor-pointer">
               <div className="w-7 h-7 bg-zinc-900 dark:bg-white rounded-md flex items-center justify-center">
-                <span className="text-white dark:text-zinc-900 font-bold text-sm">T</span>
+                <span className="text-white dark:text-zinc-900 font-bold text-sm">G</span>
               </div>
               <span className="text-lg font-semibold text-zinc-900 dark:text-white">
-                TotalLogger
+                Grind Console
               </span>
             </div>
           </Link>

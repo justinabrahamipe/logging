@@ -7,7 +7,7 @@ export default function Footer() {
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           {/* Left side - Copyright */}
           <div className="text-sm text-zinc-600 dark:text-zinc-400">
-            © {new Date().getFullYear()} Total Logger. All rights reserved.
+            © {new Date().getFullYear()} Grind Console. All rights reserved.
           </div>
 
           {/* Right side - Links */}

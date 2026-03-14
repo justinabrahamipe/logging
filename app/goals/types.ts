@@ -67,7 +67,7 @@ export interface GoalFormState {
   targetDate: string;
   periodId: string;
   goalType: "habitual" | "target" | "outcome";
-  completionType: "checkbox" | "count" | "numeric";
+  completionType: "checkbox" | "count" | "numeric" | "duration";
   dailyTarget: string;
   autoCreateTasks: boolean;
   frequencyPreset: string;

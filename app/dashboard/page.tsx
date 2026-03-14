@@ -919,7 +919,7 @@ export default function DashboardPage() {
           <div className="bg-zinc-100 dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 p-4 mb-6">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h3 className="font-semibold text-zinc-900 dark:text-white mb-1">Welcome to TotalLogger!</h3>
+                <h3 className="font-semibold text-zinc-900 dark:text-white mb-1">Welcome to Grind Console!</h3>
                 <p className="text-sm text-zinc-600 dark:text-zinc-400">
                   We&apos;ve loaded sample pillars and tasks to help you get started. Feel free to edit, delete, or add your own.
                 </p>

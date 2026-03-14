@@ -307,25 +307,24 @@ export default function TaskForm({
 
       {/* Goal + Task Date */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {goals.length > 0 && (
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-              Linked Goal <span className="text-zinc-400 font-normal">(optional)</span>
-            </label>
-            <select
-              value={form.goalId}
-              onChange={(e) => setForm({ ...form, goalId: parseInt(e.target.value) || 0 })}
-              className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
-            >
-              <option value={0}>None</option>
-              {goals.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.pillarEmoji ? `${g.pillarEmoji} ` : ''}{g.name} ({g.goalType})
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+        <div>
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+            Linked Goal <span className="text-zinc-400 font-normal">(optional)</span>
+          </label>
+          <select
+            value={form.goalId}
+            onChange={(e) => setForm({ ...form, goalId: parseInt(e.target.value) || 0 })}
+            disabled={goals.length === 0}
+            className={`w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white ${goals.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            <option value={0}>{goals.length === 0 ? 'No goals created' : 'None'}</option>
+            {goals.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.pillarEmoji ? `${g.pillarEmoji} ` : ''}{g.name} ({g.goalType})
+              </option>
+            ))}
+          </select>
+        </div>
         <div>
           <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
             Task Date <span className="text-zinc-400 font-normal">(optional)</span>

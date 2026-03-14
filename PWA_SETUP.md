@@ -11,7 +11,7 @@ Your Next.js application has been successfully converted into a Progressive Web 
 - Enhanced caching strategies and offline support
 
 ### 2. Web App Manifest (`public/manifest.json`)
-- App name: "Total Logger"
+- App name: "Grind Console"
 - Standalone display mode (looks like a native app)
 - Icons in multiple sizes (72x72 to 512x512)
 - Theme colors for light/dark mode
@@ -20,7 +20,7 @@ Your Next.js application has been successfully converted into a Progressive Web 
 ### 3. Icons Generated
 Location: `/public/icons/`
 - Placeholder icons created in sizes: 72, 96, 128, 144, 152, 180, 192, 384, 512
-- Currently using SVG placeholders with "TL" branding
+- Currently using SVG placeholders with "GC" branding
 - **Note:** For production, replace these with proper PNG icons
 
 ### 4. Metadata Updates
