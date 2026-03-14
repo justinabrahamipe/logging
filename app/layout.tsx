@@ -21,13 +21,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TotalLogger",
+  title: "Grind Console",
   description: "Level up your life - gamify your daily habits",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Total Logger",
+    title: "Grind Console",
   },
   icons: {
     icon: [

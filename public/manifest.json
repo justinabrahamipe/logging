@@ -1,7 +1,7 @@
 {
-  "name": "Total Logger",
-  "short_name": "Logger",
-  "description": "Log everything you do",
+  "name": "Grind Console",
+  "short_name": "Grind",
+  "description": "Level up your life - gamify your daily habits",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

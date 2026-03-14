@@ -18,7 +18,7 @@ export default function PrivacyPolicy() {
                 1. Introduction
               </h2>
               <p>
-                Welcome to Total Logger. We respect your privacy and are committed to protecting your personal data.
+                Welcome to Grind Console. We respect your privacy and are committed to protecting your personal data.
                 This privacy policy explains how we collect, use, and safeguard your information when you use our application.
               </p>
             </section>
@@ -66,7 +66,7 @@ export default function PrivacyPolicy() {
                 5. Google API Services
               </h2>
               <p className="mb-2">
-                Total Logger uses Google APIs to authenticate your account. Our use of information
+                Grind Console uses Google APIs to authenticate your account. Our use of information
                 received from Google APIs adheres to the{" "}
                 <a
                   href="https://developers.google.com/terms/api-services-user-data-policy"
@@ -83,7 +83,7 @@ export default function PrivacyPolicy() {
               </ul>
               <p className="mt-2">
                 We do not use this data for advertising, profiling, or any purpose other than providing the
-                core functionality of Total Logger.
+                core functionality of Grind Console.
               </p>
             </section>
 
@@ -93,7 +93,7 @@ export default function PrivacyPolicy() {
               </h2>
               <p>
                 We do not sell, trade, or rent your personal information to third parties. Your data is used
-                solely within Total Logger to provide you with the services you requested.
+                solely within Grind Console to provide you with the services you requested.
               </p>
             </section>
 
@@ -120,7 +120,7 @@ export default function PrivacyPolicy() {
                 8. Revoking Access
               </h2>
               <p>
-                You can revoke Total Logger&apos;s access to your Google account at any time by visiting your{" "}
+                You can revoke Grind Console&apos;s access to your Google account at any time by visiting your{" "}
                 <a
                   href="https://myaccount.google.com/permissions"
                   target="_blank"
@@ -147,7 +147,7 @@ export default function PrivacyPolicy() {
                 10. Children&apos;s Privacy
               </h2>
               <p>
-                Total Logger is not intended for users under the age of 13. We do not knowingly collect
+                Grind Console is not intended for users under the age of 13. We do not knowingly collect
                 personal information from children under 13.
               </p>
             </section>
@@ -186,7 +186,7 @@ export default function PrivacyPolicy() {
               href="/"
               className="text-zinc-700 dark:text-zinc-300 underline hover:underline"
             >
-              &larr; Back to Total Logger
+              &larr; Back to Grind Console
             </Link>
           </div>
         </div>
