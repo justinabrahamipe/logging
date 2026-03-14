@@ -699,7 +699,7 @@ export default function TasksPage() {
   }
 
   return (
-    <div className="px-3 py-4 md:px-6 md:py-6">
+    <div className="px-3 py-4 md:px-6 md:py-6 overflow-x-hidden">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -731,7 +731,7 @@ export default function TasksPage() {
                   <FaChevronDown className="text-[8px] text-zinc-400" />
                 </button>
                 {activePopover === 'date' && (
-                  <div className="absolute top-full left-0 mt-1 z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-lg p-1.5 min-w-[200px]">
+                  <div className="fixed sm:absolute top-auto sm:top-full left-4 right-4 sm:left-auto sm:right-0 mt-1 z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-lg p-1.5 min-w-[200px] max-w-[calc(100vw-2rem)]">
                     {!datePickerMode ? (
                       <div className="space-y-0.5">
                         {(['today', 'tomorrow', 'week', 'month', 'no-date'] as const).map(type => (
