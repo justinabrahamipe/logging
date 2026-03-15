@@ -1,7 +1,8 @@
 import NextAuth from "next-auth";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import Google from "next-auth/providers/google";
-import { db } from "@/lib/db";
+import { db, users } from "@/lib/db";
+import { eq } from "drizzle-orm";
 
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
@@ -13,7 +14,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       allowDangerousEmailAccountLinking: true,
       authorization: {
         params: {
-          prompt: "consent",
           access_type: "offline",
           response_type: "code",
           scope: "openid email profile"
@@ -36,8 +36,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return session;
     },
     async jwt({ token, account, profile }) {
-      if (account && profile) {
-        token.id = profile.sub || token.sub;
+      if (account && profile?.email) {
+        // Always resolve to the existing user by email to prevent ID mismatches
+        const existing = await db
+          .select({ id: users.id })
+          .from(users)
+          .where(eq(users.email, profile.email))
+          .limit(1);
+        if (existing.length > 0) {
+          token.sub = existing[0].id;
+        }
       }
       return token;
     },
