@@ -11,7 +11,11 @@ export async function saveDailyScore(userId: string, date: string) {
     .from(tasks)
     .where(and(eq(tasks.userId, userId), eq(tasks.isActive, true)));
 
-  const tasksForDay = allTasks.filter(task => isTaskForDate(task, date));
+  const tasksForDay = allTasks.filter(task => {
+    // Goal-linked adhoc tasks only count on their exact date (each day has its own task)
+    if (task.frequency === 'adhoc' && task.goalId && task.startDate && task.startDate !== date) return false;
+    return isTaskForDate(task, date);
+  });
 
   // Get completions
   const completions = await db

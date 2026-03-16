@@ -24,6 +24,8 @@ export async function GET(request: NextRequest) {
     // Filter tasks for the specific date, excluding adhoc tasks without a startDate
     let tasksForDay = allTasks.filter(task => {
       if (task.frequency === 'adhoc' && !task.startDate) return false;
+      // Goal-linked adhoc tasks only count on their exact date (each day has its own task)
+      if (task.frequency === 'adhoc' && task.goalId && task.startDate && task.startDate !== date) return false;
       return isTaskForDate(task, date);
     });
 
