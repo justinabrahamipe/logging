@@ -21,34 +21,15 @@ export async function GET(request: NextRequest) {
       .from(tasks)
       .where(and(eq(tasks.userId, userId), eq(tasks.isActive, true)));
 
-    // Filter tasks for the specific date, excluding adhoc tasks without a startDate
-    let tasksForDay = allTasks.filter(task => {
-      if (task.frequency === 'adhoc' && !task.startDate) return false;
-      // Goal-linked adhoc tasks only count on their exact date (each day has its own task)
-      if (task.frequency === 'adhoc' && task.goalId && task.startDate && task.startDate !== date) return false;
+    // Filter tasks for the specific date
+    // For scoring, adhoc tasks only count on their exact startDate — carry-forward
+    // overdue tasks should not drag down today's score
+    const tasksForDay = allTasks.filter(task => {
+      if (task.frequency === 'adhoc') {
+        return task.startDate === date;
+      }
       return isTaskForDate(task, date);
     });
-
-    // Exclude adhoc tasks that were carried forward and already completed
-    const adhocIds = tasksForDay
-      .filter(t => {
-        if (t.frequency !== 'adhoc') return false;
-        return t.startDate && t.startDate !== date;
-      })
-      .map(t => t.id);
-
-    if (adhocIds.length > 0) {
-      const completedAdhoc = await db
-        .select({ taskId: taskCompletions.taskId })
-        .from(taskCompletions)
-        .where(and(
-          eq(taskCompletions.userId, userId),
-          inArray(taskCompletions.taskId, adhocIds),
-          eq(taskCompletions.completed, true),
-        ));
-      const completedSet = new Set(completedAdhoc.map(c => c.taskId));
-      tasksForDay = tasksForDay.filter(t => !(t.frequency === 'adhoc' && completedSet.has(t.id)));
-    }
 
     // Get completions
     const completions = await db

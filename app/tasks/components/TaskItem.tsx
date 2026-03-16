@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaPlus, FaEdit, FaTrash, FaCheck, FaMinus, FaPlay, FaStop, FaEllipsisV, FaCopy, FaStar, FaTimes, FaArrowLeft, FaArrowRight } from "react-icons/fa";
 import { DAY_NAMES } from "@/lib/constants";
@@ -72,6 +72,16 @@ export default function TaskItem({
   const isCompleted = task.completion?.completed || false;
   const currentValue = task.completion?.value || 0;
   const isDiscarded = isCompleted && task.completionType === 'checkbox' && currentValue === 0;
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [menuAbove, setMenuAbove] = useState(false);
+
+  useEffect(() => {
+    if (openMenuId === task.id && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      setMenuAbove(spaceBelow < 220);
+    }
+  }, [openMenuId, task.id]);
   const isFullyDone = !isDiscarded && (isCompleted || (task.target != null && task.target > 0 && currentValue >= task.target));
   const isHighlighted = task.completion?.isHighlighted || false;
   const isTaskLoading = actionLoading[task.id] || false;
@@ -239,6 +249,7 @@ export default function TaskItem({
 
           <div className="relative" ref={openMenuId === task.id ? menuRef : undefined}>
             <button
+              ref={buttonRef}
               onClick={() => setOpenMenuId(openMenuId === task.id ? null : task.id)}
               className="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700"
             >
@@ -251,7 +262,7 @@ export default function TaskItem({
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ duration: 0.1 }}
-                  className="absolute right-0 top-7 z-20 w-36 bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-700 overflow-hidden"
+                  className={`absolute right-0 z-20 w-36 bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-700 overflow-hidden ${menuAbove ? 'bottom-7' : 'top-7'}`}
                 >
                   <button
                     onClick={() => { setOpenMenuId(null); router.push(`/tasks/${task.id}/edit`); }}
