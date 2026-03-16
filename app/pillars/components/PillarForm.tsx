@@ -2,15 +2,7 @@
 
 import { useState } from "react";
 import { FaCheck } from "react-icons/fa";
-
-interface Pillar {
-  id: number;
-  name: string;
-  emoji: string;
-  color: string;
-  weight: number;
-  description: string | null;
-}
+import type { Pillar } from "@/lib/types";
 
 const EMOJI_OPTIONS = [
   "\u{1F4AA}", "\u{1F4BC}", "\u{1F680}", "\u{1F3E0}", "\u{1F4D6}",

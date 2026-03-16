@@ -143,14 +143,12 @@ export default function ProgressChart({ outcome, logs, color }: {
     day: 0,
     actual: outcome.startValue as number | null,
     target: outcome.startValue as number | null,
-    note: null as string | null,
   };
 
   const logPoints = sorted.map((log) => ({
     day: toDayNum(new Date(log.loggedAt).getTime()),
     actual: log.value as number | null,
     target: null as number | null,
-    note: log.note,
   }));
 
   const lastLogDay = logPoints[logPoints.length - 1].day;
@@ -161,7 +159,6 @@ export default function ProgressChart({ outcome, logs, color }: {
     day: endDayNum,
     actual: null as number | null,
     target: outcome.targetValue as number | null,
-    note: null as string | null,
   };
 
   if (!needsEndPoint && logPoints.length > 0) {

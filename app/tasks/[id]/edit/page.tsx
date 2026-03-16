@@ -5,38 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { FaArrowLeft } from "react-icons/fa";
 import TaskForm from "../../components/TaskForm";
-
-interface Pillar {
-  id: number;
-  name: string;
-  emoji: string;
-  color: string;
-}
-
-interface Goal {
-  id: number;
-  name: string;
-  goalType: string;
-  pillarEmoji?: string;
-  pillarName?: string;
-}
-
-interface Task {
-  id: number;
-  pillarId: number;
-  name: string;
-  completionType: string;
-  target: number | null;
-  unit: string | null;
-  frequency: string;
-  customDays: string | null;
-  repeatInterval: number | null;
-  isWeekendTask: boolean;
-  basePoints: number;
-  goalId: number | null;
-  periodId: number | null;
-  startDate: string | null;
-}
+import type { Pillar, Task, Goal } from "@/lib/types";
 
 export default function EditTaskPage() {
   const { data: session, status } = useSession();

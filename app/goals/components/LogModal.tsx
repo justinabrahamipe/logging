@@ -13,7 +13,7 @@ export default function LogModal({
 }: {
   logTarget: Outcome;
   onClose: () => void;
-  onSave: (value: number, note: string | null, logDate: string | null) => Promise<void>;
+  onSave: (value: number, logDate: string | null) => Promise<void>;
 }) {
   const getInitialValue = () => {
     if (logTarget.goalType === "target") {
@@ -36,12 +36,11 @@ export default function LogModal({
   };
 
   const [logValue, setLogValue] = useState(getInitialValue);
-  const [logNote, setLogNote] = useState("");
   const [logDate, setLogDate] = useState(() => new Date().toISOString().split("T")[0]);
 
   const handleSubmit = async () => {
     if (logValue === "") return;
-    await onSave(parseFloat(logValue), logNote || null, logDate || null);
+    await onSave(parseFloat(logValue), logDate || null);
   };
 
   return (
@@ -171,17 +170,6 @@ export default function LogModal({
                   </>
                 );
               })()}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Note (optional)</label>
-              <input
-                type="text"
-                value={logNote}
-                onChange={(e) => setLogNote(e.target.value)}
-                className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
-                placeholder="Optional note"
-              />
             </div>
 
             <div className="flex gap-3 pt-2">

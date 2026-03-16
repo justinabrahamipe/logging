@@ -72,7 +72,7 @@ export function useGoals() {
         for (const group of groups) {
           for (const task of group.tasks) {
             if (task.goalId) {
-              allTasks.push({ id: task.id, name: task.name, goalId: task.goalId });
+              allTasks.push({ id: task.id, name: task.name, goalId: task.goalId, frequency: task.frequency, completionType: task.completionType, basePoints: task.basePoints, target: task.target, unit: task.unit, completed: false, value: null, startDate: task.startDate });
             }
           }
         }
@@ -123,7 +123,7 @@ export function useGoals() {
         for (const group of groups) {
           for (const task of group.tasks) {
             if (task.goalId) {
-              allTasks.push({ id: task.id, name: task.name, goalId: task.goalId });
+              allTasks.push({ id: task.id, name: task.name, goalId: task.goalId, frequency: task.frequency, completionType: task.completionType, basePoints: task.basePoints, target: task.target, unit: task.unit, completed: false, value: null, startDate: task.startDate });
             }
           }
         }

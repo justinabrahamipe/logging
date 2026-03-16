@@ -1,24 +1,20 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
 import { db, userPreferences, users } from "@/lib/db";
 import { eq } from "drizzle-orm";
 
 export async function GET() {
   try {
-    const session = await auth();
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const userId = await getAuthenticatedUserId();
 
     let preferences = await db.query.userPreferences.findFirst({
-      where: eq(userPreferences.userId, session.user.id)
+      where: eq(userPreferences.userId, userId)
     });
 
     if (!preferences) {
       // Verify user exists before attempting insert
       const user = await db.query.users.findFirst({
-        where: eq(users.id, session.user.id),
+        where: eq(users.id, userId),
         columns: { id: true },
       });
       if (!user) {
@@ -26,46 +22,31 @@ export async function GET() {
           theme: "light",
           timeFormat: "12h",
           dateFormat: "DD/MM/YYYY",
-          weekdayPassThreshold: 70,
-          weekendPassThreshold: 70,
         });
       }
       const [created] = await db.insert(userPreferences).values({
-        userId: session.user.id,
+        userId,
         theme: "light",
         timeFormat: "12h",
         dateFormat: "DD/MM/YYYY",
-        weekdayPassThreshold: 70,
-        weekendPassThreshold: 70,
       }).returning();
       preferences = created;
     }
 
     return NextResponse.json(preferences);
   } catch (error) {
-    console.error("Error fetching preferences:", error);
-    return NextResponse.json({
-      theme: "light",
-      timeFormat: "12h",
-      dateFormat: "DD/MM/YYYY",
-      weekdayPassThreshold: 70,
-      weekendPassThreshold: 70,
-    });
+    return errorResponse(error);
   }
 }
 
 export async function PUT(request: Request) {
   let body: Record<string, unknown> = {};
   try {
-    const session = await auth();
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const userId = await getAuthenticatedUserId();
 
     body = await request.json() as Record<string, unknown>;
-    const { theme, timeFormat, dateFormat, weekdayPassThreshold, weekendPassThreshold } = body as {
-      theme?: string; timeFormat?: string; dateFormat?: string; weekdayPassThreshold?: number; weekendPassThreshold?: number;
+    const { theme, timeFormat, dateFormat } = body as {
+      theme?: string; timeFormat?: string; dateFormat?: string;
     };
 
     const validThemes = ["light", "dark", "system"];
@@ -83,7 +64,7 @@ export async function PUT(request: Request) {
     }
 
     const existing = await db.query.userPreferences.findFirst({
-      where: eq(userPreferences.userId, session.user.id)
+      where: eq(userPreferences.userId, userId)
     });
 
     let preferences;
@@ -92,35 +73,23 @@ export async function PUT(request: Request) {
       if (theme) updateData.theme = theme;
       if (timeFormat) updateData.timeFormat = timeFormat;
       if (dateFormat) updateData.dateFormat = dateFormat;
-      if (typeof weekdayPassThreshold === "number") updateData.weekdayPassThreshold = weekdayPassThreshold;
-      if (typeof weekendPassThreshold === "number") updateData.weekendPassThreshold = weekendPassThreshold;
-
       const [updated] = await db.update(userPreferences)
         .set(updateData)
-        .where(eq(userPreferences.userId, session.user.id))
+        .where(eq(userPreferences.userId, userId))
         .returning();
       preferences = updated;
     } else {
       const [created] = await db.insert(userPreferences).values({
-        userId: session.user.id,
+        userId,
         theme: theme || "light",
         timeFormat: timeFormat || "12h",
         dateFormat: dateFormat || "DD/MM/YYYY",
-        weekdayPassThreshold: weekdayPassThreshold ?? 70,
-        weekendPassThreshold: weekendPassThreshold ?? 70,
       }).returning();
       preferences = created;
     }
 
     return NextResponse.json(preferences);
   } catch (error) {
-    console.error("Error updating preferences:", error);
-    return NextResponse.json({
-      theme: body.theme || "light",
-      timeFormat: body.timeFormat || "12h",
-      dateFormat: body.dateFormat || "DD/MM/YYYY",
-      weekdayPassThreshold: body.weekdayPassThreshold ?? 70,
-      weekendPassThreshold: body.weekendPassThreshold ?? 70,
-    });
+    return errorResponse(error);
   }
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
 import { db, pillars, tasks, taskCompletions } from "@/lib/db";
 import { eq } from "drizzle-orm";
 
@@ -7,15 +7,11 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ type: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { type } = await params;
-  const userId = session.user.id;
-
   try {
+    const userId = await getAuthenticatedUserId();
+
+    const { type } = await params;
+
     let csvData = "";
     const filename = `${type}-export.csv`;
 
@@ -58,10 +54,6 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error(`Error exporting ${type}:`, error);
-    return NextResponse.json(
-      { error: `Failed to export ${type}` },
-      { status: 500 }
-    );
+    return errorResponse(error);
   }
 }

@@ -5,21 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { FaArrowLeft } from "react-icons/fa";
 import TaskForm from "../components/TaskForm";
-
-interface Pillar {
-  id: number;
-  name: string;
-  emoji: string;
-  color: string;
-}
-
-interface Goal {
-  id: number;
-  name: string;
-  goalType: string;
-  pillarEmoji?: string;
-  pillarName?: string;
-}
+import type { Pillar, Goal } from "@/lib/types";
 
 export default function NewTaskPage() {
   const { data: session, status } = useSession();

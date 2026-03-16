@@ -1,42 +1,11 @@
 import { countScheduledDaysInRange } from './effort-calculations';
+import type { GoalForMomentum, GoalLogEntry, GoalMomentum, MomentumSummary } from '@/lib/types';
 
-interface GoalForMomentum {
-  id: number;
-  goalType: string; // 'habitual' | 'target' | 'outcome'
-  pillarId: number | null;
-  targetValue: number;
-  startValue: number;
-  currentValue: number;
-  startDate: string | null;
-  targetDate: string | null;
-  scheduleDays: string | null; // JSON array
-  tolerance: number | null; // allowed misses per week (habitual)
-}
-
-interface GoalLogEntry {
-  outcomeId: number;
-  value: number;
-  loggedAt: string; // ISO timestamp or YYYY-MM-DD
-}
-
-export interface GoalMomentum {
-  goalId: number;
-  goalType: string;
-  pillarId: number | null;
-  momentum: number; // 1.0 = on pace, >1 = ahead, <1 = behind
-  bufferDays: number; // how many days you can miss and stay >= 1.0
-  label: string; // "1.3x" or "On track" or "Behind"
-}
-
-export interface MomentumSummary {
-  overall: number; // weighted momentum across all goals
-  pillarMomentum: Record<number, number>; // pillarId -> momentum
-  goals: GoalMomentum[];
-}
+export type { GoalMomentum, MomentumSummary } from '@/lib/types';
 
 /**
  * Calculate momentum for a habitual goal.
- * Momentum = (days_hit + tolerance_remaining) / days_expected
+ * Momentum = days_hit / days_expected
  * Over a rolling window (last 2 weeks or cycle-to-date, whichever is shorter).
  */
 function calculateHabitualMomentum(
@@ -75,19 +44,11 @@ function calculateHabitualMomentum(
     current.setDate(current.getDate() + 1);
   }
 
-  // Weekly tolerance: allowed misses per week
-  const weeksToDDate = Math.max(1, Math.ceil(totalExpected / (scheduleDays.length || 1)));
-  const totalAllowedMisses = (goal.tolerance || 0) * weeksToDDate;
-  const missed = totalExpected - daysHit;
-  const toleranceRemaining = Math.max(0, totalAllowedMisses - missed);
-
-  // Momentum: effective adherence ratio
-  // If you've hit all days + have tolerance left, momentum > 1.0
-  const effectiveHits = daysHit + toleranceRemaining;
-  const momentum = totalExpected > 0 ? effectiveHits / totalExpected : 1.0;
+  // Momentum: adherence ratio
+  const momentum = totalExpected > 0 ? daysHit / totalExpected : 1.0;
 
   // Buffer days = how many more scheduled days you can miss while staying >= 1.0
-  const bufferDays = Math.max(0, Math.floor(effectiveHits - totalExpected));
+  const bufferDays = Math.max(0, Math.floor(daysHit - totalExpected));
 
   const label = momentum >= 1.05 ? `${momentum.toFixed(1)}x` : momentum >= 0.95 ? 'On track' : `${momentum.toFixed(1)}x`;
 

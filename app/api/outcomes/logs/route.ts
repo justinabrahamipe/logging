@@ -27,12 +27,12 @@ export async function GET() {
     .orderBy(desc(taskCompletions.date));
 
   // Group by goalId (mapped as outcomeId for backward compat)
-  const grouped: Record<number, { id: number; value: number; loggedAt: string; note: string | null }[]> = {};
+  const grouped: Record<number, { id: number; value: number; loggedAt: string }[]> = {};
   for (const log of logs) {
     const outcomeId = log.goalId!;
     const loggedAt = log.date + "T12:00:00.000Z";
     if (!grouped[outcomeId]) grouped[outcomeId] = [];
-    grouped[outcomeId].push({ id: log.id, value: log.value ?? 0, loggedAt, note: null });
+    grouped[outcomeId].push({ id: log.id, value: log.value ?? 0, loggedAt });
   }
 
   return NextResponse.json(grouped);

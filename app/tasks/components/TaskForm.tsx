@@ -2,78 +2,10 @@
 
 import { useState } from "react";
 import { FaCheck, FaPlus, FaMinus } from "react-icons/fa";
+import { COMPLETION_TYPES, FREQUENCY_PRESETS, REPEAT_UNITS, DAY_NAMES } from "@/lib/constants";
+import type { Pillar, Task, Goal, TaskFormState } from "@/lib/types";
 
-interface Pillar {
-  id: number;
-  name: string;
-  emoji: string;
-  color: string;
-}
-
-interface Goal {
-  id: number;
-  name: string;
-  goalType: string;
-  pillarEmoji?: string;
-  pillarName?: string;
-}
-
-interface Task {
-  id: number;
-  pillarId: number;
-  name: string;
-  completionType: string;
-  target: number | null;
-  unit: string | null;
-  frequency: string;
-  customDays: string | null;
-  repeatInterval: number | null;
-  isWeekendTask: boolean;
-  basePoints: number;
-  goalId: number | null;
-  periodId: number | null;
-  startDate: string | null;
-}
-
-interface TaskFormState {
-  pillarId: number;
-  goalId: number;
-  name: string;
-  completionType: string;
-  target: string;
-  unit: string;
-  frequencyPreset: string;
-  frequency: string;
-  customDays: number[];
-  repeatInterval: string;
-  repeatUnit: "days" | "weeks" | "months";
-  monthDay: number;
-  basePoints: string;
-  startDate: string;
-}
-
-const COMPLETION_TYPES = [
-  { value: "checkbox", label: "Checkbox" },
-  { value: "count", label: "Count" },
-  { value: "duration", label: "Duration (min)" },
-  { value: "numeric", label: "Numeric" },
-];
-
-const FREQUENCY_PRESETS = [
-  { value: "adhoc", label: "Does not repeat" },
-  { value: "daily", label: "Daily" },
-  { value: "weekdays", label: "Every weekday (Mon-Fri)" },
-  { value: "custom", label: "Custom..." },
-];
-
-const REPEAT_UNITS = [
-  { value: "days", label: "day" },
-  { value: "weeks", label: "week" },
-  { value: "months", label: "month" },
-];
-
-
-const DAYS_OF_WEEK = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DAYS_OF_WEEK = DAY_NAMES;
 
 function taskToPreset(task: Task): {
   preset: string;

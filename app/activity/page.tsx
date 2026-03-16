@@ -2,44 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { FaSearch, FaFilter, FaChevronDown, FaChevronUp, FaUndo, FaCheck, FaPlus, FaMinus, FaSlidersH, FaBullseye, FaEdit, FaTimes } from "react-icons/fa";
+import { FaSearch, FaFilter, FaChevronDown, FaChevronUp, FaUndo, FaCheck, FaPlus, FaMinus, FaSlidersH, FaBullseye } from "react-icons/fa";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { formatDate } from "@/lib/format";
 import { useTheme } from "@/components/ThemeProvider";
-
-interface ActivityEntry {
-  id: number;
-  timestamp: string;
-  taskId: number | null;
-  pillarId: number | null;
-  action: string;
-  previousValue: number | null;
-  newValue: number | null;
-  delta: number | null;
-  pointsBefore: number | null;
-  pointsAfter: number | null;
-  pointsDelta: number | null;
-  source: string;
-  reversalOf: number | null;
-  note: string | null;
-  taskName: string | null;
-  taskCompletionType: string | null;
-  pillarName: string | null;
-  pillarEmoji: string | null;
-  pillarColor: string | null;
-  outcomeLogId: number | null;
-  outcomeLogValue: number | null;
-  outcomeId: number | null;
-  outcomeName: string | null;
-  outcomeUnit: string | null;
-}
-
-interface Pillar {
-  id: number;
-  name: string;
-  emoji: string;
-}
+import type { ActivityEntry, Pillar } from "@/lib/types";
 
 function getActionIcon(action: string) {
   switch (action) {
@@ -70,7 +38,7 @@ function formatTimestamp(ts: string) {
   return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 }
 
-function formatDateLabel(ts: string, dateFormat: string) {
+function formatDateLabel(ts: string, dateFormat: "DD/MM/YYYY" | "MM/DD/YYYY" | "YYYY-MM-DD" | "DD-MM-YYYY" | "MM-DD-YYYY") {
   const date = new Date(ts);
   return formatDate(date.toISOString().split('T')[0], dateFormat);
 }
@@ -89,8 +57,6 @@ export default function ActivityPage() {
   const [dateTo, setDateTo] = useState('');
   const [pillarFilter, setPillarFilter] = useState('');
   const [useRange, setUseRange] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editValue, setEditValue] = useState("");
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -148,25 +114,6 @@ export default function ActivityPage() {
     fetchEntries();
   };
 
-  const handleSaveOutcomeLog = async (entry: ActivityEntry) => {
-    if (!entry.outcomeLogId || !entry.outcomeId) return;
-    try {
-      const res = await fetch(`/api/outcomes/${entry.outcomeId}/log`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          logId: entry.outcomeLogId,
-          value: parseFloat(editValue),
-        }),
-      });
-      if (res.ok) {
-        setEditingId(null);
-        fetchEntries();
-      }
-    } catch (error) {
-      console.error("Failed to update outcome log:", error);
-    }
-  };
 
   if (loading && entries.length === 0) {
     return (
@@ -323,7 +270,7 @@ export default function ActivityPage() {
                         <span className="text-sm">{entry.pillarEmoji}</span>
                       )}
                       <span className="text-sm font-medium text-zinc-900 dark:text-white truncate">
-                        {entry.action === 'outcome_log' ? (entry.outcomeName || 'Outcome') : (entry.taskName || 'Unknown Task')}
+                        {entry.taskName || 'Unknown Task'}
                       </span>
                       <span className={`text-xs px-1.5 py-0.5 rounded ${
                         entry.action === 'complete' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
@@ -339,35 +286,9 @@ export default function ActivityPage() {
 
                     <div className="flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
                       <span>{formatTimestamp(entry.timestamp)}</span>
-                      {entry.action === 'outcome_log' && editingId === entry.id ? (
-                        <span className="flex items-center gap-1">
-                          <input
-                            type="number"
-                            step="any"
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            className="w-20 px-1.5 py-0.5 text-xs border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
-                            autoFocus
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') handleSaveOutcomeLog(entry);
-                              if (e.key === 'Escape') setEditingId(null);
-                            }}
-                          />
-                          <span className="text-zinc-400">{entry.outcomeUnit}</span>
-                          <button onClick={() => handleSaveOutcomeLog(entry)} className="text-green-500 hover:text-green-600"><FaCheck className="text-xs" /></button>
-                          <button onClick={() => setEditingId(null)} className="text-zinc-400 hover:text-zinc-500"><FaTimes className="text-xs" /></button>
-                        </span>
-                      ) : (
-                        <>
-                          {entry.action === 'outcome_log' && entry.outcomeLogValue != null ? (
+                      {entry.action === 'outcome_log' && entry.outcomeLogValue != null ? (
                             <span className="flex items-center gap-1">
-                              {entry.outcomeLogValue} {entry.outcomeUnit}
-                              <button
-                                onClick={() => { setEditingId(entry.id); setEditValue(String(entry.outcomeLogValue)); }}
-                                className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
-                              >
-                                <FaEdit className="text-xs" />
-                              </button>
+                              {entry.outcomeLogValue}
                             </span>
                           ) : entry.delta != null && entry.delta !== 0 ? (
                             <span>
@@ -383,8 +304,6 @@ export default function ActivityPage() {
                             </span>
                           )}
                           <span className="text-zinc-400 dark:text-zinc-500 capitalize">{entry.source}</span>
-                        </>
-                      )}
                     </div>
                   </div>
 

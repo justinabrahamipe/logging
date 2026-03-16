@@ -5,15 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { FaArrowLeft } from "react-icons/fa";
 import PillarForm from "../../components/PillarForm";
-
-interface Pillar {
-  id: number;
-  name: string;
-  emoji: string;
-  color: string;
-  weight: number;
-  description: string | null;
-}
+import type { Pillar } from "@/lib/types";
 
 export default function EditPillarPage() {
   const { data: session, status } = useSession();

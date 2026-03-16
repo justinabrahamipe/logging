@@ -1,76 +1,78 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
 import { db, goals, tasks } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const userId = await getAuthenticatedUserId();
+
+    const { id } = await params;
+    const outcomeId = parseInt(id);
+    const body = await request.json();
+
+    const existing = await db
+      .select()
+      .from(goals)
+      .where(and(eq(goals.id, outcomeId), eq(goals.userId, userId)));
+
+    if (existing.length === 0) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    const updateData: Record<string, unknown> = {};
+    if (body.name !== undefined) updateData.name = body.name;
+    if (body.pillarId !== undefined) updateData.pillarId = body.pillarId || null;
+    if (body.targetValue !== undefined) updateData.targetValue = body.targetValue;
+    if (body.unit !== undefined) updateData.unit = body.unit;
+    if (body.direction !== undefined) updateData.direction = body.direction;
+    if (body.logFrequency !== undefined) updateData.logFrequency = body.logFrequency;
+    if (body.startDate !== undefined) updateData.startDate = body.startDate || null;
+    if (body.targetDate !== undefined) updateData.targetDate = body.targetDate || null;
+    if (body.periodId !== undefined) updateData.periodId = body.periodId || null;
+    if (body.goalType !== undefined) updateData.goalType = body.goalType;
+    if (body.scheduleDays !== undefined) updateData.scheduleDays = body.scheduleDays ? JSON.stringify(body.scheduleDays) : null;
+    if (body.autoCreateTasks !== undefined) updateData.autoCreateTasks = body.autoCreateTasks;
+    if (body.completionType !== undefined) updateData.completionType = body.completionType;
+    if (body.dailyTarget !== undefined) updateData.dailyTarget = body.dailyTarget ?? null;
+
+    const [updated] = await db
+      .update(goals)
+      .set(updateData)
+      .where(and(eq(goals.id, outcomeId), eq(goals.userId, userId)))
+      .returning();
+
+    return NextResponse.json(updated);
+  } catch (error) {
+    return errorResponse(error);
   }
-
-  const { id } = await params;
-  const outcomeId = parseInt(id);
-  const body = await request.json();
-
-  const existing = await db
-    .select()
-    .from(goals)
-    .where(and(eq(goals.id, outcomeId), eq(goals.userId, session.user.id)));
-
-  if (existing.length === 0) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
-  const updateData: Record<string, unknown> = {};
-  if (body.name !== undefined) updateData.name = body.name;
-  if (body.pillarId !== undefined) updateData.pillarId = body.pillarId || null;
-  if (body.targetValue !== undefined) updateData.targetValue = body.targetValue;
-  if (body.unit !== undefined) updateData.unit = body.unit;
-  if (body.direction !== undefined) updateData.direction = body.direction;
-  if (body.logFrequency !== undefined) updateData.logFrequency = body.logFrequency;
-  if (body.startDate !== undefined) updateData.startDate = body.startDate || null;
-  if (body.targetDate !== undefined) updateData.targetDate = body.targetDate || null;
-  if (body.periodId !== undefined) updateData.periodId = body.periodId || null;
-  if (body.goalType !== undefined) updateData.goalType = body.goalType;
-  if (body.scheduleDays !== undefined) updateData.scheduleDays = body.scheduleDays ? JSON.stringify(body.scheduleDays) : null;
-  if (body.autoCreateTasks !== undefined) updateData.autoCreateTasks = body.autoCreateTasks;
-  if (body.completionType !== undefined) updateData.completionType = body.completionType;
-  if (body.dailyTarget !== undefined) updateData.dailyTarget = body.dailyTarget ?? null;
-
-  const [updated] = await db
-    .update(goals)
-    .set(updateData)
-    .where(and(eq(goals.id, outcomeId), eq(goals.userId, session.user.id)))
-    .returning();
-
-  return NextResponse.json(updated);
 }
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const userId = await getAuthenticatedUserId();
+
+    const { id } = await params;
+    const outcomeId = parseInt(id);
+
+    const [updated] = await db
+      .update(goals)
+      .set({ isArchived: true })
+      .where(and(eq(goals.id, outcomeId), eq(goals.userId, userId)))
+      .returning();
+
+    if (!updated) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    // Soft-delete all tasks linked to this outcome
+    await db
+      .update(tasks)
+      .set({ isActive: false })
+      .where(and(eq(tasks.goalId, outcomeId), eq(tasks.userId, userId)));
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return errorResponse(error);
   }
-
-  const { id } = await params;
-  const outcomeId = parseInt(id);
-
-  const [updated] = await db
-    .update(goals)
-    .set({ isArchived: true })
-    .where(and(eq(goals.id, outcomeId), eq(goals.userId, session.user.id)))
-    .returning();
-
-  if (!updated) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
-  // Soft-delete all tasks linked to this outcome
-  await db
-    .update(tasks)
-    .set({ isActive: false })
-    .where(and(eq(tasks.goalId, outcomeId), eq(tasks.userId, session.user.id)));
-
-  return NextResponse.json({ success: true });
 }
