@@ -45,13 +45,13 @@ export default function GoalsPage() {
     setMenuOpen(null);
   };
 
-  const handleLogSave = async (value: number, note: string | null, logDate: string | null) => {
+  const handleLogSave = async (value: number, logDate: string | null) => {
     if (!logTarget) return;
     try {
       const res = await fetch(`/api/outcomes/${logTarget.id}/log`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ value, note, loggedAt: logDate }),
+        body: JSON.stringify({ value, loggedAt: logDate }),
       });
       if (res.ok) {
         // Only create an ad-hoc task if the outcome does NOT have autoCreateTasks enabled
@@ -61,7 +61,7 @@ export default function GoalsPage() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              name: `${logTarget.name}${note ? ` - ${note}` : ""}`,
+              name: logTarget.name,
               pillarId: logTarget.pillarId || null,
               completionType: logTarget.completionType || "numeric",
               target: value,
@@ -99,7 +99,7 @@ export default function GoalsPage() {
       const res = await fetch(`/api/outcomes/${outcome.id}/log`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ value: minutes, note: null, loggedAt: today }),
+        body: JSON.stringify({ value: minutes, loggedAt: today }),
       });
       if (res.ok) {
         if (!outcome.autoCreateTasks) {

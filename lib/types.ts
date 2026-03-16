@@ -1,0 +1,417 @@
+// ============================================================
+// Centralized type definitions
+// ============================================================
+
+// ------ Entity types ------
+
+export interface Pillar {
+  id: number;
+  name: string;
+  emoji: string;
+  color: string;
+  weight?: number;
+  description?: string | null;
+  sortOrder?: number;
+}
+
+export interface Task {
+  id: number;
+  pillarId: number;
+  name: string;
+  completionType: string;
+  target: number | null;
+  unit: string | null;
+  frequency: string;
+  customDays: string | null;
+  repeatInterval: number | null;
+  basePoints: number;
+  goalId: number | null;
+  periodId: number | null;
+  startDate: string | null;
+  flexibilityRule?: string;
+  limitValue?: number | null;
+  isActive?: boolean;
+  completion?: TaskCompletion | null;
+}
+
+export interface TaskCompletion {
+  id: number;
+  taskId: number;
+  completed: boolean;
+  value: number | null;
+  pointsEarned: number;
+  isHighlighted: boolean;
+}
+
+export interface TaskGroup {
+  pillar: Pillar;
+  tasks: Task[];
+}
+
+export interface Outcome {
+  id: number;
+  pillarId: number | null;
+  periodId: number | null;
+  name: string;
+  startValue: number;
+  targetValue: number;
+  currentValue: number;
+  unit: string;
+  direction: string;
+  logFrequency: string;
+  startDate: string | null;
+  targetDate: string | null;
+  goalType: string;
+  completionType: string;
+  dailyTarget: number | null;
+  scheduleDays: string | null;
+  autoCreateTasks: boolean;
+  pillarName: string | null;
+  pillarColor: string | null;
+  pillarEmoji: string | null;
+  isArchived?: boolean;
+}
+
+export interface Cycle {
+  id: number;
+  name: string;
+  startDate: string;
+  endDate: string;
+  vision: string | null;
+  theme: string | null;
+  isActive: boolean;
+  createdAt?: string;
+}
+
+export interface CycleOption {
+  id: number;
+  name: string;
+  startDate: string;
+  endDate: string;
+}
+
+export interface Goal {
+  id: number;
+  name: string;
+  goalType: string;
+  pillarEmoji?: string;
+  pillarName?: string;
+  periodId?: number;
+  targetValue?: number;
+  currentValue?: number;
+  unit?: string;
+  startValue?: number;
+  direction?: string;
+  pillarId?: number | null;
+  isArchived?: boolean;
+}
+
+export interface LinkedTask {
+  id: number;
+  name: string;
+  goalId?: number | null;
+  frequency: string;
+  completionType: string;
+  basePoints: number;
+  target?: number | null;
+  unit?: string | null;
+  completed?: boolean;
+  value?: number | null;
+  startDate?: string | null;
+  isActive?: boolean;
+}
+
+export interface LogEntry {
+  id: number;
+  value: number;
+  loggedAt: string;
+}
+
+export interface ActivityEntry {
+  id: number;
+  timestamp: string;
+  taskId: number | null;
+  pillarId: number | null;
+  action: string;
+  previousValue: number | null;
+  newValue: number | null;
+  delta: number | null;
+  pointsBefore: number | null;
+  pointsAfter: number | null;
+  pointsDelta: number | null;
+  source: string;
+  taskName: string | null;
+  taskCompletionType: string | null;
+  pillarName: string | null;
+  pillarEmoji: string | null;
+  pillarColor: string | null;
+  outcomeLogValue: number | null;
+}
+
+// ------ Dashboard / scoring types ------
+
+export interface PillarScore {
+  id: number;
+  name: string;
+  emoji: string;
+  color: string;
+  weight: number;
+  score: number;
+}
+
+export interface DailyScoreData {
+  date: string;
+  actionScore: number;
+  momentumScore: number | null;
+  scoreTier: string;
+  pillarScores: PillarScore[];
+  totalTasks: number;
+  completedTasks: number;
+}
+
+export interface PillarMeta {
+  id: number;
+  name: string;
+  emoji: string;
+  color: string;
+  weight: number;
+}
+
+export interface HistoryScore {
+  date: string;
+  actionScore: number;
+  momentumScore: number | null;
+  isPassing: boolean;
+  pillarScores: Record<string, number>;
+  pillarMomentum: Record<string, number>;
+}
+
+export interface HistoryData {
+  scores: HistoryScore[];
+  pillars: PillarMeta[];
+}
+
+export interface OutcomeData {
+  id: number;
+  name: string;
+  startValue: number;
+  targetValue: number;
+  currentValue: number;
+  unit: string;
+  direction: string;
+  pillarColor: string | null;
+  pillarEmoji: string | null;
+  goalType: string;
+  scheduleDays: string | null;
+  startDate: string | null;
+  targetDate: string | null;
+}
+
+// ------ Momentum types ------
+
+export interface MomentumGoal {
+  goalId: number;
+  goalType: string;
+  pillarId: number | null;
+  momentum: number;
+  bufferDays: number;
+  label: string;
+  name: string;
+  currentValue: number;
+  targetValue: number;
+  unit: string;
+}
+
+export interface MomentumPillar {
+  id: number;
+  name: string;
+  emoji: string;
+  color: string;
+  weight: number;
+  momentum: number | null;
+}
+
+export interface TrajectoryGoal {
+  goalId: number;
+  pillarId: number | null;
+  trajectory: number;
+  label: string;
+  name: string;
+  currentValue: number;
+  targetValue: number;
+  unit: string;
+}
+
+export interface MomentumData {
+  overall: number;
+  pillars: MomentumPillar[];
+  goals: MomentumGoal[];
+  trajectory: {
+    overall: number;
+    goals: TrajectoryGoal[];
+  };
+}
+
+export interface GoalForMomentum {
+  id: number;
+  goalType: string;
+  pillarId: number | null;
+  targetValue: number;
+  startValue: number;
+  currentValue: number;
+  startDate: string | null;
+  targetDate: string | null;
+  scheduleDays: string | null;
+}
+
+export interface GoalLogEntry {
+  outcomeId: number;
+  value: number;
+  loggedAt: string;
+}
+
+export interface GoalMomentum {
+  goalId: number;
+  goalType: string;
+  pillarId: number | null;
+  momentum: number;
+  bufferDays: number;
+  label: string;
+}
+
+export interface MomentumSummary {
+  overall: number;
+  pillarMomentum: Record<number, number>;
+  goals: GoalMomentum[];
+}
+
+// ------ Scoring types ------
+
+export interface TaskForScoring {
+  id: number;
+  pillarId: number | null;
+  completionType: string;
+  target: number | null;
+  basePoints: number;
+  flexibilityRule?: string;
+  limitValue?: number | null;
+}
+
+export interface CompletionForScoring {
+  taskId: number;
+  completed: boolean;
+  value: number | null;
+  isHighlighted?: boolean;
+}
+
+// ------ Effort calculation types ------
+
+export interface EffortMetrics {
+  dailyTarget: number;
+  currentRate: number;
+  requiredRate: number;
+  projectedDate: string | null;
+  status: 'ahead' | 'on_track' | 'behind';
+  idealProgress: number;
+}
+
+// ------ Form state types ------
+
+export interface TaskFormState {
+  pillarId: number;
+  goalId: number;
+  name: string;
+  completionType: string;
+  target: string;
+  unit: string;
+  frequencyPreset: string;
+  frequency: string;
+  customDays: number[];
+  repeatInterval: string;
+  repeatUnit: "days" | "weeks" | "months";
+  monthDay: number;
+  basePoints: string;
+  startDate: string;
+}
+
+export interface GoalFormState {
+  name: string;
+  startValue: string;
+  targetValue: string;
+  unit: string;
+  pillarId: string;
+  logFrequency: string;
+  startDate: string;
+  targetDate: string;
+  periodId: string;
+  goalType: "habitual" | "target" | "outcome";
+  completionType: "checkbox" | "count" | "numeric" | "duration";
+  dailyTarget: string;
+  autoCreateTasks: boolean;
+  frequencyPreset: string;
+  customDays: number[];
+  repeatInterval: string;
+  repeatUnit: "days" | "weeks" | "months";
+  monthDay: number;
+}
+
+// ------ Seed data types ------
+
+export interface PillarSeed {
+  name: string;
+  emoji: string;
+  color: string;
+  weight: number;
+  description: string;
+  sortOrder: number;
+  tasks: TaskSeed[];
+}
+
+export interface TaskSeed {
+  name: string;
+  completionType: string;
+  target?: number;
+  unit?: string;
+  frequency: string;
+  customDays?: string;
+  flexibilityRule?: string;
+  basePoints: number;
+}
+
+// ------ Pillar page types ------
+
+export interface CycleInfo {
+  id: number;
+  name: string;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+}
+
+export interface CyclePerformance {
+  cycle: { id: number; name: string; startDate: string; endDate: string; totalDays: number };
+  effort: { date: string; score: number; pillarScores: Record<string, number> }[];
+  outcomes: { id: number; name: string; startValue: number; targetValue: number; logs: { date: string; progress: number }[] }[];
+  pillars: { id: number; name: string; emoji: string; color: string }[];
+}
+
+// ------ Cycle page types ------
+
+export interface CycleGoal {
+  id: number;
+  periodId: number;
+  name: string;
+  targetValue: number;
+  currentValue: number;
+  unit: string;
+  startValue: number;
+  direction: string;
+  goalType: string;
+  pillarId: number | null;
+  isArchived: boolean;
+}
+
+export interface CycleDetail extends Cycle {
+  goals: CycleGoal[];
+  linkedTasks: LinkedTask[];
+}

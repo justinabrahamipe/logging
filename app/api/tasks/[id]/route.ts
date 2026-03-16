@@ -1,85 +1,88 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
 import { db, tasks } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const userId = await getAuthenticatedUserId();
+
+    const { id } = await params;
+    const taskId = parseInt(id);
+
+    const [task] = await db
+      .select()
+      .from(tasks)
+      .where(and(eq(tasks.id, taskId), eq(tasks.userId, userId)));
+
+    if (!task) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    return NextResponse.json(task);
+  } catch (error) {
+    return errorResponse(error);
   }
-
-  const { id } = await params;
-  const taskId = parseInt(id);
-
-  const [task] = await db
-    .select()
-    .from(tasks)
-    .where(and(eq(tasks.id, taskId), eq(tasks.userId, session.user.id)));
-
-  if (!task) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
-  return NextResponse.json(task);
 }
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  try {
+    const userId = await getAuthenticatedUserId();
 
-  const { id } = await params;
-  const taskId = parseInt(id);
-  const body = await request.json();
+    const { id } = await params;
+    const taskId = parseInt(id);
+    const body = await request.json();
 
-  const existing = await db
-    .select()
-    .from(tasks)
-    .where(and(eq(tasks.id, taskId), eq(tasks.userId, session.user.id)));
+    const existing = await db
+      .select()
+      .from(tasks)
+      .where(and(eq(tasks.id, taskId), eq(tasks.userId, userId)));
 
-  if (existing.length === 0) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
-  const updateData: Record<string, unknown> = {};
-  const fields = ['name', 'pillarId', 'completionType', 'target', 'unit', 'flexibilityRule', 'frequency', 'customDays', 'repeatInterval', 'toleranceBefore', 'toleranceAfter', 'isWeekendTask', 'basePoints', 'isActive', 'windowStart', 'windowEnd', 'limitValue', 'goalId', 'periodId', 'startDate'];
-
-  for (const field of fields) {
-    if (body[field] !== undefined) {
-      updateData[field] = body[field];
+    if (existing.length === 0) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
+
+    const updateData: Record<string, unknown> = {};
+    const fields = ['name', 'pillarId', 'completionType', 'target', 'unit', 'flexibilityRule', 'frequency', 'customDays', 'repeatInterval', 'toleranceBefore', 'toleranceAfter', 'basePoints', 'isActive', 'limitValue', 'goalId', 'periodId', 'startDate'];
+
+    for (const field of fields) {
+      if (body[field] !== undefined) {
+        updateData[field] = body[field];
+      }
+    }
+
+    const [updated] = await db
+      .update(tasks)
+      .set(updateData)
+      .where(and(eq(tasks.id, taskId), eq(tasks.userId, userId)))
+      .returning();
+
+    return NextResponse.json(updated);
+  } catch (error) {
+    return errorResponse(error);
   }
-
-  const [updated] = await db
-    .update(tasks)
-    .set(updateData)
-    .where(and(eq(tasks.id, taskId), eq(tasks.userId, session.user.id)))
-    .returning();
-
-  return NextResponse.json(updated);
 }
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const userId = await getAuthenticatedUserId();
+
+    const { id } = await params;
+    const taskId = parseInt(id);
+
+    // Soft delete
+    const [updated] = await db
+      .update(tasks)
+      .set({ isActive: false })
+      .where(and(eq(tasks.id, taskId), eq(tasks.userId, userId)))
+      .returning();
+
+    if (!updated) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return errorResponse(error);
   }
-
-  const { id } = await params;
-  const taskId = parseInt(id);
-
-  // Soft delete
-  const [updated] = await db
-    .update(tasks)
-    .set({ isActive: false })
-    .where(and(eq(tasks.id, taskId), eq(tasks.userId, session.user.id)))
-    .returning();
-
-  if (!updated) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
-  return NextResponse.json({ success: true });
 }

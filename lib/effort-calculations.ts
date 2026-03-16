@@ -15,14 +15,8 @@ export function countScheduledDaysInRange(
   return count;
 }
 
-export interface EffortMetrics {
-  dailyTarget: number;
-  currentRate: number;
-  requiredRate: number;
-  projectedDate: string | null;
-  status: 'ahead' | 'on_track' | 'behind';
-  idealProgress: number;
-}
+import type { EffortMetrics } from '@/lib/types';
+export type { EffortMetrics } from '@/lib/types';
 
 export function calculateEffortMetrics(
   startDate: string,

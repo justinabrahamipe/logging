@@ -98,9 +98,6 @@ export async function ensureUpcomingTasks(userId: string) {
           startDate: dateStr,
           basePoints: 10,
           flexibilityRule: 'must_today',
-          importance: 'medium',
-          toleranceBefore: null,
-          toleranceAfter: null,
         });
       }
 

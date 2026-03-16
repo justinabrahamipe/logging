@@ -1,19 +1,4 @@
-interface TaskForScoring {
-  id: number;
-  pillarId: number | null;
-  completionType: string;
-  target: number | null;
-  basePoints: number;
-  flexibilityRule?: string;
-  limitValue?: number | null;
-}
-
-interface CompletionForScoring {
-  taskId: number;
-  completed: boolean;
-  value: number | null;
-  isHighlighted?: boolean;
-}
+import type { TaskForScoring, CompletionForScoring } from '@/lib/types';
 
 export function calculateTaskScore(task: TaskForScoring, completion: CompletionForScoring): number {
   if (task.completionType === 'checkbox') {

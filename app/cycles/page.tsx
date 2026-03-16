@@ -16,44 +16,7 @@ import { useRouter } from "next/navigation";
 import { getCurrentWeekNumber, getGoalStatus, getTotalWeeks } from "@/lib/cycle-scoring";
 import { computeCycleAnalytics } from "@/lib/cycle-analytics";
 import { DEMO_CYCLES } from "@/lib/demo-data";
-
-interface Cycle {
-  id: number;
-  name: string;
-  startDate: string;
-  endDate: string;
-  vision: string | null;
-  theme: string | null;
-  isActive: boolean;
-  createdAt: string;
-}
-
-interface Goal {
-  id: number;
-  periodId: number;
-  name: string;
-  targetValue: number;
-  currentValue: number;
-  unit: string;
-  startValue: number;
-  direction: string;
-  goalType: string;
-  pillarId: number | null;
-  isArchived: boolean;
-}
-
-interface LinkedTask {
-  id: number;
-  name: string;
-  completionType: string;
-  frequency: string;
-  isActive: boolean;
-}
-
-interface CycleDetail extends Cycle {
-  goals: Goal[];
-  linkedTasks: LinkedTask[];
-}
+import type { Cycle, CycleGoal, LinkedTask, CycleDetail } from "@/lib/types";
 
 export default function CyclesPage() {
   const { data: session, status } = useSession();

@@ -92,7 +92,6 @@ export async function saveDailyScore(userId: string, date: string) {
       startDate: g.startDate,
       targetDate: g.targetDate,
       scheduleDays: g.scheduleDays,
-      tolerance: g.tolerance,
     }));
 
     const momentum = calculateMomentum(goalsForMomentum, logsForMomentum, pillarWeights, date);

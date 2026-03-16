@@ -14,31 +14,7 @@ import {
   Tooltip as RechartsTooltip,
   ResponsiveContainer,
 } from "recharts";
-
-interface Pillar {
-  id: number;
-  name: string;
-  emoji: string;
-  color: string;
-  weight: number;
-  description: string | null;
-  sortOrder: number;
-}
-
-interface CycleInfo {
-  id: number;
-  name: string;
-  startDate: string;
-  endDate: string;
-  isActive: boolean;
-}
-
-interface CyclePerformance {
-  cycle: { id: number; name: string; startDate: string; endDate: string; totalDays: number };
-  effort: { date: string; score: number; pillarScores: Record<string, number> }[];
-  outcomes: { id: number; name: string; startValue: number; targetValue: number; logs: { date: string; progress: number }[] }[];
-  pillars: { id: number; name: string; emoji: string; color: string }[];
-}
+import type { Pillar, CycleInfo, CyclePerformance } from "@/lib/types";
 
 export default function PillarsPage() {
   const { data: session, status } = useSession();
@@ -163,14 +139,14 @@ export default function PillarsPage() {
   };
 
 
-  const totalWeight = pillars.reduce((sum, p) => sum + p.weight, 0);
+  const totalWeight = pillars.reduce((sum, p) => sum + (p.weight ?? 0), 0);
 
   // Compute effective weights: unweighted pillars share remaining weight equally
   const assignedWeight = pillars.reduce((sum, p) => sum + (p.weight || 0), 0);
   const unweightedCount = pillars.filter(p => !p.weight || p.weight === 0).length;
   const remainingWeight = Math.max(0, 100 - assignedWeight);
   const autoWeight = unweightedCount > 0 ? Math.round(remainingWeight / unweightedCount) : 0;
-  const getEffectiveWeight = (p: { weight: number }) => p.weight || autoWeight;
+  const getEffectiveWeight = (p: { weight?: number }) => p.weight || autoWeight;
 
   if (loading) {
     return (

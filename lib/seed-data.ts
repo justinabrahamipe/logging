@@ -1,28 +1,7 @@
 import { db } from '@/lib/db';
 import { pillars, tasks } from '@/lib/db';
 import { eq, sql } from 'drizzle-orm';
-
-interface PillarSeed {
-  name: string;
-  emoji: string;
-  color: string;
-  weight: number;
-  description: string;
-  sortOrder: number;
-  tasks: TaskSeed[];
-}
-
-interface TaskSeed {
-  name: string;
-  completionType: string;
-  target?: number;
-  unit?: string;
-  frequency: string;
-  customDays?: string;
-  isWeekendTask?: boolean;
-  flexibilityRule?: string;
-  basePoints: number;
-}
+import type { PillarSeed, TaskSeed } from '@/lib/types';
 
 const DEFAULT_PILLARS: PillarSeed[] = [
   {
@@ -143,7 +122,6 @@ export async function seedDefaultData(userId: string, skipCheck = false) {
         unit: taskData.unit ?? null,
         frequency: taskData.frequency,
         customDays: taskData.customDays ?? null,
-        isWeekendTask: taskData.isWeekendTask ?? false,
         flexibilityRule: taskData.flexibilityRule ?? 'must_today',
         basePoints: taskData.basePoints,
       });

@@ -166,6 +166,16 @@ const runMigrations = async () => {
     ['DailyScore', 'streakBonus'],
     ['ActivityLog', 'outcomeLogId'],
     ['ActivityLog', 'goalLogId'],
+    ['ActivityLog', 'reversalOf'],
+    ['ActivityLog', 'note'],
+    ['UserPreferences', 'weekdayPassThreshold'],
+    ['UserPreferences', 'weekendPassThreshold'],
+    ['Task', 'windowStart'],
+    ['Task', 'windowEnd'],
+    ['Task', 'importance'],
+    ['Task', 'isWeekendTask'],
+    ['Goal', 'tolerance'],
+    ['Goal', 'linkedOutcomeId'],
   ];
   for (const [table, col] of colDrops) {
     try {

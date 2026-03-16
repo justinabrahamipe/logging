@@ -58,8 +58,6 @@ export const userPreferences = sqliteTable('UserPreferences', {
   theme: text('theme').notNull().default('light'),
   timeFormat: text('timeFormat').notNull().default('12h'),
   dateFormat: text('dateFormat').notNull().default('DD/MM/YYYY'),
-  weekdayPassThreshold: integer('weekdayPassThreshold').notNull().default(70),
-  weekendPassThreshold: integer('weekendPassThreshold').notNull().default(70),
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
@@ -93,16 +91,12 @@ export const tasks = sqliteTable('Task', {
   target: real('target'),
   unit: text('unit'),
   flexibilityRule: text('flexibilityRule').notNull().default('must_today'), // must_today|at_least|limit_avoid
-  windowStart: integer('windowStart'),
-  windowEnd: integer('windowEnd'),
   limitValue: real('limitValue'),
-  importance: text('importance').notNull().default('medium'), // high|medium|low
   frequency: text('frequency').notNull().default('daily'), // daily|weekly|custom|monthly|interval|adhoc
   customDays: text('customDays'), // JSON array: day-of-week [0-6] for custom, day-of-month [1-31] for monthly
   repeatInterval: integer('repeatInterval'), // repeat every N days/weeks/months depending on frequency
   toleranceBefore: integer('toleranceBefore'), // days before scheduled date
   toleranceAfter: integer('toleranceAfter'), // days after scheduled date
-  isWeekendTask: integer('isWeekendTask', { mode: 'boolean' }).notNull().default(false),
   basePoints: real('basePoints').notNull().default(10),
   goalId: integer('goalId').references(() => goals.id, { onDelete: 'set null' }),
   periodId: integer('periodId').references(() => cycles.id, { onDelete: 'set null' }),
@@ -171,8 +165,6 @@ export const activityLog = sqliteTable('ActivityLog', {
   pointsAfter: real('pointsAfter'),
   pointsDelta: real('pointsDelta'),
   source: text('source').notNull().default('manual'), // manual | timer | auto
-  reversalOf: integer('reversalOf'),
-  note: text('note'),
 }, (table) => ({
   userIdIdx: index('ActivityLog_userId_idx').on(table.userId),
   taskIdIdx: index('ActivityLog_taskId_idx').on(table.taskId),
@@ -267,8 +259,6 @@ export const goals = sqliteTable('Goal', {
   dailyTarget: real('dailyTarget'), // per-session target for count/numeric habitual goals
   scheduleDays: text('scheduleDays'), // JSON weekday array e.g. [1,3,5]
   autoCreateTasks: integer('autoCreateTasks', { mode: 'boolean' }).notNull().default(false),
-  tolerance: integer('tolerance'), // for habitual: allowed misses per week
-  linkedOutcomeId: integer('linkedOutcomeId'),
   isArchived: integer('isArchived', { mode: 'boolean' }).notNull().default(false),
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
