@@ -86,6 +86,8 @@ export async function GET(request: NextRequest) {
     // Persist daily score to history (includes momentum calculation)
     const saved = await saveDailyScore(userId, date);
 
+    const completedTasks = completions.filter(c => c.completed && tasksForDay.some(t => t.id === c.taskId)).length;
+
     return NextResponse.json({
       date,
       actionScore,
@@ -93,7 +95,15 @@ export async function GET(request: NextRequest) {
       scoreTier: tier,
       pillarScores: pillarBreakdown,
       totalTasks: tasksForDay.length,
-      completedTasks: completions.filter(c => c.completed && tasksForDay.some(t => t.id === c.taskId)).length,
+      completedTasks,
+      _debug: tasksForDay.map(t => ({
+        id: t.id,
+        name: t.name,
+        freq: t.frequency,
+        startDate: t.startDate,
+        goalId: t.goalId,
+        hasCompletion: completions.some(c => c.taskId === t.id && c.completed),
+      })),
     });
   } catch (error) {
     return errorResponse(error);

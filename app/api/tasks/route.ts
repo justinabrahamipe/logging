@@ -24,28 +24,28 @@ export async function GET(request: NextRequest) {
     let filteredTasks = allTasks;
     if (date && !showAll) {
       filteredTasks = allTasks.filter(t => isTaskForDate(t, date));
+    }
 
-      // For adhoc tasks carried forward, exclude ones already completed on any date
-      const adhocIds = filteredTasks
-        .filter(t => {
-          if (t.frequency !== 'adhoc') return false;
-          const effectiveDate = t.startDate || (t.createdAt ? new Date(t.createdAt).toISOString().split('T')[0] : null);
-          return effectiveDate && effectiveDate !== date;
-        })
-        .map(t => t.id);
+    // Filter out completed adhoc tasks from past dates (they're done, shouldn't reappear)
+    const todayStr = date || new Date().toISOString().split('T')[0];
+    const adhocPastIds = filteredTasks
+      .filter(t => {
+        if (t.frequency !== 'adhoc') return false;
+        return t.startDate && t.startDate < todayStr;
+      })
+      .map(t => t.id);
 
-      if (adhocIds.length > 0) {
-        const completedAdhoc = await db
-          .select({ taskId: taskCompletions.taskId })
-          .from(taskCompletions)
-          .where(and(
-            eq(taskCompletions.userId, userId),
-            inArray(taskCompletions.taskId, adhocIds),
-            eq(taskCompletions.completed, true),
-          ));
-        const completedSet = new Set(completedAdhoc.map(c => c.taskId));
-        filteredTasks = filteredTasks.filter(t => !(t.frequency === 'adhoc' && completedSet.has(t.id)));
-      }
+    if (adhocPastIds.length > 0) {
+      const completedAdhoc = await db
+        .select({ taskId: taskCompletions.taskId })
+        .from(taskCompletions)
+        .where(and(
+          eq(taskCompletions.userId, userId),
+          inArray(taskCompletions.taskId, adhocPastIds),
+          eq(taskCompletions.completed, true),
+        ));
+      const completedSet = new Set(completedAdhoc.map(c => c.taskId));
+      filteredTasks = filteredTasks.filter(t => !(t.frequency === 'adhoc' && completedSet.has(t.id)));
     }
 
     // Get completions for date if provided
