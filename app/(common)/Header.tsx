@@ -82,6 +82,47 @@ export default function Header() {
     trajectory: number | null;
   } | null>(null);
 
+  const fetchStats = async () => {
+    try {
+      const todayStr = new Date().toISOString().split("T")[0];
+      const [scoreRes, historyRes, momRes] = await Promise.all([
+        fetch(`/api/daily-score?date=${todayStr}`),
+        fetch("/api/daily-score/history?days=30"),
+        fetch("/api/momentum"),
+      ]);
+      let todayScore: number | null = null;
+      if (scoreRes.ok) {
+        const s = await scoreRes.json();
+        todayScore = s.actionScore ?? null;
+      }
+      let streak = 0;
+      if (historyRes.ok) {
+        const hist = await historyRes.json();
+        const scores: { date: string; isPassing: boolean }[] = hist.scores || [];
+        const scoreMap = new Map<string, boolean>();
+        for (const s of scores) scoreMap.set(s.date, s.isPassing);
+        const d = new Date();
+        d.setDate(d.getDate() - 1);
+        while (true) {
+          const ds = d.toISOString().split("T")[0];
+          if (scoreMap.get(ds) === true) { streak++; d.setDate(d.getDate() - 1); }
+          else break;
+        }
+      }
+      let momentum: number | null = null;
+      let trajectory: number | null = null;
+      if (momRes.ok) {
+        const m = await momRes.json();
+        if (m.overall != null) momentum = m.overall;
+        if (m.trajectory?.overall != null) trajectory = m.trajectory.overall;
+      }
+      const stats = { todayScore, streak, momentum, trajectory };
+      setHeaderStats(stats);
+    } catch {
+      // silently fail
+    }
+  };
+
   // Load cached stats from sessionStorage on mount
   useEffect(() => {
     try {
@@ -93,56 +134,21 @@ export default function Header() {
     } catch { /* ignore */ }
   }, []);
 
+  // Fetch stats on auth, and re-fetch when score changes
   useEffect(() => {
     if (status !== "authenticated") return;
-    // Skip fetch if we already have cached stats for today
     if (headerStats) return;
-    const fetchStats = async () => {
-      try {
-        const todayStr = new Date().toISOString().split("T")[0];
-        const [scoreRes, historyRes, momRes] = await Promise.all([
-          fetch(`/api/daily-score?date=${todayStr}`),
-          fetch("/api/daily-score/history?days=30"),
-          fetch("/api/momentum"),
-        ]);
-        let todayScore: number | null = null;
-        if (scoreRes.ok) {
-          const s = await scoreRes.json();
-          todayScore = s.actionScore ?? null;
-        }
-        let streak = 0;
-        if (historyRes.ok) {
-          const hist = await historyRes.json();
-          const scores: { date: string; isPassing: boolean }[] = hist.scores || [];
-          const scoreMap = new Map<string, boolean>();
-          for (const s of scores) scoreMap.set(s.date, s.isPassing);
-          const d = new Date();
-          d.setDate(d.getDate() - 1);
-          while (true) {
-            const ds = d.toISOString().split("T")[0];
-            if (scoreMap.get(ds) === true) { streak++; d.setDate(d.getDate() - 1); }
-            else break;
-          }
-        }
-        let momentum: number | null = null;
-        let trajectory: number | null = null;
-        if (momRes.ok) {
-          const m = await momRes.json();
-          if (m.overall != null) momentum = m.overall;
-          if (m.trajectory?.overall != null) trajectory = m.trajectory.overall;
-        }
-        const stats = { todayScore, streak, momentum, trajectory };
-        setHeaderStats(stats);
-        try {
-          sessionStorage.setItem('header-stats', JSON.stringify({ data: stats, date: todayStr }));
-        } catch { /* ignore */ }
-      } catch {
-        // silently fail
-      }
-    };
     fetchStats();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
+
+  // Listen for score updates from tasks page
+  useEffect(() => {
+    const handler = () => fetchStats();
+    window.addEventListener('score-updated', handler);
+    return () => window.removeEventListener('score-updated', handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const authPages = ["/login", "/verify-request", "/error"];
   const isAuthPage = authPages.includes(pathname);

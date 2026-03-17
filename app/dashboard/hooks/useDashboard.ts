@@ -94,8 +94,16 @@ export function useDashboard() {
       }
       if (tasksRes.ok) {
         const groups = await tasksRes.json();
-        const count = groups.reduce((sum: number, g: { tasks: unknown[] }) => sum + g.tasks.length, 0);
+        const allTasks = groups.flatMap((g: { tasks: { completion?: { completed?: boolean } | null }[] }) => g.tasks);
+        const count = allTasks.length;
+        const completed = allTasks.filter((t: { completion?: { completed?: boolean } | null }) => t.completion?.completed).length;
         setTodayTaskCount(count);
+        // Override score task counts with actual tasks from the tasks API
+        if (scoreData) {
+          scoreData.totalTasks = count;
+          scoreData.completedTasks = completed;
+          setScore({ ...scoreData });
+        }
       }
 
       const skipSeed = sessionStorage.getItem('skip-auto-seed');
