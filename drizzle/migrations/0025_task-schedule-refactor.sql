@@ -20,12 +20,15 @@ CREATE TABLE IF NOT EXISTS `TaskSchedule` (
   `createdAt` integer NOT NULL DEFAULT (unixepoch()),
   `updatedAt` integer NOT NULL DEFAULT (unixepoch())
 );
-
+--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS `TaskSchedule_userId_idx` ON `TaskSchedule` (`userId`);
+--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS `TaskSchedule_pillarId_idx` ON `TaskSchedule` (`pillarId`);
+--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS `TaskSchedule_goalId_idx` ON `TaskSchedule` (`goalId`);
+--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS `TaskSchedule_periodId_idx` ON `TaskSchedule` (`periodId`);
-
+--> statement-breakpoint
 -- Step 2: Copy all existing Task rows into TaskSchedule (preserving IDs)
 INSERT INTO `TaskSchedule` (`id`, `pillarId`, `userId`, `name`, `completionType`, `target`, `unit`,
   `flexibilityRule`, `limitValue`, `frequency`, `customDays`, `repeatInterval`, `basePoints`,
@@ -34,7 +37,7 @@ SELECT `id`, `pillarId`, `userId`, `name`, `completionType`, `target`, `unit`,
   `flexibilityRule`, `limitValue`, `frequency`, `customDays`, `repeatInterval`, `basePoints`,
   `goalId`, `periodId`, `startDate`, `isActive`, `createdAt`, `updatedAt`
 FROM `Task`;
-
+--> statement-breakpoint
 -- Step 3: Create the new Task table with completion columns
 CREATE TABLE `Task_new` (
   `id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -60,9 +63,8 @@ CREATE TABLE `Task_new` (
   `createdAt` integer NOT NULL DEFAULT (unixepoch()),
   `updatedAt` integer NOT NULL DEFAULT (unixepoch())
 );
-
+--> statement-breakpoint
 -- Step 4: Migrate TaskCompletion data into new Task rows
--- Each TaskCompletion becomes a concrete task instance
 INSERT INTO `Task_new` (`scheduleId`, `pillarId`, `userId`, `name`, `completionType`, `target`, `unit`,
   `flexibilityRule`, `limitValue`, `basePoints`, `goalId`, `periodId`, `date`,
   `completed`, `value`, `pointsEarned`, `isHighlighted`, `completedAt`, `isActive`, `createdAt`, `updatedAt`)
@@ -72,21 +74,25 @@ SELECT t.`id`, t.`pillarId`, t.`userId`, t.`name`, t.`completionType`, t.`target
   t.`isActive`, tc.`updatedAt`, tc.`updatedAt`
 FROM `TaskCompletion` tc
 INNER JOIN `Task` t ON tc.`taskId` = t.`id`;
-
--- Step 5: Remove ActivityLog FK to old Task table (it will have orphaned refs)
--- SQLite doesn't support DROP CONSTRAINT, so we leave it as-is.
--- The activityLog.taskId column will have historical references to old task IDs.
-
--- Step 6: Drop old tables and rename
+--> statement-breakpoint
+-- Step 5: Drop old tables and rename
 DROP TABLE IF EXISTS `TaskCompletion`;
+--> statement-breakpoint
 DROP TABLE `Task`;
+--> statement-breakpoint
 ALTER TABLE `Task_new` RENAME TO `Task`;
-
--- Step 7: Recreate indexes on new Task table
+--> statement-breakpoint
+-- Step 6: Recreate indexes on new Task table
 CREATE INDEX `Task_userId_idx` ON `Task` (`userId`);
+--> statement-breakpoint
 CREATE INDEX `Task_pillarId_idx` ON `Task` (`pillarId`);
+--> statement-breakpoint
 CREATE INDEX `Task_goalId_idx` ON `Task` (`goalId`);
+--> statement-breakpoint
 CREATE INDEX `Task_periodId_idx` ON `Task` (`periodId`);
+--> statement-breakpoint
 CREATE INDEX `Task_date_idx` ON `Task` (`date`);
+--> statement-breakpoint
 CREATE INDEX `Task_userId_date_idx` ON `Task` (`userId`, `date`);
+--> statement-breakpoint
 CREATE UNIQUE INDEX `Task_scheduleId_date_unique` ON `Task` (`scheduleId`, `date`);
