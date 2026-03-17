@@ -139,7 +139,6 @@ export function useTasksPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [pastDays, setPastDays] = useState<PastDay[]>([]);
-  const [pastLoading, setPastLoading] = useState(false);
   const [filters, setFilters] = useState<TaskFilters>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('tasks-filters');
@@ -221,10 +220,10 @@ export function useTasksPage() {
   // Fetch tasks + score for past dates
   useEffect(() => {
     if (filters.date.type === 'yesterday') {
-      fetchPastTasks(yesterday);
+      fetchDateTasks(yesterday);
       fetchScore(yesterday);
     } else if (filters.date.type === 'single' && filters.date.value && filters.date.value < today) {
-      fetchPastTasks(filters.date.value);
+      fetchDateTasks(filters.date.value);
       fetchScore(filters.date.value);
     } else {
       setPastDays([]);
@@ -327,23 +326,25 @@ export function useTasksPage() {
     }
   };
 
-  const fetchPastTasks = async (date?: string) => {
-    setPastLoading(true);
+  const fetchDateTasks = async (date: string) => {
     try {
-      const url = date ? `/api/tasks/history?date=${date}` : '/api/tasks/history?limit=30';
-      const res = await fetch(url);
-      if (res.ok) setPastDays(await res.json());
+      if (!loading) setRefreshing(true);
+      const res = await fetch(`/api/tasks?date=${date}`);
+      if (res.ok) {
+        setGroups(await res.json());
+      }
     } catch (error) {
-      console.error("Failed to fetch past tasks:", error);
+      console.error("Failed to fetch tasks for date:", error);
     } finally {
-      setPastLoading(false);
+      setRefreshing(false);
     }
   };
 
   const refreshView = async () => {
-    const isPast = viewDate < today;
-    if (isPast) {
-      await fetchPastTasks(viewDate);
+    const isServerFiltered = filters.date.type === 'yesterday' ||
+      (filters.date.type === 'single' && filters.date.value);
+    if (isServerFiltered) {
+      await fetchDateTasks(viewDate);
     } else {
       await fetchTasks();
     }
@@ -353,23 +354,14 @@ export function useTasksPage() {
   // --- Completion handlers ---
   const handleComplete = useCallback((taskId: number, completed?: boolean, value?: number) => {
     if (status !== "authenticated") { setAuthSnackbar(true); return; }
-    const isPast = viewDate < today;
 
-    if (isPast) {
-      setPastDays(prev => prev.map(day => ({
-        ...day,
-        tasks: day.tasks.map(t =>
-          t.id !== taskId ? t : { ...t, completed: completed ?? false, value: value ?? null }
-        ),
-      })));
-    } else {
-      setGroups(prev => prev.map(g => ({
-        ...g,
-        tasks: g.tasks.map(t =>
-          t.id === taskId ? { ...t, completion: { ...t.completion, taskId, completed: completed ?? false, value: value ?? null, pointsEarned: t.completion?.pointsEarned ?? 0, isHighlighted: t.completion?.isHighlighted ?? false } as TaskCompletion } : t
-        ),
-      })));
-    }
+    // Optimistic update
+    setGroups(prev => prev.map(g => ({
+      ...g,
+      tasks: g.tasks.map(t =>
+        t.id === taskId ? { ...t, completion: { ...t.completion, taskId, completed: completed ?? false, value: value ?? null, pointsEarned: t.completion?.pointsEarned ?? 0, isHighlighted: t.completion?.isHighlighted ?? false } as TaskCompletion } : t
+      ),
+    })));
 
     const body: Record<string, unknown> = { taskId, date: viewDate };
     if (completed !== undefined) body.completed = completed;
@@ -381,16 +373,14 @@ export function useTasksPage() {
       body: JSON.stringify(body),
     }).then(res => {
       if (res.ok) {
-        if (!isPast) {
-          res.json().then(completion => {
-            setGroups(prev => prev.map(g => ({
-              ...g,
-              tasks: g.tasks.map(t =>
-                t.id === taskId ? { ...t, completion } : t
-              ),
-            })));
-          });
-        }
+        res.json().then(completion => {
+          setGroups(prev => prev.map(g => ({
+            ...g,
+            tasks: g.tasks.map(t =>
+              t.id === taskId ? { ...t, completion } : t
+            ),
+          })));
+        });
         fetchScore(viewDate);
       }
     }).catch(err => console.error("Failed to complete task:", err));
@@ -451,42 +441,27 @@ export function useTasksPage() {
   };
 
   const handleHighlightToggle = useCallback((taskId: number) => {
-    const isPast = viewDate < today;
     const allTasks = groups.flatMap(g => g.tasks);
-    const pastTask = pastDays.flatMap(d => d.tasks).find(t => t.id === taskId);
     const groupTask = allTasks.find(t => t.id === taskId);
-    const currentlyHighlighted = isPast
-      ? (pastTask?.isHighlighted || false)
-      : (groupTask?.completion?.isHighlighted || false);
+    const currentlyHighlighted = groupTask?.completion?.isHighlighted || false;
 
     if (!currentlyHighlighted) {
-      const highlightedCount = isPast
-        ? pastDays.flatMap(d => d.tasks).filter(t => t.isHighlighted).length
-        : allTasks.filter(t => t.completion?.isHighlighted).length;
+      const highlightedCount = allTasks.filter(t => t.completion?.isHighlighted).length;
       if (highlightedCount >= 3) return;
     }
 
-    if (isPast) {
-      setPastDays(prev => prev.map(day => ({
-        ...day,
-        tasks: day.tasks.map(t =>
-          t.id !== taskId ? t : { ...t, isHighlighted: !currentlyHighlighted }
-        ),
-      })));
-    } else {
-      setGroups(prev => prev.map(g => ({
-        ...g,
-        tasks: g.tasks.map(t =>
-          t.id === taskId ? {
-            ...t,
-            completion: {
-              ...(t.completion || { id: 0, taskId, completed: false, value: null, pointsEarned: 0, isHighlighted: false }),
-              isHighlighted: !currentlyHighlighted,
-            } as TaskCompletion
-          } : t
-        ),
-      })));
-    }
+    setGroups(prev => prev.map(g => ({
+      ...g,
+      tasks: g.tasks.map(t =>
+        t.id === taskId ? {
+          ...t,
+          completion: {
+            ...(t.completion || { id: 0, taskId, completed: false, value: null, pointsEarned: 0, isHighlighted: false }),
+            isHighlighted: !currentlyHighlighted,
+          } as TaskCompletion
+        } : t
+      ),
+    })));
 
     fetch('/api/tasks/highlight', {
       method: 'POST',
@@ -494,21 +469,19 @@ export function useTasksPage() {
       body: JSON.stringify({ taskId, date: viewDate, isHighlighted: !currentlyHighlighted }),
     }).then(res => {
       if (res.ok) {
-        if (!isPast) {
-          res.json().then(completion => {
-            setGroups(prev => prev.map(g => ({
-              ...g,
-              tasks: g.tasks.map(t =>
-                t.id === taskId ? { ...t, completion } : t
-              ),
-            })));
-          });
-        }
+        res.json().then(completion => {
+          setGroups(prev => prev.map(g => ({
+            ...g,
+            tasks: g.tasks.map(t =>
+              t.id === taskId ? { ...t, completion } : t
+            ),
+          })));
+        });
         fetchScore(viewDate);
       }
     }).catch(err => console.error("Failed to toggle highlight:", err));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewDate, today, groups, pastDays]);
+  }, [viewDate, groups]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -594,9 +567,9 @@ export function useTasksPage() {
   const handleDelete = async (id: number) => {
     setActionLoading(prev => ({ ...prev, [id]: true }));
     try {
-      setPastDays(prev => prev.map(day => ({
-        ...day, tasks: day.tasks.filter(t => t.id !== id)
-      })).filter(day => day.tasks.length > 0));
+      setGroups(prev => prev.map(g => ({
+        ...g, tasks: g.tasks.filter(t => t.id !== id)
+      })).filter(g => g.tasks.length > 0));
       await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
       await refreshView();
     } catch (error) {
@@ -615,22 +588,12 @@ export function useTasksPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ taskId: task.id, date: viewDate, completed: true, value: 0 }),
       });
-      const isPast = viewDate < today;
-      if (isPast) {
-        setPastDays(prev => prev.map(day => ({
-          ...day,
-          tasks: day.tasks.map(t =>
-            t.id !== task.id ? t : { ...t, completed: true, value: 0 }
-          ),
-        })));
-      } else {
-        setGroups(prev => prev.map(g => ({
-          ...g,
-          tasks: g.tasks.map(t =>
-            t.id === task.id ? { ...t, completion: { ...t.completion, taskId: task.id, completed: true, value: 0, pointsEarned: 0, isHighlighted: t.completion?.isHighlighted ?? false } as TaskCompletion } : t
-          ),
-        })));
-      }
+      setGroups(prev => prev.map(g => ({
+        ...g,
+        tasks: g.tasks.map(t =>
+          t.id === task.id ? { ...t, completion: { ...t.completion, taskId: task.id, completed: true, value: 0, pointsEarned: 0, isHighlighted: t.completion?.isHighlighted ?? false } as TaskCompletion } : t
+        ),
+      })));
       await fetchScore(viewDate);
     } catch (error) {
       console.error("Failed to discard task:", error);
@@ -803,7 +766,6 @@ export function useTasksPage() {
     loading,
     refreshing,
     pastDays,
-    pastLoading,
     // Filters
     filters,
     setFilters,
