@@ -22,6 +22,7 @@ export async function GET() {
     .where(and(
       eq(taskCompletions.userId, session.user.id),
       eq(taskCompletions.completed, true),
+      eq(tasks.isActive, true),
       isNotNull(tasks.goalId),
     ))
     .orderBy(desc(taskCompletions.date));

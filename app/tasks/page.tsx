@@ -86,7 +86,10 @@ export default function TasksPage() {
   const maxStarsReached = starredCount >= 3;
 
   const isScheduledView = filters.date.type === 'scheduled';
-  const isPastDateView = !isScheduledView && filters.date.type === 'single' && filters.date.value && filters.date.value < today;
+  const isPastDateView = !isScheduledView && (
+    filters.date.type === 'yesterday' ||
+    (filters.date.type === 'single' && filters.date.value && filters.date.value < today)
+  );
 
   const filteredTasks = (isPastDateView || isScheduledView) ? [] : allEnrichedTasks.filter(task => {
     if (!isTaskInDateRange(task)) return false;
@@ -105,16 +108,7 @@ export default function TasksPage() {
   }) : [];
 
   const pastEnrichedTasks: EnrichedTask[] = isPastDateView ? pastDays.flatMap(day =>
-    day.tasks.filter(t => {
-      const completed = t.completed || (t.target != null && t.target > 0 && (t.value || 0) >= t.target);
-      if (!passesStatusFilter(completed, t.value)) return false;
-      if (filters.pillars.length > 0) {
-        const pillar = pillars.find(p => p.name === t.pillarName);
-        if (pillar && !filters.pillars.includes(pillar.id)) return false;
-      }
-      if (filters.goals.length > 0 && !(t.goalId && filters.goals.includes(t.goalId))) return false;
-      return true;
-    }).map(t => ({
+    day.tasks.map(t => ({
       id: t.id,
       userId: '',
       name: t.name,
@@ -145,6 +139,16 @@ export default function TasksPage() {
       _pillarName: t.pillarName || '',
     }))
   ) : [];
+
+  // Unified task list: past enriched tasks or filtered current tasks
+  const displayTasks = isPastDateView ? pastEnrichedTasks.filter(t => {
+    const completed = t.completion?.completed || (t.target != null && t.target > 0 && (t.completion?.value || 0) >= t.target);
+    if (!passesStatusFilter(completed, t.completion?.value ?? null)) return false;
+    if (filters.pillars.length > 0 && !filters.pillars.includes(t.pillarId)) return false;
+    if (filters.goals.length > 0 && !(t.goalId && filters.goals.includes(t.goalId))) return false;
+    return true;
+  }) : filteredTasks;
+  const isDisplayLoading = isPastDateView ? pastLoading : false;
 
   const taskItemProps = {
     goalsList,
@@ -196,56 +200,33 @@ export default function TasksPage() {
         />
 
         {/* Task content */}
-        {allEnrichedTasks.length === 0 && !pastLoading && pastDays.length === 0 ? (
+        {isScheduledView ? (
+          <TaskGroup
+            tasks={scheduledTasks}
+            goalsList={goalsList}
+            router={router}
+            handleDelete={handleDelete}
+            getScheduleLabel={getScheduleLabel}
+          />
+        ) : isDisplayLoading ? (
+          <div className="text-center py-8">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-zinc-900 dark:border-white mx-auto"></div>
+          </div>
+        ) : displayTasks.length === 0 ? (
           <div className="text-center py-8 text-zinc-500 dark:text-zinc-400">
-            <p className="text-base mb-1">No tasks yet</p>
-            <p className="text-sm">Click Add Task to create one</p>
+            <p className="text-sm">{allEnrichedTasks.length === 0 && pastDays.length === 0 ? 'No tasks yet' : 'No tasks for this period'}</p>
           </div>
         ) : (
-          <div>
-            {isScheduledView ? (
-              <TaskGroup
-                tasks={scheduledTasks}
-                goalsList={goalsList}
-                router={router}
-                handleDelete={handleDelete}
-                getScheduleLabel={getScheduleLabel}
-              />
-            ) : !isPastDateView ? (
-              filteredTasks.length === 0 ? (
-                <div className="text-center py-8 text-zinc-500 dark:text-zinc-400">
-                  <p className="text-sm">No tasks for this period</p>
-                </div>
-              ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.5rem' }}>
-                  {filteredTasks.map(t => {
-                    const bucket = getDateBucket(t);
-                    const showDate = (filters.date.type !== 'today' && bucket !== 'Today') ? (
-                      bucket === 'Tomorrow' ? 'Tomorrow' :
-                      bucket === 'No Date' ? undefined :
-                      t.startDate ? formatDate(t.startDate, dateFormat) : undefined
-                    ) : undefined;
-                    return <TaskItem key={t.id} task={t} showDate={showDate} {...taskItemProps} />;
-                  })}
-                </div>
-              )
-            ) : (
-              pastLoading ? (
-                <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-zinc-900 dark:border-white mx-auto"></div>
-                </div>
-              ) : pastEnrichedTasks.length === 0 ? (
-                <div className="text-center py-8 text-zinc-500 dark:text-zinc-400 text-sm">
-                  No tasks for this date
-                </div>
-              ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.5rem' }}>
-                  {pastEnrichedTasks.map(t => (
-                    <TaskItem key={t.id} task={t} {...taskItemProps} />
-                  ))}
-                </div>
-              )
-            )}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.5rem' }}>
+            {displayTasks.map(t => {
+              const bucket = getDateBucket(t);
+              const showDate = (!isPastDateView && filters.date.type !== 'today' && bucket !== 'Today') ? (
+                bucket === 'Tomorrow' ? 'Tomorrow' :
+                bucket === 'No Date' ? undefined :
+                t.startDate ? formatDate(t.startDate, dateFormat) : undefined
+              ) : undefined;
+              return <TaskItem key={t.id} task={t} showDate={showDate} {...taskItemProps} />;
+            })}
           </div>
         )}
       </motion.div>

@@ -30,7 +30,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       })
       .from(taskCompletions)
       .innerJoin(tasks, eq(taskCompletions.taskId, tasks.id))
-      .where(and(eq(tasks.goalId, outcomeId), eq(taskCompletions.completed, true)))
+      .where(and(eq(tasks.goalId, outcomeId), eq(tasks.isActive, true), eq(taskCompletions.completed, true)))
       .orderBy(desc(taskCompletions.date));
 
     // Map to expected format
@@ -80,7 +80,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     let [existingTask] = await db
       .select()
       .from(tasks)
-      .where(and(eq(tasks.goalId, outcomeId), eq(tasks.userId, userId), eq(tasks.startDate, today)));
+      .where(and(eq(tasks.goalId, outcomeId), eq(tasks.userId, userId), eq(tasks.isActive, true), eq(tasks.startDate, today)));
 
     if (!existingTask) {
       // Look for any active task linked to this goal
@@ -223,7 +223,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         .select({ value: taskCompletions.value })
         .from(taskCompletions)
         .innerJoin(tasks, eq(taskCompletions.taskId, tasks.id))
-        .where(and(eq(tasks.goalId, outcomeId), eq(taskCompletions.completed, true)));
+        .where(and(eq(tasks.goalId, outcomeId), eq(tasks.isActive, true), eq(taskCompletions.completed, true)));
       const total = allCompletions.reduce((sum, c) => sum + (c.value ?? 0), 0);
       await db
         .update(goals)
@@ -235,7 +235,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         .select({ value: taskCompletions.value, date: taskCompletions.date })
         .from(taskCompletions)
         .innerJoin(tasks, eq(taskCompletions.taskId, tasks.id))
-        .where(and(eq(tasks.goalId, outcomeId), eq(taskCompletions.completed, true)))
+        .where(and(eq(tasks.goalId, outcomeId), eq(tasks.isActive, true), eq(taskCompletions.completed, true)))
         .orderBy(desc(taskCompletions.date))
         .limit(1);
       if (latestCompletion) {

@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
       .where(
         and(
           eq(taskCompletions.userId, userId),
+          eq(tasks.isActive, true),
           dateCondition
         )
       )

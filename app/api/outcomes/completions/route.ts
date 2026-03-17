@@ -13,7 +13,7 @@ export async function GET() {
   const linkedTasks = await db
     .select({ id: tasks.id, goalId: tasks.goalId })
     .from(tasks)
-    .where(and(eq(tasks.userId, session.user.id), isNotNull(tasks.goalId)));
+    .where(and(eq(tasks.userId, session.user.id), eq(tasks.isActive, true), isNotNull(tasks.goalId)));
 
   if (linkedTasks.length === 0) return NextResponse.json({});
 

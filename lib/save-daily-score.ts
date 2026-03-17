@@ -71,6 +71,7 @@ export async function saveDailyScore(userId: string, date: string) {
       .where(and(
         eq(taskCompletions.userId, userId),
         eq(taskCompletions.completed, true),
+        eq(tasks.isActive, true),
         isNotNull(tasks.goalId),
       ));
 
