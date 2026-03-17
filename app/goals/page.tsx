@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaPlus } from "react-icons/fa";
 import { Snackbar, Alert as MuiAlert } from "@mui/material";
 import { useGoals } from "./hooks/useGoals";
-import { Outcome } from "./types";
+import { Outcome, Cycle } from "./types";
 import GoalCard from "./components/GoalCard";
 import LogModal from "./components/LogModal";
 
@@ -37,7 +37,54 @@ export default function GoalsPage() {
     fetchGoals,
   } = useGoals();
 
+  const [cycles, setCycles] = useState<Cycle[]>([]);
   const [logTarget, setLogTarget] = useState<Outcome | null>(null);
+
+  const fetchCycles = useCallback(async () => {
+    try {
+      const res = await fetch("/api/cycles");
+      if (res.ok) setCycles(await res.json());
+    } catch {}
+  }, []);
+
+  useEffect(() => { fetchCycles(); }, [fetchCycles]);
+
+  const handleCopyToCycle = async (outcome: Outcome, cycleId: number) => {
+    if (status !== "authenticated") { setAuthSnackbar(true); return; }
+    const cycle = cycles.find(c => c.id === cycleId);
+    if (!cycle) return;
+    try {
+      const res = await fetch("/api/outcomes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: outcome.name,
+          targetValue: outcome.targetValue,
+          unit: outcome.unit,
+          pillarId: outcome.pillarId,
+          logFrequency: outcome.logFrequency,
+          periodId: cycleId,
+          goalType: outcome.goalType,
+          completionType: outcome.completionType,
+          dailyTarget: outcome.dailyTarget,
+          scheduleDays: outcome.scheduleDays ? JSON.parse(outcome.scheduleDays) : null,
+          autoCreateTasks: outcome.autoCreateTasks,
+          direction: outcome.direction,
+          startValue: outcome.startValue,
+          startDate: cycle.startDate,
+          targetDate: cycle.endDate,
+        }),
+      });
+      if (res.ok) {
+        await fetchGoals();
+        setSnackbar({ open: true, message: `Goal copied to ${cycle.name}`, severity: "success" });
+      } else {
+        setSnackbar({ open: true, message: "Failed to copy goal", severity: "error" });
+      }
+    } catch {
+      setSnackbar({ open: true, message: "Failed to copy goal", severity: "error" });
+    }
+  };
 
   const openLogModal = (outcome: Outcome) => {
     if (status !== "authenticated") { setAuthSnackbar(true); return; }
@@ -91,69 +138,6 @@ export default function GoalsPage() {
       setSnackbar({ open: true, message: "Failed to log progress", severity: "error" });
     }
     setLogTarget(null);
-  };
-
-  const handleTimerLog = async (outcome: Outcome, minutes: number) => {
-    if (status !== "authenticated") { setAuthSnackbar(true); return; }
-    try {
-      const res = await fetch(`/api/outcomes/${outcome.id}/log`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ value: minutes, loggedAt: today }),
-      });
-      if (res.ok) {
-        if (!outcome.autoCreateTasks) {
-          const taskRes = await fetch("/api/tasks", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              name: outcome.name,
-              pillarId: outcome.pillarId || null,
-              completionType: "duration",
-              target: outcome.dailyTarget || null,
-              unit: outcome.unit || "min",
-              frequency: "adhoc",
-              goalId: outcome.id,
-              basePoints: 10,
-              startDate: today,
-            }),
-          });
-          if (taskRes.ok) {
-            const task = await taskRes.json();
-            await fetch("/api/tasks/complete", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ taskId: task.id, date: today, completed: true, value: minutes }),
-            });
-          }
-        } else {
-          // For autoCreateTasks goals, find and complete today's task
-          const tasksRes = await fetch(`/api/tasks?date=${today}`);
-          if (tasksRes.ok) {
-            const groups = await tasksRes.json();
-            for (const group of groups) {
-              for (const task of group.tasks) {
-                if (task.goalId === outcome.id && task.startDate === today && !task.completion?.completed) {
-                  await fetch("/api/tasks/complete", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ taskId: task.id, date: today, completed: true, value: minutes }),
-                  });
-                  break;
-                }
-              }
-            }
-          }
-        }
-        await fetchGoals();
-        setSnackbar({ open: true, message: `Logged ${minutes} min`, severity: "success" });
-      } else {
-        setSnackbar({ open: true, message: "Failed to log", severity: "error" });
-      }
-    } catch (error) {
-      console.error("Failed to log timer:", error);
-      setSnackbar({ open: true, message: "Failed to log", severity: "error" });
-    }
   };
 
   // Group filtered outcomes by pillar
@@ -293,8 +277,8 @@ export default function GoalsPage() {
                       today={today}
                       taskCompletionDates={taskCompletionDates}
                       onAddTask={async (o) => { if (status !== "authenticated") { setAuthSnackbar(true); return; } const ok = await handleAddTaskForToday(o); setSnackbar({ open: true, message: ok ? "Task added and completed" : "Failed to add task", severity: ok ? "success" : "error" }); }}
-                      onQuickLog={openLogModal}
-                      onTimerLog={handleTimerLog}
+                      cycles={cycles}
+                      onCopyToCycle={handleCopyToCycle}
                     />
                   ))}
                 </div>

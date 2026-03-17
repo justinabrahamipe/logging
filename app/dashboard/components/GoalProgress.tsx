@@ -30,7 +30,7 @@ export default function GoalProgress({ outcomesData, completionDates, today }: G
       return sum + (expected > 0 ? Math.min((hits / expected) * 100, 100) : 100);
     }
     const range = Math.abs(o.targetValue - o.startValue);
-    if (range === 0) return sum + 100;
+    if (range === 0) return sum;
     const p = Math.abs(o.currentValue - o.startValue) / range * 100;
     return sum + Math.max(0, Math.min(p, 100));
   }, 0);
@@ -81,7 +81,7 @@ export default function GoalProgress({ outcomesData, completionDates, today }: G
             progress = expected > 0 ? Math.round((hits / expected) * 100) : 100;
             subtitle = `${hits} / ${expected} days`;
           } else {
-            progress = range === 0 ? 100 : Math.round(Math.max(0, Math.min(
+            progress = range === 0 ? 0 : Math.round(Math.max(0, Math.min(
               Math.abs(goal.currentValue - goal.startValue) / range * 100, 100
             )));
             subtitle = `${goal.currentValue} / ${goal.targetValue} ${goal.unit}`;

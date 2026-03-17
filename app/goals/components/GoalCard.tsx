@@ -1,23 +1,21 @@
 "use client";
 
-import { useMemo, useState, useRef, useEffect, useCallback } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  FaPlus,
   FaEdit,
   FaTrash,
   FaArrowUp,
   FaArrowDown,
   FaEllipsisV,
   FaClipboardList,
-  FaPlay,
-  FaStop,
+  FaCopy,
 } from "react-icons/fa";
 import { calculateEffortMetrics } from "@/lib/effort-calculations";
 import { formatDate } from "@/lib/format";
 import { useTheme } from "@/components/ThemeProvider";
-import { Outcome, LogEntry, LinkedTask } from "../types";
+import { Outcome, LogEntry, LinkedTask, Cycle } from "../types";
 
 export default function GoalCard({
   outcome,
@@ -31,8 +29,8 @@ export default function GoalCard({
   today,
   taskCompletionDates,
   onAddTask,
-  onQuickLog,
-  onTimerLog,
+  cycles,
+  onCopyToCycle,
 }: {
   outcome: Outcome;
   logsMap: Record<number, LogEntry[]>;
@@ -45,8 +43,8 @@ export default function GoalCard({
   today: string;
   taskCompletionDates: Record<number, string[]>;
   onAddTask: (o: Outcome) => void;
-  onQuickLog: (o: Outcome) => void;
-  onTimerLog?: (o: Outcome, minutes: number) => void;
+  cycles: Cycle[];
+  onCopyToCycle: (outcome: Outcome, cycleId: number) => void;
 }) {
   const router = useRouter();
   const { dateFormat } = useTheme();
@@ -55,48 +53,7 @@ export default function GoalCard({
   const isHabitual = outcome.goalType === "habitual";
   const isActivityGoal = outcome.goalType === "target" || outcome.goalType === "habitual";
   const scheduleDays: number[] = outcome.scheduleDays ? JSON.parse(outcome.scheduleDays) : [];
-  const isTimer = outcome.completionType === "duration";
-
-  // Timer state
-  const [timerRunning, setTimerRunning] = useState(false);
-  const [timerElapsed, setTimerElapsed] = useState(0);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, []);
-
-  const handleTimerToggle = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (timerRunning) {
-      // Stop timer
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      intervalRef.current = null;
-      const minutes = Math.round(timerElapsed / 60);
-      setTimerRunning(false);
-      if (minutes > 0 && onTimerLog) {
-        onTimerLog(outcome, minutes);
-      }
-      setTimerElapsed(0);
-    } else {
-      // Start timer
-      setTimerRunning(true);
-      intervalRef.current = setInterval(() => {
-        setTimerElapsed(prev => prev + 1);
-      }, 1000);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timerRunning, timerElapsed, outcome, onTimerLog]);
-
-  const formatTime = (seconds: number) => {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = seconds % 60;
-    if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-    return `${m}:${String(s).padStart(2, '0')}`;
-  };
+  const [showCyclePicker, setShowCyclePicker] = useState(false);
 
   const effortMetrics = useMemo(() => {
     if (!isActivityGoal || !outcome.startDate || !outcome.targetDate || scheduleDays.length === 0) return null;
@@ -198,47 +155,10 @@ export default function GoalCard({
             )}
           </div>
         </div>
-        <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
-          {/* Timer controls for duration goals */}
-          {isTimer ? (
-            <div className="flex items-center gap-1.5">
-              {timerRunning && (
-                <span className="text-xs font-mono text-zinc-700 dark:text-zinc-300 min-w-[3rem] text-center">
-                  {formatTime(timerElapsed)}
-                </span>
-              )}
-              <button
-                onClick={handleTimerToggle}
-                className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                  timerRunning
-                    ? 'bg-red-500 text-white hover:bg-red-600'
-                    : 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100'
-                }`}
-                title={timerRunning ? 'Stop timer and log' : 'Start timer'}
-              >
-                {timerRunning ? <FaStop className="text-xs" /> : <FaPlay className="text-xs" />}
-              </button>
-              {/* Also keep the + button for manual logging */}
-              <motion.button
-                onClick={() => openLogModal(outcome)}
-                className="w-8 h-8 rounded-lg border-2 border-zinc-400 dark:border-zinc-500 flex items-center justify-center text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                title="Log manually"
-              >
-                <FaPlus className="text-xs" />
-              </motion.button>
-            </div>
-          ) : (
-            <motion.button
-              onClick={() => openLogModal(outcome)}
-              className="w-8 h-8 rounded-lg border-2 border-zinc-400 dark:border-zinc-500 flex items-center justify-center text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-              title={isHabitual ? "Add task for today" : "Log progress"}
-            >
-              <FaPlus className="text-xs" />
-            </motion.button>
-          )}
+        <div className="flex items-center shrink-0" onClick={e => e.stopPropagation()}>
           <div className="relative">
             <button
-              onClick={() => setMenuOpen(menuOpen === outcome.id ? null : outcome.id)}
+              onClick={() => { setMenuOpen(menuOpen === outcome.id ? null : outcome.id); setShowCyclePicker(false); }}
               className="p-2 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
             >
               <FaEllipsisV className="text-sm" />
@@ -249,7 +169,7 @@ export default function GoalCard({
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  className="absolute right-0 top-8 w-44 bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-700 z-20 overflow-hidden"
+                  className="absolute right-0 top-8 w-52 bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-700 z-20 overflow-hidden"
                 >
                   <button
                     onClick={() => openLogModal(outcome)}
@@ -257,6 +177,36 @@ export default function GoalCard({
                   >
                     <FaClipboardList /> Log Progress
                   </button>
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowCyclePicker(!showCyclePicker)}
+                      className="w-full px-4 py-2.5 text-left text-sm flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700"
+                    >
+                      <FaCopy /> Copy to Cycle
+                    </button>
+                    {showCyclePicker && (
+                      <div className="border-t border-zinc-200 dark:border-zinc-700 max-h-48 overflow-y-auto">
+                        {cycles.length === 0 ? (
+                          <p className="px-4 py-2.5 text-sm text-zinc-400">No cycles available</p>
+                        ) : (
+                          cycles.map((cycle) => (
+                            <button
+                              key={cycle.id}
+                              onClick={() => {
+                                onCopyToCycle(outcome, cycle.id);
+                                setShowCyclePicker(false);
+                                setMenuOpen(null);
+                              }}
+                              className="w-full px-6 py-2 text-left text-sm text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-700 flex items-center justify-between"
+                            >
+                              <span className="truncate">{cycle.name}</span>
+                              {cycle.isActive && <span className="text-[10px] px-1.5 py-px rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 ml-2 shrink-0">Active</span>}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
                   <button
                     onClick={() => {
                       setMenuOpen(null);
