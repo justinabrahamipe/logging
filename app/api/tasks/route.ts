@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
 import { db, tasks, pillars, taskCompletions } from "@/lib/db";
 import { eq, and, asc, inArray } from "drizzle-orm";
-import { isTaskForDate } from "@/lib/task-schedule";
+import { isTaskForDate, isOverdueAdhoc } from "@/lib/task-schedule";
 import { ensureUpcomingTasks } from "@/lib/ensure-upcoming-tasks";
 
 export async function GET(request: NextRequest) {
@@ -21,31 +21,30 @@ export async function GET(request: NextRequest) {
       .where(and(eq(tasks.userId, userId), eq(tasks.isActive, true)))
       .orderBy(asc(tasks.pillarId));
 
+    const todayStr = date || new Date().toISOString().split('T')[0];
+
     let filteredTasks = allTasks;
     if (date && !showAll) {
-      filteredTasks = allTasks.filter(t => isTaskForDate(t, date));
+      // For the daily view: scheduled tasks + overdue adhoc tasks
+      filteredTasks = allTasks.filter(t => isTaskForDate(t, date) || isOverdueAdhoc(t, todayStr));
     }
 
-    // Filter out completed adhoc tasks from past dates (they're done, shouldn't reappear)
-    const todayStr = date || new Date().toISOString().split('T')[0];
-    const adhocPastIds = filteredTasks
-      .filter(t => {
-        if (t.frequency !== 'adhoc') return false;
-        return t.startDate && t.startDate < todayStr;
-      })
+    // Filter out completed overdue adhoc tasks (they're done, shouldn't reappear)
+    const overdueAdhocIds = filteredTasks
+      .filter(t => isOverdueAdhoc(t, todayStr))
       .map(t => t.id);
 
-    if (adhocPastIds.length > 0) {
+    if (overdueAdhocIds.length > 0) {
       const completedAdhoc = await db
         .select({ taskId: taskCompletions.taskId })
         .from(taskCompletions)
         .where(and(
           eq(taskCompletions.userId, userId),
-          inArray(taskCompletions.taskId, adhocPastIds),
+          inArray(taskCompletions.taskId, overdueAdhocIds),
           eq(taskCompletions.completed, true),
         ));
       const completedSet = new Set(completedAdhoc.map(c => c.taskId));
-      filteredTasks = filteredTasks.filter(t => !(t.frequency === 'adhoc' && completedSet.has(t.id)));
+      filteredTasks = filteredTasks.filter(t => !completedSet.has(t.id));
     }
 
     // Get completions for date if provided
