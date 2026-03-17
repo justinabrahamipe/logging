@@ -320,6 +320,7 @@ export function useTasksPage() {
           totalTasks: data.totalTasks,
         });
         try { sessionStorage.removeItem('header-stats'); } catch { /* ignore */ }
+        window.dispatchEvent(new Event('score-updated'));
       }
     } catch (error) {
       console.error("Failed to fetch score:", error);
