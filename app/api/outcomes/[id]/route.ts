@@ -55,21 +55,19 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     const { id } = await params;
     const outcomeId = parseInt(id);
 
-    const [updated] = await db
-      .update(goals)
-      .set({ isArchived: true })
+    // Delete all tasks linked to this goal first
+    await db
+      .delete(tasks)
+      .where(and(eq(tasks.goalId, outcomeId), eq(tasks.userId, userId)));
+
+    const deleted = await db
+      .delete(goals)
       .where(and(eq(goals.id, outcomeId), eq(goals.userId, userId)))
       .returning();
 
-    if (!updated) {
+    if (deleted.length === 0) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
-
-    // Soft-delete all tasks linked to this outcome
-    await db
-      .update(tasks)
-      .set({ isActive: false })
-      .where(and(eq(tasks.goalId, outcomeId), eq(tasks.userId, userId)));
 
     return NextResponse.json({ success: true });
   } catch (error) {

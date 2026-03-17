@@ -95,8 +95,6 @@ export const tasks = sqliteTable('Task', {
   frequency: text('frequency').notNull().default('daily'), // daily|weekly|custom|monthly|interval|adhoc
   customDays: text('customDays'), // JSON array: day-of-week [0-6] for custom, day-of-month [1-31] for monthly
   repeatInterval: integer('repeatInterval'), // repeat every N days/weeks/months depending on frequency
-  toleranceBefore: integer('toleranceBefore'), // days before scheduled date
-  toleranceAfter: integer('toleranceAfter'), // days after scheduled date
   basePoints: real('basePoints').notNull().default(10),
   goalId: integer('goalId').references(() => goals.id, { onDelete: 'set null' }),
   periodId: integer('periodId').references(() => cycles.id, { onDelete: 'set null' }),
