@@ -14,18 +14,32 @@ interface GoalProgressProps {
 export default function GoalProgress({ outcomesData, completionDates, today }: GoalProgressProps) {
   if (outcomesData.length === 0) return null;
 
-  const totalProgress = outcomesData.reduce((sum, o) => {
+  // Pre-compute expected days for habitual goals so we can filter out 0/0
+  const getExpectedDays = (o: OutcomeData) => {
+    const scheduleDays: number[] = o.scheduleDays ? JSON.parse(o.scheduleDays) : [];
+    const start = o.startDate || today;
+    let expected = 0;
+    const d = new Date(start + 'T00:00:00');
+    const endD = new Date(today + 'T00:00:00');
+    while (d <= endD) {
+      if (scheduleDays.length === 0 || scheduleDays.includes(d.getDay())) expected++;
+      d.setDate(d.getDate() + 1);
+    }
+    return expected;
+  };
+
+  // Hide habitual goals with no expected days yet
+  const visibleGoals = outcomesData.filter((o) =>
+    o.goalType !== 'habitual' || getExpectedDays(o) > 0
+  );
+
+  if (visibleGoals.length === 0) return null;
+
+  const totalProgress = visibleGoals.reduce((sum, o) => {
     if (o.goalType === 'habitual') {
       const doneDates = completionDates[o.id] || [];
-      const scheduleDays: number[] = o.scheduleDays ? JSON.parse(o.scheduleDays) : [];
+      const expected = getExpectedDays(o);
       const start = o.startDate || today;
-      let expected = 0;
-      const d = new Date(start + 'T00:00:00');
-      const endD = new Date(today + 'T00:00:00');
-      while (d <= endD) {
-        if (scheduleDays.length === 0 || scheduleDays.includes(d.getDay())) expected++;
-        d.setDate(d.getDate() + 1);
-      }
       const hits = doneDates.filter(dt => dt >= start && dt <= today).length;
       return sum + (expected > 0 ? Math.min((hits / expected) * 100, 100) : 0);
     }
@@ -34,7 +48,7 @@ export default function GoalProgress({ outcomesData, completionDates, today }: G
     const p = Math.abs(o.currentValue - o.startValue) / range * 100;
     return sum + Math.max(0, Math.min(p, 100));
   }, 0);
-  const overallPct = Math.round(totalProgress / outcomesData.length);
+  const overallPct = Math.round(totalProgress / visibleGoals.length);
 
   return (
     <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4 mb-6">
@@ -59,7 +73,7 @@ export default function GoalProgress({ outcomesData, completionDates, today }: G
         />
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {outcomesData.map((goal) => {
+        {visibleGoals.map((goal) => {
           const isHabitual = goal.goalType === 'habitual';
           const range = Math.abs(goal.targetValue - goal.startValue);
 

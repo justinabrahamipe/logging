@@ -232,16 +232,28 @@ export default function GoalForm({
             ))}
           </div>
           {form.completionType !== "checkbox" && form.goalType === "habitual" && (
-            <div className="mt-2">
-              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Per-session target</label>
-              <input
-                type="number"
-                step="any"
-                value={form.dailyTarget}
-                onChange={(e) => setForm({ ...form, dailyTarget: e.target.value })}
-                className="w-full max-w-[200px] px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
-                placeholder="Target per session"
-              />
+            <div className="mt-2 grid grid-cols-2 gap-2 max-w-sm">
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Per-session target</label>
+                <input
+                  type="number"
+                  step="any"
+                  value={form.dailyTarget}
+                  onChange={(e) => setForm({ ...form, dailyTarget: e.target.value })}
+                  className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
+                  placeholder="e.g., 30"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Unit</label>
+                <input
+                  type="text"
+                  value={form.unit}
+                  onChange={(e) => setForm({ ...form, unit: e.target.value })}
+                  className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
+                  placeholder="e.g., min, reps"
+                />
+              </div>
             </div>
           )}
           {form.completionType !== "checkbox" && form.goalType === "target" && (

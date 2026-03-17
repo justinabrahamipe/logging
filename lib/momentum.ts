@@ -12,7 +12,7 @@ function calculateHabitualMomentum(
   goal: GoalForMomentum,
   logs: GoalLogEntry[],
   today: string
-): GoalMomentum {
+): GoalMomentum | null {
   const scheduleDays: number[] = goal.scheduleDays ? JSON.parse(goal.scheduleDays) : [];
   const startDate = goal.startDate || today;
   const endDate = goal.targetDate || today;
@@ -22,7 +22,7 @@ function calculateHabitualMomentum(
   // Use cycle-to-date
   const totalExpected = countScheduledDaysInRange(effectiveStart, effectiveEnd, scheduleDays);
   if (totalExpected === 0) {
-    return { goalId: goal.id, goalType: goal.goalType, pillarId: goal.pillarId, momentum: 1.0, bufferDays: 0, label: 'On track' };
+    return null;
   }
 
   // Count days where a log entry exists (value > 0)
@@ -194,10 +194,10 @@ export function calculateMomentum(
   const goalResults: GoalMomentum[] = [];
 
   for (const goal of goals) {
-    let result: GoalMomentum;
-
     // Skip outcome goals — they have trajectory, not momentum
     if (goal.goalType === 'outcome') continue;
+
+    let result: GoalMomentum | null;
 
     switch (goal.goalType) {
       case 'habitual':
@@ -209,7 +209,7 @@ export function calculateMomentum(
         result = calculateTargetMomentum(goal, today);
     }
 
-    goalResults.push(result);
+    if (result) goalResults.push(result);
   }
 
   // Aggregate by pillar
