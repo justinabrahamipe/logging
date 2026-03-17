@@ -182,6 +182,7 @@ export default function SettingsPage() {
           : "All data has been cleared! Redirecting...";
         setSnackbar({ open: true, message: msg, severity: "success" });
         sessionStorage.clear();
+        localStorage.removeItem('tasks-filters');
         if (!seedDefaults) {
           sessionStorage.setItem('skip-auto-seed', 'true');
         }

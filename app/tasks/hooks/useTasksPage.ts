@@ -144,20 +144,17 @@ export function useTasksPage() {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('tasks-filters');
       if (saved) {
-        try { return JSON.parse(saved); } catch { /* ignore */ }
-      }
-      const oldDate = localStorage.getItem('tasks-date-filter');
-      const oldStatus = localStorage.getItem('tasks-status-filter');
-      if (oldDate || oldStatus) {
-        const migrated = {
-          date: { type: (['today', 'tomorrow', 'week', 'month', 'no-date', 'scheduled'].includes(oldDate || '') ? oldDate : 'today') as DateFilterType },
-          status: (['todo', 'done'].includes(oldStatus || '') ? oldStatus : 'all') as 'all' | 'todo' | 'done' | 'discarded',
-          pillars: [] as number[],
-          goals: [] as number[],
-        };
-        localStorage.removeItem('tasks-date-filter');
-        localStorage.removeItem('tasks-status-filter');
-        return migrated;
+        try {
+          const parsed = JSON.parse(saved);
+          // Keep date and status filters, but clear pillar/goal IDs
+          // (they may reference old data from a different account)
+          return {
+            date: parsed.date || { type: 'today' },
+            status: parsed.status || 'all',
+            pillars: [] as number[],
+            goals: [] as number[],
+          };
+        } catch { /* ignore */ }
       }
     }
     return { date: { type: 'today' as const }, status: 'all' as const, pillars: [] as number[], goals: [] as number[] };
