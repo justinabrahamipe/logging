@@ -1,8 +1,11 @@
 "use client";
 
-import { FaPlus, FaCheck, FaMinus, FaChevronDown, FaStar } from "react-icons/fa";
+import { useState, useRef, useEffect } from "react";
+import { FaPlus, FaCheck, FaMinus, FaChevronDown, FaStar, FaEllipsisV, FaEdit, FaTrash } from "react-icons/fa";
+import { AnimatePresence, motion } from "framer-motion";
 import { formatDate } from "@/lib/format";
 import type { PastDay } from "../hooks/useTasksPage";
+import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 
 type DateFormat = "DD/MM/YYYY" | "MM/DD/YYYY" | "YYYY-MM-DD" | "DD-MM-YYYY" | "MM-DD-YYYY";
 
@@ -16,6 +19,8 @@ interface PastDaySectionProps {
   handlePastComplete: (date: string, taskId: number, completed: boolean, value?: number) => void;
   handlePastCountChange: (date: string, task: { id: number; target: number | null; completed: boolean; value: number | null }, delta: number) => void;
   handlePastNumericSubmit: (date: string, task: { id: number; target: number | null }) => void;
+  handlePastDelete: (date: string, taskId: number) => void;
+  router: AppRouterInstance;
 }
 
 export default function PastDaySection({
@@ -28,11 +33,27 @@ export default function PastDaySection({
   handlePastComplete,
   handlePastCountChange,
   handlePastNumericSubmit,
+  handlePastDelete,
+  router,
 }: PastDaySectionProps) {
   const dateLabel = formatDate(day.date, dateFormat);
   const completedCount = day.tasks.filter(t => t.completed || (t.target && t.target > 0 && (t.value || 0) >= t.target)).length;
   const dayKey = `past-${day.date}`;
   const isOpen = openSchedules.has(dayKey);
+  const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenuId(null);
+      }
+    };
+    if (openMenuId !== null) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [openMenuId]);
 
   return (
     <div key={day.date}>
@@ -134,6 +155,39 @@ export default function PastDaySection({
                         )}
                       </div>
                     )}
+                    {/* Action menu */}
+                    <div className="relative" ref={openMenuId === task.id ? menuRef : undefined}>
+                      <button
+                        onClick={() => setOpenMenuId(openMenuId === task.id ? null : task.id)}
+                        className="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                      >
+                        <FaEllipsisV className="text-[10px]" />
+                      </button>
+                      <AnimatePresence>
+                        {openMenuId === task.id && (
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            transition={{ duration: 0.1 }}
+                            className="absolute right-0 top-7 z-20 w-36 bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-700 overflow-hidden"
+                          >
+                            <button
+                              onClick={() => { setOpenMenuId(null); router.push(`/tasks/${task.id}/edit`); }}
+                              className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                            >
+                              <FaEdit className="text-xs" /> Edit
+                            </button>
+                            <button
+                              onClick={() => { setOpenMenuId(null); handlePastDelete(day.date, task.id); }}
+                              className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                            >
+                              <FaTrash className="text-xs" /> Delete
+                            </button>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
                   </div>
                 </div>
               </div>

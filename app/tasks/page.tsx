@@ -9,7 +9,6 @@ import DateNavigation from "./components/DateNavigation";
 import TaskItem from "./components/TaskItem";
 import type { EnrichedTask } from "./components/TaskItem";
 import TaskGroup from "./components/TaskGroup";
-import PastDaySection from "./components/PastDaySection";
 
 export default function TasksPage() {
   const hook = useTasksPage();
@@ -24,8 +23,6 @@ export default function TasksPage() {
     loading,
     refreshing,
     pastDays,
-    pastPending,
-    setPastPending,
     pastLoading,
     filters,
     setFilters,
@@ -35,8 +32,6 @@ export default function TasksPage() {
     setDatePickerMode,
     pendingRange,
     setPendingRange,
-    openSchedules,
-    setOpenSchedules,
     scoreSummary,
     timers,
     pendingValues,
@@ -60,9 +55,6 @@ export default function TasksPage() {
     handleDelete,
     handleDiscard,
     handleMoveDate,
-    handlePastComplete,
-    handlePastCountChange,
-    handlePastNumericSubmit,
     formatTime,
     getDateBucket,
     isTaskInDateRange,
@@ -112,9 +104,8 @@ export default function TasksPage() {
     return true;
   }) : [];
 
-  const filteredPastDays = pastDays.map(day => ({
-    ...day,
-    tasks: day.tasks.filter(t => {
+  const pastEnrichedTasks: EnrichedTask[] = isPastDateView ? pastDays.flatMap(day =>
+    day.tasks.filter(t => {
       const completed = t.completed || (t.target != null && t.target > 0 && (t.value || 0) >= t.target);
       if (!passesStatusFilter(completed, t.value)) return false;
       if (filters.pillars.length > 0) {
@@ -123,8 +114,37 @@ export default function TasksPage() {
       }
       if (filters.goals.length > 0 && !(t.goalId && filters.goals.includes(t.goalId))) return false;
       return true;
-    })
-  })).filter(day => day.tasks.length > 0);
+    }).map(t => ({
+      id: t.id,
+      userId: '',
+      name: t.name,
+      pillarId: pillars.find(p => p.name === t.pillarName)?.id ?? 0,
+      completionType: t.completionType,
+      target: t.target,
+      unit: t.unit,
+      frequency: 'adhoc' as const,
+      customDays: null,
+      repeatInterval: null,
+      goalId: t.goalId,
+      periodId: null,
+      startDate: day.date,
+      basePoints: 10,
+      flexibilityRule: 'must_today',
+      isActive: true,
+      createdAt: day.date,
+      completion: {
+        id: 0,
+        taskId: t.id,
+        completed: t.completed,
+        value: t.value ?? 0,
+        pointsEarned: 0,
+        isHighlighted: t.isHighlighted,
+      },
+      _pillarColor: t.pillarColor || '#6B7280',
+      _pillarEmoji: t.pillarEmoji || '',
+      _pillarName: t.pillarName || '',
+    }))
+  ) : [];
 
   const taskItemProps = {
     goalsList,
@@ -214,25 +234,14 @@ export default function TasksPage() {
                 <div className="text-center py-8">
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-zinc-900 dark:border-white mx-auto"></div>
                 </div>
-              ) : filteredPastDays.length === 0 ? (
+              ) : pastEnrichedTasks.length === 0 ? (
                 <div className="text-center py-8 text-zinc-500 dark:text-zinc-400 text-sm">
                   No tasks for this date
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {filteredPastDays.map(day => (
-                    <PastDaySection
-                      key={day.date}
-                      day={day}
-                      dateFormat={dateFormat}
-                      openSchedules={openSchedules}
-                      setOpenSchedules={setOpenSchedules}
-                      pastPending={pastPending}
-                      setPastPending={setPastPending}
-                      handlePastComplete={handlePastComplete}
-                      handlePastCountChange={handlePastCountChange}
-                      handlePastNumericSubmit={handlePastNumericSubmit}
-                    />
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.5rem' }}>
+                  {pastEnrichedTasks.map(t => (
+                    <TaskItem key={t.id} task={t} {...taskItemProps} />
                   ))}
                 </div>
               )

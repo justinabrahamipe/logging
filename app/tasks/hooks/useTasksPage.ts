@@ -367,6 +367,18 @@ export function useTasksPage() {
     });
   };
 
+  const handlePastDelete = async (date: string, taskId: number) => {
+    setPastDays(prev => prev.map(day =>
+      day.date !== date ? day : { ...day, tasks: day.tasks.filter(t => t.id !== taskId) }
+    ).filter(day => day.tasks.length > 0));
+    try {
+      await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
+      await fetchTasks();
+    } catch (error) {
+      console.error("Failed to delete past task:", error);
+    }
+  };
+
   const fetchPastTasks = async (date?: string) => {
     setPastLoading(true);
     try {
@@ -834,6 +846,7 @@ export function useTasksPage() {
     handlePastComplete,
     handlePastCountChange,
     handlePastNumericSubmit,
+    handlePastDelete,
     // Helpers
     formatTime,
     getDateBucket: (task: Task) => getDateBucket(task, today),
