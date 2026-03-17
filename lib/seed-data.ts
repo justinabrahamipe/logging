@@ -15,7 +15,6 @@ const DEFAULT_PILLARS: PillarSeed[] = [
     color: '#EF4444',
     weight: 25,
     description: 'Physical health, exercise, nutrition',
-
     tasks: [
       { name: 'Gym session', completionType: 'checkbox', frequency: 'custom', customDays: JSON.stringify([1, 2, 4, 5]), basePoints: 10 },
       { name: 'C25K run', completionType: 'checkbox', frequency: 'custom', customDays: JSON.stringify([1, 3, 5]), basePoints: 10 },
@@ -90,7 +89,7 @@ const DEFAULT_PILLARS: PillarSeed[] = [
 
 interface GoalSeed {
   name: string;
-  pillarIndex: number; // index into DEFAULT_PILLARS
+  pillarIndex: number;
   goalType: 'habitual' | 'target' | 'outcome';
   completionType: string;
   unit: string;
@@ -104,80 +103,12 @@ interface GoalSeed {
 }
 
 const DEFAULT_GOALS: GoalSeed[] = [
-  {
-    name: 'Lose 10kg',
-    pillarIndex: 0, // Health
-    goalType: 'outcome',
-    completionType: 'numeric',
-    unit: 'kg',
-    direction: 'down',
-    startValue: 95,
-    targetValue: 85,
-    currentValue: 91.2,
-    logFrequency: 'weekly',
-  },
-  {
-    name: 'Run 5K without stopping',
-    pillarIndex: 0, // Health
-    goalType: 'target',
-    completionType: 'numeric',
-    unit: 'km',
-    direction: 'up',
-    startValue: 0,
-    targetValue: 5,
-    currentValue: 3.2,
-    logFrequency: 'weekly',
-  },
-  {
-    name: 'Read 12 books this year',
-    pillarIndex: 4, // Growth
-    goalType: 'target',
-    completionType: 'count',
-    unit: 'books',
-    direction: 'up',
-    startValue: 0,
-    targetValue: 12,
-    currentValue: 4,
-    logFrequency: 'weekly',
-  },
-  {
-    name: 'Meditate daily',
-    pillarIndex: 4, // Growth
-    goalType: 'habitual',
-    completionType: 'checkbox',
-    unit: 'sessions',
-    direction: 'up',
-    startValue: 0,
-    targetValue: 90,
-    currentValue: 38,
-    dailyTarget: 1,
-    scheduleDays: [1, 2, 3, 4, 5, 6, 0],
-    logFrequency: 'daily',
-  },
-  {
-    name: 'Ship MVP product',
-    pillarIndex: 2, // Side Hustle
-    goalType: 'target',
-    completionType: 'numeric',
-    unit: '% complete',
-    direction: 'up',
-    startValue: 0,
-    targetValue: 100,
-    currentValue: 65,
-    logFrequency: 'weekly',
-  },
-  {
-    name: 'Apply to 50 jobs',
-    pillarIndex: 1, // Career
-    goalType: 'target',
-    completionType: 'count',
-    unit: 'applications',
-    direction: 'up',
-    startValue: 0,
-    targetValue: 50,
-    currentValue: 22,
-    logFrequency: 'daily',
-  },
+  { name: 'Lose 10kg', pillarIndex: 0, goalType: 'outcome', completionType: 'numeric', unit: 'kg', direction: 'down', startValue: 95, targetValue: 85, currentValue: 91.2, logFrequency: 'weekly' },
+  { name: 'Run 5K without stopping', pillarIndex: 0, goalType: 'target', completionType: 'numeric', unit: 'km', direction: 'up', startValue: 0, targetValue: 5, currentValue: 3.2, logFrequency: 'weekly' },
+  { name: 'Read 12 books this year', pillarIndex: 4, goalType: 'target', completionType: 'count', unit: 'books', direction: 'up', startValue: 0, targetValue: 12, currentValue: 4, logFrequency: 'weekly' },
+  { name: 'Meditate daily', pillarIndex: 4, goalType: 'habitual', completionType: 'checkbox', unit: 'sessions', direction: 'up', startValue: 0, targetValue: 90, currentValue: 38, dailyTarget: 1, scheduleDays: [1, 2, 3, 4, 5, 6, 0], logFrequency: 'daily' },
+  { name: 'Ship MVP product', pillarIndex: 2, goalType: 'target', completionType: 'numeric', unit: '% complete', direction: 'up', startValue: 0, targetValue: 100, currentValue: 65, logFrequency: 'weekly' },
+  { name: 'Apply to 50 jobs', pillarIndex: 1, goalType: 'target', completionType: 'count', unit: 'applications', direction: 'up', startValue: 0, targetValue: 50, currentValue: 22, logFrequency: 'daily' },
 ];
 
 // ── Helpers ──
@@ -204,11 +135,9 @@ function generateDummyCompletion(
   taskData: PillarSeed['tasks'][number],
   rand: () => number,
 ): { completed: boolean; value: number | null } | null {
-  if (rand() > 0.7) return null; // ~70% completion rate
+  if (rand() > 0.7) return null;
 
-  if (taskData.completionType === 'checkbox') {
-    return { completed: true, value: 1 };
-  }
+  if (taskData.completionType === 'checkbox') return { completed: true, value: 1 };
   if (taskData.completionType === 'count' && taskData.target) {
     const hitTarget = rand() > 0.2;
     const value = hitTarget ? taskData.target : Math.max(1, Math.floor(taskData.target * (0.3 + rand() * 0.6)));
@@ -248,8 +177,8 @@ export async function seedDefaultData(userId: string, skipCheck = false) {
 
   // ── 1. Create Cycles ──
 
-  const cycleStartDate = addDays(now, -42); // started 6 weeks ago
-  const cycleEndDate = addDays(now, 42);    // ends 6 weeks from now
+  const cycleStartDate = addDays(now, -42);
+  const cycleEndDate = addDays(now, 42);
 
   const [activeCycle] = await db.insert(cycles).values({
     userId,
@@ -260,13 +189,11 @@ export async function seedDefaultData(userId: string, skipCheck = false) {
     theme: 'Discipline & Consistency',
   }).returning();
 
-  const pastCycleStart = addDays(now, -126); // ~18 weeks ago
-  const pastCycleEnd = addDays(now, -43);
   await db.insert(cycles).values({
     userId,
     name: 'Foundation Period',
-    startDate: dateStr(pastCycleStart),
-    endDate: dateStr(pastCycleEnd),
+    startDate: dateStr(addDays(now, -126)),
+    endDate: dateStr(addDays(now, -43)),
     vision: 'Establish habits and routines that support long-term goals.',
     theme: 'Building the Base',
   });
@@ -274,7 +201,6 @@ export async function seedDefaultData(userId: string, skipCheck = false) {
   // ── 2. Create Pillars ──
 
   const pillarIds: number[] = [];
-
   for (const pillarData of DEFAULT_PILLARS) {
     const [pillar] = await db.insert(pillars).values({
       userId,
@@ -287,15 +213,13 @@ export async function seedDefaultData(userId: string, skipCheck = false) {
     pillarIds.push(pillar.id);
   }
 
-  // ── 3. Create Goals (linked to pillars & active cycle) ──
+  // ── 3. Create Goals ──
 
   const goalIds: number[] = [];
-
   for (const goalData of DEFAULT_GOALS) {
-    const pillarId = pillarIds[goalData.pillarIndex];
     const [goal] = await db.insert(goals).values({
       userId,
-      pillarId,
+      pillarId: pillarIds[goalData.pillarIndex],
       name: goalData.name,
       goalType: goalData.goalType,
       completionType: goalData.completionType,
@@ -316,23 +240,22 @@ export async function seedDefaultData(userId: string, skipCheck = false) {
   }
 
   // ── 4. Create Task Schedules & Task Instances ──
+  // Only 7 days back + 7 days ahead to keep it fast
 
-  // Date range: 14 days back through 7 days ahead
   const allDates: string[] = [];
-  for (let i = -14; i < 8; i++) {
+  for (let i = -7; i < 8; i++) {
     allDates.push(dateStr(addDays(now, i)));
   }
 
-  const pastDatesWithScores = new Set<string>();
-  const activityLogEntries: (typeof activityLog.$inferInsert)[] = [];
-
-  // Map some tasks to goals for linkage
   const taskGoalLinks: Record<string, number> = {
-    'Job application': goalIds[5],   // Apply to 50 jobs
-    'Product work': goalIds[4],      // Ship MVP
-    'Reading': goalIds[2],           // Read 12 books
-    'C25K run': goalIds[1],          // Run 5K
+    'Job application': goalIds[5],
+    'Product work': goalIds[4],
+    'Reading': goalIds[2],
+    'C25K run': goalIds[1],
   };
+
+  // Collect all task inserts to batch them
+  const taskInserts: (typeof tasks.$inferInsert)[] = [];
 
   for (let pi = 0; pi < DEFAULT_PILLARS.length; pi++) {
     const pillarData = DEFAULT_PILLARS[pi];
@@ -368,68 +291,46 @@ export async function seedDefaultData(userId: string, skipCheck = false) {
           { taskId: 0, completed, value }
         ) : 0;
 
-        try {
-          const [taskRow] = await db.insert(tasks).values({
-            scheduleId: schedule.id,
-            userId,
-            pillarId,
-            name: taskData.name,
-            completionType: taskData.completionType,
-            target: taskData.target ?? null,
-            unit: taskData.unit ?? null,
-            flexibilityRule: taskData.flexibilityRule ?? 'must_today',
-            basePoints: taskData.basePoints,
-            goalId: linkedGoalId,
-            periodId: activeCycle.id,
-            date: ds,
-            completed,
-            value,
-            pointsEarned,
-            isHighlighted: false,
-            completedAt: completed ? new Date(ds + 'T12:00:00') : null,
-          }).returning();
-
-          if (isPast) pastDatesWithScores.add(ds);
-
-          // Build activity log entry for completed tasks
-          if (completed && taskRow) {
-            activityLogEntries.push({
-              userId,
-              timestamp: new Date(ds + 'T12:00:00'),
-              taskId: taskRow.id,
-              pillarId,
-              action: 'complete',
-              previousValue: 0,
-              newValue: value ?? 1,
-              delta: value ?? 1,
-              pointsBefore: 0,
-              pointsAfter: pointsEarned,
-              pointsDelta: pointsEarned,
-              source: taskData.completionType === 'duration' ? 'timer' : 'manual',
-            });
-          }
-        } catch {
-          // Ignore duplicate key errors
-        }
+        taskInserts.push({
+          scheduleId: schedule.id,
+          userId,
+          pillarId,
+          name: taskData.name,
+          completionType: taskData.completionType,
+          target: taskData.target ?? null,
+          unit: taskData.unit ?? null,
+          flexibilityRule: taskData.flexibilityRule ?? 'must_today',
+          basePoints: taskData.basePoints,
+          goalId: linkedGoalId,
+          periodId: activeCycle.id,
+          date: ds,
+          completed,
+          value,
+          pointsEarned,
+          isHighlighted: false,
+          completedAt: completed ? new Date(ds + 'T12:00:00') : null,
+        });
       }
     }
   }
 
-  // ── 5. Insert Activity Log entries ──
-
-  for (const entry of activityLogEntries) {
+  // Batch insert all tasks (chunks of 50 to avoid query size limits)
+  for (let i = 0; i < taskInserts.length; i += 50) {
+    const chunk = taskInserts.slice(i, i + 50);
     try {
-      await db.insert(activityLog).values(entry);
+      await db.insert(tasks).values(chunk);
     } catch {
-      // Ignore errors
+      // Fall back to individual inserts if batch fails
+      for (const val of chunk) {
+        try { await db.insert(tasks).values(val); } catch { /* ignore duplicates */ }
+      }
     }
   }
 
-  // ── 6. Calculate and persist Daily Scores for all past dates + today ──
-
-  const sortedPastDates = [...pastDatesWithScores].sort();
-  for (const ds of sortedPastDates) {
+  // ── 5. Calculate daily scores for past days + today ──
+  // Only score the last 7 days to stay within timeout
+  const pastDates = allDates.filter(d => d <= todayStr);
+  for (const ds of pastDates) {
     await saveDailyScore(userId, ds);
   }
-  await saveDailyScore(userId, todayStr);
 }

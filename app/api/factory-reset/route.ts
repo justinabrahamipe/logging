@@ -1,20 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { createClient } from "@libsql/client";
+import { db, pillars, taskSchedules, tasks, goals, cycles, dailyScores, activityLog, userPreferences } from "@/lib/db";
+import { eq } from "drizzle-orm";
 import { seedDefaultData } from "@/lib/seed-data";
-
-// Tables to delete in FK-safe order (children before parents)
-const TABLES_TO_DELETE = [
-  "TaskCompletion",
-  "DailyScore",
-  "ActivityLog",
-  "Cycle",
-  "Goal",
-  "Task",
-  "TaskSchedule",
-  "Pillar",
-  "UserPreferences",
-];
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -24,37 +12,18 @@ export async function POST(request: Request) {
 
   const userId = session.user.id;
   const body = await request.json().catch(() => ({}));
-  const seedDefaults = body.seedDefaults !== false; // default true for backward compat
+  const seedDefaults = body.seedDefaults !== false;
 
   try {
-    // Use raw SQL client to bypass any Drizzle schema mismatches
-    const client = createClient({
-      url: process.env.DATABASE_URL!,
-      authToken: process.env.DATABASE_AUTH_TOKEN!,
-    });
-
-    // Disable foreign key checks to avoid FK ordering issues
-    await client.execute("PRAGMA foreign_keys = OFF");
-
-    const deleted: string[] = [];
-    const skipped: string[] = [];
-
-    for (const table of TABLES_TO_DELETE) {
-      try {
-        await client.execute({
-          sql: `DELETE FROM "${table}" WHERE "userId" = ?`,
-          args: [userId],
-        });
-        deleted.push(table);
-      } catch (e) {
-        // Table might not exist in production — skip
-        skipped.push(table);
-        console.warn(`Factory reset: skipped ${table}`, e);
-      }
-    }
-
-    // Re-enable foreign key checks
-    await client.execute("PRAGMA foreign_keys = ON");
+    // Delete in FK-safe order (children before parents) using Drizzle
+    await db.delete(activityLog).where(eq(activityLog.userId, userId));
+    await db.delete(dailyScores).where(eq(dailyScores.userId, userId));
+    await db.delete(tasks).where(eq(tasks.userId, userId));
+    await db.delete(taskSchedules).where(eq(taskSchedules.userId, userId));
+    await db.delete(goals).where(eq(goals.userId, userId));
+    await db.delete(cycles).where(eq(cycles.userId, userId));
+    await db.delete(pillars).where(eq(pillars.userId, userId));
+    await db.delete(userPreferences).where(eq(userPreferences.userId, userId));
 
     // Re-seed default data only if requested
     if (seedDefaults) {
@@ -66,8 +35,6 @@ export async function POST(request: Request) {
       message: seedDefaults
         ? "Factory reset completed and default data seeded"
         : "All data cleared successfully",
-      deleted,
-      skipped,
     });
   } catch (error) {
     console.error("Error during factory reset:", error);
