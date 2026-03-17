@@ -43,7 +43,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     }
 
     const updateData: Record<string, unknown> = {};
-    const fields = ['name', 'pillarId', 'completionType', 'target', 'unit', 'flexibilityRule', 'frequency', 'customDays', 'repeatInterval', 'toleranceBefore', 'toleranceAfter', 'basePoints', 'isActive', 'limitValue', 'goalId', 'periodId', 'startDate'];
+    const fields = ['name', 'pillarId', 'completionType', 'target', 'unit', 'flexibilityRule', 'frequency', 'customDays', 'repeatInterval', 'basePoints', 'isActive', 'limitValue', 'goalId', 'periodId', 'startDate'];
 
     for (const field of fields) {
       if (body[field] !== undefined) {
@@ -70,14 +70,12 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     const { id } = await params;
     const taskId = parseInt(id);
 
-    // Soft delete
-    const [updated] = await db
-      .update(tasks)
-      .set({ isActive: false })
+    const deleted = await db
+      .delete(tasks)
       .where(and(eq(tasks.id, taskId), eq(tasks.userId, userId)))
       .returning();
 
-    if (!updated) {
+    if (deleted.length === 0) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 

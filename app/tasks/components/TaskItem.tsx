@@ -73,13 +73,18 @@ export default function TaskItem({
   const currentValue = task.completion?.value || 0;
   const isDiscarded = isCompleted && task.completionType === 'checkbox' && currentValue === 0;
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const [menuAbove, setMenuAbove] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ top?: number; bottom?: number; right: number }>({ right: 0 });
 
   useEffect(() => {
     if (openMenuId === task.id && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
       const spaceBelow = window.innerHeight - rect.bottom;
-      setMenuAbove(spaceBelow < 220);
+      const right = window.innerWidth - rect.right;
+      if (spaceBelow < 220) {
+        setMenuPos({ bottom: window.innerHeight - rect.top + 4, right });
+      } else {
+        setMenuPos({ top: rect.bottom + 4, right });
+      }
     }
   }, [openMenuId, task.id]);
   const isFullyDone = !isDiscarded && (isCompleted || (task.target != null && task.target > 0 && currentValue >= task.target));
@@ -257,12 +262,15 @@ export default function TaskItem({
             </button>
             <AnimatePresence>
               {openMenuId === task.id && (
+                <>
+                <div className="fixed inset-0 z-40" onClick={() => setOpenMenuId(null)} />
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ duration: 0.1 }}
-                  className={`absolute right-0 z-20 w-36 bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-700 overflow-hidden ${menuAbove ? 'bottom-7' : 'top-7'}`}
+                  className="fixed z-50 w-36 bg-white dark:bg-zinc-800 rounded-lg shadow-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden"
+                  style={{ right: menuPos.right, ...(menuPos.top != null ? { top: menuPos.top } : { bottom: menuPos.bottom }) }}
                 >
                   <button
                     onClick={() => { setOpenMenuId(null); router.push(`/tasks/${task.id}/edit`); }}
@@ -305,6 +313,7 @@ export default function TaskItem({
                     <FaTrash className="text-xs" /> Delete
                   </button>
                 </motion.div>
+                </>
               )}
             </AnimatePresence>
           </div>

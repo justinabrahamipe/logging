@@ -150,6 +150,17 @@ export default function TasksPage() {
   }) : filteredTasks;
   const isDisplayLoading = isPastDateView ? pastLoading : false;
 
+  // Compute task counts from what's actually displayed
+  const displayTotal = displayTasks.length;
+  const displayCompleted = displayTasks.filter(t =>
+    t.completion?.completed || (t.target != null && t.target > 0 && (t.completion?.value || 0) >= t.target)
+  ).length;
+  const adjustedScoreSummary = scoreSummary ? {
+    ...scoreSummary,
+    totalTasks: displayTotal,
+    completedTasks: displayCompleted,
+  } : null;
+
   const taskItemProps = {
     goalsList,
     cycles,
@@ -191,7 +202,7 @@ export default function TasksPage() {
           setDatePickerMode={setDatePickerMode}
           pendingRange={pendingRange}
           setPendingRange={setPendingRange}
-          scoreSummary={scoreSummary}
+          scoreSummary={adjustedScoreSummary}
           refreshing={refreshing}
           pillars={pillars}
           goalsList={goalsList}

@@ -42,7 +42,7 @@ export default function DateNavigation({
 }: DateNavigationProps) {
   return (
     <div className="mb-3">
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex items-center gap-2">
         <h1 className="text-2xl md:text-3xl font-bold text-zinc-900 dark:text-white">Tasks</h1>
         {scoreSummary && filters.date.type !== 'scheduled' && (
           <span className="text-sm font-semibold text-zinc-500 dark:text-zinc-400">
@@ -50,12 +50,13 @@ export default function DateNavigation({
             <span className="font-normal ml-1">{scoreSummary.completedTasks}/{scoreSummary.totalTasks}</span>
           </span>
         )}
+      </div>
 
-        {/* Filter chips - inline with heading */}
-        {activePopover && (
-          <div className="fixed inset-0 z-40" onClick={closePopover} />
-        )}
-        <div className="flex flex-wrap items-center gap-1.5 ml-auto relative z-50">
+      {/* Filter chips */}
+      {activePopover && (
+        <div className="fixed inset-0 z-40" onClick={closePopover} />
+      )}
+      <div className="flex flex-wrap items-center gap-1.5 mt-2 relative z-50">
           {/* Date chip */}
           <div className="relative">
             <button
@@ -66,7 +67,7 @@ export default function DateNavigation({
               <FaChevronDown className="text-[8px] text-zinc-400" />
             </button>
             {activePopover === 'date' && (
-              <div className="fixed sm:absolute bottom-4 sm:bottom-auto top-auto sm:top-full left-4 right-4 sm:left-auto sm:right-0 mt-1 z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-lg p-1.5 min-w-[200px] max-w-[calc(100vw-2rem)] max-h-[80vh] overflow-y-auto">
+              <div className="fixed sm:absolute bottom-4 sm:bottom-auto top-auto sm:top-full left-4 right-4 sm:left-0 sm:right-auto mt-1 z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-lg p-1.5 min-w-[200px] max-w-[calc(100vw-2rem)] max-h-[80vh] overflow-y-auto">
                 {!datePickerMode ? (
                   <div className="space-y-0.5">
                     {(['yesterday', 'today', 'tomorrow', 'week', 'month', 'no-date'] as const).map(type => (
@@ -258,7 +259,7 @@ export default function DateNavigation({
                 </span>
               </button>
               {activePopover === 'status' && (
-                <div className="fixed sm:absolute bottom-4 sm:bottom-auto top-auto sm:top-full left-4 right-4 sm:left-auto sm:left-0 mt-1 z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-lg p-1.5 sm:min-w-[120px]">
+                <div className="fixed sm:absolute bottom-4 sm:bottom-auto top-auto sm:top-full left-4 right-4 sm:left-0 sm:right-auto mt-1 z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-lg p-1.5 sm:min-w-[120px]">
                   {(['todo', 'done', 'discarded'] as const).map(s => (
                     <button
                       key={s}
@@ -378,7 +379,6 @@ export default function DateNavigation({
             )}
           </div>
         </div>
-      </div>
 
       {/* Progress underline */}
       {filters.date.type !== 'scheduled' && (

@@ -72,19 +72,5 @@ export function isOverdueAdhoc(task: typeof tasks.$inferSelect, todayStr: string
 }
 
 export function isTaskForDate(task: typeof tasks.$inferSelect, dateStr: string): boolean {
-  if (isTaskForExactDate(task, dateStr)) return true;
-
-  const before = task.toleranceBefore || 0;
-  const after = task.toleranceAfter || 0;
-  if (before <= 0 && after <= 0) return false;
-
-  const date = new Date(dateStr + 'T12:00:00');
-  for (let offset = -before; offset <= after; offset++) {
-    if (offset === 0) continue;
-    const nearby = new Date(date);
-    nearby.setDate(nearby.getDate() + offset);
-    const nearbyStr = nearby.toISOString().split('T')[0];
-    if (isTaskForExactDate(task, nearbyStr)) return true;
-  }
-  return false;
+  return isTaskForExactDate(task, dateStr);
 }

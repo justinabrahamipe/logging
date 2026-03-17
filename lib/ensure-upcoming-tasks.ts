@@ -50,7 +50,7 @@ export async function ensureUpcomingTasks(userId: string) {
     if (!activeByKey.has(key)) activeByKey.set(key, []);
     activeByKey.get(key)!.push(t);
   }
-  const dupeIdsToDelete: string[] = [];
+  const dupeIdsToDelete: number[] = [];
   for (const group of Array.from(activeByKey.values())) {
     if (group.length <= 1) continue;
     group.sort((a, b) => new Date(a.createdAt!).getTime() - new Date(b.createdAt!).getTime());
@@ -59,7 +59,7 @@ export async function ensureUpcomingTasks(userId: string) {
     }
   }
   if (dupeIdsToDelete.length > 0) {
-    await db.update(tasks).set({ isActive: false }).where(inArray(tasks.id, dupeIdsToDelete));
+    await db.delete(tasks).where(inArray(tasks.id, dupeIdsToDelete));
   }
 
   // Build a set of existing (goalId, startDate) pairs — includes deleted tasks to prevent recreation
