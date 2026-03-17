@@ -66,7 +66,7 @@ export default function DateNavigation({
               <FaChevronDown className="text-[8px] text-zinc-400" />
             </button>
             {activePopover === 'date' && (
-              <div className="fixed sm:absolute top-auto sm:top-full left-4 right-4 sm:left-auto sm:right-0 mt-1 z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-lg p-1.5 min-w-[200px] max-w-[calc(100vw-2rem)]">
+              <div className="fixed sm:absolute bottom-4 sm:bottom-auto top-auto sm:top-full left-4 right-4 sm:left-auto sm:right-0 mt-1 z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-lg p-1.5 min-w-[200px] max-w-[calc(100vw-2rem)] max-h-[80vh] overflow-y-auto">
                 {!datePickerMode ? (
                   <div className="space-y-0.5">
                     {(['today', 'tomorrow', 'week', 'month', 'no-date'] as const).map(type => (
@@ -258,7 +258,7 @@ export default function DateNavigation({
                 </span>
               </button>
               {activePopover === 'status' && (
-                <div className="absolute top-full left-0 mt-1 z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-lg p-1.5 min-w-[120px]">
+                <div className="fixed sm:absolute bottom-4 sm:bottom-auto top-auto sm:top-full left-4 right-4 sm:left-auto sm:left-0 mt-1 z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-lg p-1.5 sm:min-w-[120px]">
                   {(['todo', 'done', 'discarded'] as const).map(s => (
                     <button
                       key={s}
@@ -320,7 +320,7 @@ export default function DateNavigation({
               <FaPlus className="text-[8px]" /> Filter
             </button>
             {activePopover === 'add' && (
-              <div className="absolute top-full right-0 mt-1 z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-lg p-1.5 w-[180px] max-h-[360px] overflow-y-auto">
+              <div className="fixed sm:absolute bottom-4 sm:bottom-auto top-auto sm:top-full left-4 right-4 sm:left-auto sm:right-0 mt-1 z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-lg p-1.5 sm:w-[180px] max-h-[360px] overflow-y-auto">
                 {/* Status section */}
                 {filters.status === 'all' && (
                   <>
