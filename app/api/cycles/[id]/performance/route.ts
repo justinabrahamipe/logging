@@ -55,6 +55,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       .where(and(
         eq(taskCompletions.userId, session.user.id),
         eq(taskCompletions.completed, true),
+        eq(tasks.isActive, true),
         isNotNull(tasks.goalId),
       ))
       .orderBy(asc(taskCompletions.date));

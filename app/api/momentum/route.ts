@@ -37,6 +37,7 @@ export async function GET() {
         .where(and(
           eq(taskCompletions.userId, userId),
           eq(taskCompletions.completed, true),
+          eq(tasks.isActive, true),
           isNotNull(tasks.goalId),
           inArray(tasks.goalId, goalIds),
         ));

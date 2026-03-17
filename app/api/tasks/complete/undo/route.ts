@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     const [task] = await db
       .select()
       .from(tasks)
-      .where(and(eq(tasks.id, taskId), eq(tasks.userId, userId)));
+      .where(and(eq(tasks.id, taskId), eq(tasks.userId, userId), eq(tasks.isActive, true)));
 
     if (!task) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });

@@ -69,7 +69,7 @@ export default function DateNavigation({
               <div className="fixed sm:absolute bottom-4 sm:bottom-auto top-auto sm:top-full left-4 right-4 sm:left-auto sm:right-0 mt-1 z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-lg p-1.5 min-w-[200px] max-w-[calc(100vw-2rem)] max-h-[80vh] overflow-y-auto">
                 {!datePickerMode ? (
                   <div className="space-y-0.5">
-                    {(['today', 'tomorrow', 'week', 'month', 'no-date'] as const).map(type => (
+                    {(['yesterday', 'today', 'tomorrow', 'week', 'month', 'no-date'] as const).map(type => (
                       <button
                         key={type}
                         onClick={() => { setFilters(f => ({ ...f, date: { type } })); setActivePopover(null); }}
@@ -77,7 +77,7 @@ export default function DateNavigation({
                           filters.date.type === type ? 'bg-zinc-100 dark:bg-zinc-700 font-medium text-zinc-900 dark:text-white' : 'hover:bg-zinc-50 dark:hover:bg-zinc-700/50 text-zinc-600 dark:text-zinc-400'
                         }`}
                       >
-                        {type === 'today' ? 'Today' : type === 'tomorrow' ? 'Tomorrow' : type === 'week' ? 'This Week' : type === 'month' ? 'This Month' : 'No Date'}
+                        {type === 'yesterday' ? 'Yesterday' : type === 'today' ? 'Today' : type === 'tomorrow' ? 'Tomorrow' : type === 'week' ? 'This Week' : type === 'month' ? 'This Month' : 'No Date'}
                       </button>
                     ))}
                     <div className="border-t border-zinc-100 dark:border-zinc-700 my-1" />

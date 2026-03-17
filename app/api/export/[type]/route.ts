@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
 import { db, pillars, tasks, taskCompletions } from "@/lib/db";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 export async function GET(
   request: NextRequest,
@@ -26,7 +26,7 @@ export async function GET(
       }
 
       case "tasks": {
-        const data = await db.select().from(tasks).where(eq(tasks.userId, userId));
+        const data = await db.select().from(tasks).where(and(eq(tasks.userId, userId), eq(tasks.isActive, true)));
         csvData = "Name,Pillar ID,Completion Type,Target,Unit,Frequency,Base Points,Active\n";
         data.forEach((t) => {
           csvData += `"${t.name}",${t.pillarId},"${t.completionType}",${t.target || ""},"${t.unit || ""}","${t.frequency}",${t.basePoints},${t.isActive}\n`;

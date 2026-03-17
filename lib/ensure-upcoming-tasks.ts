@@ -34,16 +34,35 @@ export async function ensureUpcomingTasks(userId: string) {
   // Get all existing adhoc tasks linked to these outcomes for upcoming dates
   const goalIds = activeOutcomes.map(o => o.id);
   const existingTasks = await db
-    .select({ id: tasks.id, goalId: tasks.goalId, startDate: tasks.startDate })
+    .select({ id: tasks.id, goalId: tasks.goalId, startDate: tasks.startDate, isActive: tasks.isActive, createdAt: tasks.createdAt })
     .from(tasks)
     .where(and(
       eq(tasks.userId, userId),
-      eq(tasks.isActive, true),
       eq(tasks.frequency, 'adhoc'),
       inArray(tasks.goalId, goalIds),
     ));
 
-  // Build a set of existing (goalId, startDate) pairs
+  // Dedup: if multiple active tasks share the same (goalId, startDate), soft-delete all but the oldest
+  const activeByKey = new Map<string, typeof existingTasks>();
+  for (const t of existingTasks) {
+    if (!t.isActive || !t.goalId || !t.startDate) continue;
+    const key = `${t.goalId}:${t.startDate}`;
+    if (!activeByKey.has(key)) activeByKey.set(key, []);
+    activeByKey.get(key)!.push(t);
+  }
+  const dupeIdsToDelete: string[] = [];
+  for (const group of Array.from(activeByKey.values())) {
+    if (group.length <= 1) continue;
+    group.sort((a, b) => new Date(a.createdAt!).getTime() - new Date(b.createdAt!).getTime());
+    for (let i = 1; i < group.length; i++) {
+      dupeIdsToDelete.push(group[i].id);
+    }
+  }
+  if (dupeIdsToDelete.length > 0) {
+    await db.update(tasks).set({ isActive: false }).where(inArray(tasks.id, dupeIdsToDelete));
+  }
+
+  // Build a set of existing (goalId, startDate) pairs — includes deleted tasks to prevent recreation
   const existingSet = new Set(
     existingTasks
       .filter(t => t.goalId && t.startDate)

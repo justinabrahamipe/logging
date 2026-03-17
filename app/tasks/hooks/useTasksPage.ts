@@ -16,7 +16,7 @@ export interface ScoreSummary {
   totalTasks: number;
 }
 
-export type DateFilterType = 'today' | 'tomorrow' | 'week' | 'month' | 'single' | 'range' | 'no-date' | 'scheduled';
+export type DateFilterType = 'today' | 'yesterday' | 'tomorrow' | 'week' | 'month' | 'single' | 'range' | 'no-date' | 'scheduled';
 
 export interface TaskFilters {
   date: { type: DateFilterType; value?: string; endDate?: string };
@@ -139,7 +139,6 @@ export function useTasksPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [pastDays, setPastDays] = useState<PastDay[]>([]);
-  const [pastPending, setPastPending] = useState<Record<string, string>>({});
   const [pastLoading, setPastLoading] = useState(false);
   const [filters, setFilters] = useState<TaskFilters>(() => {
     if (typeof window !== 'undefined') {
@@ -166,7 +165,6 @@ export function useTasksPage() {
   const [activePopover, setActivePopover] = useState<null | 'add' | 'date' | 'status' | 'pillar' | 'goal'>(null);
   const [datePickerMode, setDatePickerMode] = useState<null | 'single' | 'range'>(null);
   const [pendingRange, setPendingRange] = useState<{ from: Date; to?: Date } | undefined>(undefined);
-  const [openSchedules, setOpenSchedules] = useState<Set<string>>(new Set(['Today']));
   const [scoreSummary, setScoreSummary] = useState<ScoreSummary | null>(null);
   const [timers, setTimers] = useState<Record<number, { running: boolean; elapsed: number; interval?: NodeJS.Timeout }>>({});
   const [pendingValues, setPendingValues] = useState<Record<number, string>>({});
@@ -176,6 +174,8 @@ export function useTasksPage() {
   const menuRef = useRef<HTMLDivElement>(null);
 
   const today = new Date().toISOString().split('T')[0];
+  const yesterday = (() => { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().split('T')[0]; })();
+  const viewDate = filters.date.type === 'yesterday' ? yesterday : (filters.date.type === 'single' && filters.date.value) ? filters.date.value : today;
 
   // Date label for chip display
   const getDateLabel = useCallback(() => {
@@ -183,6 +183,7 @@ export function useTasksPage() {
     const todayDate = new Date(today + 'T12:00:00');
     switch (filters.date.type) {
       case 'today': return `Today (${fmt(todayDate)})`;
+      case 'yesterday': { const d = new Date(todayDate); d.setDate(d.getDate() - 1); return `Yesterday (${fmt(d)})`; }
       case 'tomorrow': { const d = new Date(todayDate); d.setDate(d.getDate() + 1); return `Tomorrow (${fmt(d)})`; }
       case 'week': {
         const dayOfWeek = todayDate.getDay();
@@ -217,12 +218,17 @@ export function useTasksPage() {
     localStorage.setItem('tasks-filters', JSON.stringify(filters));
   }, [filters]);
 
-  // Fetch tasks for past dates (single past date only)
+  // Fetch tasks + score for past dates
   useEffect(() => {
-    if (filters.date.type === 'single' && filters.date.value && filters.date.value < today) {
+    if (filters.date.type === 'yesterday') {
+      fetchPastTasks(yesterday);
+      fetchScore(yesterday);
+    } else if (filters.date.type === 'single' && filters.date.value && filters.date.value < today) {
       fetchPastTasks(filters.date.value);
+      fetchScore(filters.date.value);
     } else {
       setPastDays([]);
+      fetchScore(today);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.date.type, filters.date.value]);
@@ -293,7 +299,7 @@ export function useTasksPage() {
       if (res.ok) {
         setGroups(await res.json());
       }
-      await fetchScore();
+      await fetchScore(today);
     } catch (error) {
       console.error("Failed to fetch tasks:", error);
     } finally {
@@ -302,9 +308,9 @@ export function useTasksPage() {
     }
   };
 
-  const fetchScore = async () => {
+  const fetchScore = async (date?: string) => {
     try {
-      const res = await fetch(`/api/daily-score?date=${today}`);
+      const res = await fetch(`/api/daily-score?date=${date || today}`);
       if (res.ok) {
         const data = await res.json();
         setScoreSummary({
@@ -320,53 +326,6 @@ export function useTasksPage() {
     }
   };
 
-  const updatePastTask = (date: string, taskId: number, updates: { completed?: boolean; value?: number | null }) => {
-    setPastDays(prev => prev.map(day =>
-      day.date !== date ? day : {
-        ...day,
-        tasks: day.tasks.map(t =>
-          t.id !== taskId ? t : { ...t, ...updates }
-        ),
-      }
-    ));
-  };
-
-  const handlePastComplete = async (date: string, taskId: number, completed: boolean, value?: number) => {
-    updatePastTask(date, taskId, { completed, value: value ?? (completed ? 1 : 0) });
-    const body: Record<string, unknown> = { taskId, date, completed };
-    if (value !== undefined) body.value = value;
-    await fetch('/api/tasks/complete', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-  };
-
-  const handlePastCountChange = async (date: string, task: { id: number; target: number | null; completed: boolean; value: number | null }, delta: number) => {
-    const newVal = Math.max(0, (task.value || 0) + delta);
-    const done = task.target != null && task.target > 0 && newVal >= task.target;
-    updatePastTask(date, task.id, { completed: done, value: newVal });
-    await fetch('/api/tasks/complete', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ taskId: task.id, date, value: newVal }),
-    });
-  };
-
-  const handlePastNumericSubmit = async (date: string, task: { id: number; target: number | null }) => {
-    const key = `${date}-${task.id}`;
-    const val = parseFloat(pastPending[key] || '0');
-    if (isNaN(val)) return;
-    const done = task.target != null && task.target > 0 && val >= task.target;
-    updatePastTask(date, task.id, { completed: done, value: val });
-    setPastPending(prev => { const next = { ...prev }; delete next[key]; return next; });
-    await fetch('/api/tasks/complete', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ taskId: task.id, date, value: val }),
-    });
-  };
-
   const fetchPastTasks = async (date?: string) => {
     setPastLoading(true);
     try {
@@ -380,17 +339,38 @@ export function useTasksPage() {
     }
   };
 
+  const refreshView = async () => {
+    const isPast = viewDate < today;
+    if (isPast) {
+      await fetchPastTasks(viewDate);
+    } else {
+      await fetchTasks();
+    }
+    await fetchScore(viewDate);
+  };
+
   // --- Completion handlers ---
   const handleComplete = useCallback((taskId: number, completed?: boolean, value?: number) => {
     if (status !== "authenticated") { setAuthSnackbar(true); return; }
-    setGroups(prev => prev.map(g => ({
-      ...g,
-      tasks: g.tasks.map(t =>
-        t.id === taskId ? { ...t, completion: { ...t.completion, taskId, completed: completed ?? false, value: value ?? null, pointsEarned: t.completion?.pointsEarned ?? 0, isHighlighted: t.completion?.isHighlighted ?? false } as TaskCompletion } : t
-      ),
-    })));
+    const isPast = viewDate < today;
 
-    const body: Record<string, unknown> = { taskId, date: today };
+    if (isPast) {
+      setPastDays(prev => prev.map(day => ({
+        ...day,
+        tasks: day.tasks.map(t =>
+          t.id !== taskId ? t : { ...t, completed: completed ?? false, value: value ?? null }
+        ),
+      })));
+    } else {
+      setGroups(prev => prev.map(g => ({
+        ...g,
+        tasks: g.tasks.map(t =>
+          t.id === taskId ? { ...t, completion: { ...t.completion, taskId, completed: completed ?? false, value: value ?? null, pointsEarned: t.completion?.pointsEarned ?? 0, isHighlighted: t.completion?.isHighlighted ?? false } as TaskCompletion } : t
+        ),
+      })));
+    }
+
+    const body: Record<string, unknown> = { taskId, date: viewDate };
     if (completed !== undefined) body.completed = completed;
     if (value !== undefined) body.value = value;
 
@@ -400,19 +380,21 @@ export function useTasksPage() {
       body: JSON.stringify(body),
     }).then(res => {
       if (res.ok) {
-        res.json().then(completion => {
-          setGroups(prev => prev.map(g => ({
-            ...g,
-            tasks: g.tasks.map(t =>
-              t.id === taskId ? { ...t, completion } : t
-            ),
-          })));
-        });
-        fetchScore();
+        if (!isPast) {
+          res.json().then(completion => {
+            setGroups(prev => prev.map(g => ({
+              ...g,
+              tasks: g.tasks.map(t =>
+                t.id === taskId ? { ...t, completion } : t
+              ),
+            })));
+          });
+        }
+        fetchScore(viewDate);
       }
     }).catch(err => console.error("Failed to complete task:", err));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [today]);
+  }, [today, viewDate]);
 
   const handleCheckboxToggle = (task: Task) => {
     const isCurrentlyCompleted = task.completion?.completed || false;
@@ -468,47 +450,64 @@ export function useTasksPage() {
   };
 
   const handleHighlightToggle = useCallback((taskId: number) => {
+    const isPast = viewDate < today;
     const allTasks = groups.flatMap(g => g.tasks);
-    const task = allTasks.find(t => t.id === taskId);
-    const currentlyHighlighted = task?.completion?.isHighlighted || false;
+    const pastTask = pastDays.flatMap(d => d.tasks).find(t => t.id === taskId);
+    const groupTask = allTasks.find(t => t.id === taskId);
+    const currentlyHighlighted = isPast
+      ? (pastTask?.isHighlighted || false)
+      : (groupTask?.completion?.isHighlighted || false);
 
     if (!currentlyHighlighted) {
-      const highlightedCount = allTasks.filter(t => t.completion?.isHighlighted).length;
+      const highlightedCount = isPast
+        ? pastDays.flatMap(d => d.tasks).filter(t => t.isHighlighted).length
+        : allTasks.filter(t => t.completion?.isHighlighted).length;
       if (highlightedCount >= 3) return;
     }
 
-    setGroups(prev => prev.map(g => ({
-      ...g,
-      tasks: g.tasks.map(t =>
-        t.id === taskId ? {
-          ...t,
-          completion: {
-            ...(t.completion || { id: 0, taskId, completed: false, value: null, pointsEarned: 0, isHighlighted: false }),
-            isHighlighted: !currentlyHighlighted,
-          } as TaskCompletion
-        } : t
-      ),
-    })));
+    if (isPast) {
+      setPastDays(prev => prev.map(day => ({
+        ...day,
+        tasks: day.tasks.map(t =>
+          t.id !== taskId ? t : { ...t, isHighlighted: !currentlyHighlighted }
+        ),
+      })));
+    } else {
+      setGroups(prev => prev.map(g => ({
+        ...g,
+        tasks: g.tasks.map(t =>
+          t.id === taskId ? {
+            ...t,
+            completion: {
+              ...(t.completion || { id: 0, taskId, completed: false, value: null, pointsEarned: 0, isHighlighted: false }),
+              isHighlighted: !currentlyHighlighted,
+            } as TaskCompletion
+          } : t
+        ),
+      })));
+    }
 
     fetch('/api/tasks/highlight', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ taskId, date: today, isHighlighted: !currentlyHighlighted }),
+      body: JSON.stringify({ taskId, date: viewDate, isHighlighted: !currentlyHighlighted }),
     }).then(res => {
       if (res.ok) {
-        res.json().then(completion => {
-          setGroups(prev => prev.map(g => ({
-            ...g,
-            tasks: g.tasks.map(t =>
-              t.id === taskId ? { ...t, completion } : t
-            ),
-          })));
-        });
-        fetchScore();
+        if (!isPast) {
+          res.json().then(completion => {
+            setGroups(prev => prev.map(g => ({
+              ...g,
+              tasks: g.tasks.map(t =>
+                t.id === taskId ? { ...t, completion } : t
+              ),
+            })));
+          });
+        }
+        fetchScore(viewDate);
       }
     }).catch(err => console.error("Failed to toggle highlight:", err));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [today, groups]);
+  }, [viewDate, today, groups, pastDays]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -588,14 +587,17 @@ export function useTasksPage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
-    }).then(() => fetchTasks()).finally(() => setActionLoading(prev => ({ ...prev, [task.id]: false })));
+    }).then(() => refreshView()).finally(() => setActionLoading(prev => ({ ...prev, [task.id]: false })));
   };
 
   const handleDelete = async (id: number) => {
     setActionLoading(prev => ({ ...prev, [id]: true }));
     try {
+      setPastDays(prev => prev.map(day => ({
+        ...day, tasks: day.tasks.filter(t => t.id !== id)
+      })).filter(day => day.tasks.length > 0));
       await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
-      await fetchTasks();
+      await refreshView();
     } catch (error) {
       console.error("Failed to delete task:", error);
     } finally {
@@ -610,15 +612,25 @@ export function useTasksPage() {
       await fetch('/api/tasks/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ taskId: task.id, date: today, completed: true, value: 0 }),
+        body: JSON.stringify({ taskId: task.id, date: viewDate, completed: true, value: 0 }),
       });
-      setGroups(prev => prev.map(g => ({
-        ...g,
-        tasks: g.tasks.map(t =>
-          t.id === task.id ? { ...t, completion: { ...t.completion, taskId: task.id, completed: true, value: 0, pointsEarned: 0, isHighlighted: t.completion?.isHighlighted ?? false } as TaskCompletion } : t
-        ),
-      })));
-      await fetchScore();
+      const isPast = viewDate < today;
+      if (isPast) {
+        setPastDays(prev => prev.map(day => ({
+          ...day,
+          tasks: day.tasks.map(t =>
+            t.id !== task.id ? t : { ...t, completed: true, value: 0 }
+          ),
+        })));
+      } else {
+        setGroups(prev => prev.map(g => ({
+          ...g,
+          tasks: g.tasks.map(t =>
+            t.id === task.id ? { ...t, completion: { ...t.completion, taskId: task.id, completed: true, value: 0, pointsEarned: 0, isHighlighted: t.completion?.isHighlighted ?? false } as TaskCompletion } : t
+          ),
+        })));
+      }
+      await fetchScore(viewDate);
     } catch (error) {
       console.error("Failed to discard task:", error);
     } finally {
@@ -639,7 +651,7 @@ export function useTasksPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ startDate: newDate }),
       });
-      await fetchTasks();
+      await refreshView();
     } catch (error) {
       console.error("Failed to move task:", error);
     } finally {
@@ -790,8 +802,6 @@ export function useTasksPage() {
     loading,
     refreshing,
     pastDays,
-    pastPending,
-    setPastPending,
     pastLoading,
     // Filters
     filters,
@@ -802,8 +812,6 @@ export function useTasksPage() {
     setDatePickerMode,
     pendingRange,
     setPendingRange,
-    openSchedules,
-    setOpenSchedules,
     scoreSummary,
     // Timers & pending
     timers,
@@ -831,9 +839,6 @@ export function useTasksPage() {
     handleDelete,
     handleDiscard,
     handleMoveDate,
-    handlePastComplete,
-    handlePastCountChange,
-    handlePastNumericSubmit,
     // Helpers
     formatTime,
     getDateBucket: (task: Task) => getDateBucket(task, today),
