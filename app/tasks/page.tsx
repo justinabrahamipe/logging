@@ -22,8 +22,6 @@ export default function TasksPage() {
     cycles,
     loading,
     refreshing,
-    pastDays,
-    pastLoading,
     filters,
     setFilters,
     activePopover,
@@ -86,12 +84,12 @@ export default function TasksPage() {
   const maxStarsReached = starredCount >= 3;
 
   const isScheduledView = filters.date.type === 'scheduled';
-  const isPastDateView = !isScheduledView && (
-    filters.date.type === 'yesterday' ||
-    (filters.date.type === 'single' && filters.date.value && filters.date.value < today)
-  );
+  const isServerFiltered = filters.date.type === 'yesterday' ||
+    (filters.date.type === 'single' && !!filters.date.value);
 
-  const filteredTasks = (isPastDateView || isScheduledView) ? [] : allEnrichedTasks.filter(task => {
+  const filteredTasks = isScheduledView ? [] : allEnrichedTasks.filter(task => {
+    // For yesterday and specific dates, tasks are already server-filtered
+    if (isServerFiltered) return true;
     if (!isTaskInDateRange(task)) return false;
     const completed = task.completion?.completed || (task.target != null && task.target > 0 && (task.completion?.value || 0) >= task.target);
     if (!passesStatusFilter(completed, task.completion?.value ?? null)) return false;
@@ -107,59 +105,7 @@ export default function TasksPage() {
     return true;
   }) : [];
 
-  const pastEnrichedTasks: EnrichedTask[] = isPastDateView ? pastDays.flatMap(day =>
-    day.tasks.map(t => ({
-      id: t.id,
-      userId: '',
-      name: t.name,
-      pillarId: pillars.find(p => p.name === t.pillarName)?.id ?? 0,
-      completionType: t.completionType,
-      target: t.target,
-      unit: t.unit,
-      frequency: 'adhoc' as const,
-      customDays: null,
-      repeatInterval: null,
-      goalId: t.goalId,
-      periodId: null,
-      startDate: day.date,
-      basePoints: 10,
-      flexibilityRule: 'must_today',
-      isActive: true,
-      createdAt: day.date,
-      completion: {
-        id: 0,
-        taskId: t.id,
-        completed: t.completed,
-        value: t.value ?? 0,
-        pointsEarned: 0,
-        isHighlighted: t.isHighlighted,
-      },
-      _pillarColor: t.pillarColor || '#6B7280',
-      _pillarEmoji: t.pillarEmoji || '',
-      _pillarName: t.pillarName || '',
-    }))
-  ) : [];
-
-  // Unified task list: past enriched tasks or filtered current tasks
-  const displayTasks = isPastDateView ? pastEnrichedTasks.filter(t => {
-    const completed = t.completion?.completed || (t.target != null && t.target > 0 && (t.completion?.value || 0) >= t.target);
-    if (!passesStatusFilter(completed, t.completion?.value ?? null)) return false;
-    if (filters.pillars.length > 0 && !filters.pillars.includes(t.pillarId)) return false;
-    if (filters.goals.length > 0 && !(t.goalId && filters.goals.includes(t.goalId))) return false;
-    return true;
-  }) : filteredTasks;
-  const isDisplayLoading = isPastDateView ? pastLoading : false;
-
-  // Compute task counts from what's actually displayed
-  const displayTotal = displayTasks.length;
-  const displayCompleted = displayTasks.filter(t =>
-    t.completion?.completed || (t.target != null && t.target > 0 && (t.completion?.value || 0) >= t.target)
-  ).length;
-  const adjustedScoreSummary = scoreSummary ? {
-    ...scoreSummary,
-    totalTasks: displayTotal,
-    completedTasks: displayCompleted,
-  } : null;
+  const displayTasks = filteredTasks;
 
   const taskItemProps = {
     goalsList,
@@ -202,7 +148,7 @@ export default function TasksPage() {
           setDatePickerMode={setDatePickerMode}
           pendingRange={pendingRange}
           setPendingRange={setPendingRange}
-          scoreSummary={adjustedScoreSummary}
+          scoreSummary={scoreSummary}
           refreshing={refreshing}
           pillars={pillars}
           goalsList={goalsList}
@@ -219,19 +165,19 @@ export default function TasksPage() {
             handleDelete={handleDelete}
             getScheduleLabel={getScheduleLabel}
           />
-        ) : isDisplayLoading ? (
+        ) : refreshing ? (
           <div className="text-center py-8">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-zinc-900 dark:border-white mx-auto"></div>
           </div>
         ) : displayTasks.length === 0 ? (
           <div className="text-center py-8 text-zinc-500 dark:text-zinc-400">
-            <p className="text-sm">{allEnrichedTasks.length === 0 && pastDays.length === 0 ? 'No tasks yet' : 'No tasks for this period'}</p>
+            <p className="text-sm">{allEnrichedTasks.length === 0 ? 'No tasks yet' : 'No tasks for this period'}</p>
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.5rem' }}>
             {displayTasks.map(t => {
               const bucket = getDateBucket(t);
-              const showDate = (!isPastDateView && filters.date.type !== 'today' && bucket !== 'Today') ? (
+              const showDate = (!isServerFiltered && filters.date.type !== 'today' && bucket !== 'Today') ? (
                 bucket === 'Tomorrow' ? 'Tomorrow' :
                 bucket === 'No Date' ? undefined :
                 t.startDate ? formatDate(t.startDate, dateFormat) : undefined

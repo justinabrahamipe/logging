@@ -72,5 +72,9 @@ export function isOverdueAdhoc(task: typeof tasks.$inferSelect, todayStr: string
 }
 
 export function isTaskForDate(task: typeof tasks.$inferSelect, dateStr: string): boolean {
-  return isTaskForExactDate(task, dateStr);
+  if (isTaskForExactDate(task, dateStr)) return true;
+  // Include overdue adhoc tasks on today only (not on past date queries)
+  const todayStr = new Date().toISOString().split('T')[0];
+  if (dateStr === todayStr && task.frequency === 'adhoc' && task.startDate && task.startDate < todayStr) return true;
+  return false;
 }

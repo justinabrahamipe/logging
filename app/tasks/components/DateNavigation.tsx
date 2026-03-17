@@ -46,7 +46,7 @@ export default function DateNavigation({
         <h1 className="text-2xl md:text-3xl font-bold text-zinc-900 dark:text-white">Tasks</h1>
         {scoreSummary && filters.date.type !== 'scheduled' && (
           <span className="text-sm font-semibold text-zinc-500 dark:text-zinc-400">
-            {scoreSummary.totalTasks > 0 ? Math.round((scoreSummary.completedTasks / scoreSummary.totalTasks) * 100) : 0}%
+            {scoreSummary.actionScore}%
             <span className="font-normal ml-1">{scoreSummary.completedTasks}/{scoreSummary.totalTasks}</span>
           </span>
         )}
