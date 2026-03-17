@@ -220,7 +220,7 @@ export default function GoalForm({
               <button
                 key={ct}
                 type="button"
-                onClick={() => setForm({ ...form, completionType: ct })}
+                onClick={() => setForm({ ...form, completionType: ct, unit: ct === "duration" ? "min" : (form.completionType === "duration" ? "" : form.unit) })}
                 className={`px-2 py-2 text-sm rounded-lg border transition-colors whitespace-nowrap ${
                   form.completionType === ct
                     ? "border-zinc-900 dark:border-zinc-100 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white"
@@ -250,8 +250,9 @@ export default function GoalForm({
                   type="text"
                   value={form.unit}
                   onChange={(e) => setForm({ ...form, unit: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
-                  placeholder="e.g., min, reps"
+                  disabled={form.completionType === "duration"}
+                  className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white disabled:opacity-50"
+                  placeholder="e.g., reps, pages"
                 />
               </div>
             </div>
@@ -324,7 +325,7 @@ export default function GoalForm({
               value={form.targetValue}
               onChange={(e) => setForm({ ...form, targetValue: e.target.value })}
               className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
-              placeholder="e.g., 120"
+              placeholder={form.completionType === "duration" ? "e.g., 600" : "e.g., 120"}
             />
           </div>
           <div>
@@ -333,7 +334,8 @@ export default function GoalForm({
               type="text"
               value={form.unit}
               onChange={(e) => setForm({ ...form, unit: e.target.value })}
-              className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
+              disabled={form.completionType === "duration"}
+              className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white disabled:opacity-50"
               placeholder="e.g., chapters"
             />
           </div>
