@@ -98,23 +98,28 @@ export function useDashboard() {
         setTodayTaskCount(count);
       }
 
+      // Auto-seed for new users: check if no tasks exist at all
+      const noData = (scoreData && scoreData.totalTasks === 0) || (!scoreData && !scoreRes.ok);
       const skipSeed = sessionStorage.getItem('skip-auto-seed');
-      if (scoreData && scoreData.totalTasks === 0 && !seedingRef.current && !skipSeed) {
+      if (noData && !seedingRef.current && !skipSeed) {
         seedingRef.current = true;
         setSeeding(true);
         const seedRes = await fetch("/api/seed", { method: "POST" });
         if (seedRes.ok) {
-          setShowWelcome(true);
-          const [sr, hr, tr] = await Promise.all([
-            fetch(`/api/daily-score?date=${today}`),
-            fetch("/api/daily-score/history?days=90"),
-            fetch(`/api/tasks?date=${today}`),
-          ]);
-          if (sr.ok) setScore(await sr.json());
-          if (hr.ok) setHistory(await hr.json());
-          if (tr.ok) {
-            const groups = await tr.json();
-            setTodayTaskCount(groups.reduce((sum: number, g: { tasks: unknown[] }) => sum + g.tasks.length, 0));
+          const result = await seedRes.json();
+          if (result.success) {
+            setShowWelcome(true);
+            const [sr, hr, tr] = await Promise.all([
+              fetch(`/api/daily-score?date=${today}`),
+              fetch("/api/daily-score/history?days=90"),
+              fetch(`/api/tasks?date=${today}`),
+            ]);
+            if (sr.ok) setScore(await sr.json());
+            if (hr.ok) setHistory(await hr.json());
+            if (tr.ok) {
+              const groups = await tr.json();
+              setTodayTaskCount(groups.reduce((sum: number, g: { tasks: unknown[] }) => sum + g.tasks.length, 0));
+            }
           }
         }
         setSeeding(false);
