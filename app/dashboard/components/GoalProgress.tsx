@@ -28,9 +28,13 @@ export default function GoalProgress({ outcomesData, completionDates, today }: G
     return expected;
   };
 
-  // Hide habitual goals with no expected days yet
-  const visibleGoals = outcomesData.filter((o) =>
-    o.goalType !== 'habitual' || getExpectedDays(o) > 0
+  // Hide goals that haven't started yet
+  const visibleGoals = outcomesData.filter((o) => {
+    const start = o.startDate || today;
+    if (start > today) return false;
+    if (o.goalType === 'habitual' && getExpectedDays(o) === 0) return false;
+    return true;
+  }
   );
 
   if (visibleGoals.length === 0) return null;
