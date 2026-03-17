@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useTheme } from "@/components/ThemeProvider";
 import { DEMO_DASHBOARD } from "@/lib/demo-data";
@@ -21,9 +21,6 @@ export function useDashboard() {
   const [momentumData, setMomentumData] = useState<MomentumData | null>(null);
   const [loading, setLoading] = useState(true);
   const [todayTaskCount, setTodayTaskCount] = useState(0);
-  const [seeding, setSeeding] = useState(false);
-  const [showWelcome, setShowWelcome] = useState(false);
-  const seedingRef = useRef(false);
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -97,35 +94,6 @@ export function useDashboard() {
         const count = groups.reduce((sum: number, g: { tasks: unknown[] }) => sum + g.tasks.length, 0);
         setTodayTaskCount(count);
       }
-
-      // Auto-seed for new users: check if no tasks exist at all
-      const noData = (scoreData && scoreData.totalTasks === 0) || (!scoreData && !scoreRes.ok);
-      const skipSeed = sessionStorage.getItem('skip-auto-seed');
-      if (noData && !seedingRef.current && !skipSeed) {
-        seedingRef.current = true;
-        setSeeding(true);
-        // Clear stale filters from previous account
-        localStorage.removeItem('tasks-filters');
-        const seedRes = await fetch("/api/seed", { method: "POST" });
-        if (seedRes.ok) {
-          const result = await seedRes.json();
-          if (result.success) {
-            setShowWelcome(true);
-            const [sr, hr, tr] = await Promise.all([
-              fetch(`/api/daily-score?date=${today}`),
-              fetch("/api/daily-score/history?days=90"),
-              fetch(`/api/tasks?date=${today}`),
-            ]);
-            if (sr.ok) setScore(await sr.json());
-            if (hr.ok) setHistory(await hr.json());
-            if (tr.ok) {
-              const groups = await tr.json();
-              setTodayTaskCount(groups.reduce((sum: number, g: { tasks: unknown[] }) => sum + g.tasks.length, 0));
-            }
-          }
-        }
-        setSeeding(false);
-      }
     } catch (error) {
       console.error("Failed to fetch dashboard data:", error);
     } finally {
@@ -141,9 +109,6 @@ export function useDashboard() {
     momentumData,
     loading,
     todayTaskCount,
-    seeding,
-    showWelcome,
-    setShowWelcome,
     today,
     currentStreak,
     dateFormat,

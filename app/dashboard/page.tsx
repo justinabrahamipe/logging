@@ -6,7 +6,6 @@ import { formatDate } from "@/lib/format";
 import { useDashboard } from "./hooks/useDashboard";
 import ScoreCard from "./components/ScoreCard";
 import MorningBriefing from "./components/MorningBriefing";
-import WelcomeBanner from "./components/WelcomeBanner";
 import GoalProgress from "./components/GoalProgress";
 import HabitTracker from "./components/HabitTracker";
 import StreakFlameChain from "./components/StreakFlameChain";
@@ -23,9 +22,6 @@ export default function DashboardPage() {
     momentumData,
     loading,
     todayTaskCount,
-    seeding,
-    showWelcome,
-    setShowWelcome,
     today,
     currentStreak,
     dateFormat,
@@ -69,15 +65,6 @@ export default function DashboardPage() {
             currentStreak={currentStreak}
             todayTaskCount={todayTaskCount}
           />
-        )}
-
-        {showWelcome && <WelcomeBanner onDismiss={() => setShowWelcome(false)} />}
-
-        {seeding && (
-          <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-8 mb-6 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-zinc-900 dark:border-zinc-100 mx-auto mb-3"></div>
-            <p className="text-zinc-600 dark:text-zinc-400">Setting up your sample data...</p>
-          </div>
         )}
 
         <ScoreCard score={score} momentumData={momentumData} />
