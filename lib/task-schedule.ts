@@ -28,9 +28,14 @@ function isScheduleForExactDate(schedule: typeof taskSchedules.$inferSelect, dat
       if (!days.includes(dayOfWeek)) return false;
       // Check week interval if set (every N weeks)
       if (schedule.repeatInterval && schedule.repeatInterval > 7) {
-        const createdDate = schedule.createdAt ? new Date(schedule.createdAt) : null;
-        if (!createdDate) return true;
-        const diffMs = date.getTime() - new Date(createdDate.toISOString().split('T')[0] + 'T12:00:00').getTime();
+        // Use startDate as anchor; fall back to createdAt
+        let anchorStr: string | null = schedule.startDate || null;
+        if (!anchorStr && schedule.createdAt) {
+          const cd = new Date(schedule.createdAt);
+          anchorStr = `${cd.getFullYear()}-${String(cd.getMonth() + 1).padStart(2, '0')}-${String(cd.getDate()).padStart(2, '0')}`;
+        }
+        if (!anchorStr) return true;
+        const diffMs = date.getTime() - new Date(anchorStr + 'T12:00:00').getTime();
         const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
         const weekInterval = Math.round(schedule.repeatInterval / 7);
         const diffWeeks = Math.floor(diffDays / 7);
@@ -48,9 +53,11 @@ function isScheduleForExactDate(schedule: typeof taskSchedules.$inferSelect, dat
       const dayOfMonth = date.getDate();
       if (!days.includes(dayOfMonth)) return false;
       if (schedule.repeatInterval && schedule.repeatInterval > 1) {
-        const createdDate = schedule.createdAt ? new Date(schedule.createdAt) : null;
-        if (!createdDate) return true;
-        const monthsDiff = (date.getFullYear() - createdDate.getFullYear()) * 12 + (date.getMonth() - createdDate.getMonth());
+        // Use startDate as anchor; fall back to createdAt
+        let anchorDate: Date | null = schedule.startDate ? new Date(schedule.startDate + 'T12:00:00') : null;
+        if (!anchorDate && schedule.createdAt) anchorDate = new Date(schedule.createdAt);
+        if (!anchorDate) return true;
+        const monthsDiff = (date.getFullYear() - anchorDate.getFullYear()) * 12 + (date.getMonth() - anchorDate.getMonth());
         return monthsDiff >= 0 && monthsDiff % schedule.repeatInterval === 0;
       }
       return true;
@@ -60,9 +67,14 @@ function isScheduleForExactDate(schedule: typeof taskSchedules.$inferSelect, dat
   }
 
   if (schedule.frequency === 'interval' && schedule.repeatInterval && schedule.repeatInterval > 0) {
-    const createdDate = schedule.createdAt ? new Date(schedule.createdAt) : null;
-    if (!createdDate) return true;
-    const diffMs = date.getTime() - new Date(createdDate.toISOString().split('T')[0] + 'T12:00:00').getTime();
+    // Use startDate as anchor; fall back to createdAt
+    let anchorStr: string | null = schedule.startDate || null;
+    if (!anchorStr && schedule.createdAt) {
+      const cd = new Date(schedule.createdAt);
+      anchorStr = `${cd.getFullYear()}-${String(cd.getMonth() + 1).padStart(2, '0')}-${String(cd.getDate()).padStart(2, '0')}`;
+    }
+    if (!anchorStr) return true;
+    const diffMs = date.getTime() - new Date(anchorStr + 'T12:00:00').getTime();
     const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
     return diffDays >= 0 && diffDays % schedule.repeatInterval === 0;
   }

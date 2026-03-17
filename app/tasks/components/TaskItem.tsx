@@ -126,11 +126,6 @@ export default function TaskItem({
           </h3>
           <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
             <span className="text-[11px] text-zinc-500 dark:text-zinc-400 shrink-0">{task._pillarEmoji} {task._pillarName}</span>
-            {task.goalId && goalsList.find(o => o.id === task.goalId) && (
-              <span className="text-[11px] px-1.5 py-px rounded-full font-medium bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 truncate max-w-[120px]">
-                {goalsList.find(o => o.id === task.goalId)?.name}
-              </span>
-            )}
             {task.periodId && cycles.find(c => c.id === task.periodId) && (
               <span className="text-[11px] px-1.5 py-px rounded-full font-medium bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400 truncate max-w-[120px]">
                 {cycles.find(c => c.id === task.periodId)?.name}

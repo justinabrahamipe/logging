@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
 import { db, tasks, taskSchedules, pillars } from "@/lib/db";
 import { eq, and, asc } from "drizzle-orm";
-import { ensureUpcomingTasks, ensureTasksForDate } from "@/lib/ensure-upcoming-tasks";
+import { ensureUpcomingTasks, ensureTasksForDate, invalidateTaskCache } from "@/lib/ensure-upcoming-tasks";
 
 export async function GET(request: NextRequest) {
   try {
@@ -183,7 +183,8 @@ export async function POST(request: Request) {
         startDate: startDate || null,
       }).returning();
 
-      // Generate task instances for today + 7 days
+      // Invalidate cache and generate task instances for today + 7 days
+      invalidateTaskCache(userId);
       await ensureUpcomingTasks(userId);
 
       // Return the schedule formatted like old task response

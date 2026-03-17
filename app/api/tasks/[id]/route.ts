@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
 import { db, tasks, taskSchedules } from "@/lib/db";
+import { invalidateTaskCache } from "@/lib/ensure-upcoming-tasks";
 import { eq, and } from "drizzle-orm";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -172,15 +173,17 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     const { id } = await params;
     const itemId = parseInt(id);
 
-    // Try deleting as schedule first
-    const deletedSchedule = await db
-      .delete(taskSchedules)
-      .where(and(eq(taskSchedules.id, itemId), eq(taskSchedules.userId, userId)))
-      .returning();
+    // Check if this is a schedule
+    const [schedule] = await db
+      .select({ id: taskSchedules.id })
+      .from(taskSchedules)
+      .where(and(eq(taskSchedules.id, itemId), eq(taskSchedules.userId, userId)));
 
-    if (deletedSchedule.length > 0) {
-      // Also delete all task instances for this schedule
+    if (schedule) {
+      // Delete task instances FIRST (before schedule, since FK onDelete sets scheduleId to null)
       await db.delete(tasks).where(and(eq(tasks.scheduleId, itemId), eq(tasks.userId, userId)));
+      await db.delete(taskSchedules).where(eq(taskSchedules.id, itemId));
+      invalidateTaskCache(userId);
       return NextResponse.json({ success: true });
     }
 

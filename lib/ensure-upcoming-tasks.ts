@@ -7,6 +7,14 @@ import { countScheduledDaysInRange } from "@/lib/effort-calculations";
 const lastRunCache = new Map<string, string>();
 
 /**
+ * Invalidate the cache for a user so the next call to ensureUpcomingTasks
+ * will regenerate task instances (e.g. after creating/deleting a schedule).
+ */
+export function invalidateTaskCache(userId: string) {
+  lastRunCache.delete(userId);
+}
+
+/**
  * Ensure task instances exist for all active schedules.
  * Generates concrete task rows for today + next 7 days.
  * Also generates for overdue adhoc tasks on today.

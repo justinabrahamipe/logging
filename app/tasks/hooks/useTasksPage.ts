@@ -69,17 +69,38 @@ function getDateBucket(task: { frequency: string; customDays?: string | null; cr
       try {
         const days: number[] = JSON.parse(task.customDays);
         matches = days.includes(dow);
+        // Check week interval if set (every N weeks)
+        if (matches && task.repeatInterval && task.repeatInterval > 7) {
+          let anchorStr = task.startDate;
+          if (!anchorStr && task.createdAt) {
+            const cd = new Date(task.createdAt as string | number | Date);
+            anchorStr = `${cd.getFullYear()}-${String(cd.getMonth() + 1).padStart(2, '0')}-${String(cd.getDate()).padStart(2, '0')}`;
+          }
+          if (anchorStr) {
+            const diffMs = d.getTime() - new Date(anchorStr + 'T12:00:00').getTime();
+            const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+            const weekInterval = Math.round(task.repeatInterval / 7);
+            const diffWeeks = Math.floor(diffDays / 7);
+            matches = diffWeeks >= 0 && diffWeeks % weekInterval === 0;
+          }
+        }
       } catch { matches = false; }
     } else if (task.frequency === 'monthly' && task.customDays) {
       try {
         const days: number[] = JSON.parse(task.customDays);
         matches = days.includes(d.getDate());
       } catch { matches = false; }
-    } else if (task.frequency === 'interval' && task.repeatInterval && task.createdAt) {
-      const created = new Date(task.createdAt as string | number | Date);
-      const diffMs = d.getTime() - new Date(created.toISOString().split('T')[0] + 'T12:00:00').getTime();
-      const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
-      matches = diffDays >= 0 && diffDays % task.repeatInterval === 0;
+    } else if (task.frequency === 'interval' && task.repeatInterval) {
+      let anchorStr = task.startDate;
+      if (!anchorStr && task.createdAt) {
+        const cd = new Date(task.createdAt as string | number | Date);
+        anchorStr = `${cd.getFullYear()}-${String(cd.getMonth() + 1).padStart(2, '0')}-${String(cd.getDate()).padStart(2, '0')}`;
+      }
+      if (anchorStr) {
+        const diffMs = d.getTime() - new Date(anchorStr + 'T12:00:00').getTime();
+        const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+        matches = diffDays >= 0 && diffDays % task.repeatInterval === 0;
+      }
     } else if (task.frequency === 'weekly') {
       matches = dow === 1;
     }

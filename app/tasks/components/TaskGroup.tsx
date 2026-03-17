@@ -44,11 +44,6 @@ export default function TaskGroup({
               </h3>
               <div className="flex flex-wrap items-center gap-1.5 mt-1">
                 <span className="text-[11px] text-zinc-500 dark:text-zinc-400 shrink-0">{task._pillarEmoji} {task._pillarName}</span>
-                {task.goalId && goalsList.find(o => o.id === task.goalId) && (
-                  <span className="text-[11px] px-1.5 py-px rounded-full font-medium bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 truncate max-w-[120px]">
-                    {goalsList.find(o => o.id === task.goalId)?.name}
-                  </span>
-                )}
               </div>
               <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                 <span className="text-[11px] px-1.5 py-0.5 rounded-full font-medium bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
