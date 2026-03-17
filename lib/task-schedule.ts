@@ -9,8 +9,7 @@ function isTaskForExactDate(task: typeof tasks.$inferSelect, dateStr: string): b
 
   if (task.frequency === 'adhoc') {
     const effectiveDate = task.startDate || (task.createdAt ? new Date(task.createdAt).toISOString().split('T')[0] : null);
-    // Show on effective date and carry forward to future dates (overdue until completed)
-    return effectiveDate != null && dateStr >= effectiveDate;
+    return effectiveDate != null && dateStr === effectiveDate;
   }
 
   if (task.frequency === 'daily') return true;
@@ -66,6 +65,10 @@ function isTaskForExactDate(task: typeof tasks.$inferSelect, dateStr: string): b
   }
 
   return true;
+}
+
+export function isOverdueAdhoc(task: typeof tasks.$inferSelect, todayStr: string): boolean {
+  return task.frequency === 'adhoc' && !task.goalId && !!task.startDate && task.startDate < todayStr;
 }
 
 export function isTaskForDate(task: typeof tasks.$inferSelect, dateStr: string): boolean {

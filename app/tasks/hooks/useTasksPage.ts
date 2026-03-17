@@ -45,7 +45,7 @@ export interface PastDay {
 
 const DAYS_OF_WEEK = DAY_NAMES;
 
-function getDateBucket(task: { frequency: string; customDays?: string | null; createdAt?: unknown; repeatInterval?: number | null; startDate?: string | null; goalId?: number | null }, todayStr: string): string {
+function getDateBucket(task: { frequency: string; customDays?: string | null; createdAt?: unknown; repeatInterval?: number | null; startDate?: string | null }, todayStr: string): string {
   if (task.frequency === 'daily' && (!task.startDate || task.startDate <= todayStr)) return 'Today';
 
   const today = new Date(todayStr + 'T12:00:00');
@@ -61,10 +61,8 @@ function getDateBucket(task: { frequency: string; customDays?: string | null; cr
     const dow = d.getDay();
     if (task.frequency === 'adhoc') {
       if (!task.startDate) return 'No Date';
-      // Goal-linked adhoc tasks only show on their exact date (each day has its own task)
-      if (task.goalId && task.startDate < todayStr) return 'No Date';
-      // Non-goal adhoc tasks with past startDate are overdue — show as Today
-      if (!task.goalId && task.startDate <= todayStr && i === 0) return 'Today';
+      // Past startDate means overdue — show as Today
+      if (task.startDate <= todayStr && i === 0) return 'Today';
       matches = dStr === task.startDate;
     } else if (task.frequency === 'custom' && task.customDays) {
       try {

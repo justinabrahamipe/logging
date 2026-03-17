@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
 import { db, tasks, pillars, taskCompletions } from "@/lib/db";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { calculateDailyScore, getScoreTier } from "@/lib/scoring";
 import { isTaskForDate } from "@/lib/task-schedule";
 import { saveDailyScore } from "@/lib/save-daily-score";
@@ -22,14 +22,7 @@ export async function GET(request: NextRequest) {
       .where(and(eq(tasks.userId, userId), eq(tasks.isActive, true)));
 
     // Filter tasks for the specific date
-    // For scoring, adhoc tasks only count on their exact startDate — carry-forward
-    // overdue tasks should not drag down today's score
-    const tasksForDay = allTasks.filter(task => {
-      if (task.frequency === 'adhoc') {
-        return task.startDate === date;
-      }
-      return isTaskForDate(task, date);
-    });
+    const tasksForDay = allTasks.filter(task => isTaskForDate(task, date));
 
     // Get completions
     const completions = await db
@@ -96,14 +89,6 @@ export async function GET(request: NextRequest) {
       pillarScores: pillarBreakdown,
       totalTasks: tasksForDay.length,
       completedTasks,
-      _debug: tasksForDay.map(t => ({
-        id: t.id,
-        name: t.name,
-        freq: t.frequency,
-        startDate: t.startDate,
-        goalId: t.goalId,
-        hasCompletion: completions.some(c => c.taskId === t.id && c.completed),
-      })),
     });
   } catch (error) {
     return errorResponse(error);
