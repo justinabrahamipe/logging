@@ -27,7 +27,7 @@ export default function GoalProgress({ outcomesData, completionDates, today }: G
         d.setDate(d.getDate() + 1);
       }
       const hits = doneDates.filter(dt => dt >= start && dt <= today).length;
-      return sum + (expected > 0 ? Math.min((hits / expected) * 100, 100) : 100);
+      return sum + (expected > 0 ? Math.min((hits / expected) * 100, 100) : 0);
     }
     const range = Math.abs(o.targetValue - o.startValue);
     if (range === 0) return sum;
@@ -78,7 +78,7 @@ export default function GoalProgress({ outcomesData, completionDates, today }: G
               d.setDate(d.getDate() + 1);
             }
             const hits = doneDates.filter(dt => dt >= start && dt <= end).length;
-            progress = expected > 0 ? Math.round((hits / expected) * 100) : 100;
+            progress = expected > 0 ? Math.round((hits / expected) * 100) : 0;
             subtitle = `${hits} / ${expected} days`;
           } else {
             progress = range === 0 ? 0 : Math.round(Math.max(0, Math.min(

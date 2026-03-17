@@ -212,7 +212,7 @@ export default function GoalForm({
       {form.goalType !== "outcome" && (
         <div>
           <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Tracking Type</label>
-          <div className="flex flex-wrap gap-2 items-center w-full">
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
             {(form.goalType === "habitual"
               ? (["checkbox", "count", "numeric", "duration"] as const)
               : (["count", "numeric", "duration"] as const)
@@ -221,7 +221,7 @@ export default function GoalForm({
                 key={ct}
                 type="button"
                 onClick={() => setForm({ ...form, completionType: ct })}
-                className={`min-w-0 flex-1 px-2 py-2 text-sm rounded-lg border transition-colors whitespace-nowrap ${
+                className={`px-2 py-2 text-sm rounded-lg border transition-colors whitespace-nowrap ${
                   form.completionType === ct
                     ? "border-zinc-900 dark:border-zinc-100 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white"
                     : "border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300"
@@ -230,20 +230,25 @@ export default function GoalForm({
                 {ct === "checkbox" ? "Checkbox" : ct === "count" ? "Count" : ct === "duration" ? "Timer" : "Numeric"}
               </button>
             ))}
-            {form.completionType !== "checkbox" && form.goalType === "habitual" && (
+          </div>
+          {form.completionType !== "checkbox" && form.goalType === "habitual" && (
+            <div className="mt-2">
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Per-session target</label>
               <input
                 type="number"
                 step="any"
                 value={form.dailyTarget}
                 onChange={(e) => setForm({ ...form, dailyTarget: e.target.value })}
-                className="w-24 shrink-0 px-2 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white text-right"
-                placeholder="/session"
+                className="w-full max-w-[200px] px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
+                placeholder="Target per session"
               />
-            )}
-            {form.completionType !== "checkbox" && form.goalType === "target" && (
+            </div>
+          )}
+          {form.completionType !== "checkbox" && form.goalType === "target" && (
+            <div className="mt-2">
               <PerSessionLabel form={form} />
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
 
