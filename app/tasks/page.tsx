@@ -134,7 +134,7 @@ export default function TasksPage() {
   };
 
   return (
-    <div className="px-3 py-4 md:px-6 md:py-6 overflow-x-hidden">
+    <div className="px-3 py-4 md:px-6 md:py-6">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
