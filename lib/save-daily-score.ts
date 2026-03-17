@@ -8,13 +8,13 @@ export async function saveDailyScore(userId: string, date: string) {
   const tasksForDay = await db
     .select()
     .from(tasks)
-    .where(and(eq(tasks.userId, userId), eq(tasks.date, date), eq(tasks.isActive, true)));
+    .where(and(eq(tasks.userId, userId), eq(tasks.date, date)));
 
   // Get pillars for weights
   const userPillars = await db
     .select()
     .from(pillars)
-    .where(and(eq(pillars.userId, userId), eq(pillars.isArchived, false)));
+    .where(eq(pillars.userId, userId));
 
   const pillarWeights = userPillars.map(p => ({ pillarId: p.id, weight: p.weight }));
 
@@ -43,7 +43,7 @@ export async function saveDailyScore(userId: string, date: string) {
   const userGoals = await db
     .select()
     .from(goals)
-    .where(and(eq(goals.userId, userId), eq(goals.isArchived, false)));
+    .where(eq(goals.userId, userId));
 
   let momentumScore: number | null = null;
   let pillarMomentumJson: string | null = null;
@@ -60,7 +60,6 @@ export async function saveDailyScore(userId: string, date: string) {
       .where(and(
         eq(tasks.userId, userId),
         eq(tasks.completed, true),
-        eq(tasks.isActive, true),
         isNotNull(tasks.goalId),
       ));
 

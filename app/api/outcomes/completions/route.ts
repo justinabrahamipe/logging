@@ -15,7 +15,6 @@ export async function GET() {
     .from(tasks)
     .where(and(
       eq(tasks.userId, session.user.id),
-      eq(tasks.isActive, true),
       eq(tasks.completed, true),
       isNotNull(tasks.goalId),
     ));

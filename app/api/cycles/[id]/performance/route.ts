@@ -54,7 +54,6 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       .where(and(
         eq(tasks.userId, session.user.id),
         eq(tasks.completed, true),
-        eq(tasks.isActive, true),
         isNotNull(tasks.goalId),
       ))
       .orderBy(asc(tasks.date));
@@ -102,7 +101,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const userPillars = await db
     .select({ id: pillars.id, name: pillars.name, emoji: pillars.emoji, color: pillars.color })
     .from(pillars)
-    .where(and(eq(pillars.userId, session.user.id), eq(pillars.isArchived, false)));
+    .where(eq(pillars.userId, session.user.id));
 
   const startDate = new Date(cycle.startDate + 'T12:00:00');
   const endDate = new Date(cycle.endDate + 'T12:00:00');

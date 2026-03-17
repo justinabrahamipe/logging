@@ -14,7 +14,13 @@ export async function GET() {
       .where(eq(cycles.userId, userId))
       .orderBy(desc(cycles.startDate));
 
-    return NextResponse.json(result);
+    const todayStr = new Date().toISOString().split('T')[0];
+    const withActive = result.map(c => ({
+      ...c,
+      isActive: todayStr >= c.startDate && todayStr <= c.endDate,
+    }));
+
+    return NextResponse.json(withActive);
   } catch (error) {
     return errorResponse(error);
   }
@@ -33,12 +39,6 @@ export async function POST(request: Request) {
 
     const endDate = customEndDate || calculateEndDate(startDate);
 
-    // Deactivate other active cycles
-    await db
-      .update(cycles)
-      .set({ isActive: false })
-      .where(eq(cycles.userId, userId));
-
     const [cycle] = await db.insert(cycles).values({
       userId,
       name,
@@ -46,10 +46,13 @@ export async function POST(request: Request) {
       endDate,
       vision: vision || null,
       theme: theme || null,
-      isActive: true,
     }).returning();
 
-    return NextResponse.json(cycle, { status: 201 });
+    const todayStr = new Date().toISOString().split('T')[0];
+    return NextResponse.json({
+      ...cycle,
+      isActive: todayStr >= cycle.startDate && todayStr <= cycle.endDate,
+    }, { status: 201 });
   } catch (error) {
     return errorResponse(error);
   }

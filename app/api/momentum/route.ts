@@ -15,11 +15,11 @@ export async function GET() {
       db
         .select()
         .from(goals)
-        .where(and(eq(goals.userId, userId), eq(goals.isArchived, false))),
+        .where(eq(goals.userId, userId)),
       db
         .select()
         .from(pillars)
-        .where(and(eq(pillars.userId, userId), eq(pillars.isArchived, false))),
+        .where(eq(pillars.userId, userId)),
     ]);
 
     // Get logs from completed tasks linked to goals
@@ -36,7 +36,6 @@ export async function GET() {
         .where(and(
           eq(tasks.userId, userId),
           eq(tasks.completed, true),
-          eq(tasks.isActive, true),
           isNotNull(tasks.goalId),
           inArray(tasks.goalId, goalIds),
         ));

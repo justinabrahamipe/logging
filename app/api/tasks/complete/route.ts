@@ -20,14 +20,14 @@ export async function POST(request: Request) {
     let [task] = await db
       .select()
       .from(tasks)
-      .where(and(eq(tasks.id, taskId), eq(tasks.userId, userId), eq(tasks.isActive, true)));
+      .where(and(eq(tasks.id, taskId), eq(tasks.userId, userId)));
 
     if (!task) {
       // Fall back: taskId might be a schedule ID — find the task instance for that schedule + date
       [task] = await db
         .select()
         .from(tasks)
-        .where(and(eq(tasks.scheduleId, taskId), eq(tasks.date, date), eq(tasks.userId, userId), eq(tasks.isActive, true)));
+        .where(and(eq(tasks.scheduleId, taskId), eq(tasks.date, date), eq(tasks.userId, userId)));
     }
 
     if (!task) {

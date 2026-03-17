@@ -1,12 +1,12 @@
 // Static demo data for unauthenticated users to preview the app
 
 export const DEMO_PILLARS = [
-  { id: 1, name: "Health & Fitness", emoji: "\u{1F4AA}", color: "#EF4444", weight: 25, description: "Physical health, exercise, nutrition", sortOrder: 0, userId: "demo" },
-  { id: 2, name: "Career", emoji: "\u{1F4BC}", color: "#3B82F6", weight: 25, description: "Job search, skills, professional development", sortOrder: 1, userId: "demo" },
-  { id: 3, name: "Side Hustle", emoji: "\u{1F680}", color: "#8B5CF6", weight: 15, description: "Product development, content creation", sortOrder: 2, userId: "demo" },
-  { id: 4, name: "Home", emoji: "\u{1F3E0}", color: "#F59E0B", weight: 10, description: "Household chores and maintenance", sortOrder: 3, userId: "demo" },
-  { id: 5, name: "Growth", emoji: "\u{1F4D6}", color: "#10B981", weight: 15, description: "Personal development, reading, learning", sortOrder: 4, userId: "demo" },
-  { id: 6, name: "Family & Faith", emoji: "\u{1F468}\u200D\u{1F469}\u200D\u{1F467}", color: "#EC4899", weight: 10, description: "Family time, church, community", sortOrder: 5, userId: "demo" },
+  { id: 1, name: "Health & Fitness", emoji: "\u{1F4AA}", color: "#EF4444", weight: 25, description: "Physical health, exercise, nutrition", userId: "demo" },
+  { id: 2, name: "Career", emoji: "\u{1F4BC}", color: "#3B82F6", weight: 25, description: "Job search, skills, professional development", userId: "demo" },
+  { id: 3, name: "Side Hustle", emoji: "\u{1F680}", color: "#8B5CF6", weight: 15, description: "Product development, content creation", userId: "demo" },
+  { id: 4, name: "Home", emoji: "\u{1F3E0}", color: "#F59E0B", weight: 10, description: "Household chores and maintenance", userId: "demo" },
+  { id: 5, name: "Growth", emoji: "\u{1F4D6}", color: "#10B981", weight: 15, description: "Personal development, reading, learning", userId: "demo" },
+  { id: 6, name: "Family & Faith", emoji: "\u{1F468}\u200D\u{1F469}\u200D\u{1F467}", color: "#EC4899", weight: 10, description: "Family time, church, community", userId: "demo" },
 ];
 
 const today = new Date().toISOString().split("T")[0];
@@ -203,7 +203,6 @@ export const DEMO_CYCLES = [
     endDate: "2026-03-29",
     vision: "Build strong habits and ship my side project MVP",
     theme: "Discipline & Execution",
-    isActive: true,
     createdAt: "2026-01-01T00:00:00Z",
   },
 ];

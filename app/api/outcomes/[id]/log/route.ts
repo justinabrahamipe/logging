@@ -29,7 +29,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         outcomeId: tasks.goalId,
       })
       .from(tasks)
-      .where(and(eq(tasks.goalId, outcomeId), eq(tasks.isActive, true), eq(tasks.completed, true)))
+      .where(and(eq(tasks.goalId, outcomeId), eq(tasks.completed, true)))
       .orderBy(desc(tasks.date));
 
     // Map to expected format
@@ -79,7 +79,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     let [existingTask] = await db
       .select()
       .from(tasks)
-      .where(and(eq(tasks.goalId, outcomeId), eq(tasks.userId, userId), eq(tasks.isActive, true), eq(tasks.date, today)));
+      .where(and(eq(tasks.goalId, outcomeId), eq(tasks.userId, userId), eq(tasks.date, today)));
 
     if (!existingTask) {
       // Create an adhoc task schedule + instance for this goal log
@@ -92,7 +92,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         frequency: 'adhoc',
         startDate: today,
         basePoints: 0,
-        isActive: true,
       }).returning();
 
       [existingTask] = await db.insert(tasks).values({
@@ -104,7 +103,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         completionType: 'numeric',
         basePoints: 0,
         date: today,
-        isActive: true,
       }).returning();
     }
 
@@ -199,7 +197,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       const allTasks = await db
         .select({ value: tasks.value })
         .from(tasks)
-        .where(and(eq(tasks.goalId, outcomeId), eq(tasks.isActive, true), eq(tasks.completed, true)));
+        .where(and(eq(tasks.goalId, outcomeId), eq(tasks.completed, true)));
       const total = allTasks.reduce((sum, t) => sum + (t.value ?? 0), 0);
       await db
         .update(goals)
@@ -210,7 +208,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       const [latestTask] = await db
         .select({ value: tasks.value, date: tasks.date })
         .from(tasks)
-        .where(and(eq(tasks.goalId, outcomeId), eq(tasks.isActive, true), eq(tasks.completed, true)))
+        .where(and(eq(tasks.goalId, outcomeId), eq(tasks.completed, true)))
         .orderBy(desc(tasks.date))
         .limit(1);
       if (latestTask) {

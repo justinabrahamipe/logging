@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { FaPlus, FaEdit, FaArchive, FaArrowUp, FaArrowDown } from "react-icons/fa";
+import { FaPlus, FaEdit, FaArchive } from "react-icons/fa";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { DEMO_PILLARS } from "@/lib/demo-data";
@@ -118,27 +118,6 @@ export default function PillarsPage() {
     }
   };
 
-  const handleReorder = async (id: number, direction: 'up' | 'down') => {
-    const idx = pillars.findIndex(p => p.id === id);
-    if (direction === 'up' && idx <= 0) return;
-    if (direction === 'down' && idx >= pillars.length - 1) return;
-    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
-    await Promise.all([
-      fetch(`/api/pillars/${pillars[idx].id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sortOrder: pillars[swapIdx].sortOrder }),
-      }),
-      fetch(`/api/pillars/${pillars[swapIdx].id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sortOrder: pillars[idx].sortOrder }),
-      }),
-    ]);
-    await fetchPillars();
-  };
-
-
   const totalWeight = pillars.reduce((sum, p) => sum + (p.weight ?? 0), 0);
 
   // Compute effective weights: unweighted pillars share remaining weight equally
@@ -217,7 +196,7 @@ export default function PillarsPage() {
 
         {/* Pillar Cards with integrated charts */}
         <div className="space-y-3">
-          {pillars.map((pillar, idx) => {
+          {pillars.map((pillar) => {
             const chartData = pillarChartMap.get(pillar.id) || [];
             const hasChartData = chartData.some(d => d.score !== null);
             const latestAvg = chartData.filter(d => d.avg !== null).pop()?.avg;
@@ -246,20 +225,6 @@ export default function PillarsPage() {
                       <span className="text-sm font-bold" style={{ color: pillar.color }}>{latestAvg}%</span>
                     )}
                     <span className="text-xs text-zinc-500 dark:text-zinc-400">{getEffectiveWeight(pillar)}%</span>
-                    <button
-                      onClick={() => handleReorder(pillar.id, 'up')}
-                      disabled={idx === 0}
-                      className="p-1.5 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 disabled:opacity-30"
-                    >
-                      <FaArrowUp className="text-xs" />
-                    </button>
-                    <button
-                      onClick={() => handleReorder(pillar.id, 'down')}
-                      disabled={idx === pillars.length - 1}
-                      className="p-1.5 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 disabled:opacity-30"
-                    >
-                      <FaArrowDown className="text-xs" />
-                    </button>
                     <button
                       onClick={() => router.push(`/pillars/${pillar.id}/edit`)}
                       className="p-1.5 rounded text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-400"

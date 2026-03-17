@@ -17,7 +17,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       const [schedule] = await db
         .select()
         .from(taskSchedules)
-        .where(and(eq(taskSchedules.id, taskId), eq(taskSchedules.userId, userId), eq(taskSchedules.isActive, true)));
+        .where(and(eq(taskSchedules.id, taskId), eq(taskSchedules.userId, userId)));
 
       if (!schedule) {
         return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -29,7 +29,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const [task] = await db
       .select()
       .from(tasks)
-      .where(and(eq(tasks.id, taskId), eq(tasks.userId, userId), eq(tasks.isActive, true)));
+      .where(and(eq(tasks.id, taskId), eq(tasks.userId, userId)));
 
     if (task) {
       return NextResponse.json(task);
@@ -39,7 +39,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const [schedule] = await db
       .select()
       .from(taskSchedules)
-      .where(and(eq(taskSchedules.id, taskId), eq(taskSchedules.userId, userId), eq(taskSchedules.isActive, true)));
+      .where(and(eq(taskSchedules.id, taskId), eq(taskSchedules.userId, userId)));
 
     if (!schedule) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -65,7 +65,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (type === 'task') {
       // Update a specific task instance
       const updateData: Record<string, unknown> = {};
-      const taskFields = ['name', 'pillarId', 'completionType', 'target', 'unit', 'basePoints', 'isActive', 'goalId', 'periodId', 'date'];
+      const taskFields = ['name', 'pillarId', 'completionType', 'target', 'unit', 'basePoints', 'goalId', 'periodId', 'date'];
       for (const field of taskFields) {
         if (body[field] !== undefined) updateData[field] = body[field];
       }
@@ -103,7 +103,6 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       const updateData: Record<string, unknown> = {};
       if (body.startDate !== undefined) updateData.date = body.startDate;
       if (body.name !== undefined) updateData.name = body.name;
-      if (body.isActive !== undefined) updateData.isActive = body.isActive;
 
       const [updated] = await db
         .update(tasks)
@@ -116,7 +115,6 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         const scheduleUpdate: Record<string, unknown> = {};
         if (body.startDate !== undefined) scheduleUpdate.startDate = body.startDate;
         if (body.name !== undefined) scheduleUpdate.name = body.name;
-        if (body.isActive !== undefined) scheduleUpdate.isActive = body.isActive;
         if (Object.keys(scheduleUpdate).length > 0) {
           await db.update(taskSchedules).set(scheduleUpdate)
             .where(eq(taskSchedules.id, taskInstance.scheduleId));
@@ -127,7 +125,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     }
 
     const updateData: Record<string, unknown> = {};
-    const fields = ['name', 'pillarId', 'completionType', 'target', 'unit', 'flexibilityRule', 'frequency', 'customDays', 'repeatInterval', 'basePoints', 'isActive', 'limitValue', 'goalId', 'periodId', 'startDate'];
+    const fields = ['name', 'pillarId', 'completionType', 'target', 'unit', 'flexibilityRule', 'frequency', 'customDays', 'repeatInterval', 'basePoints', 'limitValue', 'goalId', 'periodId', 'startDate'];
 
     for (const field of fields) {
       if (body[field] !== undefined) {

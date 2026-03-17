@@ -22,7 +22,7 @@ export async function ensureUpcomingTasks(userId: string) {
   const allSchedules = await db
     .select()
     .from(taskSchedules)
-    .where(and(eq(taskSchedules.userId, userId), eq(taskSchedules.isActive, true)));
+    .where(eq(taskSchedules.userId, userId));
 
   if (allSchedules.length === 0) {
     lastRunCache.set(userId, todayStr);
@@ -109,7 +109,6 @@ async function ensureGoalTasks(userId: string, todayStr: string, dates: string[]
     .from(goals)
     .where(and(
       eq(goals.userId, userId),
-      eq(goals.isArchived, false),
       eq(goals.autoCreateTasks, true),
     ));
 
@@ -201,7 +200,7 @@ export async function ensureTasksForDate(userId: string, dateStr: string) {
   const allSchedules = await db
     .select()
     .from(taskSchedules)
-    .where(and(eq(taskSchedules.userId, userId), eq(taskSchedules.isActive, true)));
+    .where(eq(taskSchedules.userId, userId));
 
   if (allSchedules.length === 0) return;
 
@@ -269,6 +268,5 @@ function buildTaskFromSchedule(
     pointsEarned: 0,
     isHighlighted: false,
     completedAt: null,
-    isActive: true,
   };
 }

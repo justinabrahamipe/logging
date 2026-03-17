@@ -34,7 +34,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         direction: goals.direction,
         goalType: goals.goalType,
         pillarId: goals.pillarId,
-        isArchived: goals.isArchived,
         createdAt: goals.createdAt,
         updatedAt: goals.updatedAt,
       })
@@ -44,9 +43,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const linkedTasks = await db
       .select()
       .from(taskSchedules)
-      .where(and(eq(taskSchedules.periodId, periodId), eq(taskSchedules.isActive, true)));
+      .where(eq(taskSchedules.periodId, periodId));
 
-    return NextResponse.json({ ...cycle, goals: goalsList, linkedTasks });
+    const todayStr = new Date().toISOString().split('T')[0];
+    return NextResponse.json({
+      ...cycle,
+      isActive: todayStr >= cycle.startDate && todayStr <= cycle.endDate,
+      goals: goalsList,
+      linkedTasks,
+    });
   } catch (error) {
     return errorResponse(error);
   }
@@ -78,16 +83,6 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (body.endDate !== undefined) updateData.endDate = body.endDate;
     if (body.vision !== undefined) updateData.vision = body.vision || null;
     if (body.theme !== undefined) updateData.theme = body.theme || null;
-    if (body.isActive !== undefined) {
-      if (body.isActive) {
-        // Deactivate others first
-        await db
-          .update(cycles)
-          .set({ isActive: false })
-          .where(eq(cycles.userId, userId));
-      }
-      updateData.isActive = body.isActive;
-    }
 
     const [updated] = await db
       .update(cycles)
@@ -95,7 +90,11 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       .where(and(eq(cycles.id, periodId), eq(cycles.userId, userId)))
       .returning();
 
-    return NextResponse.json(updated);
+    const todayStr = new Date().toISOString().split('T')[0];
+    return NextResponse.json({
+      ...updated,
+      isActive: todayStr >= updated.startDate && todayStr <= updated.endDate,
+    });
   } catch (error) {
     return errorResponse(error);
   }

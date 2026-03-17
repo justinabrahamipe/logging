@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
 import { db, tasks, taskSchedules, pillars } from "@/lib/db";
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { ensureUpcomingTasks, ensureTasksForDate } from "@/lib/ensure-upcoming-tasks";
 
 export async function GET(request: NextRequest) {
@@ -23,15 +23,14 @@ export async function GET(request: NextRequest) {
     const userPillars = await db
       .select()
       .from(pillars)
-      .where(and(eq(pillars.userId, userId), eq(pillars.isArchived, false)))
-      .orderBy(asc(pillars.sortOrder));
+      .where(eq(pillars.userId, userId));
 
     if (showAll) {
       // Return all task schedules (for week/month/scheduled views that need client-side bucketing)
       const allSchedules = await db
         .select()
         .from(taskSchedules)
-        .where(and(eq(taskSchedules.userId, userId), eq(taskSchedules.isActive, true)))
+        .where(eq(taskSchedules.userId, userId))
         .orderBy(asc(taskSchedules.pillarId));
 
       // For the all view, fetch today's completions to attach
@@ -39,7 +38,7 @@ export async function GET(request: NextRequest) {
       const todayTasks = await db
         .select()
         .from(tasks)
-        .where(and(eq(tasks.userId, userId), eq(tasks.date, todayStr), eq(tasks.isActive, true)));
+        .where(and(eq(tasks.userId, userId), eq(tasks.date, todayStr)));
 
       const completionBySchedule = new Map(
         todayTasks.filter(t => t.scheduleId).map(t => [t.scheduleId!, t])
@@ -85,7 +84,7 @@ export async function GET(request: NextRequest) {
 
       if (ungrouped.length > 0) {
         grouped.push({
-          pillar: { id: 0, userId, name: 'No Pillar', emoji: '📋', color: '#6B7280', weight: 0, description: null, isArchived: false, sortOrder: 999, createdAt: new Date(), updatedAt: new Date() } as typeof userPillars[number],
+          pillar: { id: 0, userId, name: 'No Pillar', emoji: '📋', color: '#6B7280', weight: 0, description: null, createdAt: new Date(), updatedAt: new Date() } as typeof userPillars[number],
           tasks: ungrouped as typeof grouped[number]['tasks'],
         });
       }
@@ -98,7 +97,7 @@ export async function GET(request: NextRequest) {
     const tasksForDate = await db
       .select()
       .from(tasks)
-      .where(and(eq(tasks.userId, userId), eq(tasks.date, dateStr), eq(tasks.isActive, true)))
+      .where(and(eq(tasks.userId, userId), eq(tasks.date, dateStr)))
       .orderBy(asc(tasks.pillarId));
 
     // Map tasks to include a completion field for backward compat
@@ -128,7 +127,7 @@ export async function GET(request: NextRequest) {
     const ungrouped = tasksWithCompletion.filter(t => !t.pillarId);
     if (ungrouped.length > 0) {
       grouped.push({
-        pillar: { id: 0, userId, name: 'No Pillar', emoji: '📋', color: '#6B7280', weight: 0, description: null, isArchived: false, sortOrder: 999, createdAt: new Date(), updatedAt: new Date() } as typeof userPillars[number],
+        pillar: { id: 0, userId, name: 'No Pillar', emoji: '📋', color: '#6B7280', weight: 0, description: null, createdAt: new Date(), updatedAt: new Date() } as typeof userPillars[number],
         tasks: ungrouped as typeof grouped[number]['tasks'],
       });
     }

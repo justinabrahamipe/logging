@@ -15,7 +15,7 @@ const DEFAULT_PILLARS: PillarSeed[] = [
     color: '#EF4444',
     weight: 25,
     description: 'Physical health, exercise, nutrition',
-    sortOrder: 0,
+
     tasks: [
       { name: 'Gym session', completionType: 'checkbox', frequency: 'custom', customDays: JSON.stringify([1, 2, 4, 5]), basePoints: 10 },
       { name: 'C25K run', completionType: 'checkbox', frequency: 'custom', customDays: JSON.stringify([1, 3, 5]), basePoints: 10 },
@@ -32,7 +32,6 @@ const DEFAULT_PILLARS: PillarSeed[] = [
     color: '#3B82F6',
     weight: 25,
     description: 'Job search, skills, professional development',
-    sortOrder: 1,
     tasks: [
       { name: 'LeetCode problem', completionType: 'count', target: 1, unit: 'problems', frequency: 'daily', basePoints: 10 },
       { name: 'DSA concept', completionType: 'checkbox', frequency: 'daily', basePoints: 10 },
@@ -47,7 +46,6 @@ const DEFAULT_PILLARS: PillarSeed[] = [
     color: '#8B5CF6',
     weight: 15,
     description: 'Product development, content creation',
-    sortOrder: 2,
     tasks: [
       { name: 'Product work', completionType: 'duration', target: 60, unit: 'min', frequency: 'daily', basePoints: 10 },
       { name: 'YouTube content', completionType: 'checkbox', frequency: 'custom', customDays: JSON.stringify([6]), basePoints: 10 },
@@ -59,7 +57,6 @@ const DEFAULT_PILLARS: PillarSeed[] = [
     color: '#F59E0B',
     weight: 10,
     description: 'Household chores and maintenance',
-    sortOrder: 3,
     tasks: [
       { name: 'Kitchen clean', completionType: 'checkbox', frequency: 'daily', basePoints: 10 },
       { name: 'Living area tidy', completionType: 'checkbox', frequency: 'daily', basePoints: 10 },
@@ -72,7 +69,6 @@ const DEFAULT_PILLARS: PillarSeed[] = [
     color: '#10B981',
     weight: 15,
     description: 'Personal development, reading, learning',
-    sortOrder: 4,
     tasks: [
       { name: 'Bible writing', completionType: 'checkbox', frequency: 'daily', basePoints: 10 },
       { name: 'Reading', completionType: 'duration', target: 20, unit: 'min', frequency: 'daily', basePoints: 10 },
@@ -85,7 +81,6 @@ const DEFAULT_PILLARS: PillarSeed[] = [
     color: '#EC4899',
     weight: 10,
     description: 'Family time, church, community',
-    sortOrder: 5,
     tasks: [
       { name: 'Family time', completionType: 'checkbox', frequency: 'daily', basePoints: 10 },
       { name: 'Church duties', completionType: 'checkbox', frequency: 'custom', customDays: JSON.stringify([0]), basePoints: 10 },
@@ -263,7 +258,6 @@ export async function seedDefaultData(userId: string, skipCheck = false) {
     endDate: dateStr(cycleEndDate),
     vision: 'Build momentum across health, career, and personal growth. Ship the MVP and land a great role.',
     theme: 'Discipline & Consistency',
-    isActive: true,
   }).returning();
 
   const pastCycleStart = addDays(now, -126); // ~18 weeks ago
@@ -275,7 +269,6 @@ export async function seedDefaultData(userId: string, skipCheck = false) {
     endDate: dateStr(pastCycleEnd),
     vision: 'Establish habits and routines that support long-term goals.',
     theme: 'Building the Base',
-    isActive: false,
   });
 
   // ── 2. Create Pillars ──
@@ -290,7 +283,6 @@ export async function seedDefaultData(userId: string, skipCheck = false) {
       color: pillarData.color,
       weight: pillarData.weight,
       description: pillarData.description,
-      sortOrder: pillarData.sortOrder,
     }).returning();
     pillarIds.push(pillar.id);
   }
@@ -319,7 +311,6 @@ export async function seedDefaultData(userId: string, skipCheck = false) {
       targetDate: dateStr(cycleEndDate),
       periodId: activeCycle.id,
       autoCreateTasks: false,
-      isArchived: false,
     }).returning();
     goalIds.push(goal.id);
   }
@@ -396,7 +387,6 @@ export async function seedDefaultData(userId: string, skipCheck = false) {
             pointsEarned,
             isHighlighted: false,
             completedAt: completed ? new Date(ds + 'T12:00:00') : null,
-            isActive: true,
           }).returning();
 
           if (isPast) pastDatesWithScores.add(ds);

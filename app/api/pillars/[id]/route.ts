@@ -48,9 +48,6 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (body.color !== undefined) updateData.color = body.color;
     if (body.weight !== undefined) updateData.weight = body.weight;
     if (body.description !== undefined) updateData.description = body.description;
-    if (body.isArchived !== undefined) updateData.isArchived = body.isArchived;
-    if (body.sortOrder !== undefined) updateData.sortOrder = body.sortOrder;
-
     const [updated] = await db
       .update(pillars)
       .set(updateData)
@@ -70,14 +67,12 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     const { id } = await params;
     const pillarId = parseInt(id);
 
-    // Soft delete (archive)
-    const [updated] = await db
-      .update(pillars)
-      .set({ isArchived: true })
+    const deleted = await db
+      .delete(pillars)
       .where(and(eq(pillars.id, pillarId), eq(pillars.userId, userId)))
       .returning();
 
-    if (!updated) {
+    if (deleted.length === 0) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 

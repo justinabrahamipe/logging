@@ -23,13 +23,13 @@ export async function GET(request: NextRequest) {
     const tasksForDay = await db
       .select()
       .from(tasks)
-      .where(and(eq(tasks.userId, userId), eq(tasks.date, date), eq(tasks.isActive, true)));
+      .where(and(eq(tasks.userId, userId), eq(tasks.date, date)));
 
     // Get pillars for weights
     const userPillars = await db
       .select()
       .from(pillars)
-      .where(and(eq(pillars.userId, userId), eq(pillars.isArchived, false)));
+      .where(eq(pillars.userId, userId));
 
     const pillarWeights = userPillars.map(p => ({ pillarId: p.id, weight: p.weight }));
 

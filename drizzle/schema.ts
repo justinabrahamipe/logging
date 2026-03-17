@@ -73,8 +73,6 @@ export const pillars = sqliteTable('Pillar', {
   color: text('color').notNull().default('#3B82F6'),
   weight: real('weight').notNull().default(0),
   description: text('description'),
-  isArchived: integer('isArchived', { mode: 'boolean' }).notNull().default(false),
-  sortOrder: integer('sortOrder').notNull().default(0),
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
@@ -99,7 +97,6 @@ export const taskSchedules = sqliteTable('TaskSchedule', {
   goalId: integer('goalId').references(() => goals.id, { onDelete: 'set null' }),
   periodId: integer('periodId').references(() => cycles.id, { onDelete: 'set null' }),
   startDate: text('startDate'), // optional YYYY-MM-DD, schedule only active from this date
-  isActive: integer('isActive', { mode: 'boolean' }).notNull().default(true),
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
@@ -130,7 +127,6 @@ export const tasks = sqliteTable('Task', {
   pointsEarned: real('pointsEarned').notNull().default(0),
   isHighlighted: integer('isHighlighted', { mode: 'boolean' }).notNull().default(false),
   completedAt: integer('completedAt', { mode: 'timestamp' }),
-  isActive: integer('isActive', { mode: 'boolean' }).notNull().default(true),
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
@@ -279,7 +275,6 @@ export const goals = sqliteTable('Goal', {
   dailyTarget: real('dailyTarget'), // per-session target for count/numeric habitual goals
   scheduleDays: text('scheduleDays'), // JSON weekday array e.g. [1,3,5]
   autoCreateTasks: integer('autoCreateTasks', { mode: 'boolean' }).notNull().default(false),
-  isArchived: integer('isArchived', { mode: 'boolean' }).notNull().default(false),
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
@@ -304,7 +299,6 @@ export const cycles = sqliteTable('Cycle', {
   endDate: text('endDate').notNull(),
   vision: text('vision'),
   theme: text('theme'),
-  isActive: integer('isActive', { mode: 'boolean' }).notNull().default(true),
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({

@@ -28,12 +28,7 @@ export async function GET(request: NextRequest) {
       db
         .select()
         .from(pillars)
-        .where(
-          and(
-            eq(pillars.userId, userId),
-            eq(pillars.isArchived, false)
-          )
-        ),
+        .where(eq(pillars.userId, userId)),
     ]);
 
     const pillarMeta = userPillars.map((p) => ({

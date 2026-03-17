@@ -11,7 +11,6 @@ export interface Pillar {
   color: string;
   weight?: number;
   description?: string | null;
-  sortOrder?: number;
 }
 
 export interface Task {
@@ -30,7 +29,6 @@ export interface Task {
   startDate: string | null;
   flexibilityRule?: string;
   limitValue?: number | null;
-  isActive?: boolean;
   completion?: TaskCompletion | null;
 }
 
@@ -69,7 +67,6 @@ export interface Outcome {
   pillarName: string | null;
   pillarColor: string | null;
   pillarEmoji: string | null;
-  isArchived?: boolean;
 }
 
 export interface Cycle {
@@ -103,7 +100,6 @@ export interface Goal {
   startValue?: number;
   direction?: string;
   pillarId?: number | null;
-  isArchived?: boolean;
 }
 
 export interface LinkedTask {
@@ -118,7 +114,6 @@ export interface LinkedTask {
   completed?: boolean;
   value?: number | null;
   startDate?: string | null;
-  isActive?: boolean;
 }
 
 export interface LogEntry {
@@ -363,7 +358,6 @@ export interface PillarSeed {
   color: string;
   weight: number;
   description: string;
-  sortOrder: number;
   tasks: TaskSeed[];
 }
 
@@ -408,7 +402,6 @@ export interface CycleGoal {
   direction: string;
   goalType: string;
   pillarId: number | null;
-  isArchived: boolean;
 }
 
 export interface CycleDetail extends Cycle {

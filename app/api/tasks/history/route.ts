@@ -26,7 +26,6 @@ export async function GET(request: NextRequest) {
       .where(
         and(
           eq(tasks.userId, userId),
-          eq(tasks.isActive, true),
           dateCondition
         )
       )

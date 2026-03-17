@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
 import { db, goals, pillars, tasks, taskSchedules, cycles } from "@/lib/db";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { countScheduledDaysInRange } from "@/lib/effort-calculations";
 
 export async function GET() {
@@ -28,7 +28,6 @@ export async function GET() {
         autoCreateTasks: goals.autoCreateTasks,
         completionType: goals.completionType,
         dailyTarget: goals.dailyTarget,
-        isArchived: goals.isArchived,
         createdAt: goals.createdAt,
         updatedAt: goals.updatedAt,
         pillarName: pillars.name,
@@ -37,7 +36,7 @@ export async function GET() {
       })
       .from(goals)
       .leftJoin(pillars, eq(goals.pillarId, pillars.id))
-      .where(and(eq(goals.userId, userId), eq(goals.isArchived, false)));
+      .where(eq(goals.userId, userId));
 
     return NextResponse.json(result);
   } catch (error) {

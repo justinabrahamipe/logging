@@ -284,13 +284,13 @@ export default function TaskItem({
                         onClick={() => handleMoveDate(task, -1)}
                         className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                       >
-                        <FaArrowLeft className="text-xs" /> Move Back
+                        <FaArrowLeft className="text-xs" /> Prepone a Day
                       </button>
                       <button
                         onClick={() => handleMoveDate(task, 1)}
                         className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                       >
-                        <FaArrowRight className="text-xs" /> Move Forward
+                        <FaArrowRight className="text-xs" /> Postpone a Day
                       </button>
                     </>
                   )}
