@@ -109,7 +109,8 @@ export async function ensureUpcomingTasks(userId: string) {
 }
 
 /**
- * Create adhoc schedules + task instances from goals with autoCreateTasks.
+ * Create task instances directly from goals with autoCreateTasks.
+ * These go straight into the tasks table without creating schedule entries.
  */
 async function ensureGoalTasks(userId: string, todayStr: string, dates: string[]) {
   const activeGoals = await db
@@ -122,21 +123,20 @@ async function ensureGoalTasks(userId: string, todayStr: string, dates: string[]
 
   if (activeGoals.length === 0) return;
 
-  // Get existing goal-linked schedules to avoid duplicates
+  // Get existing goal-linked tasks to avoid duplicates
   const goalIds = activeGoals.map(g => g.id);
-  const existingSchedules = await db
-    .select({ id: taskSchedules.id, goalId: taskSchedules.goalId, startDate: taskSchedules.startDate })
-    .from(taskSchedules)
+  const existingGoalTasks = await db
+    .select({ goalId: tasks.goalId, date: tasks.date })
+    .from(tasks)
     .where(and(
-      eq(taskSchedules.userId, userId),
-      eq(taskSchedules.frequency, 'adhoc'),
-      inArray(taskSchedules.goalId, goalIds),
+      eq(tasks.userId, userId),
+      inArray(tasks.goalId, goalIds),
     ));
 
-  const existingScheduleSet = new Set(
-    existingSchedules
-      .filter(s => s.goalId && s.startDate)
-      .map(s => `${s.goalId}:${s.startDate}`)
+  const existingSet = new Set(
+    existingGoalTasks
+      .filter(t => t.goalId && t.date)
+      .map(t => `${t.goalId}:${t.date}`)
   );
 
   for (const outcome of activeGoals) {
@@ -167,29 +167,27 @@ async function ensureGoalTasks(userId: string, todayStr: string, dates: string[]
       const dateStr = current.toISOString().split('T')[0];
       const dow = current.getDay();
 
-      if (scheduleDays.includes(dow) && !existingScheduleSet.has(`${outcome.id}:${dateStr}`)) {
+      if (scheduleDays.includes(dow) && !existingSet.has(`${outcome.id}:${dateStr}`)) {
         try {
-          // Create adhoc schedule for this date
-          const [schedule] = await db.insert(taskSchedules).values({
+          await db.insert(tasks).values({
             userId,
             name: outcome.name,
             pillarId: outcome.pillarId || null,
             completionType: taskCompletionType,
             target: taskDailyTarget,
             unit: taskCompletionType === 'checkbox' ? null : (outcome.unit || null),
-            frequency: 'adhoc',
-            customDays: null,
-            repeatInterval: null,
+            flexibilityRule: 'must_today',
+            basePoints: 10,
             goalId: outcome.id,
             periodId: outcome.periodId || null,
-            startDate: dateStr,
-            basePoints: 10,
-            flexibilityRule: 'must_today',
-          }).returning();
-
-          // Create the concrete task instance
-          await db.insert(tasks).values(buildTaskFromSchedule(schedule, dateStr, userId));
-          existingScheduleSet.add(`${outcome.id}:${dateStr}`);
+            date: dateStr,
+            completed: false,
+            value: null,
+            pointsEarned: 0,
+            isHighlighted: false,
+            completedAt: null,
+          });
+          existingSet.add(`${outcome.id}:${dateStr}`);
         } catch {
           // Ignore duplicates
         }
