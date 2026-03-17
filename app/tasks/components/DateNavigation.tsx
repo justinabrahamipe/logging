@@ -321,7 +321,7 @@ export default function DateNavigation({
               <FaPlus className="text-[8px]" /> Filter
             </button>
             {activePopover === 'add' && (
-              <div className="absolute top-full right-0 mt-1 z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-lg p-1.5 w-[180px] max-h-[360px] overflow-y-auto">
+              <div className="absolute top-full right-0 mt-1 z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-lg p-1.5 w-[180px] max-h-[calc(100vh-8rem)] overflow-y-auto">
                 {/* Status section */}
                 {filters.status === 'all' && (
                   <>
