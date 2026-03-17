@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { FaPlus, FaCheck, FaChevronDown, FaTimes } from "react-icons/fa";
 import { DayPicker } from "react-day-picker";
@@ -24,6 +25,34 @@ interface DateNavigationProps {
   closePopover: () => void;
 }
 
+function usePopoverPosition(ref: React.RefObject<HTMLButtonElement | null>, isOpen: boolean, align: 'left' | 'right' = 'left') {
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+
+  const update = useCallback(() => {
+    if (!ref.current || !isOpen) { setPos(null); return; }
+    const rect = ref.current.getBoundingClientRect();
+    const popoverWidth = align === 'right' ? 180 : 200;
+    let left = align === 'left' ? rect.left : rect.right - popoverWidth;
+    // Clamp to viewport
+    if (left + popoverWidth > window.innerWidth - 8) left = window.innerWidth - popoverWidth - 8;
+    if (left < 8) left = 8;
+    setPos({ top: rect.bottom + 4, left });
+  }, [ref, isOpen, align]);
+
+  useEffect(() => {
+    update();
+    if (!isOpen) return;
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('scroll', update, true);
+      window.removeEventListener('resize', update);
+    };
+  }, [isOpen, update]);
+
+  return pos;
+}
+
 export default function DateNavigation({
   filters,
   setFilters,
@@ -40,6 +69,14 @@ export default function DateNavigation({
   getDateLabel,
   closePopover,
 }: DateNavigationProps) {
+  const dateRef = useRef<HTMLButtonElement>(null);
+  const statusRef = useRef<HTMLButtonElement>(null);
+  const addRef = useRef<HTMLButtonElement>(null);
+
+  const datePos = usePopoverPosition(dateRef, activePopover === 'date', 'left');
+  const statusPos = usePopoverPosition(statusRef, activePopover === 'status', 'left');
+  const addPos = usePopoverPosition(addRef, activePopover === 'add', 'right');
+
   return (
     <div className="mb-3">
       <div className="flex items-center gap-2">
@@ -58,16 +95,20 @@ export default function DateNavigation({
       )}
       <div className="flex flex-wrap items-center gap-1.5 mt-2 relative z-50">
           {/* Date chip */}
-          <div className="relative">
+          <div>
             <button
+              ref={dateRef}
               onClick={() => { setActivePopover(activePopover === 'date' ? null : 'date'); setDatePickerMode(null); setPendingRange(undefined); }}
               className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-500 transition-colors"
             >
               {getDateLabel()}
               <FaChevronDown className="text-[8px] text-zinc-400" />
             </button>
-            {activePopover === 'date' && (
-              <div className="absolute top-full left-0 mt-1 z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-lg p-1.5 min-w-[200px] max-w-[calc(100vw-2rem)] max-h-[80vh] overflow-y-auto">
+            {activePopover === 'date' && datePos && (
+              <div
+                className="fixed z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-lg p-1.5 min-w-[200px] max-w-[calc(100vw-1rem)] max-h-[calc(100vh-4rem)] overflow-y-auto"
+                style={{ top: datePos.top, left: datePos.left }}
+              >
                 {!datePickerMode ? (
                   <div className="space-y-0.5">
                     {(['yesterday', 'today', 'tomorrow', 'week', 'month', 'no-date'] as const).map(type => (
@@ -245,8 +286,9 @@ export default function DateNavigation({
 
           {/* Status chip */}
           {filters.status !== 'all' && (
-            <div className="relative">
+            <div>
               <button
+                ref={statusRef}
                 onClick={() => setActivePopover(activePopover === 'status' ? null : 'status')}
                 className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-500 transition-colors"
               >
@@ -258,8 +300,11 @@ export default function DateNavigation({
                   <FaTimes className="text-[8px]" />
                 </span>
               </button>
-              {activePopover === 'status' && (
-                <div className="absolute top-full left-0 mt-1 z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-lg p-1.5 min-w-[120px]">
+              {activePopover === 'status' && statusPos && (
+                <div
+                  className="fixed z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-lg p-1.5 min-w-[120px]"
+                  style={{ top: statusPos.top, left: statusPos.left }}
+                >
                   {(['todo', 'done', 'discarded'] as const).map(s => (
                     <button
                       key={s}
@@ -313,15 +358,19 @@ export default function DateNavigation({
           })}
 
           {/* + Filter button */}
-          <div className="relative">
+          <div>
             <button
+              ref={addRef}
               onClick={() => setActivePopover(activePopover === 'add' ? null : 'add')}
               className="flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border border-dashed border-zinc-300 dark:border-zinc-600 text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 hover:border-zinc-400 dark:hover:border-zinc-500 transition-colors"
             >
               <FaPlus className="text-[8px]" /> Filter
             </button>
-            {activePopover === 'add' && (
-              <div className="absolute top-full right-0 mt-1 z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-lg p-1.5 w-[180px] max-h-[calc(100vh-8rem)] overflow-y-auto">
+            {activePopover === 'add' && addPos && (
+              <div
+                className="fixed z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-lg p-1.5 w-[180px] max-h-[calc(100vh-4rem)] overflow-y-auto"
+                style={{ top: addPos.top, left: addPos.left }}
+              >
                 {/* Status section */}
                 {filters.status === 'all' && (
                   <>
