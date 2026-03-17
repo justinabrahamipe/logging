@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { pillars, tasks } from '@/lib/db';
+import { pillars, taskSchedules } from '@/lib/db';
 import { eq, sql } from 'drizzle-orm';
 import type { PillarSeed, TaskSeed } from '@/lib/types';
 
@@ -113,7 +113,7 @@ export async function seedDefaultData(userId: string, skipCheck = false) {
     }).returning();
 
     for (const taskData of pillarData.tasks) {
-      await db.insert(tasks).values({
+      await db.insert(taskSchedules).values({
         pillarId: pillar.id,
         userId,
         name: taskData.name,

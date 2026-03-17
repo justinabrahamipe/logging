@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { db, cycles, dailyScores, goals, pillars, tasks, taskCompletions } from "@/lib/db";
+import { db, cycles, dailyScores, goals, pillars, tasks } from "@/lib/db";
 import { eq, and, gte, lte, asc, isNotNull } from "drizzle-orm";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -40,27 +40,26 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     .from(goals)
     .where(and(eq(goals.userId, session.user.id), eq(goals.periodId, cycleId)));
 
-  // Get goal progress from TaskCompletions instead of outcomeLogs
+  // Get goal progress from completed tasks
   const outcomeIds = cycleOutcomes.map(o => o.id);
   let allLogs: { outcomeId: number; value: number; date: string }[] = [];
   if (outcomeIds.length > 0) {
-    const completionsForGoals = await db
+    const goalTasks = await db
       .select({
         goalId: tasks.goalId,
-        value: taskCompletions.value,
-        date: taskCompletions.date,
+        value: tasks.value,
+        date: tasks.date,
       })
-      .from(taskCompletions)
-      .innerJoin(tasks, eq(taskCompletions.taskId, tasks.id))
+      .from(tasks)
       .where(and(
-        eq(taskCompletions.userId, session.user.id),
-        eq(taskCompletions.completed, true),
+        eq(tasks.userId, session.user.id),
+        eq(tasks.completed, true),
         eq(tasks.isActive, true),
         isNotNull(tasks.goalId),
       ))
-      .orderBy(asc(taskCompletions.date));
+      .orderBy(asc(tasks.date));
 
-    allLogs = completionsForGoals
+    allLogs = goalTasks
       .filter(c => outcomeIds.includes(c.goalId!))
       .map(c => ({
         outcomeId: c.goalId!,

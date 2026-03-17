@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { db, tasks, taskCompletions } from "@/lib/db";
+import { db, tasks } from "@/lib/db";
 import { eq, and, desc, isNotNull } from "drizzle-orm";
 
 export async function GET() {
@@ -9,23 +9,22 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Query TaskCompletions joined with Tasks where task has a goalId
+  // Query completed tasks linked to goals
   const logs = await db
     .select({
-      id: taskCompletions.id,
+      id: tasks.id,
       goalId: tasks.goalId,
-      value: taskCompletions.value,
-      date: taskCompletions.date,
+      value: tasks.value,
+      date: tasks.date,
     })
-    .from(taskCompletions)
-    .innerJoin(tasks, eq(taskCompletions.taskId, tasks.id))
+    .from(tasks)
     .where(and(
-      eq(taskCompletions.userId, session.user.id),
-      eq(taskCompletions.completed, true),
+      eq(tasks.userId, session.user.id),
+      eq(tasks.completed, true),
       eq(tasks.isActive, true),
       isNotNull(tasks.goalId),
     ))
-    .orderBy(desc(taskCompletions.date));
+    .orderBy(desc(tasks.date));
 
   // Group by goalId (mapped as outcomeId for backward compat)
   const grouped: Record<number, { id: number; value: number; loggedAt: string }[]> = {};

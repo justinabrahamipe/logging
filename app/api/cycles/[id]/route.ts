@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
-import { db, cycles, goals, tasks, pillars } from "@/lib/db";
+import { db, cycles, goals, taskSchedules, pillars } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
 import { calculateEndDate } from "@/lib/cycle-scoring";
 
@@ -43,8 +43,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
     const linkedTasks = await db
       .select()
-      .from(tasks)
-      .where(and(eq(tasks.periodId, periodId), eq(tasks.isActive, true)));
+      .from(taskSchedules)
+      .where(and(eq(taskSchedules.periodId, periodId), eq(taskSchedules.isActive, true)));
 
     return NextResponse.json({ ...cycle, goals: goalsList, linkedTasks });
   } catch (error) {

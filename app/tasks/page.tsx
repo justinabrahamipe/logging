@@ -84,13 +84,14 @@ export default function TasksPage() {
   const maxStarsReached = starredCount >= 3;
 
   const isScheduledView = filters.date.type === 'scheduled';
-  const isServerFiltered = filters.date.type === 'yesterday' ||
+  const isServerFiltered = filters.date.type === 'today' ||
+    filters.date.type === 'yesterday' ||
+    filters.date.type === 'tomorrow' ||
     (filters.date.type === 'single' && !!filters.date.value);
 
   const filteredTasks = isScheduledView ? [] : allEnrichedTasks.filter(task => {
-    // For yesterday and specific dates, tasks are already server-filtered
-    if (isServerFiltered) return true;
-    if (!isTaskInDateRange(task)) return false;
+    // For server-filtered views, skip client-side date filtering (already done by API)
+    if (!isServerFiltered && !isTaskInDateRange(task)) return false;
     const completed = task.completion?.completed || (task.target != null && task.target > 0 && (task.completion?.value || 0) >= task.target);
     if (!passesStatusFilter(completed, task.completion?.value ?? null)) return false;
     if (filters.pillars.length > 0 && !filters.pillars.includes(task.pillarId)) return false;

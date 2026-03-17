@@ -175,7 +175,8 @@ export function useTasksPage() {
 
   const today = new Date().toISOString().split('T')[0];
   const yesterday = (() => { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().split('T')[0]; })();
-  const viewDate = filters.date.type === 'yesterday' ? yesterday : (filters.date.type === 'single' && filters.date.value) ? filters.date.value : today;
+  const tomorrow = (() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0]; })();
+  const viewDate = filters.date.type === 'yesterday' ? yesterday : filters.date.type === 'tomorrow' ? tomorrow : (filters.date.type === 'single' && filters.date.value) ? filters.date.value : today;
 
   // Date label for chip display
   const getDateLabel = useCallback(() => {
@@ -218,16 +219,23 @@ export function useTasksPage() {
     localStorage.setItem('tasks-filters', JSON.stringify(filters));
   }, [filters]);
 
-  // Fetch tasks + score for past dates
+  // Fetch tasks + score when date filter changes
   useEffect(() => {
-    if (filters.date.type === 'yesterday') {
+    if (filters.date.type === 'today') {
+      fetchDateTasks(today);
+      fetchScore(today);
+    } else if (filters.date.type === 'yesterday') {
       fetchDateTasks(yesterday);
       fetchScore(yesterday);
-    } else if (filters.date.type === 'single' && filters.date.value && filters.date.value < today) {
+    } else if (filters.date.type === 'tomorrow') {
+      fetchDateTasks(tomorrow);
+      fetchScore(today);
+    } else if (filters.date.type === 'single' && filters.date.value) {
       fetchDateTasks(filters.date.value);
-      fetchScore(filters.date.value);
+      fetchScore(filters.date.value < today ? filters.date.value : today);
     } else {
       setPastDays([]);
+      fetchTasks();
       fetchScore(today);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -251,7 +259,18 @@ export function useTasksPage() {
       fetchPillars();
       fetchOutcomes();
       fetchCycles();
-      fetchTasks();
+      // Initial fetch uses server-filtered path for today/yesterday/tomorrow/single
+      if (filters.date.type === 'today') {
+        fetchDateTasks(today);
+      } else if (filters.date.type === 'yesterday') {
+        fetchDateTasks(yesterday);
+      } else if (filters.date.type === 'tomorrow') {
+        fetchDateTasks(tomorrow);
+      } else if (filters.date.type === 'single' && filters.date.value) {
+        fetchDateTasks(filters.date.value);
+      } else {
+        fetchTasks();
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, status]);
@@ -337,15 +356,19 @@ export function useTasksPage() {
     } catch (error) {
       console.error("Failed to fetch tasks for date:", error);
     } finally {
+      setLoading(false);
       setRefreshing(false);
     }
   };
 
   const refreshView = async () => {
-    const isServerFiltered = filters.date.type === 'yesterday' ||
-      (filters.date.type === 'single' && filters.date.value);
+    const isServerFiltered = filters.date.type === 'today' ||
+      filters.date.type === 'yesterday' ||
+      filters.date.type === 'tomorrow' ||
+      (filters.date.type === 'single' && !!filters.date.value);
     if (isServerFiltered) {
-      await fetchDateTasks(viewDate);
+      const refreshDate = filters.date.type === 'tomorrow' ? tomorrow : viewDate;
+      await fetchDateTasks(refreshDate);
     } else {
       await fetchTasks();
     }

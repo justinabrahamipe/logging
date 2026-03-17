@@ -81,8 +81,8 @@ export const pillars = sqliteTable('Pillar', {
   userIdIdx: index('Pillar_userId_idx').on(table.userId),
 }));
 
-// Tasks table
-export const tasks = sqliteTable('Task', {
+// Task Schedules table (recurring task definitions)
+export const taskSchedules = sqliteTable('TaskSchedule', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   pillarId: integer('pillarId').references(() => pillars.id, { onDelete: 'set null' }),
   userId: text('userId').notNull(),
@@ -98,7 +98,38 @@ export const tasks = sqliteTable('Task', {
   basePoints: real('basePoints').notNull().default(10),
   goalId: integer('goalId').references(() => goals.id, { onDelete: 'set null' }),
   periodId: integer('periodId').references(() => cycles.id, { onDelete: 'set null' }),
-  startDate: text('startDate'), // optional YYYY-MM-DD, task only appears from this date
+  startDate: text('startDate'), // optional YYYY-MM-DD, schedule only active from this date
+  isActive: integer('isActive', { mode: 'boolean' }).notNull().default(true),
+  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+  updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+}, (table) => ({
+  userIdIdx: index('TaskSchedule_userId_idx').on(table.userId),
+  pillarIdIdx: index('TaskSchedule_pillarId_idx').on(table.pillarId),
+  goalIdIdx: index('TaskSchedule_goalId_idx').on(table.goalId),
+  periodIdIdx: index('TaskSchedule_periodId_idx').on(table.periodId),
+}));
+
+// Tasks table (concrete per-date instances with completion data)
+export const tasks = sqliteTable('Task', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  scheduleId: integer('scheduleId').references(() => taskSchedules.id, { onDelete: 'set null' }),
+  pillarId: integer('pillarId').references(() => pillars.id, { onDelete: 'set null' }),
+  userId: text('userId').notNull(),
+  name: text('name').notNull(),
+  completionType: text('completionType').notNull().default('checkbox'), // checkbox|count|duration|numeric
+  target: real('target'),
+  unit: text('unit'),
+  flexibilityRule: text('flexibilityRule').notNull().default('must_today'),
+  limitValue: real('limitValue'),
+  basePoints: real('basePoints').notNull().default(10),
+  goalId: integer('goalId').references(() => goals.id, { onDelete: 'set null' }),
+  periodId: integer('periodId').references(() => cycles.id, { onDelete: 'set null' }),
+  date: text('date').notNull(), // YYYY-MM-DD - the specific date this task is for
+  completed: integer('completed', { mode: 'boolean' }).notNull().default(false),
+  value: real('value'),
+  pointsEarned: real('pointsEarned').notNull().default(0),
+  isHighlighted: integer('isHighlighted', { mode: 'boolean' }).notNull().default(false),
+  completedAt: integer('completedAt', { mode: 'timestamp' }),
   isActive: integer('isActive', { mode: 'boolean' }).notNull().default(true),
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
@@ -107,26 +138,9 @@ export const tasks = sqliteTable('Task', {
   pillarIdIdx: index('Task_pillarId_idx').on(table.pillarId),
   goalIdIdx: index('Task_goalId_idx').on(table.goalId),
   periodIdIdx: index('Task_periodId_idx').on(table.periodId),
-}));
-
-// TaskCompletions table
-export const taskCompletions = sqliteTable('TaskCompletion', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  taskId: integer('taskId').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
-  userId: text('userId').notNull(),
-  date: text('date').notNull(), // YYYY-MM-DD
-  completed: integer('completed', { mode: 'boolean' }).notNull().default(false),
-  value: real('value'),
-  pointsEarned: real('pointsEarned').notNull().default(0),
-  isHighlighted: integer('isHighlighted', { mode: 'boolean' }).notNull().default(false),
-  completedAt: integer('completedAt', { mode: 'timestamp' }),
-  updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
-}, (table) => ({
-  userIdIdx: index('TaskCompletion_userId_idx').on(table.userId),
-  taskIdIdx: index('TaskCompletion_taskId_idx').on(table.taskId),
-  dateIdx: index('TaskCompletion_date_idx').on(table.date),
-  userDateIdx: index('TaskCompletion_userId_date_idx').on(table.userId, table.date),
-  taskDateUnique: unique().on(table.taskId, table.date),
+  dateIdx: index('Task_date_idx').on(table.date),
+  userDateIdx: index('Task_userId_date_idx').on(table.userId, table.date),
+  scheduleDateUnique: unique().on(table.scheduleId, table.date),
 }));
 
 // DailyScores table
@@ -153,7 +167,7 @@ export const activityLog = sqliteTable('ActivityLog', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: text('userId').notNull(),
   timestamp: integer('timestamp', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
-  taskId: integer('taskId').references(() => tasks.id, { onDelete: 'set null' }),
+  taskId: integer('taskId'),
   pillarId: integer('pillarId').references(() => pillars.id, { onDelete: 'set null' }),
   action: text('action').notNull(), // complete | reverse | adjust | add | subtract | outcome_log
   previousValue: real('previousValue'),
@@ -198,11 +212,32 @@ export const userPreferencesRelations = relations(userPreferences, ({ one }) => 
 }));
 
 export const pillarsRelations = relations(pillars, ({ many }) => ({
+  taskSchedules: many(taskSchedules),
   tasks: many(tasks),
   goals: many(goals),
 }));
 
-export const tasksRelations = relations(tasks, ({ one, many }) => ({
+export const taskSchedulesRelations = relations(taskSchedules, ({ one, many }) => ({
+  pillar: one(pillars, {
+    fields: [taskSchedules.pillarId],
+    references: [pillars.id],
+  }),
+  outcome: one(goals, {
+    fields: [taskSchedules.goalId],
+    references: [goals.id],
+  }),
+  period: one(cycles, {
+    fields: [taskSchedules.periodId],
+    references: [cycles.id],
+  }),
+  tasks: many(tasks),
+}));
+
+export const tasksRelations = relations(tasks, ({ one }) => ({
+  schedule: one(taskSchedules, {
+    fields: [tasks.scheduleId],
+    references: [taskSchedules.id],
+  }),
   pillar: one(pillars, {
     fields: [tasks.pillarId],
     references: [pillars.id],
@@ -215,26 +250,13 @@ export const tasksRelations = relations(tasks, ({ one, many }) => ({
     fields: [tasks.periodId],
     references: [cycles.id],
   }),
-  completions: many(taskCompletions),
-}));
-
-export const taskCompletionsRelations = relations(taskCompletions, ({ one }) => ({
-  task: one(tasks, {
-    fields: [taskCompletions.taskId],
-    references: [tasks.id],
-  }),
 }));
 
 export const activityLogRelations = relations(activityLog, ({ one }) => ({
-  task: one(tasks, {
-    fields: [activityLog.taskId],
-    references: [tasks.id],
-  }),
   pillar: one(pillars, {
     fields: [activityLog.pillarId],
     references: [pillars.id],
   }),
-
 }));
 
 // Goals table
@@ -269,6 +291,7 @@ export const goals = sqliteTable('Goal', {
 export const goalsRelations = relations(goals, ({ one, many }) => ({
   pillar: one(pillars, { fields: [goals.pillarId], references: [pillars.id] }),
   period: one(cycles, { fields: [goals.periodId], references: [cycles.id] }),
+  linkedSchedules: many(taskSchedules),
   linkedTasks: many(tasks),
 }));
 
@@ -291,8 +314,7 @@ export const cycles = sqliteTable('Cycle', {
 
 // Cycle relations
 export const cyclesRelations = relations(cycles, ({ many }) => ({
+  linkedSchedules: many(taskSchedules),
   linkedTasks: many(tasks),
   linkedGoals: many(goals),
 }));
-
-

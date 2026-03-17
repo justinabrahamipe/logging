@@ -1,59 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
-import { db, tasks, pillars, taskCompletions } from "@/lib/db";
-import { eq, and, asc, inArray } from "drizzle-orm";
-import { isTaskForDate, isOverdueAdhoc } from "@/lib/task-schedule";
-import { ensureUpcomingTasks } from "@/lib/ensure-upcoming-tasks";
+import { db, tasks, taskSchedules, pillars } from "@/lib/db";
+import { eq, and, asc } from "drizzle-orm";
+import { ensureUpcomingTasks, ensureTasksForDate } from "@/lib/ensure-upcoming-tasks";
 
 export async function GET(request: NextRequest) {
   try {
     const userId = await getAuthenticatedUserId();
 
     const date = request.nextUrl.searchParams.get('date');
-    const showAll = request.nextUrl.searchParams.get('all') === 'true';
+    const showAll = request.nextUrl.searchParams.get('all') === 'true' || !date;
 
-    // Ensure upcoming tasks exist for goals with autoCreateTasks
+    // Ensure upcoming task instances exist
     await ensureUpcomingTasks(userId);
 
-    const allTasks = await db
-      .select()
-      .from(tasks)
-      .where(and(eq(tasks.userId, userId), eq(tasks.isActive, true)))
-      .orderBy(asc(tasks.pillarId));
-
-    const todayStr = date || new Date().toISOString().split('T')[0];
-
-    let filteredTasks = allTasks;
+    // If requesting a specific date beyond the 7-day window, generate on-the-fly
     if (date && !showAll) {
-      // For the daily view: scheduled tasks + overdue adhoc tasks
-      filteredTasks = allTasks.filter(t => isTaskForDate(t, date) || isOverdueAdhoc(t, todayStr));
-    }
-
-    // Filter out completed overdue adhoc tasks (they're done, shouldn't reappear)
-    const overdueAdhocIds = filteredTasks
-      .filter(t => isOverdueAdhoc(t, todayStr))
-      .map(t => t.id);
-
-    if (overdueAdhocIds.length > 0) {
-      const completedAdhoc = await db
-        .select({ taskId: taskCompletions.taskId })
-        .from(taskCompletions)
-        .where(and(
-          eq(taskCompletions.userId, userId),
-          inArray(taskCompletions.taskId, overdueAdhocIds),
-          eq(taskCompletions.completed, true),
-        ));
-      const completedSet = new Set(completedAdhoc.map(c => c.taskId));
-      filteredTasks = filteredTasks.filter(t => !completedSet.has(t.id));
-    }
-
-    // Get completions for date if provided
-    let completions: (typeof taskCompletions.$inferSelect)[] = [];
-    if (date) {
-      completions = await db
-        .select()
-        .from(taskCompletions)
-        .where(and(eq(taskCompletions.userId, userId), eq(taskCompletions.date, date)));
+      await ensureTasksForDate(userId, date);
     }
 
     // Get pillars for grouping
@@ -63,23 +26,106 @@ export async function GET(request: NextRequest) {
       .where(and(eq(pillars.userId, userId), eq(pillars.isArchived, false)))
       .orderBy(asc(pillars.sortOrder));
 
-    const completionMap = new Map(completions.map(c => [c.taskId, c]));
+    if (showAll) {
+      // Return all task schedules (for week/month/scheduled views that need client-side bucketing)
+      const allSchedules = await db
+        .select()
+        .from(taskSchedules)
+        .where(and(eq(taskSchedules.userId, userId), eq(taskSchedules.isActive, true)))
+        .orderBy(asc(taskSchedules.pillarId));
+
+      // For the all view, fetch today's completions to attach
+      const todayStr = date || new Date().toISOString().split('T')[0];
+      const todayTasks = await db
+        .select()
+        .from(tasks)
+        .where(and(eq(tasks.userId, userId), eq(tasks.date, todayStr), eq(tasks.isActive, true)));
+
+      const completionBySchedule = new Map(
+        todayTasks.filter(t => t.scheduleId).map(t => [t.scheduleId!, t])
+      );
+
+      const grouped = userPillars.map(pillar => ({
+        pillar,
+        tasks: allSchedules
+          .filter(s => s.pillarId === pillar.id)
+          .map(s => {
+            const taskInstance = completionBySchedule.get(s.id);
+            return {
+              ...s,
+              completion: taskInstance ? {
+                id: taskInstance.id,
+                taskId: taskInstance.id,
+                completed: taskInstance.completed,
+                value: taskInstance.value,
+                pointsEarned: taskInstance.pointsEarned,
+                isHighlighted: taskInstance.isHighlighted,
+              } : null,
+            };
+          }),
+      })).filter(g => g.tasks.length > 0);
+
+      // Add ungrouped schedules (no pillar)
+      const ungrouped = allSchedules
+        .filter(s => !s.pillarId)
+        .map(s => {
+          const taskInstance = completionBySchedule.get(s.id);
+          return {
+            ...s,
+            completion: taskInstance ? {
+              id: taskInstance.id,
+              taskId: taskInstance.id,
+              completed: taskInstance.completed,
+              value: taskInstance.value,
+              pointsEarned: taskInstance.pointsEarned,
+              isHighlighted: taskInstance.isHighlighted,
+            } : null,
+          };
+        });
+
+      if (ungrouped.length > 0) {
+        grouped.push({
+          pillar: { id: 0, userId, name: 'No Pillar', emoji: '📋', color: '#6B7280', weight: 0, description: null, isArchived: false, sortOrder: 999, createdAt: new Date(), updatedAt: new Date() } as typeof userPillars[number],
+          tasks: ungrouped as typeof grouped[number]['tasks'],
+        });
+      }
+
+      return NextResponse.json(grouped);
+    }
+
+    // Date-specific view: return concrete task instances for the date
+    const dateStr = date || new Date().toISOString().split('T')[0];
+    const tasksForDate = await db
+      .select()
+      .from(tasks)
+      .where(and(eq(tasks.userId, userId), eq(tasks.date, dateStr), eq(tasks.isActive, true)))
+      .orderBy(asc(tasks.pillarId));
+
+    // Map tasks to include a completion field for backward compat
+    const tasksWithCompletion = tasksForDate.map(t => ({
+      ...t,
+      // Include schedule fields for client compat (frequency etc. used by getDateBucket)
+      frequency: 'adhoc' as const,
+      customDays: null,
+      repeatInterval: null,
+      startDate: t.date,
+      completion: {
+        id: t.id,
+        taskId: t.id,
+        completed: t.completed,
+        value: t.value,
+        pointsEarned: t.pointsEarned,
+        isHighlighted: t.isHighlighted,
+      },
+    }));
 
     const grouped = userPillars.map(pillar => ({
       pillar,
-      tasks: filteredTasks
-        .filter(t => t.pillarId === pillar.id)
-        .map(t => ({
-          ...t,
-          completion: completionMap.get(t.id) || null,
-        })),
+      tasks: tasksWithCompletion.filter(t => t.pillarId === pillar.id),
     })).filter(g => g.tasks.length > 0);
 
     // Add ungrouped tasks (no pillar)
-    const ungrouped = filteredTasks
-      .filter(t => !t.pillarId)
-      .map(t => ({ ...t, completion: completionMap.get(t.id) || null }));
-
+    const ungrouped = tasksWithCompletion.filter(t => !t.pillarId);
     if (ungrouped.length > 0) {
       grouped.push({
         pillar: { id: 0, userId, name: 'No Pillar', emoji: '📋', color: '#6B7280', weight: 0, description: null, isArchived: false, sortOrder: 999, createdAt: new Date(), updatedAt: new Date() } as typeof userPillars[number],
@@ -116,25 +162,74 @@ export async function POST(request: Request) {
       }
     }
 
-    const [task] = await db.insert(tasks).values({
-      pillarId: pillarId || null,
-      userId,
-      name,
-      completionType: completionType || 'checkbox',
-      target: target ?? null,
-      unit: unit ?? null,
-      flexibilityRule: flexibilityRule || 'must_today',
-      limitValue: limitValue ?? null,
-      frequency: frequency || 'daily',
-      customDays: customDays ?? null,
-      repeatInterval: repeatInterval ?? null,
-      basePoints: basePoints ?? 10,
-      goalId: goalId || null,
-      periodId: periodId || null,
-      startDate: startDate || null,
-    }).returning();
+    const isRecurring = frequency && frequency !== 'adhoc';
 
-    return NextResponse.json(task, { status: 201 });
+    if (isRecurring) {
+      // Create a task schedule for recurring tasks
+      const [schedule] = await db.insert(taskSchedules).values({
+        pillarId: pillarId || null,
+        userId,
+        name,
+        completionType: completionType || 'checkbox',
+        target: target ?? null,
+        unit: unit ?? null,
+        flexibilityRule: flexibilityRule || 'must_today',
+        limitValue: limitValue ?? null,
+        frequency: frequency || 'daily',
+        customDays: customDays ?? null,
+        repeatInterval: repeatInterval ?? null,
+        basePoints: basePoints ?? 10,
+        goalId: goalId || null,
+        periodId: periodId || null,
+        startDate: startDate || null,
+      }).returning();
+
+      // Generate task instances for today + 7 days
+      await ensureUpcomingTasks(userId);
+
+      // Return the schedule formatted like old task response
+      return NextResponse.json(schedule, { status: 201 });
+    } else {
+      // Create a single adhoc task schedule + immediate task instance
+      const taskDate = startDate || new Date().toISOString().split('T')[0];
+
+      const [schedule] = await db.insert(taskSchedules).values({
+        pillarId: pillarId || null,
+        userId,
+        name,
+        completionType: completionType || 'checkbox',
+        target: target ?? null,
+        unit: unit ?? null,
+        flexibilityRule: flexibilityRule || 'must_today',
+        limitValue: limitValue ?? null,
+        frequency: 'adhoc',
+        customDays: null,
+        repeatInterval: null,
+        basePoints: basePoints ?? 10,
+        goalId: goalId || null,
+        periodId: periodId || null,
+        startDate: taskDate,
+      }).returning();
+
+      // Create the concrete task instance
+      const [task] = await db.insert(tasks).values({
+        scheduleId: schedule.id,
+        pillarId: pillarId || null,
+        userId,
+        name,
+        completionType: completionType || 'checkbox',
+        target: target ?? null,
+        unit: unit ?? null,
+        flexibilityRule: flexibilityRule || 'must_today',
+        limitValue: limitValue ?? null,
+        basePoints: basePoints ?? 10,
+        goalId: goalId || null,
+        periodId: periodId || null,
+        date: taskDate,
+      }).returning();
+
+      return NextResponse.json({ ...schedule, taskId: task.id }, { status: 201 });
+    }
   } catch (error) {
     return errorResponse(error);
   }
