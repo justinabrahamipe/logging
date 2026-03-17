@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
-import { db, tasks, pillars, taskCompletions } from "@/lib/db";
+import { db, tasks, pillars } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
 import { calculateDailyScore, getScoreTier } from "@/lib/scoring";
-import { isTaskForDate } from "@/lib/task-schedule";
 import { saveDailyScore } from "@/lib/save-daily-score";
+import { ensureUpcomingTasks, ensureTasksForDate } from "@/lib/ensure-upcoming-tasks";
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,20 +15,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "date parameter is required" }, { status: 400 });
     }
 
-    // Get active tasks
-    const allTasks = await db
+    // Ensure task instances exist for this date
+    await ensureUpcomingTasks(userId);
+    await ensureTasksForDate(userId, date);
+
+    // Get task instances for this date (completion data is on the task row)
+    const tasksForDay = await db
       .select()
       .from(tasks)
-      .where(and(eq(tasks.userId, userId), eq(tasks.isActive, true)));
-
-    // Filter tasks for the specific date
-    const tasksForDay = allTasks.filter(task => isTaskForDate(task, date));
-
-    // Get completions
-    const completions = await db
-      .select()
-      .from(taskCompletions)
-      .where(and(eq(taskCompletions.userId, userId), eq(taskCompletions.date, date)));
+      .where(and(eq(tasks.userId, userId), eq(tasks.date, date), eq(tasks.isActive, true)));
 
     // Get pillars for weights
     const userPillars = await db
@@ -48,11 +43,11 @@ export async function GET(request: NextRequest) {
       limitValue: t.limitValue,
     }));
 
-    const completionsForScoring = completions.map(c => ({
-      taskId: c.taskId,
-      completed: c.completed,
-      value: c.value,
-      isHighlighted: c.isHighlighted,
+    const completionsForScoring = tasksForDay.map(t => ({
+      taskId: t.id,
+      completed: t.completed,
+      value: t.value,
+      isHighlighted: t.isHighlighted,
     }));
 
     const { actionScore, pillarScores } = calculateDailyScore(completionsForScoring, tasksForScoring, pillarWeights);
@@ -79,7 +74,7 @@ export async function GET(request: NextRequest) {
     // Persist daily score to history (includes momentum calculation)
     const saved = await saveDailyScore(userId, date);
 
-    const completedTasks = completions.filter(c => c.completed && tasksForDay.some(t => t.id === c.taskId)).length;
+    const completedTasks = tasksForDay.filter(t => t.completed).length;
 
     return NextResponse.json({
       date,

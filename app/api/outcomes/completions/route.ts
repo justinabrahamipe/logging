@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { db, tasks, taskCompletions } from "@/lib/db";
-import { eq, and, isNotNull, inArray } from "drizzle-orm";
+import { db, tasks } from "@/lib/db";
+import { eq, and, isNotNull } from "drizzle-orm";
 
 export async function GET() {
   const session = await auth();
@@ -9,36 +9,23 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Get all tasks linked to outcomes
-  const linkedTasks = await db
-    .select({ id: tasks.id, goalId: tasks.goalId })
+  // Get all completed tasks linked to goals
+  const completedTasks = await db
+    .select({ id: tasks.id, goalId: tasks.goalId, date: tasks.date })
     .from(tasks)
-    .where(and(eq(tasks.userId, session.user.id), eq(tasks.isActive, true), isNotNull(tasks.goalId)));
-
-  if (linkedTasks.length === 0) return NextResponse.json({});
-
-  // Get completions only for linked task IDs
-  const taskIds = linkedTasks.map(t => t.id);
-  const completions = taskIds.length > 0
-    ? await db
-        .select({ taskId: taskCompletions.taskId, date: taskCompletions.date })
-        .from(taskCompletions)
-        .where(and(
-          eq(taskCompletions.userId, session.user.id),
-          eq(taskCompletions.completed, true),
-          inArray(taskCompletions.taskId, taskIds),
-        ))
-    : [];
+    .where(and(
+      eq(tasks.userId, session.user.id),
+      eq(tasks.isActive, true),
+      eq(tasks.completed, true),
+      isNotNull(tasks.goalId),
+    ));
 
   // Build goalId -> dates map
-  const taskToOutcome = new Map(linkedTasks.map(t => [t.id, t.goalId]));
   const result: Record<number, string[]> = {};
-
-  for (const c of completions) {
-    const goalId = taskToOutcome.get(c.taskId);
-    if (!goalId) continue;
+  for (const t of completedTasks) {
+    const goalId = t.goalId!;
     if (!result[goalId]) result[goalId] = [];
-    result[goalId].push(c.date);
+    result[goalId].push(t.date);
   }
 
   return NextResponse.json(result);

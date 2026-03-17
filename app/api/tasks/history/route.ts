@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
-import { db, tasks, pillars, taskCompletions } from "@/lib/db";
+import { db, tasks, pillars } from "@/lib/db";
 import { eq, and, asc, desc, lt } from "drizzle-orm";
 
 export async function GET(request: NextRequest) {
@@ -11,28 +11,26 @@ export async function GET(request: NextRequest) {
     const specificDate = request.nextUrl.searchParams.get("date");
     const limit = parseInt(request.nextUrl.searchParams.get("limit") || "30");
 
-    // Get past completions (before today) with task and pillar info
+    // Get task instances with their pillar info
     const dateCondition = specificDate
-      ? eq(taskCompletions.date, specificDate)
-      : lt(taskCompletions.date, today);
+      ? eq(tasks.date, specificDate)
+      : lt(tasks.date, today);
 
-    const completions = await db
+    const taskRows = await db
       .select({
-        completion: taskCompletions,
         task: tasks,
         pillar: pillars,
       })
-      .from(taskCompletions)
-      .innerJoin(tasks, eq(taskCompletions.taskId, tasks.id))
+      .from(tasks)
       .leftJoin(pillars, eq(tasks.pillarId, pillars.id))
       .where(
         and(
-          eq(taskCompletions.userId, userId),
+          eq(tasks.userId, userId),
           eq(tasks.isActive, true),
           dateCondition
         )
       )
-      .orderBy(desc(taskCompletions.date), asc(tasks.pillarId))
+      .orderBy(desc(tasks.date), asc(tasks.pillarId))
       .limit(specificDate ? 200 : limit * 20);
 
     // Group by date
@@ -54,8 +52,8 @@ export async function GET(request: NextRequest) {
       }[];
     }>();
 
-    for (const row of completions) {
-      const date = row.completion.date;
+    for (const row of taskRows) {
+      const date = row.task.date;
       if (!dateMap.has(date)) {
         if (dateMap.size >= limit) break;
         dateMap.set(date, { date, tasks: [] });
@@ -70,9 +68,9 @@ export async function GET(request: NextRequest) {
         pillarName: row.pillar?.name || null,
         pillarColor: row.pillar?.color || null,
         pillarEmoji: row.pillar?.emoji || null,
-        completed: row.completion.completed,
-        value: row.completion.value,
-        isHighlighted: row.completion.isHighlighted,
+        completed: row.task.completed,
+        value: row.task.value,
+        isHighlighted: row.task.isHighlighted,
       });
     }
 

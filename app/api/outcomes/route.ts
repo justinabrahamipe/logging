@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
-import { db, goals, pillars, tasks, cycles } from "@/lib/db";
+import { db, goals, pillars, tasks, taskSchedules, cycles } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
 import { countScheduledDaysInRange } from "@/lib/effort-calculations";
 
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     const userId = await getAuthenticatedUserId();
 
     const body = await request.json();
-    const { name, targetValue, unit, pillarId, logFrequency, periodId, goalType, completionType, dailyTarget, scheduleDays, autoCreateTasks, repeatInterval, repeatUnit } = body;
+    const { name, targetValue, unit, pillarId, logFrequency, periodId, goalType, completionType, dailyTarget, scheduleDays, autoCreateTasks } = body;
 
     const isActivityGoal = goalType === 'habitual' || goalType === 'target';
 
@@ -108,9 +108,8 @@ export async function POST(request: Request) {
         ? null
         : (taskCompletionType === 'checkbox' ? null : (dailyTarget || (isHabitual ? null : Math.ceil((targetValue ?? 1) / totalScheduledDays))));
 
-      // Generate individual adhoc tasks for each matching day in the next 7 days
+      // Generate individual adhoc task schedules + instances for each matching day
       const today = new Date();
-      const taskValues = [];
       for (let i = 0; i < 7; i++) {
         const d = new Date(today);
         d.setDate(d.getDate() + i);
@@ -125,14 +124,15 @@ export async function POST(request: Request) {
         const dow = d.getDay();
         if (!scheduleDays.includes(dow)) continue;
 
-        taskValues.push({
+        // Create schedule for this adhoc task
+        const [schedule] = await db.insert(taskSchedules).values({
           userId,
           name,
           pillarId: pillarId || null,
           completionType: taskCompletionType,
           target: taskDailyTarget,
           unit: taskCompletionType === 'checkbox' ? null : (unit || null),
-          frequency: 'adhoc' as const,
+          frequency: 'adhoc',
           customDays: null,
           repeatInterval: null,
           goalId: outcome.id,
@@ -140,11 +140,23 @@ export async function POST(request: Request) {
           startDate: dateStr,
           basePoints: 10,
           flexibilityRule: 'must_today',
-        });
-      }
+        }).returning();
 
-      if (taskValues.length > 0) {
-        await db.insert(tasks).values(taskValues);
+        // Create the concrete task instance
+        await db.insert(tasks).values({
+          scheduleId: schedule.id,
+          userId,
+          name,
+          pillarId: pillarId || null,
+          completionType: taskCompletionType,
+          target: taskDailyTarget,
+          unit: taskCompletionType === 'checkbox' ? null : (unit || null),
+          goalId: outcome.id,
+          periodId: periodId || null,
+          date: dateStr,
+          basePoints: 10,
+          flexibilityRule: 'must_today',
+        });
       }
     }
 

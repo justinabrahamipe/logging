@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
-import { db, taskCompletions } from "@/lib/db";
+import { db, tasks } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
 import { saveDailyScore } from "@/lib/save-daily-score";
 
@@ -17,51 +17,55 @@ export async function POST(request: Request) {
 
     // If highlighting (not un-highlighting), check max 3 per day
     if (isHighlighted) {
-      const dayCompletions = await db
+      const dayTasks = await db
         .select()
-        .from(taskCompletions)
+        .from(tasks)
         .where(and(
-          eq(taskCompletions.userId, userId),
-          eq(taskCompletions.date, date),
-          eq(taskCompletions.isHighlighted, true)
+          eq(tasks.userId, userId),
+          eq(tasks.date, date),
+          eq(tasks.isHighlighted, true)
         ));
 
-      const currentHighlighted = dayCompletions.filter(c => c.taskId !== taskId);
+      const currentHighlighted = dayTasks.filter(t => t.id !== taskId);
       if (currentHighlighted.length >= 3) {
         return NextResponse.json({ error: "Maximum 3 highlighted tasks per day" }, { status: 400 });
       }
     }
 
-    // Check if completion exists
-    const [existing] = await db
+    // Find the task row (try task ID first, then schedule ID + date)
+    let [task] = await db
       .select()
-      .from(taskCompletions)
-      .where(and(eq(taskCompletions.taskId, taskId), eq(taskCompletions.date, date)));
+      .from(tasks)
+      .where(and(eq(tasks.id, taskId), eq(tasks.userId, userId)));
 
-    if (existing) {
-      const [updated] = await db
-        .update(taskCompletions)
-        .set({ isHighlighted: isHighlighted ?? !existing.isHighlighted })
-        .where(eq(taskCompletions.id, existing.id))
-        .returning();
-
-      await saveDailyScore(userId, date);
-      return NextResponse.json(updated);
-    } else {
-      // Create a completion record just for the highlight flag
-      const [created] = await db.insert(taskCompletions).values({
-        taskId,
-        userId,
-        date,
-        completed: false,
-        value: null,
-        pointsEarned: 0,
-        isHighlighted: true,
-      }).returning();
-
-      await saveDailyScore(userId, date);
-      return NextResponse.json(created);
+    if (!task) {
+      [task] = await db
+        .select()
+        .from(tasks)
+        .where(and(eq(tasks.scheduleId, taskId), eq(tasks.date, date), eq(tasks.userId, userId)));
     }
+
+    if (!task) {
+      return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    }
+
+    const [updated] = await db
+      .update(tasks)
+      .set({ isHighlighted: isHighlighted ?? !task.isHighlighted })
+      .where(eq(tasks.id, taskId))
+      .returning();
+
+    await saveDailyScore(userId, date);
+
+    // Return in completion format for backward compat
+    return NextResponse.json({
+      id: updated.id,
+      taskId: updated.id,
+      completed: updated.completed,
+      value: updated.value,
+      pointsEarned: updated.pointsEarned,
+      isHighlighted: updated.isHighlighted,
+    });
   } catch (error) {
     return errorResponse(error);
   }

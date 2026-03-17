@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
-import { db, tasks, taskCompletions, activityLog } from "@/lib/db";
-import { eq, and, desc } from "drizzle-orm";
+import { db, tasks, activityLog } from "@/lib/db";
+import { eq, and } from "drizzle-orm";
 
 export async function POST(request: Request) {
   try {
@@ -14,44 +14,37 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "taskId and date are required" }, { status: 400 });
     }
 
-    // Verify task belongs to user
-    const [task] = await db
+    // Verify task belongs to user (try task ID first, then schedule ID + date)
+    let [task] = await db
       .select()
       .from(tasks)
       .where(and(eq(tasks.id, taskId), eq(tasks.userId, userId), eq(tasks.isActive, true)));
 
     if (!task) {
+      [task] = await db
+        .select()
+        .from(tasks)
+        .where(and(eq(tasks.scheduleId, taskId), eq(tasks.date, date), eq(tasks.userId, userId), eq(tasks.isActive, true)));
+    }
+
+    if (!task) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
 
-    // Fetch current completion
-    const [existing] = await db
-      .select()
-      .from(taskCompletions)
-      .where(and(eq(taskCompletions.taskId, taskId), eq(taskCompletions.date, date)));
-
-    if (!existing || !existing.completed) {
+    if (!task.completed) {
       return NextResponse.json({ error: "No completion to undo" }, { status: 400 });
     }
 
-    // Find the most recent activity log entry for this task+date to reference
-    const [lastLog] = await db
-      .select()
-      .from(activityLog)
-      .where(and(eq(activityLog.taskId, taskId), eq(activityLog.userId, userId)))
-      .orderBy(desc(activityLog.id))
-      .limit(1);
-
-    // Reset completion
+    // Reset completion on the task row directly
     const [result] = await db
-      .update(taskCompletions)
+      .update(tasks)
       .set({
         completed: false,
         value: 0,
         pointsEarned: 0,
         completedAt: null,
       })
-      .where(eq(taskCompletions.id, existing.id))
+      .where(eq(tasks.id, taskId))
       .returning();
 
     // Create reversal activity log entry
@@ -60,16 +53,24 @@ export async function POST(request: Request) {
       taskId: task.id,
       pillarId: task.pillarId,
       action: 'reverse',
-      previousValue: existing.value,
+      previousValue: task.value,
       newValue: 0,
-      delta: -(existing.value ?? 0),
-      pointsBefore: existing.pointsEarned,
+      delta: -(task.value ?? 0),
+      pointsBefore: task.pointsEarned,
       pointsAfter: 0,
-      pointsDelta: -existing.pointsEarned,
+      pointsDelta: -task.pointsEarned,
       source: 'manual',
     });
 
-    return NextResponse.json(result);
+    // Return in completion format for backward compat
+    return NextResponse.json({
+      id: result.id,
+      taskId: result.id,
+      completed: result.completed,
+      value: result.value,
+      pointsEarned: result.pointsEarned,
+      isHighlighted: result.isHighlighted,
+    });
   } catch (error) {
     return errorResponse(error);
   }

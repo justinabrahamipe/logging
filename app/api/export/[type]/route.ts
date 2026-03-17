@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
-import { db, pillars, tasks, taskCompletions } from "@/lib/db";
+import { db, pillars, tasks, taskSchedules } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
 
 export async function GET(
@@ -26,7 +26,8 @@ export async function GET(
       }
 
       case "tasks": {
-        const data = await db.select().from(tasks).where(and(eq(tasks.userId, userId), eq(tasks.isActive, true)));
+        // Export task schedules (the recurring definitions)
+        const data = await db.select().from(taskSchedules).where(and(eq(taskSchedules.userId, userId), eq(taskSchedules.isActive, true)));
         csvData = "Name,Pillar ID,Completion Type,Target,Unit,Frequency,Base Points,Active\n";
         data.forEach((t) => {
           csvData += `"${t.name}",${t.pillarId},"${t.completionType}",${t.target || ""},"${t.unit || ""}","${t.frequency}",${t.basePoints},${t.isActive}\n`;
@@ -35,10 +36,11 @@ export async function GET(
       }
 
       case "completions": {
-        const data = await db.select().from(taskCompletions).where(eq(taskCompletions.userId, userId));
-        csvData = "Task ID,Date,Completed,Value,Points Earned\n";
-        data.forEach((c) => {
-          csvData += `${c.taskId},"${c.date}",${c.completed},${c.value || ""},${c.pointsEarned}\n`;
+        // Export task instances (concrete per-date data with completion)
+        const data = await db.select().from(tasks).where(eq(tasks.userId, userId));
+        csvData = "Task ID,Schedule ID,Date,Completed,Value,Points Earned\n";
+        data.forEach((t) => {
+          csvData += `${t.id},${t.scheduleId || ""},"${t.date}",${t.completed},${t.value || ""},${t.pointsEarned}\n`;
         });
         break;
       }

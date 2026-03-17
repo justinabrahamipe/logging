@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
-import { db, tasks, taskCompletions, activityLog, goals } from "@/lib/db";
+import { db, tasks, activityLog, goals } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
 import { calculateTaskScore } from "@/lib/scoring";
 import { saveDailyScore } from "@/lib/save-daily-score";
@@ -16,11 +16,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "taskId and date are required" }, { status: 400 });
     }
 
-    // Verify task belongs to user
-    const [task] = await db
+    // Verify task belongs to user (try as task instance ID first, then as schedule ID + date)
+    let [task] = await db
       .select()
       .from(tasks)
       .where(and(eq(tasks.id, taskId), eq(tasks.userId, userId), eq(tasks.isActive, true)));
+
+    if (!task) {
+      // Fall back: taskId might be a schedule ID — find the task instance for that schedule + date
+      [task] = await db
+        .select()
+        .from(tasks)
+        .where(and(eq(tasks.scheduleId, taskId), eq(tasks.date, date), eq(tasks.userId, userId), eq(tasks.isActive, true)));
+    }
 
     if (!task) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
@@ -35,42 +43,24 @@ export async function POST(request: Request) {
       { taskId: task.id, completed: isCompleted, value: completionValue }
     );
 
-    // Check existing completion
-    const [existing] = await db
-      .select()
-      .from(taskCompletions)
-      .where(and(eq(taskCompletions.taskId, taskId), eq(taskCompletions.date, date)));
+    const previousValue = task.value ?? null;
+    const pointsBefore = task.pointsEarned ?? 0;
 
-    const previousValue = existing?.value ?? null;
-    const pointsBefore = existing?.pointsEarned ?? 0;
-
-    let result;
-    if (existing) {
-      [result] = await db
-        .update(taskCompletions)
-        .set({
-          completed: isCompleted,
-          value: completionValue,
-          pointsEarned,
-          completedAt: isCompleted ? new Date() : null,
-        })
-        .where(eq(taskCompletions.id, existing.id))
-        .returning();
-    } else {
-      [result] = await db.insert(taskCompletions).values({
-        taskId,
-        userId,
-        date,
+    // Update the task row directly (completion data lives on the task)
+    const [result] = await db
+      .update(tasks)
+      .set({
         completed: isCompleted,
         value: completionValue,
         pointsEarned,
         completedAt: isCompleted ? new Date() : null,
-      }).returning();
-    }
+      })
+      .where(eq(tasks.id, taskId))
+      .returning();
 
     // Determine action type
     let action = 'complete';
-    if (existing) {
+    if (previousValue !== null) {
       if (completionValue > (previousValue ?? 0)) action = 'add';
       else if (completionValue < (previousValue ?? 0)) action = 'subtract';
       else action = 'adjust';
@@ -126,7 +116,15 @@ export async function POST(request: Request) {
     // Recalculate and save daily score
     await saveDailyScore(userId, date);
 
-    return NextResponse.json(result);
+    // Return in completion format for backward compat
+    return NextResponse.json({
+      id: result.id,
+      taskId: result.id,
+      completed: result.completed,
+      value: result.value,
+      pointsEarned: result.pointsEarned,
+      isHighlighted: result.isHighlighted,
+    });
   } catch (error) {
     return errorResponse(error);
   }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
-import { db, goals, pillars, tasks, taskCompletions } from "@/lib/db";
+import { db, goals, pillars, tasks } from "@/lib/db";
 import { eq, and, isNotNull, inArray } from "drizzle-orm";
 import { calculateMomentum, calculateTrajectory } from "@/lib/momentum";
 
@@ -22,27 +22,26 @@ export async function GET() {
         .where(and(eq(pillars.userId, userId), eq(pillars.isArchived, false))),
     ]);
 
-    // Get logs from TaskCompletions joined with Tasks
+    // Get logs from completed tasks linked to goals
     const goalIds = userGoals.map(g => g.id);
     let logs: { outcomeId: number; value: number; loggedAt: string }[] = [];
     if (goalIds.length > 0) {
-      const allCompletions = await db
+      const allGoalTasks = await db
         .select({
           goalId: tasks.goalId,
-          value: taskCompletions.value,
-          date: taskCompletions.date,
+          value: tasks.value,
+          date: tasks.date,
         })
-        .from(taskCompletions)
-        .innerJoin(tasks, eq(taskCompletions.taskId, tasks.id))
+        .from(tasks)
         .where(and(
-          eq(taskCompletions.userId, userId),
-          eq(taskCompletions.completed, true),
+          eq(tasks.userId, userId),
+          eq(tasks.completed, true),
           eq(tasks.isActive, true),
           isNotNull(tasks.goalId),
           inArray(tasks.goalId, goalIds),
         ));
 
-      logs = allCompletions.map(c => ({
+      logs = allGoalTasks.map(c => ({
         outcomeId: c.goalId!,
         value: c.value ?? 0,
         loggedAt: c.date + "T12:00:00.000Z",

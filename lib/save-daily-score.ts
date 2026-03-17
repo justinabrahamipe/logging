@@ -1,23 +1,14 @@
-import { db, tasks, pillars, taskCompletions, dailyScores, goals } from "@/lib/db";
+import { db, tasks, pillars, dailyScores, goals } from "@/lib/db";
 import { eq, and, isNotNull } from "drizzle-orm";
 import { calculateDailyScore, getScoreTier } from "@/lib/scoring";
-import { isTaskForDate } from "@/lib/task-schedule";
 import { calculateMomentum } from "@/lib/momentum";
 
 export async function saveDailyScore(userId: string, date: string) {
-  // Get active tasks for this date
-  const allTasks = await db
+  // Get task instances for this date (completion data is on the task row)
+  const tasksForDay = await db
     .select()
     .from(tasks)
-    .where(and(eq(tasks.userId, userId), eq(tasks.isActive, true)));
-
-  const tasksForDay = allTasks.filter(task => isTaskForDate(task, date));
-
-  // Get completions
-  const completions = await db
-    .select()
-    .from(taskCompletions)
-    .where(and(eq(taskCompletions.userId, userId), eq(taskCompletions.date, date)));
+    .where(and(eq(tasks.userId, userId), eq(tasks.date, date), eq(tasks.isActive, true)));
 
   // Get pillars for weights
   const userPillars = await db
@@ -37,16 +28,17 @@ export async function saveDailyScore(userId: string, date: string) {
     limitValue: t.limitValue,
   }));
 
-  const completionsForScoring = completions.map(c => ({
-    taskId: c.taskId,
-    completed: c.completed,
-    value: c.value,
-    isHighlighted: c.isHighlighted,
+  const completionsForScoring = tasksForDay.map(t => ({
+    taskId: t.id,
+    completed: t.completed,
+    value: t.value,
+    isHighlighted: t.isHighlighted,
   }));
 
   const { actionScore, pillarScores } = calculateDailyScore(completionsForScoring, tasksForScoring, pillarWeights);
   const tier = getScoreTier(actionScore);
   const isPassing = tier !== 'Poor' && tier !== 'Needs Work';
+
   // Calculate momentum from goals
   const userGoals = await db
     .select()
@@ -57,25 +49,23 @@ export async function saveDailyScore(userId: string, date: string) {
   let pillarMomentumJson: string | null = null;
 
   if (userGoals.length > 0) {
-    const goalIds = userGoals.map(g => g.id);
-
-    // Query TaskCompletions joined with Tasks where task has a goalId
-    const allCompletions = await db
+    // Get all completed tasks linked to goals
+    const allGoalTasks = await db
       .select({
         goalId: tasks.goalId,
-        value: taskCompletions.value,
-        date: taskCompletions.date,
+        value: tasks.value,
+        date: tasks.date,
       })
-      .from(taskCompletions)
-      .innerJoin(tasks, eq(taskCompletions.taskId, tasks.id))
+      .from(tasks)
       .where(and(
-        eq(taskCompletions.userId, userId),
-        eq(taskCompletions.completed, true),
+        eq(tasks.userId, userId),
+        eq(tasks.completed, true),
         eq(tasks.isActive, true),
         isNotNull(tasks.goalId),
       ));
 
-    const logsForMomentum = allCompletions
+    const goalIds = userGoals.map(g => g.id);
+    const logsForMomentum = allGoalTasks
       .filter(c => goalIds.includes(c.goalId!))
       .map(c => ({
         outcomeId: c.goalId!,

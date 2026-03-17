@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
-import { db, goals, tasks } from "@/lib/db";
+import { db, goals, tasks, taskSchedules } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -55,10 +55,13 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     const { id } = await params;
     const outcomeId = parseInt(id);
 
-    // Delete all tasks linked to this goal first
+    // Delete all tasks and schedules linked to this goal
     await db
       .delete(tasks)
       .where(and(eq(tasks.goalId, outcomeId), eq(tasks.userId, userId)));
+    await db
+      .delete(taskSchedules)
+      .where(and(eq(taskSchedules.goalId, outcomeId), eq(taskSchedules.userId, userId)));
 
     const deleted = await db
       .delete(goals)
