@@ -11,6 +11,7 @@ const TABLES_TO_DELETE = [
   "Cycle",
   "Goal",
   "Task",
+  "TaskSchedule",
   "Pillar",
   "UserPreferences",
 ];
