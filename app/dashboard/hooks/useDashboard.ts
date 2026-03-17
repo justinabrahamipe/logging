@@ -104,6 +104,8 @@ export function useDashboard() {
       if (noData && !seedingRef.current && !skipSeed) {
         seedingRef.current = true;
         setSeeding(true);
+        // Clear stale filters from previous account
+        localStorage.removeItem('tasks-filters');
         const seedRes = await fetch("/api/seed", { method: "POST" });
         if (seedRes.ok) {
           const result = await seedRes.json();

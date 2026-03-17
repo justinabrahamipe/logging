@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
 import { db, tasks, taskSchedules, pillars } from "@/lib/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, asc } from "drizzle-orm";
 import { ensureUpcomingTasks, ensureTasksForDate } from "@/lib/ensure-upcoming-tasks";
 
 export async function GET(request: NextRequest) {

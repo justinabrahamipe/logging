@@ -146,8 +146,6 @@ export function useTasksPage() {
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          // Keep date and status filters, but clear pillar/goal IDs
-          // (they may reference old data from a different account)
           return {
             date: parsed.date || { type: 'today' },
             status: parsed.status || 'all',
