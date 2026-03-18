@@ -26,7 +26,6 @@ export function useGoals() {
       setAllGoals(DEMO_OUTCOMES.map(o => ({
         ...o,
         periodId: null,
-        logFrequency: "daily",
         scheduleDays: null,
         autoCreateTasks: false,
         pillarName: DEMO_PILLARS.find(p => p.id === o.pillarId)?.name || null,

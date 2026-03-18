@@ -99,16 +99,15 @@ interface GoalSeed {
   currentValue: number;
   dailyTarget?: number;
   scheduleDays?: number[];
-  logFrequency: string;
 }
 
 const DEFAULT_GOALS: GoalSeed[] = [
-  { name: 'Lose 10kg', pillarIndex: 0, goalType: 'outcome', completionType: 'numeric', unit: 'kg', direction: 'down', startValue: 95, targetValue: 85, currentValue: 91.2, logFrequency: 'weekly' },
-  { name: 'Run 5K without stopping', pillarIndex: 0, goalType: 'target', completionType: 'numeric', unit: 'km', direction: 'up', startValue: 0, targetValue: 5, currentValue: 3.2, logFrequency: 'weekly' },
-  { name: 'Read 12 books this year', pillarIndex: 4, goalType: 'target', completionType: 'count', unit: 'books', direction: 'up', startValue: 0, targetValue: 12, currentValue: 4, logFrequency: 'weekly' },
-  { name: 'Meditate daily', pillarIndex: 4, goalType: 'habitual', completionType: 'checkbox', unit: 'sessions', direction: 'up', startValue: 0, targetValue: 90, currentValue: 38, dailyTarget: 1, scheduleDays: [1, 2, 3, 4, 5, 6, 0], logFrequency: 'daily' },
-  { name: 'Ship MVP product', pillarIndex: 2, goalType: 'target', completionType: 'numeric', unit: '% complete', direction: 'up', startValue: 0, targetValue: 100, currentValue: 65, logFrequency: 'weekly' },
-  { name: 'Apply to 50 jobs', pillarIndex: 1, goalType: 'target', completionType: 'count', unit: 'applications', direction: 'up', startValue: 0, targetValue: 50, currentValue: 22, logFrequency: 'daily' },
+  { name: 'Lose 10kg', pillarIndex: 0, goalType: 'outcome', completionType: 'numeric', unit: 'kg', direction: 'down', startValue: 95, targetValue: 85, currentValue: 91.2 },
+  { name: 'Run 5K without stopping', pillarIndex: 0, goalType: 'target', completionType: 'numeric', unit: 'km', direction: 'up', startValue: 0, targetValue: 5, currentValue: 3.2 },
+  { name: 'Read 12 books this year', pillarIndex: 4, goalType: 'target', completionType: 'count', unit: 'books', direction: 'up', startValue: 0, targetValue: 12, currentValue: 4 },
+  { name: 'Meditate daily', pillarIndex: 4, goalType: 'habitual', completionType: 'checkbox', unit: 'sessions', direction: 'up', startValue: 0, targetValue: 90, currentValue: 38, dailyTarget: 1, scheduleDays: [1, 2, 3, 4, 5, 6, 0] },
+  { name: 'Ship MVP product', pillarIndex: 2, goalType: 'target', completionType: 'numeric', unit: '% complete', direction: 'up', startValue: 0, targetValue: 100, currentValue: 65 },
+  { name: 'Apply to 50 jobs', pillarIndex: 1, goalType: 'target', completionType: 'count', unit: 'applications', direction: 'up', startValue: 0, targetValue: 50, currentValue: 22 },
 ];
 
 // ── Helpers ──
@@ -230,7 +229,6 @@ export async function seedDefaultData(userId: string, skipCheck = false) {
       currentValue: goalData.currentValue,
       dailyTarget: goalData.dailyTarget ?? null,
       scheduleDays: goalData.scheduleDays ? JSON.stringify(goalData.scheduleDays) : null,
-      logFrequency: goalData.logFrequency,
       startDate: dateStr(cycleStartDate),
       targetDate: dateStr(cycleEndDate),
       periodId: activeCycle.id,

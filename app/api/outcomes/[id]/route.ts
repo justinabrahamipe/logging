@@ -26,7 +26,6 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (body.targetValue !== undefined) updateData.targetValue = body.targetValue;
     if (body.unit !== undefined) updateData.unit = body.unit;
     if (body.direction !== undefined) updateData.direction = body.direction;
-    if (body.logFrequency !== undefined) updateData.logFrequency = body.logFrequency;
     if (body.startDate !== undefined) updateData.startDate = body.startDate || null;
     if (body.targetDate !== undefined) updateData.targetDate = body.targetDate || null;
     if (body.periodId !== undefined) updateData.periodId = body.periodId || null;

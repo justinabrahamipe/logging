@@ -62,7 +62,6 @@ export default function GoalsPage() {
           targetValue: outcome.targetValue,
           unit: outcome.unit,
           pillarId: outcome.pillarId,
-          logFrequency: outcome.logFrequency,
           periodId: cycleId,
           goalType: outcome.goalType,
           completionType: outcome.completionType,

@@ -19,7 +19,6 @@ export async function GET() {
         currentValue: goals.currentValue,
         unit: goals.unit,
         direction: goals.direction,
-        logFrequency: goals.logFrequency,
         startDate: goals.startDate,
         targetDate: goals.targetDate,
         periodId: goals.periodId,
@@ -51,7 +50,7 @@ export async function POST(request: Request) {
     const userId = await getAuthenticatedUserId();
 
     const body = await request.json();
-    const { name, targetValue, unit, pillarId, logFrequency, periodId, goalType, completionType, dailyTarget, scheduleDays, autoCreateTasks, flexibilityRule, limitValue } = body;
+    const { name, targetValue, unit, pillarId, periodId, goalType, completionType, dailyTarget, scheduleDays, autoCreateTasks, flexibilityRule, limitValue } = body;
 
     const isActivityGoal = goalType === 'habitual' || goalType === 'target';
 
@@ -86,7 +85,6 @@ export async function POST(request: Request) {
       unit: unit || 'days',
       direction,
       pillarId: pillarId || null,
-      logFrequency: logFrequency || (isActivityGoal ? 'daily' : 'weekly'),
       startDate: effectiveStartDate,
       targetDate: effectiveTargetDate,
       periodId: periodId || null,

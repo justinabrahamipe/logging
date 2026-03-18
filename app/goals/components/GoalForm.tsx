@@ -13,7 +13,6 @@ const DEFAULT_FORM: GoalFormState = {
   targetValue: "",
   unit: "",
   pillarId: "",
-  logFrequency: "weekly",
   startDate: "",
   targetDate: "",
   periodId: "",
@@ -66,7 +65,6 @@ export default function GoalForm({
         targetValue: String(editingOutcome.targetValue),
         unit: editingOutcome.unit,
         pillarId: editingOutcome.pillarId ? String(editingOutcome.pillarId) : "",
-        logFrequency: editingOutcome.logFrequency,
         startDate: editingOutcome.startDate || "",
         targetDate: editingOutcome.targetDate || "",
         periodId: editingOutcome.periodId ? String(editingOutcome.periodId) : "",
@@ -83,10 +81,15 @@ export default function GoalForm({
       };
     }
     const goalType = defaultGoalType || "outcome";
+    const todayStr = new Date().toISOString().split('T')[0];
+    const activeCycle = cycles.find(c => c.startDate <= todayStr && c.endDate >= todayStr);
     return {
       ...DEFAULT_FORM,
       goalType,
       completionType: goalType === "target" ? "count" : goalType === "outcome" ? "numeric" : "checkbox",
+      periodId: activeCycle ? String(activeCycle.id) : "",
+      startDate: activeCycle ? activeCycle.startDate : "",
+      targetDate: activeCycle ? activeCycle.endDate : "",
     };
   });
 
@@ -109,7 +112,6 @@ export default function GoalForm({
 
     if ((isTarget || isOutcome) && form.targetValue === "") return;
     if (isOutcome && form.startValue === "") return;
-    if (!form.periodId) return;
     if (!isHabitual && !form.unit.trim()) return;
 
     const start = isOutcome ? parseFloat(form.startValue) : 0;
@@ -122,7 +124,6 @@ export default function GoalForm({
       unit: isHabitual ? (form.unit || "days") : form.unit,
       direction: isOutcome ? (target >= start ? "increase" : "decrease") : "increase",
       pillarId: form.pillarId ? parseInt(form.pillarId) : null,
-      logFrequency: isOutcome ? form.logFrequency : "daily",
       startDate: form.startDate || null,
       targetDate: form.targetDate || null,
       periodId: form.periodId ? parseInt(form.periodId) : null,
@@ -302,7 +303,7 @@ export default function GoalForm({
 
       {/* Row 2: Pillar + Values/Unit — varies by goal type */}
       {form.goalType === "outcome" && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           <div>
             <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Start Value</label>
             <input
@@ -334,18 +335,6 @@ export default function GoalForm({
               className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
               placeholder="e.g., kg"
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Log Frequency</label>
-            <select
-              value={form.logFrequency}
-              onChange={(e) => setForm({ ...form, logFrequency: e.target.value })}
-              className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
-            >
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
-              <option value="custom">Custom</option>
-            </select>
           </div>
         </div>
       )}
@@ -475,7 +464,7 @@ export default function GoalForm({
       {/* Row 4: Cycle + Start Date + Target Date */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div>
-          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Goal Cycle (required)</label>
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Goal Cycle</label>
           <select
             value={form.periodId}
             onChange={(e) => {

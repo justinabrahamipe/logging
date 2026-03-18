@@ -56,7 +56,6 @@ export interface Outcome {
   currentValue: number;
   unit: string;
   direction: string;
-  logFrequency: string;
   startDate: string | null;
   targetDate: string | null;
   goalType: string;
@@ -340,7 +339,6 @@ export interface GoalFormState {
   targetValue: string;
   unit: string;
   pillarId: string;
-  logFrequency: string;
   startDate: string;
   targetDate: string;
   periodId: string;
