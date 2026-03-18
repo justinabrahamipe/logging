@@ -132,19 +132,36 @@ export default function TaskItem({
           </button>
         )}
         <div className="flex-1 min-w-0">
-          <h3 className={`text-sm font-semibold leading-snug ${isDiscarded ? 'line-through text-zinc-400 dark:text-zinc-500 italic' : isFullyDone ? 'line-through text-zinc-400 dark:text-zinc-500' : 'text-zinc-900 dark:text-white'}`}>
-            {task.name}
-          </h3>
+          <div className="flex items-center gap-1.5">
+            <h3 className={`text-sm font-semibold leading-snug ${isDiscarded ? 'line-through text-zinc-400 dark:text-zinc-500 italic' : isFullyDone ? 'line-through text-zinc-400 dark:text-zinc-500' : 'text-zinc-900 dark:text-white'}`}>
+              {task.name}
+            </h3>
+            {task.completion && (task.completion.completed || (task.completion.value != null && task.completion.value !== 0)) && (() => {
+              const rawPts = task.completion.pointsEarned;
+              const pts = Number.isInteger(rawPts) ? rawPts : parseFloat(rawPts.toFixed(1));
+              const base = task.basePoints;
+              const color = pts >= base
+                ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
+                : pts < 0
+                ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400'
+                : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400';
+              return (
+                <span className={`shrink-0 text-[9px] font-bold w-auto min-w-[1.5rem] h-[1.1rem] px-1 rounded-full flex items-center justify-center ${color}`}>
+                  {pts}/{base}
+                </span>
+              );
+            })()}
+          </div>
           <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
             <span className="text-[11px] text-zinc-500 dark:text-zinc-400 shrink-0">{task._pillarEmoji} {task._pillarName}</span>
             {isLimitTask && task.completionType !== 'checkbox' && (
-              <span className="text-[10px] px-1.5 py-px rounded-full font-medium bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">
-                Limit
+              <span title="Limit" className="text-[10px] w-4 h-4 rounded-full font-bold inline-flex items-center justify-center bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">
+                L
               </span>
             )}
             {!isLimitTask && task.completionType !== 'checkbox' && task.target != null && task.target > 0 && (
-              <span className="text-[10px] px-1.5 py-px rounded-full font-medium bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
-                Target
+              <span title="Target" className="text-[10px] w-4 h-4 rounded-full font-bold inline-flex items-center justify-center bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+                T
               </span>
             )}
             {task.periodId && cycles.find(c => c.id === task.periodId) && (
@@ -155,20 +172,6 @@ export default function TaskItem({
             {showDate && (
               <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{showDate}</span>
             )}
-            {task.completion && (task.completion.completed || (task.completion.value != null && task.completion.value !== 0)) && (() => {
-              const pts = task.completion.pointsEarned;
-              const base = task.basePoints;
-              const color = pts >= base
-                ? 'text-green-600 dark:text-green-400'
-                : pts < 0
-                ? 'text-red-600 dark:text-red-400'
-                : 'text-zinc-500 dark:text-zinc-400';
-              return (
-                <span className={`text-[10px] px-1.5 py-px rounded-full font-medium bg-zinc-100 dark:bg-zinc-700 ${color}`}>
-                  {pts}/{base} pts
-                </span>
-              );
-            })()}
           </div>
           {task.frequency !== 'daily' && task.frequency !== 'adhoc' && (
             <div className="mt-0.5">
