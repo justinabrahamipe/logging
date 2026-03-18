@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
 import { db, tasks, taskSchedules, goals } from "@/lib/db";
 import { invalidateTaskCache } from "@/lib/ensure-upcoming-tasks";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or, gt } from "drizzle-orm";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -199,7 +199,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
 
     // Recalculate linked goal's currentValue after task deletion
     const deletedTask = deleted[0];
-    if (deletedTask.goalId && deletedTask.completed && (deletedTask.value ?? 0) > 0) {
+    if (deletedTask.goalId && (deletedTask.completed || (deletedTask.value ?? 0) > 0)) {
       try {
         const [linkedGoal] = await db
           .select()
@@ -210,7 +210,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
           const remaining = await db
             .select({ value: tasks.value })
             .from(tasks)
-            .where(and(eq(tasks.goalId, deletedTask.goalId), eq(tasks.completed, true)));
+            .where(and(eq(tasks.goalId, deletedTask.goalId), or(eq(tasks.completed, true), gt(tasks.value, 0))));
           const newTotal = remaining.reduce((sum, t) => sum + (t.value ?? 0), 0);
           await db
             .update(goals)

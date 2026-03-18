@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
 import { db, tasks, activityLog, goals } from "@/lib/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or, gt } from "drizzle-orm";
 import { calculateTaskScore } from "@/lib/scoring";
 import { saveDailyScore } from "@/lib/save-daily-score";
 
@@ -102,12 +102,12 @@ export async function POST(request: Request) {
             // For outcome goals (e.g., weight), value is absolute — use latest
             newTotal = isCompleted && completionValue > 0 ? completionValue : linkedGoal.currentValue;
           } else {
-            // For target/habitual goals, recalculate from all completed tasks
-            const allCompleted = await db
+            // For target/habitual goals, recalculate from all tasks with progress
+            const allWithProgress = await db
               .select({ value: tasks.value })
               .from(tasks)
-              .where(and(eq(tasks.goalId, task.goalId), eq(tasks.completed, true)));
-            newTotal = allCompleted.reduce((sum, t) => sum + (t.value ?? 0), 0);
+              .where(and(eq(tasks.goalId, task.goalId), or(eq(tasks.completed, true), gt(tasks.value, 0))));
+            newTotal = allWithProgress.reduce((sum, t) => sum + (t.value ?? 0), 0);
           }
 
           await db
