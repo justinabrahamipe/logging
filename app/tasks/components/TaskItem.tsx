@@ -187,7 +187,7 @@ export default function TaskItem({
 
             {task.completionType === 'duration' && (() => {
               const timer = timers[task.id];
-              const elapsed = timer?.elapsed || (currentValue * 60);
+              const elapsed = timer ? timer.elapsed : (currentValue * 60);
               const targetSec = (task.target || 0) * 60;
               const isRunning = timer?.running || false;
               const done = targetSec > 0 && elapsed >= targetSec;

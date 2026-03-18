@@ -461,10 +461,11 @@ export function useTasksPage() {
   const handleTimerToggle = (task: Task) => {
     const timer = timers[task.id];
     if (timer?.running) {
-      // Pause: save progress but keep elapsed time for resuming
+      // Pause: save progress, only mark complete if target reached
       clearInterval(timer.interval);
       const minutes = Math.round(timer.elapsed / 60);
-      handleComplete(task.id, minutes > 0, minutes);
+      const targetReached = task.target ? timer.elapsed >= task.target * 60 : minutes > 0;
+      handleComplete(task.id, targetReached, minutes);
       setTimers(prev => ({ ...prev, [task.id]: { running: false, elapsed: timer.elapsed } }));
     } else {
       // Resume: continue from current elapsed time
@@ -477,8 +478,12 @@ export function useTasksPage() {
     const raw = pendingValues[task.id];
     if (raw === undefined) return;
     const minutes = parseFloat(raw) || 0;
-    setTimers(prev => ({ ...prev, [task.id]: { running: false, elapsed: minutes * 60 } }));
-    handleComplete(task.id, minutes > 0, minutes);
+    const elapsedSec = minutes * 60;
+    // Update elapsed time without starting timer
+    setTimers(prev => ({ ...prev, [task.id]: { running: false, elapsed: elapsedSec } }));
+    // Only mark complete if target is reached
+    const targetReached = task.target ? elapsedSec >= task.target * 60 : minutes > 0;
+    handleComplete(task.id, targetReached, minutes);
     setPendingValues(prev => { const next = { ...prev }; delete next[task.id]; return next; });
   };
 
