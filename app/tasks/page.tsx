@@ -61,27 +61,7 @@ export default function TasksPage() {
     getScheduleLabel,
   } = hook;
 
-  if (loading) {
-    return (
-      <div className="container mx-auto px-4 py-4 md:py-8 max-w-2xl">
-        <div className="h-8 w-32 bg-zinc-200 dark:bg-zinc-700 rounded-lg animate-pulse mb-6" />
-        <div className="h-10 bg-zinc-200 dark:bg-zinc-700 rounded-lg animate-pulse mb-4" />
-        <div className="space-y-3">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex-1 space-y-2">
-                  <div className="h-4 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse w-3/4" />
-                  <div className="h-3 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse w-1/3" />
-                </div>
-                <div className="w-7 h-7 bg-zinc-200 dark:bg-zinc-700 rounded-md animate-pulse" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
+  if (loading) return null;
 
   // Build enriched + sorted task list
   const allEnrichedTasks: EnrichedTask[] = groups.flatMap((group) =>
@@ -183,8 +163,18 @@ export default function TasksPage() {
             getScheduleLabel={getScheduleLabel}
           />
         ) : refreshing ? (
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-zinc-900 dark:border-white mx-auto"></div>
+          <div className="space-y-3">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse w-3/4" />
+                    <div className="h-3 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse w-1/3" />
+                  </div>
+                  <div className="w-7 h-7 bg-zinc-200 dark:bg-zinc-700 rounded-md animate-pulse" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : displayTasks.length === 0 ? (
           <div className="text-center py-8 text-zinc-500 dark:text-zinc-400">
