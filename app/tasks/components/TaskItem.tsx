@@ -2,7 +2,7 @@
 
 import { useRef, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaPlus, FaEdit, FaTrash, FaCheck, FaMinus, FaPlay, FaStop, FaEllipsisV, FaCopy, FaStar, FaTimes, FaArrowLeft, FaArrowRight } from "react-icons/fa";
+import { FaPlus, FaEdit, FaTrash, FaCheck, FaMinus, FaPlay, FaPause, FaStop, FaEllipsisV, FaCopy, FaStar, FaTimes, FaArrowLeft, FaArrowRight } from "react-icons/fa";
 import { DAY_NAMES } from "@/lib/constants";
 import type { Task, Outcome, Cycle } from "@/lib/types";
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
@@ -185,45 +185,56 @@ export default function TaskItem({
               </div>
             )}
 
-            {task.completionType === 'duration' && (
-              <div className="flex items-center gap-1">
-                {timers[task.id]?.running ? (
-                  <span className="text-xs font-mono text-zinc-700 dark:text-zinc-300 w-12 text-center">
-                    {formatTime(timers[task.id].elapsed)}
-                  </span>
-                ) : (
-                  <>
-                    <input
-                      type="number"
-                      value={pendingValues[task.id] ?? (currentValue || '')}
-                      onChange={(e) => setPendingValues(prev => ({ ...prev, [task.id]: e.target.value }))}
-                      onKeyDown={(e) => e.key === 'Enter' && handleDurationManualSubmit(task)}
-                      placeholder="0"
-                      className="w-12 px-1.5 py-1 text-xs text-right border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
-                    />
-                    <span className="text-[10px] text-zinc-500 dark:text-zinc-400">m</span>
-                    {pendingValues[task.id] !== undefined && (
-                      <button
-                        onClick={() => handleDurationManualSubmit(task)}
-                        className="w-6 h-6 rounded bg-green-500 text-white flex items-center justify-center hover:bg-green-600"
-                      >
-                        <FaCheck className="text-[9px]" />
-                      </button>
-                    )}
-                  </>
-                )}
-                <button
-                  onClick={() => handleTimerToggle(task)}
-                  className={`w-6 h-6 rounded flex items-center justify-center ${
-                    timers[task.id]?.running
-                      ? 'bg-red-500 text-white'
-                      : 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900'
-                  }`}
-                >
-                  {timers[task.id]?.running ? <FaStop className="text-[9px]" /> : <FaPlay className="text-[9px]" />}
-                </button>
-              </div>
-            )}
+            {task.completionType === 'duration' && (() => {
+              const timer = timers[task.id];
+              const elapsed = timer?.elapsed || (currentValue * 60);
+              const targetSec = (task.target || 0) * 60;
+              const isRunning = timer?.running || false;
+              const done = targetSec > 0 && elapsed >= targetSec;
+              const isEditing = pendingValues[task.id] !== undefined;
+              return (
+                <div className="flex items-center gap-1">
+                  {!isRunning && isEditing ? (
+                    <>
+                      <input
+                        type="number"
+                        value={pendingValues[task.id] ?? ''}
+                        onChange={(e) => setPendingValues(prev => ({ ...prev, [task.id]: e.target.value }))}
+                        onKeyDown={(e) => e.key === 'Enter' && handleDurationManualSubmit(task)}
+                        onBlur={() => handleDurationManualSubmit(task)}
+                        autoFocus
+                        placeholder="0"
+                        className="w-10 px-1 py-0.5 text-xs text-right border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white font-mono"
+                      />
+                      <span className="text-[10px] text-zinc-400">m</span>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => { if (!isRunning) setPendingValues(prev => ({ ...prev, [task.id]: String(Math.round(elapsed / 60)) })); }}
+                      className={`text-xs font-mono min-w-[3rem] text-center ${
+                        done ? 'text-green-600 dark:text-green-400 font-bold' :
+                        isRunning ? 'text-zinc-900 dark:text-white font-bold' :
+                        'text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white cursor-text'
+                      }`}
+                      disabled={isRunning}
+                    >
+                      {formatTime(elapsed)}
+                      {task.target ? <span className="text-zinc-400 dark:text-zinc-500 font-normal">/{task.target}m</span> : null}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleTimerToggle(task)}
+                    className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${
+                      isRunning
+                        ? 'bg-amber-500 text-white hover:bg-amber-600'
+                        : 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100'
+                    }`}
+                  >
+                    {isRunning ? <FaPause className="text-[9px]" /> : <FaPlay className="text-[9px]" />}
+                  </button>
+                </div>
+              );
+            })()}
 
             {task.completionType === 'numeric' && (
               <div className="flex items-center gap-1">

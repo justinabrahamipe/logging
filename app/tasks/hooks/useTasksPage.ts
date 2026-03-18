@@ -461,11 +461,13 @@ export function useTasksPage() {
   const handleTimerToggle = (task: Task) => {
     const timer = timers[task.id];
     if (timer?.running) {
+      // Pause: save progress but keep elapsed time for resuming
       clearInterval(timer.interval);
       const minutes = Math.round(timer.elapsed / 60);
       handleComplete(task.id, minutes > 0, minutes);
       setTimers(prev => ({ ...prev, [task.id]: { running: false, elapsed: timer.elapsed } }));
     } else {
+      // Resume: continue from current elapsed time
       const elapsed = timer?.elapsed || ((task.completion?.value || 0) * 60);
       startTimer(task.id, elapsed);
     }
