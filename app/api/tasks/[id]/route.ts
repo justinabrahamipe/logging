@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
-import { db, tasks, taskSchedules } from "@/lib/db";
+import { db, tasks, taskSchedules, goals } from "@/lib/db";
 import { invalidateTaskCache } from "@/lib/ensure-upcoming-tasks";
 import { eq, and } from "drizzle-orm";
 
@@ -195,6 +195,31 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
 
     if (deleted.length === 0) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    // Recalculate linked goal's currentValue after task deletion
+    const deletedTask = deleted[0];
+    if (deletedTask.goalId && deletedTask.completed && (deletedTask.value ?? 0) > 0) {
+      try {
+        const [linkedGoal] = await db
+          .select()
+          .from(goals)
+          .where(and(eq(goals.id, deletedTask.goalId), eq(goals.userId, userId)));
+
+        if (linkedGoal && linkedGoal.goalType !== 'outcome') {
+          const remaining = await db
+            .select({ value: tasks.value })
+            .from(tasks)
+            .where(and(eq(tasks.goalId, deletedTask.goalId), eq(tasks.completed, true)));
+          const newTotal = remaining.reduce((sum, t) => sum + (t.value ?? 0), 0);
+          await db
+            .update(goals)
+            .set({ currentValue: newTotal })
+            .where(eq(goals.id, linkedGoal.id));
+        }
+      } catch (err) {
+        console.error("Failed to recalculate goal after task deletion:", err);
+      }
     }
 
     return NextResponse.json({ success: true });

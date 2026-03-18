@@ -88,8 +88,8 @@ export async function POST(request: Request) {
       source,
     });
 
-    // Update linked goal's currentValue when completing a task
-    if (task.goalId && isCompleted && completionValue > 0) {
+    // Update linked goal's currentValue by recalculating from all completed tasks
+    if (task.goalId) {
       try {
         const [linkedGoal] = await db
           .select()
@@ -99,12 +99,15 @@ export async function POST(request: Request) {
         if (linkedGoal) {
           let newTotal: number;
           if (linkedGoal.goalType === 'outcome') {
-            // For outcome goals (e.g., weight), value is absolute
-            newTotal = completionValue;
+            // For outcome goals (e.g., weight), value is absolute — use latest
+            newTotal = isCompleted && completionValue > 0 ? completionValue : linkedGoal.currentValue;
           } else {
-            // For target/habitual/effort goals, value is additive delta
-            const delta = completionValue - (previousValue ?? 0);
-            newTotal = linkedGoal.currentValue + delta;
+            // For target/habitual goals, recalculate from all completed tasks
+            const allCompleted = await db
+              .select({ value: tasks.value })
+              .from(tasks)
+              .where(and(eq(tasks.goalId, task.goalId), eq(tasks.completed, true)));
+            newTotal = allCompleted.reduce((sum, t) => sum + (t.value ?? 0), 0);
           }
 
           await db
