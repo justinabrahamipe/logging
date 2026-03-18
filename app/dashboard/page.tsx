@@ -55,9 +55,9 @@ export default function DashboardPage() {
         </div>
 
         {/* Responsive grid: 1 col mobile, 2 col desktop, 3 col ultrawide */}
-        <div className="grid grid-cols-1 xl:grid-cols-12 2xl:grid-cols-3 gap-6">
-          {/* Column 1: briefing + score */}
-          <div className="xl:col-span-7 2xl:col-span-1">
+        <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-6">
+          {/* Column 1 */}
+          <div>
             {history && (
               <MorningBriefing
                 history={history}
@@ -68,32 +68,27 @@ export default function DashboardPage() {
 
             <ScoreCard score={score} momentumData={momentumData} />
 
-            {/* Streak + calendar move here on 2-col, stay in col 1 on 3-col */}
-            <div className="hidden 2xl:block">
-              {history && <StreakFlameChain scores={history.scores} currentStreak={currentStreak} />}
-              {history && <CalendarHeatmap scores={history.scores} />}
-            </div>
-          </div>
-
-          {/* Column 2: goals + habits */}
-          <div className="xl:col-span-5 2xl:col-span-1">
             <GoalProgress outcomesData={outcomesData} completionDates={completionDates} today={today} />
 
+            {history && <CalendarHeatmap scores={history.scores} />}
+          </div>
+
+          {/* Column 2 */}
+          <div>
             <HabitTracker outcomesData={outcomesData} completionDates={completionDates} today={today} />
 
-            {/* On 2-col layout, streak + calendar + history here */}
+            {history && <StreakFlameChain scores={history.scores} currentStreak={currentStreak} />}
+
+            {history && <ScoreHistory scores={history.scores} />}
+
+            {/* Pillar breakdown: in col 2 on 2-col, moves to col 3 on ultrawide */}
             <div className="2xl:hidden">
-              {history && <StreakFlameChain scores={history.scores} currentStreak={currentStreak} />}
-              {history && <CalendarHeatmap scores={history.scores} />}
-              {history && <ScoreHistory scores={history.scores} />}
               {history && <PillarBreakdown scores={history.scores} pillarsMeta={history.pillars} />}
             </div>
           </div>
 
-          {/* Column 3: charts + history (only on ultrawide) */}
-          <div className="hidden 2xl:block 2xl:col-span-1">
-            {history && <ScoreHistory scores={history.scores} />}
-
+          {/* Column 3: ultrawide only */}
+          <div className="hidden 2xl:block">
             {history && <PillarBreakdown scores={history.scores} pillarsMeta={history.pillars} />}
           </div>
         </div>
