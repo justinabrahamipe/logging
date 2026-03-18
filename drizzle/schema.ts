@@ -136,6 +136,9 @@ export const tasks = sqliteTable('Task', {
   periodIdIdx: index('Task_periodId_idx').on(table.periodId),
   dateIdx: index('Task_date_idx').on(table.date),
   userDateIdx: index('Task_userId_date_idx').on(table.userId, table.date),
+  userGoalCompletedIdx: index('Task_userId_goalId_completed_idx').on(table.userId, table.goalId, table.completed),
+  userScheduleIdx: index('Task_userId_scheduleId_idx').on(table.userId, table.scheduleId),
+  goalCompletedValueIdx: index('Task_goalId_completed_value_idx').on(table.goalId, table.completed, table.value),
   scheduleDateUnique: unique().on(table.scheduleId, table.date),
 }));
 
@@ -177,6 +180,7 @@ export const activityLog = sqliteTable('ActivityLog', {
   userIdIdx: index('ActivityLog_userId_idx').on(table.userId),
   taskIdIdx: index('ActivityLog_taskId_idx').on(table.taskId),
   timestampIdx: index('ActivityLog_timestamp_idx').on(table.timestamp),
+  userTimestampIdx: index('ActivityLog_userId_timestamp_idx').on(table.userId, table.timestamp),
 }));
 
 // Relations

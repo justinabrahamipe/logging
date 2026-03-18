@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
-import { db, tasks, pillars } from "@/lib/db";
+import { db, tasks, pillars, dailyScores } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
 import { calculateDailyScore, getScoreTier } from "@/lib/scoring";
 import { saveDailyScore } from "@/lib/save-daily-score";
@@ -19,17 +19,11 @@ export async function GET(request: NextRequest) {
     await ensureUpcomingTasks(userId);
     await ensureTasksForDate(userId, date);
 
-    // Get task instances for this date (completion data is on the task row)
-    const tasksForDay = await db
-      .select()
-      .from(tasks)
-      .where(and(eq(tasks.userId, userId), eq(tasks.date, date)));
-
-    // Get pillars for weights
-    const userPillars = await db
-      .select()
-      .from(pillars)
-      .where(eq(pillars.userId, userId));
+    // Get task instances and pillars in parallel
+    const [tasksForDay, userPillars] = await Promise.all([
+      db.select().from(tasks).where(and(eq(tasks.userId, userId), eq(tasks.date, date))),
+      db.select().from(pillars).where(eq(pillars.userId, userId)),
+    ]);
 
     const pillarWeights = userPillars.map(p => ({ pillarId: p.id, weight: p.weight }));
 
@@ -71,15 +65,28 @@ export async function GET(request: NextRequest) {
         score: pillarScores[p.id],
       }));
 
-    // Persist daily score to history (includes momentum calculation)
-    const saved = await saveDailyScore(userId, date);
+    // Only recalculate momentum if no saved score exists for this date
+    // (task completions already trigger saveDailyScore via the complete handler)
+    let momentumScore: number | null = null;
+    const [existing] = await db
+      .select({ momentumScore: dailyScores.momentumScore })
+      .from(dailyScores)
+      .where(and(eq(dailyScores.userId, userId), eq(dailyScores.date, date)));
+
+    if (existing) {
+      momentumScore = existing.momentumScore ?? null;
+    } else {
+      // First view of the day — save score with momentum
+      const saved = await saveDailyScore(userId, date);
+      momentumScore = saved.momentumScore ?? null;
+    }
 
     const completedTasks = tasksForDay.filter(t => t.completed).length;
 
     return NextResponse.json({
       date,
       actionScore,
-      momentumScore: saved.momentumScore ?? null,
+      momentumScore,
       scoreTier: tier,
       pillarScores: pillarBreakdown,
       totalTasks: tasksForDay.length,
