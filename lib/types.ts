@@ -201,6 +201,8 @@ export interface OutcomeData {
   scheduleDays: string | null;
   startDate: string | null;
   targetDate: string | null;
+  dailyTarget: number | null;
+  completionType: string;
 }
 
 // ------ Momentum types ------
@@ -260,6 +262,8 @@ export interface GoalForMomentum {
   scheduleDays: string | null;
   flexibilityRule?: string;
   limitValue?: number | null;
+  dailyTarget?: number | null;
+  completionType?: string;
 }
 
 export interface GoalLogEntry {

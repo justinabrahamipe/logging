@@ -7,7 +7,7 @@ import type { OutcomeData } from "@/lib/types";
 
 interface GoalProgressProps {
   outcomesData: OutcomeData[];
-  completionDates: Record<number, string[]>;
+  completionDates: Record<number, { date: string; value: number }[]>;
   today: string;
 }
 
@@ -28,23 +28,44 @@ export default function GoalProgress({ outcomesData, completionDates, today }: G
     return expected;
   };
 
+  // Compute proportional hits for a habitual goal
+  const getHabitualHits = (o: OutcomeData) => {
+    const entries = completionDates[o.id] || [];
+    const start = o.startDate || today;
+    const filtered = entries.filter(e => e.date >= start && e.date <= today);
+
+    // For checkbox goals (no dailyTarget), keep binary
+    if (!o.dailyTarget || o.completionType === 'checkbox') {
+      const uniqueDates = new Set(filtered.map(e => e.date));
+      return uniqueDates.size;
+    }
+
+    // Proportional: sum up fractional credit per day, capped at 1.0 per day
+    const dayValues = new Map<string, number>();
+    for (const e of filtered) {
+      dayValues.set(e.date, (dayValues.get(e.date) || 0) + e.value);
+    }
+    let hits = 0;
+    for (const val of dayValues.values()) {
+      hits += Math.min(val / o.dailyTarget, 1);
+    }
+    return hits;
+  };
+
   // Hide goals that haven't started yet
   const visibleGoals = outcomesData.filter((o) => {
     const start = o.startDate || today;
     if (start > today) return false;
     if (o.goalType === 'habitual' && getExpectedDays(o) === 0) return false;
     return true;
-  }
-  );
+  });
 
   if (visibleGoals.length === 0) return null;
 
   const totalProgress = visibleGoals.reduce((sum, o) => {
     if (o.goalType === 'habitual') {
-      const doneDates = completionDates[o.id] || [];
       const expected = getExpectedDays(o);
-      const start = o.startDate || today;
-      const hits = doneDates.filter(dt => dt >= start && dt <= today).length;
+      const hits = getHabitualHits(o);
       return sum + (expected > 0 ? Math.min((hits / expected) * 100, 100) : 0);
     }
     const range = Math.abs(o.targetValue - o.startValue);
@@ -84,20 +105,11 @@ export default function GoalProgress({ outcomesData, completionDates, today }: G
           let progress: number;
           let subtitle: string;
           if (isHabitual) {
-            const doneDates = completionDates[goal.id] || [];
-            const scheduleDays: number[] = goal.scheduleDays ? JSON.parse(goal.scheduleDays) : [];
-            const start = goal.startDate || today;
-            const end = today;
-            let expected = 0;
-            const d = new Date(start + 'T00:00:00');
-            const endD = new Date(end + 'T00:00:00');
-            while (d <= endD) {
-              if (scheduleDays.length === 0 || scheduleDays.includes(d.getDay())) expected++;
-              d.setDate(d.getDate() + 1);
-            }
-            const hits = doneDates.filter(dt => dt >= start && dt <= end).length;
+            const expected = getExpectedDays(goal);
+            const hits = getHabitualHits(goal);
             progress = expected > 0 ? Math.round((hits / expected) * 100) : 0;
-            subtitle = `${hits} / ${expected} days`;
+            const hitsDisplay = Number.isInteger(hits) ? hits : hits.toFixed(1);
+            subtitle = `${hitsDisplay} / ${expected} days`;
           } else {
             progress = range === 0 ? 0 : Math.round(Math.max(0, Math.min(
               Math.abs(goal.currentValue - goal.startValue) / range * 100, 100

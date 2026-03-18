@@ -5,7 +5,7 @@ import type { OutcomeData } from "@/lib/types";
 
 interface HabitTrackerProps {
   outcomesData: OutcomeData[];
-  completionDates: Record<number, string[]>;
+  completionDates: Record<number, { date: string; value: number }[]>;
   today: string;
 }
 
@@ -35,6 +35,7 @@ export default function HabitTracker({ outcomesData, completionDates, today }: H
         </div>
         <div className="flex items-center gap-2 text-[10px] text-zinc-400 dark:text-zinc-500">
           <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" /> Hit</span>
+          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-amber-400 inline-block" /> Partial</span>
           <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-red-400 inline-block" /> Miss</span>
           <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-zinc-200 dark:bg-zinc-700 inline-block" /> Rest</span>
         </div>
@@ -54,7 +55,14 @@ export default function HabitTracker({ outcomesData, completionDates, today }: H
       <div className="space-y-1">
         {habitGoals.map(goal => {
           const scheduleDays: number[] = goal.scheduleDays ? JSON.parse(goal.scheduleDays) : [];
-          const doneDates = new Set(completionDates[goal.id] || []);
+          const entries = completionDates[goal.id] || [];
+
+          // Build a map of date -> total value for this goal
+          const dateValues = new Map<string, number>();
+          for (const e of entries) {
+            dateValues.set(e.date, (dateValues.get(e.date) || 0) + e.value);
+          }
+          const doneDates = new Set(dateValues.keys());
 
           return (
             <div key={goal.id} className="flex items-center gap-0">
@@ -76,7 +84,13 @@ export default function HabitTracker({ outcomesData, completionDates, today }: H
                   if (!isScheduled) {
                     return <div key={dateStr} className="aspect-square rounded-sm bg-zinc-200 dark:bg-zinc-700 opacity-40" />;
                   }
+
                   if (doneDates.has(dateStr)) {
+                    // Check if partial (has dailyTarget and value < dailyTarget)
+                    const dayVal = dateValues.get(dateStr) || 0;
+                    if (goal.dailyTarget && goal.completionType !== 'checkbox' && dayVal < goal.dailyTarget) {
+                      return <div key={dateStr} className="aspect-square rounded-sm bg-amber-400" />;
+                    }
                     return <div key={dateStr} className="aspect-square rounded-sm bg-green-500" />;
                   }
                   return <div key={dateStr} className="aspect-square rounded-sm bg-red-400" />;

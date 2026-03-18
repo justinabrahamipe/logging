@@ -155,6 +155,20 @@ export default function TaskItem({
             {showDate && (
               <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{showDate}</span>
             )}
+            {task.completion && (task.completion.completed || (task.completion.value != null && task.completion.value !== 0)) && (() => {
+              const pts = task.completion.pointsEarned;
+              const base = task.basePoints;
+              const color = pts >= base
+                ? 'text-green-600 dark:text-green-400'
+                : pts < 0
+                ? 'text-red-600 dark:text-red-400'
+                : 'text-zinc-500 dark:text-zinc-400';
+              return (
+                <span className={`text-[10px] px-1.5 py-px rounded-full font-medium bg-zinc-100 dark:bg-zinc-700 ${color}`}>
+                  {pts}/{base} pts
+                </span>
+              );
+            })()}
           </div>
           {task.frequency !== 'daily' && task.frequency !== 'adhoc' && (
             <div className="mt-0.5">

@@ -35,7 +35,7 @@ export default function GoalDetailPage() {
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [linkedTasks, setLinkedTasks] = useState<LinkedTask[]>([]);
-  const [taskCompletionDates, setTaskCompletionDates] = useState<string[]>([]);
+  const [taskCompletionDates, setTaskCompletionDates] = useState<{ date: string; value: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [archiving, setArchiving] = useState(false);
   const [sortCol, setSortCol] = useState<"date" | "points" | "status">("date");
@@ -79,13 +79,14 @@ export default function GoalDetailPage() {
         fetch("/api/tasks").then((r) => r.ok ? r.json() : []),
         fetch("/api/outcomes/completions").then((r) => r.ok ? r.json() : {}),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ]).then(([goalsData, logData, taskGroups, completions]: [Outcome[], LogEntry[], any[], Record<number, string[]>]) => {
+      ]).then(([goalsData, logData, taskGroups, completions]: [Outcome[], LogEntry[], any[], Record<number, { date: string; value: number }[]>]) => {
         const found = goalsData.find((o: Outcome) => String(o.id) === id);
         setOutcome(found || null);
         setLogs(logData);
 
         // Build sets for determining completion status of linked tasks
-        const completionDatesSet = new Set<string>(completions[parseInt(id)] || []);
+        const goalCompletions = completions[parseInt(id)] || [];
+        const completionDatesSet = new Set<string>(goalCompletions.map(e => e.date));
         const logValueByDate = new Map<string, number>();
         for (const log of logData) {
           const dateStr = log.loggedAt.split('T')[0];
@@ -117,7 +118,7 @@ export default function GoalDetailPage() {
           }
         }
         setLinkedTasks(tasks);
-        setTaskCompletionDates(completions[parseInt(id)] || []);
+        setTaskCompletionDates(goalCompletions);
         setLoading(false);
       });
     }
@@ -148,7 +149,7 @@ export default function GoalDetailPage() {
   const allDoneDates = useMemo(() => {
     const dates = new Set<string>();
     for (const l of logs) dates.add(l.loggedAt.split('T')[0]);
-    for (const d of taskCompletionDates) dates.add(d);
+    for (const d of taskCompletionDates) dates.add(d.date);
     return dates;
   }, [logs, taskCompletionDates]);
 

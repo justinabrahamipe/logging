@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db, tasks } from "@/lib/db";
-import { eq, and, isNotNull } from "drizzle-orm";
+import { eq, and, isNotNull, or, gt } from "drizzle-orm";
 
 export async function GET() {
   const session = await auth();
@@ -9,22 +9,27 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Get all completed tasks linked to goals
-  const completedTasks = await db
-    .select({ id: tasks.id, goalId: tasks.goalId, date: tasks.date })
+  // Get all goal-linked tasks with value > 0 OR completed = true
+  const goalTasks = await db
+    .select({ id: tasks.id, goalId: tasks.goalId, date: tasks.date, value: tasks.value, completed: tasks.completed })
     .from(tasks)
     .where(and(
       eq(tasks.userId, session.user.id),
-      eq(tasks.completed, true),
       isNotNull(tasks.goalId),
+      or(
+        eq(tasks.completed, true),
+        gt(tasks.value, 0),
+      ),
     ));
 
-  // Build goalId -> dates map
-  const result: Record<number, string[]> = {};
-  for (const t of completedTasks) {
+  // Build goalId -> { date, value }[] map
+  const result: Record<number, { date: string; value: number }[]> = {};
+  for (const t of goalTasks) {
     const goalId = t.goalId!;
     if (!result[goalId]) result[goalId] = [];
-    result[goalId].push(t.date);
+    // For checkbox tasks, value is null when completed — treat as 1
+    const value = t.value != null ? t.value : (t.completed ? 1 : 0);
+    result[goalId].push({ date: t.date, value });
   }
 
   return NextResponse.json(result);

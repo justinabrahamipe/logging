@@ -17,7 +17,7 @@ export function useDashboard() {
   const [score, setScore] = useState<DailyScoreData | null>(null);
   const [history, setHistory] = useState<HistoryData | null>(null);
   const [outcomesData, setOutcomesData] = useState<OutcomeData[]>([]);
-  const [completionDates, setCompletionDates] = useState<Record<number, string[]>>({});
+  const [completionDates, setCompletionDates] = useState<Record<number, { date: string; value: number }[]>>({});
   const [momentumData, setMomentumData] = useState<MomentumData | null>(null);
   const [loading, setLoading] = useState(true);
   const [todayTaskCount, setTodayTaskCount] = useState(0);

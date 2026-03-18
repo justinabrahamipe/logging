@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
 import { db, goals, pillars, tasks } from "@/lib/db";
-import { eq, and, isNotNull, inArray } from "drizzle-orm";
+import { eq, and, isNotNull, inArray, or, gt } from "drizzle-orm";
 import { calculateMomentum, calculateTrajectory } from "@/lib/momentum";
 
 export async function GET() {
@@ -31,13 +31,17 @@ export async function GET() {
           goalId: tasks.goalId,
           value: tasks.value,
           date: tasks.date,
+          completed: tasks.completed,
         })
         .from(tasks)
         .where(and(
           eq(tasks.userId, userId),
-          eq(tasks.completed, true),
           isNotNull(tasks.goalId),
           inArray(tasks.goalId, goalIds),
+          or(
+            eq(tasks.completed, true),
+            gt(tasks.value, 0),
+          ),
         ));
 
       logs = allGoalTasks.map(c => ({
@@ -63,6 +67,8 @@ export async function GET() {
       scheduleDays: g.scheduleDays,
       flexibilityRule: g.flexibilityRule,
       limitValue: g.limitValue,
+      dailyTarget: g.dailyTarget,
+      completionType: g.completionType,
     }));
 
     const summary = calculateMomentum(mappedGoals, logs, pillarWeights, today);

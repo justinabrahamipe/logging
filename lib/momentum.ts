@@ -25,15 +25,18 @@ function calculateHabitualMomentum(
     return null;
   }
 
-  // Count days where a log entry exists (value > 0)
-  const logDates = new Set<string>();
+  // Build per-day value totals
+  const dayValues = new Map<string, number>();
   for (const log of logs) {
     const date = log.loggedAt.split('T')[0];
-    if (log.value > 0) logDates.add(date);
+    if (log.value > 0) {
+      dayValues.set(date, (dayValues.get(date) || 0) + log.value);
+    }
   }
 
-  // Count how many scheduled days were hit
+  // Count how many scheduled days were hit (proportional when dailyTarget exists)
   const isLimit = goal.flexibilityRule === 'limit_avoid';
+  const hasDailyTarget = goal.dailyTarget && goal.dailyTarget > 0 && goal.completionType !== 'checkbox';
   let daysHit = 0;
   const current = new Date(effectiveStart + 'T00:00:00');
   const endD = new Date(effectiveEnd + 'T00:00:00');
@@ -45,8 +48,13 @@ function calculateHabitualMomentum(
         const dayLogs = logs.filter(l => l.loggedAt.split('T')[0] === dateStr);
         const dayValue = dayLogs.reduce((sum, l) => sum + l.value, 0);
         if (dayLogs.length > 0 && dayValue <= (goal.limitValue || 0)) daysHit++;
+      } else if (hasDailyTarget) {
+        // Proportional credit: fraction of dailyTarget completed, capped at 1
+        const val = dayValues.get(dateStr) || 0;
+        if (val > 0) daysHit += Math.min(val / goal.dailyTarget!, 1);
       } else {
-        if (logDates.has(dateStr)) daysHit++;
+        // Binary: any value > 0 counts as a full hit
+        if (dayValues.has(dateStr)) daysHit++;
       }
     }
     current.setDate(current.getDate() + 1);
