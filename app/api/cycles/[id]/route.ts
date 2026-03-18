@@ -31,7 +31,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         currentValue: goals.currentValue,
         unit: goals.unit,
         startValue: goals.startValue,
-        direction: goals.direction,
         goalType: goals.goalType,
         pillarId: goals.pillarId,
         createdAt: goals.createdAt,

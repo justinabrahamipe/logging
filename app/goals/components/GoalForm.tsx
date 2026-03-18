@@ -122,7 +122,6 @@ export default function GoalForm({
       startValue: start,
       targetValue: target,
       unit: isHabitual ? (form.unit || "days") : form.unit,
-      direction: isOutcome ? (target >= start ? "increase" : "decrease") : "increase",
       pillarId: form.pillarId ? parseInt(form.pillarId) : null,
       startDate: form.startDate || null,
       targetDate: form.targetDate || null,

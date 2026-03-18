@@ -68,7 +68,6 @@ export default function GoalsPage() {
           dailyTarget: outcome.dailyTarget,
           scheduleDays: outcome.scheduleDays ? JSON.parse(outcome.scheduleDays) : null,
           autoCreateTasks: outcome.autoCreateTasks,
-          direction: outcome.direction,
           startValue: outcome.startValue,
           startDate: cycle.startDate,
           targetDate: cycle.endDate,

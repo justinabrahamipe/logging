@@ -41,7 +41,7 @@ export default function GoalCard({
   handleArchive: (id: number) => void;
   getProgress: (o: Outcome) => number;
   today: string;
-  taskCompletionDates: Record<number, string[]>;
+  taskCompletionDates: Record<number, { date: string; value: number }[]>;
   onAddTask: (o: Outcome) => void;
   cycles: Cycle[];
   onCopyToCycle: (outcome: Outcome, cycleId: number) => void;
@@ -56,20 +56,53 @@ export default function GoalCard({
   const [showCyclePicker, setShowCyclePicker] = useState(false);
 
   const effortMetrics = useMemo(() => {
-    if (!isActivityGoal || !outcome.startDate || !outcome.targetDate || scheduleDays.length === 0) return null;
+    if (!isActivityGoal || isHabitual || !outcome.startDate || !outcome.targetDate || scheduleDays.length === 0) return null;
     return calculateEffortMetrics(
       outcome.startDate, outcome.targetDate, scheduleDays,
       outcome.targetValue, outcome.currentValue, today
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isActivityGoal, outcome.startDate, outcome.targetDate, outcome.targetValue, outcome.currentValue, today, outcome.scheduleDays]);
+  }, [isActivityGoal, isHabitual, outcome.startDate, outcome.targetDate, outcome.targetValue, outcome.currentValue, today, outcome.scheduleDays]);
 
   const allDoneDates = useMemo(() => {
     const dates = new Set<string>();
     for (const l of (logsMap[outcome.id] || [])) dates.add(l.loggedAt.split('T')[0]);
-    for (const d of (taskCompletionDates[outcome.id] || [])) dates.add(d);
+    for (const e of (taskCompletionDates[outcome.id] || [])) dates.add(e.date);
     return dates;
   }, [logsMap, taskCompletionDates, outcome.id]);
+
+  const adherence = useMemo(() => {
+    if (!isHabitual || !outcome.startDate) return null;
+    const start = outcome.startDate > today ? today : outcome.startDate;
+    const entries = taskCompletionDates[outcome.id] || [];
+    let expected = 0;
+    const d = new Date(start + 'T00:00:00');
+    const endD = new Date(today + 'T00:00:00');
+    while (d <= endD) {
+      if (scheduleDays.length === 0 || scheduleDays.includes(d.getDay())) expected++;
+      d.setDate(d.getDate() + 1);
+    }
+    if (expected === 0) return null;
+
+    // Proportional hits when dailyTarget exists
+    const filtered = entries.filter(e => e.date >= start && e.date <= today);
+    if (!outcome.dailyTarget || outcome.completionType === 'checkbox') {
+      const uniqueDates = new Set(filtered.map(e => e.date));
+      const logDates = new Set((logsMap[outcome.id] || []).map(l => l.loggedAt.split('T')[0]));
+      for (const ld of logDates) uniqueDates.add(ld);
+      return Math.round((uniqueDates.size / expected) * 100);
+    }
+    const dayValues = new Map<string, number>();
+    for (const e of filtered) {
+      dayValues.set(e.date, (dayValues.get(e.date) || 0) + e.value);
+    }
+    let hits = 0;
+    for (const val of dayValues.values()) {
+      hits += Math.min(val / outcome.dailyTarget, 1);
+    }
+    return Math.round((hits / expected) * 100);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isHabitual, outcome.startDate, outcome.id, outcome.dailyTarget, outcome.completionType, taskCompletionDates, logsMap, today, outcome.scheduleDays]);
 
   const streak = useMemo(() => {
     if (!isHabitual) return 0;
@@ -115,13 +148,22 @@ export default function GoalCard({
               </span>
             )}
             {!isActivityGoal && (
-              outcome.direction === "decrease" ? (
+              outcome.targetValue < outcome.startValue ? (
                 <FaArrowDown className="text-xs text-green-500 shrink-0" />
               ) : (
                 <FaArrowUp className="text-xs text-green-500 shrink-0" />
               )
             )}
-            {isActivityGoal && effortMetrics && (
+            {isHabitual && adherence !== null && (
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${
+                adherence >= 80 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                adherence >= 50 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+              }`}>
+                {adherence}%
+              </span>
+            )}
+            {!isHabitual && isActivityGoal && effortMetrics && (
               <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${
                 effortMetrics.status === 'ahead' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
                 effortMetrics.status === 'on_track' ? 'bg-zinc-100 text-zinc-700 dark:bg-zinc-900/30 dark:text-zinc-400' :

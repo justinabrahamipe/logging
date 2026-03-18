@@ -55,7 +55,6 @@ export interface Outcome {
   targetValue: number;
   currentValue: number;
   unit: string;
-  direction: string;
   startDate: string | null;
   targetDate: string | null;
   goalType: string;
@@ -99,7 +98,6 @@ export interface Goal {
   currentValue?: number;
   unit?: string;
   startValue?: number;
-  direction?: string;
   pillarId?: number | null;
 }
 
@@ -194,7 +192,6 @@ export interface OutcomeData {
   targetValue: number;
   currentValue: number;
   unit: string;
-  direction: string;
   pillarColor: string | null;
   pillarEmoji: string | null;
   goalType: string;
@@ -407,7 +404,6 @@ export interface CycleGoal {
   currentValue: number;
   unit: string;
   startValue: number;
-  direction: string;
   goalType: string;
   pillarId: number | null;
 }

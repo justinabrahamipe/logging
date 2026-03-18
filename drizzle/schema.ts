@@ -265,7 +265,6 @@ export const goals = sqliteTable('Goal', {
   targetValue: real('targetValue').notNull(),
   currentValue: real('currentValue').notNull(),
   unit: text('unit').notNull(),
-  direction: text('direction').notNull(),
   startDate: text('startDate'),
   targetDate: text('targetDate'),
   periodId: integer('periodId').references(() => cycles.id, { onDelete: 'set null' }),

@@ -18,7 +18,6 @@ export async function GET() {
         targetValue: goals.targetValue,
         currentValue: goals.currentValue,
         unit: goals.unit,
-        direction: goals.direction,
         startDate: goals.startDate,
         targetDate: goals.targetDate,
         periodId: goals.periodId,
@@ -74,7 +73,6 @@ export async function POST(request: Request) {
     }
 
     const effectiveStartValue = isActivityGoal ? 0 : (body.startValue ?? 0);
-    const direction = isActivityGoal ? 'increase' : (body.direction || ((targetValue ?? 0) >= effectiveStartValue ? 'increase' : 'decrease'));
 
     const [outcome] = await db.insert(goals).values({
       userId,
@@ -83,7 +81,6 @@ export async function POST(request: Request) {
       targetValue: targetValue ?? 0,
       currentValue: effectiveStartValue,
       unit: unit || 'days',
-      direction,
       pillarId: pillarId || null,
       startDate: effectiveStartDate,
       targetDate: effectiveTargetDate,

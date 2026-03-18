@@ -1,5 +1,5 @@
 import { db, tasks, pillars, dailyScores, goals } from "@/lib/db";
-import { eq, and, isNotNull } from "drizzle-orm";
+import { eq, and, isNotNull, or, gt } from "drizzle-orm";
 import { calculateDailyScore, getScoreTier } from "@/lib/scoring";
 import { calculateMomentum } from "@/lib/momentum";
 
@@ -49,18 +49,22 @@ export async function saveDailyScore(userId: string, date: string) {
   let pillarMomentumJson: string | null = null;
 
   if (userGoals.length > 0) {
-    // Get all completed tasks linked to goals
+    // Get all goal-linked tasks with progress
     const allGoalTasks = await db
       .select({
         goalId: tasks.goalId,
         value: tasks.value,
         date: tasks.date,
+        completed: tasks.completed,
       })
       .from(tasks)
       .where(and(
         eq(tasks.userId, userId),
-        eq(tasks.completed, true),
         isNotNull(tasks.goalId),
+        or(
+          eq(tasks.completed, true),
+          gt(tasks.value, 0),
+        ),
       ));
 
     const goalIds = userGoals.map(g => g.id);
@@ -82,6 +86,10 @@ export async function saveDailyScore(userId: string, date: string) {
       startDate: g.startDate,
       targetDate: g.targetDate,
       scheduleDays: g.scheduleDays,
+      flexibilityRule: g.flexibilityRule,
+      limitValue: g.limitValue,
+      dailyTarget: g.dailyTarget,
+      completionType: g.completionType,
     }));
 
     const momentum = calculateMomentum(goalsForMomentum, logsForMomentum, pillarWeights, date);

@@ -120,8 +120,13 @@ export async function POST(request: Request) {
       }
     }
 
-    // Recalculate and save daily score
-    await saveDailyScore(userId, date);
+    // Recalculate and save daily score for the task's actual date
+    await saveDailyScore(userId, task.date);
+    // If the client-passed date differs (e.g., viewing today but completing yesterday's task),
+    // also recalculate the client's view date
+    if (date !== task.date) {
+      await saveDailyScore(userId, date);
+    }
 
     // Return in completion format for backward compat
     return NextResponse.json({

@@ -16,11 +16,16 @@ function calculateHabitualMomentum(
   const scheduleDays: number[] = goal.scheduleDays ? JSON.parse(goal.scheduleDays) : [];
   const startDate = goal.startDate || today;
   const endDate = goal.targetDate || today;
-  const effectiveStart = startDate > today ? today : startDate;
+
+  // Skip goals that haven't started yet
+  if (today < startDate) {
+    return null;
+  }
+
   const effectiveEnd = today < endDate ? today : endDate;
 
   // Use cycle-to-date
-  const totalExpected = countScheduledDaysInRange(effectiveStart, effectiveEnd, scheduleDays);
+  const totalExpected = countScheduledDaysInRange(startDate, effectiveEnd, scheduleDays);
   if (totalExpected === 0) {
     return null;
   }
@@ -38,7 +43,7 @@ function calculateHabitualMomentum(
   const isLimit = goal.flexibilityRule === 'limit_avoid';
   const hasDailyTarget = goal.dailyTarget && goal.dailyTarget > 0 && goal.completionType !== 'checkbox';
   let daysHit = 0;
-  const current = new Date(effectiveStart + 'T00:00:00');
+  const current = new Date(startDate + 'T00:00:00');
   const endD = new Date(effectiveEnd + 'T00:00:00');
   while (current <= endD) {
     const dateStr = current.toISOString().split('T')[0];

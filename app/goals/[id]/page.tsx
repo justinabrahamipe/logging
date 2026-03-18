@@ -250,7 +250,7 @@ export default function GoalDetailPage() {
           </button>
           <h1 className="text-xl md:text-2xl font-bold text-zinc-900 dark:text-white truncate">{outcome.name}</h1>
           {!isActivityGoal && (
-            outcome.direction === "decrease" ? (
+            outcome.targetValue < outcome.startValue ? (
               <FaArrowDown className="text-green-500 shrink-0" />
             ) : (
               <FaArrowUp className="text-green-500 shrink-0" />
