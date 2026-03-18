@@ -192,22 +192,20 @@ export default function TaskItem({
               const isRunning = timer?.running || false;
               const done = targetSec > 0 && elapsed >= targetSec;
               const isEditing = pendingValues[task.id] !== undefined;
+              const targetDisplay = task.target ? `${task.target}:00` : null;
               return (
                 <div className="flex items-center gap-1">
                   {!isRunning && isEditing ? (
-                    <>
-                      <input
-                        type="number"
-                        value={pendingValues[task.id] ?? ''}
-                        onChange={(e) => setPendingValues(prev => ({ ...prev, [task.id]: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && handleDurationManualSubmit(task)}
-                        onBlur={() => handleDurationManualSubmit(task)}
-                        autoFocus
-                        placeholder="0"
-                        className="w-10 px-1 py-0.5 text-xs text-right border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white font-mono"
-                      />
-                      <span className="text-[10px] text-zinc-400">m</span>
-                    </>
+                    <input
+                      type="number"
+                      value={pendingValues[task.id]}
+                      onChange={(e) => setPendingValues(prev => ({ ...prev, [task.id]: e.target.value }))}
+                      onKeyDown={(e) => e.key === 'Enter' && handleDurationManualSubmit(task)}
+                      onBlur={() => handleDurationManualSubmit(task)}
+                      autoFocus
+                      placeholder="0"
+                      className="w-10 px-1 py-0.5 text-xs text-right border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white font-mono"
+                    />
                   ) : (
                     <button
                       onClick={() => { if (!isRunning) setPendingValues(prev => ({ ...prev, [task.id]: String(Math.round(elapsed / 60)) })); }}
@@ -219,18 +217,20 @@ export default function TaskItem({
                       disabled={isRunning}
                     >
                       {formatTime(elapsed)}
-                      {task.target ? <span className="text-zinc-400 dark:text-zinc-500 font-normal">/{task.target}m</span> : null}
+                      {targetDisplay ? <span className="text-zinc-400 dark:text-zinc-500 font-normal">/{targetDisplay}</span> : null}
                     </button>
                   )}
                   <button
-                    onClick={() => handleTimerToggle(task)}
+                    onClick={() => isEditing ? handleDurationManualSubmit(task) : handleTimerToggle(task)}
                     className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${
-                      isRunning
+                      isEditing
+                        ? 'bg-green-500 text-white hover:bg-green-600'
+                        : isRunning
                         ? 'bg-amber-500 text-white hover:bg-amber-600'
                         : 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100'
                     }`}
                   >
-                    {isRunning ? <FaPause className="text-[9px]" /> : <FaPlay className="text-[9px]" />}
+                    {isEditing ? <FaCheck className="text-[9px]" /> : isRunning ? <FaPause className="text-[9px]" /> : <FaPlay className="text-[9px]" />}
                   </button>
                 </div>
               );

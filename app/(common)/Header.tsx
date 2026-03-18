@@ -8,7 +8,7 @@ interface BeforeInstallPromptEvent extends Event {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaBolt, FaColumns, FaTasks, FaBars, FaTimes, FaSignOutAlt, FaCog, FaDownload, FaHistory, FaChartLine, FaCalendarAlt, FaFire, FaSun, FaMoon } from "react-icons/fa";
+import { FaBolt, FaColumns, FaTasks, FaBars, FaTimes, FaSignOutAlt, FaCog, FaDownload, FaHistory, FaChartLine, FaCalendarAlt, FaSun, FaMoon } from "react-icons/fa";
 import { useState, useEffect, useRef } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useTheme } from "@/components/ThemeProvider";
@@ -78,17 +78,14 @@ export default function Header() {
   const [headerStats, setHeaderStats] = useState<{
     todayScore: number | null;
     streak: number;
-    momentum: number | null;
-    trajectory: number | null;
   } | null>(null);
 
   const fetchStats = async () => {
     try {
       const todayStr = new Date().toISOString().split("T")[0];
-      const [scoreRes, historyRes, momRes] = await Promise.all([
+      const [scoreRes, historyRes] = await Promise.all([
         fetch(`/api/daily-score?date=${todayStr}`),
         fetch("/api/daily-score/history?days=30"),
-        fetch("/api/momentum"),
       ]);
       let todayScore: number | null = null;
       if (scoreRes.ok) {
@@ -109,14 +106,7 @@ export default function Header() {
           else break;
         }
       }
-      let momentum: number | null = null;
-      let trajectory: number | null = null;
-      if (momRes.ok) {
-        const m = await momRes.json();
-        if (m.overall != null) momentum = m.overall;
-        if (m.trajectory?.overall != null) trajectory = m.trajectory.overall;
-      }
-      const stats = { todayScore, streak, momentum, trajectory };
+      const stats = { todayScore, streak };
       setHeaderStats(stats);
     } catch {
       // silently fail
@@ -194,24 +184,7 @@ export default function Header() {
               )}
               {headerStats.streak > 0 && (
                 <div className="flex items-center gap-1" title="Current streak">
-                  <FaFire className="text-[10px] text-orange-500" />
-                  <span className="font-medium text-zinc-600 dark:text-zinc-400">{headerStats.streak}</span>
-                </div>
-              )}
-              {headerStats.momentum !== null && (
-                <div className="flex items-center gap-1" title="Momentum: pace of habitual & target goals">
-                  <FaChartLine className={`text-[10px] ${headerStats.momentum >= 1.0 ? "text-emerald-500" : "text-red-500"}`} />
-                  <span className={`font-medium ${headerStats.momentum >= 1.0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
-                    {headerStats.momentum.toFixed(1)}x
-                  </span>
-                </div>
-              )}
-              {headerStats.trajectory !== null && (
-                <div className="flex items-center gap-1" title="Trajectory: pace of outcome goals">
-                  <FaChartLine className={`text-[10px] ${headerStats.trajectory >= 1.0 ? "text-purple-500" : "text-red-500"}`} />
-                  <span className={`font-medium ${headerStats.trajectory >= 1.0 ? "text-purple-600 dark:text-purple-400" : "text-red-600 dark:text-red-400"}`}>
-                    {headerStats.trajectory.toFixed(1)}x
-                  </span>
+                  <span className="font-medium text-zinc-600 dark:text-zinc-400">{headerStats.streak}🔥</span>
                 </div>
               )}
             </div>

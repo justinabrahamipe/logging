@@ -126,30 +126,30 @@ export default function GoalCard({
               </span>
             )}
           </div>
-          <div className="flex items-center gap-3 mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
             {isHabitual ? (
               <>
-                {outcome.dailyTarget ? <span>{outcome.dailyTarget} {outcome.unit}/session</span> : <span>{outcome.unit}</span>}
-                <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 font-medium">
+                {outcome.dailyTarget ? <span className="whitespace-nowrap">{outcome.dailyTarget} {outcome.unit}/session</span> : <span>{outcome.unit}</span>}
+                <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 font-medium whitespace-nowrap">
                   {streak}🔥
                 </span>
               </>
             ) : isActivityGoal ? (
               <>
-                <span>{outcome.currentValue} / {outcome.targetValue} {outcome.unit}</span>
+                <span className="whitespace-nowrap">{outcome.currentValue} / {outcome.targetValue} {outcome.unit}</span>
                 <span className="font-medium">{Math.round(progress)}%</span>
                 {effortMetrics && (
-                  <span className="text-xs text-zinc-400 dark:text-zinc-500">· {effortMetrics.dailyTarget} {outcome.unit}/day</span>
+                  <span className="text-xs text-zinc-400 dark:text-zinc-500 whitespace-nowrap">· {effortMetrics.dailyTarget} {outcome.unit}/day</span>
                 )}
               </>
             ) : (
               <>
-                <span>{outcome.currentValue} / {outcome.targetValue} {outcome.unit}</span>
+                <span className="whitespace-nowrap">{outcome.currentValue} / {outcome.targetValue} {outcome.unit}</span>
                 <span className="font-medium">{Math.round(progress)}%</span>
               </>
             )}
             {outcome.startDate && (
-              <span className="text-[11px] text-zinc-400 dark:text-zinc-500">
+              <span className="text-[11px] text-zinc-400 dark:text-zinc-500 whitespace-nowrap">
                 {formatDate(outcome.startDate, dateFormat)}{outcome.targetDate ? ` – ${formatDate(outcome.targetDate, dateFormat)}` : ''}
               </span>
             )}
