@@ -17,6 +17,7 @@ import { getCurrentWeekNumber, getGoalStatus, getTotalWeeks } from "@/lib/cycle-
 import { computeCycleAnalytics } from "@/lib/cycle-analytics";
 import { DEMO_CYCLES } from "@/lib/demo-data";
 import type { Cycle, CycleGoal, LinkedTask, CycleDetail } from "@/lib/types";
+import CyclesLoading from "./loading";
 
 export default function CyclesPage() {
   const { data: session, status } = useSession();
@@ -137,13 +138,7 @@ export default function CyclesPage() {
     return computeCycleAnalytics(selectedCycle.goals, currentWeek, totalWeeks);
   }, [selectedCycle, currentWeek, totalWeeks]);
 
-  if (loading || loadingDetail) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zinc-900 dark:border-zinc-100"></div>
-      </div>
-    );
-  }
+  if (loading || loadingDetail) return <CyclesLoading />;
 
   // === CYCLE DETAIL VIEW ===
   if (selectedCycle) {

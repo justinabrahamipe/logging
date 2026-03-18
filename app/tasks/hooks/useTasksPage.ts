@@ -183,6 +183,43 @@ export function useTasksPage() {
   const [pendingRange, setPendingRange] = useState<{ from: Date; to?: Date } | undefined>(undefined);
   const [scoreSummary, setScoreSummary] = useState<ScoreSummary | null>(null);
   const [timers, setTimers] = useState<Record<number, { running: boolean; elapsed: number; interval?: NodeJS.Timeout }>>({});
+
+  // Persist running timers to localStorage
+  const TIMER_STORAGE_KEY = 'running_timers';
+
+  const saveTimersToStorage = (timerState: Record<number, { startedAt: number; elapsedAtStart: number }>) => {
+    try { localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(timerState)); } catch {}
+  };
+
+  const clearTimerFromStorage = (taskId: number) => {
+    try {
+      const stored = JSON.parse(localStorage.getItem(TIMER_STORAGE_KEY) || '{}');
+      delete stored[taskId];
+      localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(stored));
+    } catch {}
+  };
+
+  const saveRunningTimer = (taskId: number, elapsedAtStart: number) => {
+    try {
+      const stored = JSON.parse(localStorage.getItem(TIMER_STORAGE_KEY) || '{}');
+      stored[taskId] = { startedAt: Date.now(), elapsedAtStart };
+      localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(stored));
+    } catch {}
+  };
+
+  // Restore running timers from localStorage on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    try {
+      const stored: Record<string, { startedAt: number; elapsedAtStart: number }> = JSON.parse(localStorage.getItem(TIMER_STORAGE_KEY) || '{}');
+      for (const [taskIdStr, data] of Object.entries(stored)) {
+        const taskId = parseInt(taskIdStr);
+        const elapsedSinceStart = Math.floor((Date.now() - data.startedAt) / 1000);
+        const totalElapsed = data.elapsedAtStart + elapsedSinceStart;
+        startTimerInternal(taskId, totalElapsed);
+      }
+    } catch {}
+  }, []);
   const [pendingValues, setPendingValues] = useState<Record<number, string>>({});
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
   const [actionLoading, setActionLoading] = useState<Record<number, boolean>>({});
@@ -453,7 +490,7 @@ export function useTasksPage() {
     handleComplete(task.id, true, currentValue);
   };
 
-  const startTimer = (taskId: number, startElapsed: number) => {
+  const startTimerInternal = (taskId: number, startElapsed: number) => {
     const interval = setInterval(() => {
       setTimers(prev => {
         const current = prev[taskId];
@@ -462,6 +499,11 @@ export function useTasksPage() {
       });
     }, 1000);
     setTimers(prev => ({ ...prev, [taskId]: { running: true, elapsed: startElapsed, interval } }));
+  };
+
+  const startTimer = (taskId: number, startElapsed: number) => {
+    startTimerInternal(taskId, startElapsed);
+    saveRunningTimer(taskId, startElapsed);
   };
 
   const handleTimerToggle = (task: Task) => {
@@ -474,6 +516,7 @@ export function useTasksPage() {
       const targetReached = isLimit ? (task.completion?.completed || false) : (task.target ? timer.elapsed >= task.target * 60 : minutes > 0);
       handleComplete(task.id, targetReached, minutes);
       setTimers(prev => ({ ...prev, [task.id]: { running: false, elapsed: timer.elapsed } }));
+      clearTimerFromStorage(task.id);
     } else {
       // Resume: continue from current elapsed time
       const elapsed = timer?.elapsed || ((task.completion?.value || 0) * 60);
@@ -488,6 +531,7 @@ export function useTasksPage() {
     const elapsedSec = minutes * 60;
     // Update elapsed time without starting timer
     setTimers(prev => ({ ...prev, [task.id]: { running: false, elapsed: elapsedSec } }));
+    clearTimerFromStorage(task.id);
     // Only mark complete if target is reached (limit tasks never auto-complete)
     const isLimit = task.flexibilityRule === 'limit_avoid';
     const targetReached = isLimit ? (task.completion?.completed || false) : (task.target ? elapsedSec >= task.target * 60 : minutes > 0);

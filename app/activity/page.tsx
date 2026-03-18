@@ -7,6 +7,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { formatDate } from "@/lib/format";
 import { useTheme } from "@/components/ThemeProvider";
+import ActivityLoading from "./loading";
 import type { ActivityEntry, Pillar } from "@/lib/types";
 
 function getActionIcon(action: string) {
@@ -115,13 +116,7 @@ export default function ActivityPage() {
   };
 
 
-  if (loading && entries.length === 0) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zinc-900 dark:border-zinc-100"></div>
-      </div>
-    );
-  }
+  if (loading && entries.length === 0) return <ActivityLoading />;
 
   return (
     <div className="container mx-auto px-4 py-4 md:py-8 max-w-4xl">

@@ -6,6 +6,7 @@ import { FaPlus, FaEdit, FaArchive } from "react-icons/fa";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { DEMO_PILLARS } from "@/lib/demo-data";
+import PillarsLoading from "./loading";
 import {
   LineChart,
   Line,
@@ -127,13 +128,7 @@ export default function PillarsPage() {
   const autoWeight = unweightedCount > 0 ? Math.round(remainingWeight / unweightedCount) : 0;
   const getEffectiveWeight = (p: { weight?: number }) => p.weight || autoWeight;
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zinc-900 dark:border-zinc-100"></div>
-      </div>
-    );
-  }
+  if (loading) return <PillarsLoading />;
 
   return (
     <div className="container mx-auto px-4 py-4 md:py-8 max-w-4xl">

@@ -9,6 +9,7 @@ import DateNavigation from "./components/DateNavigation";
 import TaskItem from "./components/TaskItem";
 import type { EnrichedTask } from "./components/TaskItem";
 import TaskGroup from "./components/TaskGroup";
+import TasksLoading from "./loading";
 
 export default function TasksPage() {
   const hook = useTasksPage();
@@ -61,7 +62,7 @@ export default function TasksPage() {
     getScheduleLabel,
   } = hook;
 
-  if (loading) return null;
+  if (loading) return <TasksLoading />;
 
   // Build enriched + sorted task list
   const allEnrichedTasks: EnrichedTask[] = groups.flatMap((group) =>

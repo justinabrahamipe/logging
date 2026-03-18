@@ -10,6 +10,7 @@ import { useGoals } from "./hooks/useGoals";
 import { Outcome, Cycle } from "./types";
 import GoalCard from "./components/GoalCard";
 import LogModal from "./components/LogModal";
+import GoalsLoading from "./loading";
 
 export default function GoalsPage() {
   const { status } = useSession();
@@ -162,7 +163,7 @@ export default function GoalsPage() {
     };
   };
 
-  if (loading) return null;
+  if (loading) return <GoalsLoading />;
 
   return (
     <div className="container mx-auto px-4 py-4 md:py-8 max-w-4xl">

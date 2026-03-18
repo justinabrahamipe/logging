@@ -12,6 +12,7 @@ import StreakFlameChain from "./components/StreakFlameChain";
 import CalendarHeatmap from "./components/CalendarHeatmap";
 import ScoreHistory from "./components/ScoreHistory";
 import PillarBreakdown from "./components/PillarBreakdown";
+import DashboardLoading from "./loading";
 
 export default function DashboardPage() {
   const {
@@ -27,7 +28,7 @@ export default function DashboardPage() {
     dateFormat,
   } = useDashboard();
 
-  if (loading) return null;
+  if (loading) return <DashboardLoading />;
 
   return (
     <div className="container mx-auto px-4 py-4 md:py-8 max-w-4xl">
