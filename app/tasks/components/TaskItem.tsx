@@ -100,23 +100,39 @@ export default function TaskItem({
   const isHighlighted = task.completion?.isHighlighted || false;
   const isTaskLoading = actionLoading[task.id] || false;
 
+  // Calculate progress percentage for the fill effect
+  const progressPct = (() => {
+    if (isDiscarded) return 0;
+    if (task.completionType === 'checkbox') return isCompleted ? 100 : 0;
+    const target = isLimitTask ? limitVal : (task.target || 0);
+    if (target <= 0) return currentValue > 0 ? 100 : 0;
+    return Math.min((currentValue / target) * 100, 100);
+  })();
+  const progressColor = isOverLimit ? '#ef4444' : progressPct >= 100 ? '#22C55E' : progressPct > 0 ? '#F59E0B' : 'transparent';
+
   return (
     <div
       key={task.id}
-      className={`rounded-lg px-3 py-2.5 transition-all ${
+      className={`relative rounded-lg px-3 py-2.5 overflow-hidden transition-all ${
         isDiscarded
           ? 'bg-zinc-100 dark:bg-zinc-800/60 border border-zinc-300 dark:border-zinc-600 opacity-60'
           : isOverLimit
-          ? 'bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800'
+          ? 'bg-white dark:bg-zinc-800 border border-red-200 dark:border-red-800'
           : isFullyDone
-          ? 'bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800'
+          ? 'bg-white dark:bg-zinc-800 border border-green-200 dark:border-green-800'
           : isHighlighted
           ? 'bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 hover:shadow-md'
           : 'bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:shadow-md hover:border-zinc-300 dark:hover:border-zinc-600'
       } ${isTaskLoading ? 'opacity-60' : ''}`}
       style={{ borderLeftWidth: 3, borderLeftColor: isDiscarded ? '#9CA3AF' : isOverLimit ? '#ef4444' : isFullyDone ? '#4ade80' : isHighlighted ? '#F59E0B' : task._pillarColor }}
     >
-      <div className="flex items-center gap-2">
+      {progressPct > 0 && (
+        <div
+          className="absolute inset-0 opacity-10 dark:opacity-15 pointer-events-none"
+          style={{ background: progressColor, width: `${progressPct}%` }}
+        />
+      )}
+      <div className="relative flex items-center gap-2">
         {/* Left: star + name, pillar, badges */}
         {(isHighlighted || !maxStarsReached) && (
           <button
@@ -132,26 +148,9 @@ export default function TaskItem({
           </button>
         )}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            <h3 className={`text-sm font-semibold leading-snug ${isDiscarded ? 'line-through text-zinc-400 dark:text-zinc-500 italic' : isFullyDone ? 'line-through text-zinc-400 dark:text-zinc-500' : 'text-zinc-900 dark:text-white'}`}>
-              {task.name}
-            </h3>
-            {task.completion && (task.completion.completed || (task.completion.value != null && task.completion.value !== 0)) && (() => {
-              const rawPts = task.completion.pointsEarned;
-              const pts = Number.isInteger(rawPts) ? rawPts : parseFloat(rawPts.toFixed(1));
-              const base = task.basePoints;
-              const color = pts >= base
-                ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
-                : pts < 0
-                ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400'
-                : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400';
-              return (
-                <span className={`shrink-0 text-[9px] font-bold w-auto min-w-[1.5rem] h-[1.1rem] px-1 rounded-full flex items-center justify-center ${color}`}>
-                  {pts}/{base}
-                </span>
-              );
-            })()}
-          </div>
+          <h3 className={`text-sm font-semibold leading-snug truncate ${isDiscarded ? 'line-through text-zinc-400 dark:text-zinc-500 italic' : isFullyDone ? 'line-through text-zinc-400 dark:text-zinc-500' : 'text-zinc-900 dark:text-white'}`}>
+            {task.name}
+          </h3>
           <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
             <span className="text-[11px] text-zinc-500 dark:text-zinc-400 shrink-0">{task._pillarEmoji} {task._pillarName}</span>
             {isLimitTask && task.completionType !== 'checkbox' && (
