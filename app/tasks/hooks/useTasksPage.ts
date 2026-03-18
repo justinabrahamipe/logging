@@ -392,38 +392,35 @@ export function useTasksPage() {
   };
 
   // --- Completion handlers ---
-  const handleComplete = useCallback((taskId: number, completed?: boolean, value?: number) => {
+  const handleComplete = useCallback(async (taskId: number, completed?: boolean, value?: number) => {
     if (status !== "authenticated") { setAuthSnackbar(true); return; }
 
-    // Optimistic update
-    setGroups(prev => prev.map(g => ({
-      ...g,
-      tasks: g.tasks.map(t =>
-        t.id === taskId ? { ...t, completion: { ...t.completion, taskId, completed: completed ?? false, value: value ?? null, pointsEarned: t.completion?.pointsEarned ?? 0, isHighlighted: t.completion?.isHighlighted ?? false } as TaskCompletion } : t
-      ),
-    })));
+    setActionLoading(prev => ({ ...prev, [taskId]: true }));
+    try {
+      const body: Record<string, unknown> = { taskId, date: viewDate };
+      if (completed !== undefined) body.completed = completed;
+      if (value !== undefined) body.value = value;
 
-    const body: Record<string, unknown> = { taskId, date: viewDate };
-    if (completed !== undefined) body.completed = completed;
-    if (value !== undefined) body.value = value;
-
-    fetch('/api/tasks/complete', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    }).then(res => {
+      const res = await fetch('/api/tasks/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
       if (res.ok) {
-        res.json().then(completion => {
-          setGroups(prev => prev.map(g => ({
-            ...g,
-            tasks: g.tasks.map(t =>
-              t.id === taskId ? { ...t, completion } : t
-            ),
-          })));
-        });
+        const completion = await res.json();
+        setGroups(prev => prev.map(g => ({
+          ...g,
+          tasks: g.tasks.map(t =>
+            t.id === taskId ? { ...t, completion } : t
+          ),
+        })));
         fetchScore(viewDate);
       }
-    }).catch(err => console.error("Failed to complete task:", err));
+    } catch (err) {
+      console.error("Failed to complete task:", err);
+    } finally {
+      setActionLoading(prev => ({ ...prev, [taskId]: false }));
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [today, viewDate]);
 
@@ -498,7 +495,7 @@ export function useTasksPage() {
     setPendingValues(prev => { const next = { ...prev }; delete next[task.id]; return next; });
   };
 
-  const handleHighlightToggle = useCallback((taskId: number) => {
+  const handleHighlightToggle = useCallback(async (taskId: number) => {
     const allTasks = groups.flatMap(g => g.tasks);
     const groupTask = allTasks.find(t => t.id === taskId);
     const currentlyHighlighted = groupTask?.completion?.isHighlighted || false;
@@ -508,36 +505,28 @@ export function useTasksPage() {
       if (highlightedCount >= 3) return;
     }
 
-    setGroups(prev => prev.map(g => ({
-      ...g,
-      tasks: g.tasks.map(t =>
-        t.id === taskId ? {
-          ...t,
-          completion: {
-            ...(t.completion || { id: 0, taskId, completed: false, value: null, pointsEarned: 0, isHighlighted: false }),
-            isHighlighted: !currentlyHighlighted,
-          } as TaskCompletion
-        } : t
-      ),
-    })));
-
-    fetch('/api/tasks/highlight', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ taskId, date: viewDate, isHighlighted: !currentlyHighlighted }),
-    }).then(res => {
+    setActionLoading(prev => ({ ...prev, [taskId]: true }));
+    try {
+      const res = await fetch('/api/tasks/highlight', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskId, date: viewDate, isHighlighted: !currentlyHighlighted }),
+      });
       if (res.ok) {
-        res.json().then(completion => {
-          setGroups(prev => prev.map(g => ({
-            ...g,
-            tasks: g.tasks.map(t =>
-              t.id === taskId ? { ...t, completion } : t
-            ),
-          })));
-        });
+        const completion = await res.json();
+        setGroups(prev => prev.map(g => ({
+          ...g,
+          tasks: g.tasks.map(t =>
+            t.id === taskId ? { ...t, completion } : t
+          ),
+        })));
         fetchScore(viewDate);
       }
-    }).catch(err => console.error("Failed to toggle highlight:", err));
+    } catch (err) {
+      console.error("Failed to toggle highlight:", err);
+    } finally {
+      setActionLoading(prev => ({ ...prev, [taskId]: false }));
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewDate, groups]);
 

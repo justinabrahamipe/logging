@@ -123,7 +123,7 @@ export default function TaskItem({
           : isHighlighted
           ? 'bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 hover:shadow-md'
           : 'bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:shadow-md hover:border-zinc-300 dark:hover:border-zinc-600'
-      } ${isTaskLoading ? 'opacity-60' : ''}`}
+      }`}
       style={{ borderLeftWidth: 3, borderLeftColor: isDiscarded ? '#9CA3AF' : isOverLimit ? '#ef4444' : isFullyDone ? '#4ade80' : isHighlighted ? '#F59E0B' : task._pillarColor }}
     >
       {progressPct > 0 && (
@@ -131,6 +131,11 @@ export default function TaskItem({
           className="absolute inset-0 opacity-10 dark:opacity-15 pointer-events-none"
           style={{ background: progressColor, width: `${progressPct}%` }}
         />
+      )}
+      {isTaskLoading && (
+        <div className="absolute inset-0 bg-white/50 dark:bg-zinc-800/50 flex items-center justify-center z-10 rounded-lg">
+          <div className="w-4 h-4 border-2 border-zinc-300 dark:border-zinc-600 border-t-zinc-600 dark:border-t-zinc-300 rounded-full animate-spin" />
+        </div>
       )}
       <div className="relative flex items-center gap-2">
         {/* Left: star + name, pillar, badges */}
