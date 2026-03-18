@@ -38,8 +38,7 @@ export async function POST(request: Request) {
     const targetReached = task.target != null && task.target > 0 && completionValue >= task.target;
     const isCompleted = completed ?? (
       task.completionType === 'checkbox' ? true :
-      task.completionType === 'duration' ? targetReached :
-      targetReached || completionValue > 0
+      targetReached
     );
 
     const pointsEarned = calculateTaskScore(

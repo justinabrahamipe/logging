@@ -443,7 +443,7 @@ export function useTasksPage() {
     if (raw === undefined) return;
     const numValue = parseFloat(raw) || 0;
     const isLimit = task.flexibilityRule === 'limit_avoid';
-    const completed = isLimit ? (task.completion?.completed || false) : (numValue > 0);
+    const completed = isLimit ? (task.completion?.completed || false) : (task.target && task.target > 0 ? numValue >= task.target : numValue > 0);
     handleComplete(task.id, completed, numValue);
     setPendingValues(prev => { const next = { ...prev }; delete next[task.id]; return next; });
   };
