@@ -21,6 +21,7 @@ const DEFAULT_FORM: GoalFormState = {
   completionType: "checkbox",
   dailyTarget: "",
   autoCreateTasks: true,
+  flexibilityRule: "must_today",
   frequencyPreset: "daily",
   customDays: [],
   repeatInterval: "1",
@@ -73,6 +74,7 @@ export default function GoalForm({
         completionType: (editingOutcome.completionType as "checkbox" | "count" | "numeric" | "duration") || "checkbox",
         dailyTarget: editingOutcome.dailyTarget ? String(editingOutcome.dailyTarget) : "",
         autoCreateTasks: editingOutcome.autoCreateTasks || false,
+        flexibilityRule: editingOutcome.flexibilityRule || "must_today",
         frequencyPreset,
         customDays,
         repeatInterval: "1",
@@ -127,6 +129,8 @@ export default function GoalForm({
       goalType: form.goalType,
       completionType: form.completionType,
       dailyTarget: form.dailyTarget ? parseFloat(form.dailyTarget) : null,
+      flexibilityRule: form.flexibilityRule,
+      limitValue: form.flexibilityRule === 'limit_avoid' && form.dailyTarget ? parseFloat(form.dailyTarget) : null,
     };
 
     {
@@ -231,10 +235,41 @@ export default function GoalForm({
               </button>
             ))}
           </div>
+          {form.completionType !== "checkbox" && (form.goalType === "habitual" || form.goalType === "target") && (
+            <div className="mt-2">
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Mode</label>
+              <div className="grid grid-cols-2 gap-1 max-w-xs">
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, flexibilityRule: "must_today" })}
+                  className={`px-3 py-2 text-xs rounded-lg border transition-colors ${
+                    form.flexibilityRule !== "limit_avoid"
+                      ? "border-zinc-900 dark:border-zinc-100 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white"
+                      : "border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300"
+                  }`}
+                >
+                  Target
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, flexibilityRule: "limit_avoid" })}
+                  className={`px-3 py-2 text-xs rounded-lg border transition-colors ${
+                    form.flexibilityRule === "limit_avoid"
+                      ? "border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300"
+                      : "border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300"
+                  }`}
+                >
+                  Limit
+                </button>
+              </div>
+            </div>
+          )}
           {form.completionType !== "checkbox" && form.goalType === "habitual" && (
             <div className="mt-2 grid grid-cols-2 gap-2 max-w-sm">
               <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Per-session target</label>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                  {form.flexibilityRule === "limit_avoid" ? "Per-session limit" : "Per-session target"}
+                </label>
                 <input
                   type="number"
                   step="any"
@@ -318,7 +353,9 @@ export default function GoalForm({
       {form.goalType === "target" && (
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Target Value</label>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+              {form.flexibilityRule === "limit_avoid" ? "Limit Value" : "Target Value"}
+            </label>
             <input
               type="number"
               step="any"

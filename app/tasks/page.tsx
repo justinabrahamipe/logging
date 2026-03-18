@@ -53,6 +53,7 @@ export default function TasksPage() {
     handleDelete,
     handleDiscard,
     handleMoveDate,
+    handleMarkDone,
     formatTime,
     getDateBucket,
     isTaskInDateRange,
@@ -130,6 +131,7 @@ export default function TasksPage() {
     handleDelete,
     handleDiscard,
     handleMoveDate,
+    handleMarkDone,
     formatTime,
   };
 

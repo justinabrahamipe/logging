@@ -28,6 +28,8 @@ export async function GET() {
         autoCreateTasks: goals.autoCreateTasks,
         completionType: goals.completionType,
         dailyTarget: goals.dailyTarget,
+        flexibilityRule: goals.flexibilityRule,
+        limitValue: goals.limitValue,
         createdAt: goals.createdAt,
         updatedAt: goals.updatedAt,
         pillarName: pillars.name,
@@ -49,7 +51,7 @@ export async function POST(request: Request) {
     const userId = await getAuthenticatedUserId();
 
     const body = await request.json();
-    const { name, targetValue, unit, pillarId, logFrequency, periodId, goalType, completionType, dailyTarget, scheduleDays, autoCreateTasks } = body;
+    const { name, targetValue, unit, pillarId, logFrequency, periodId, goalType, completionType, dailyTarget, scheduleDays, autoCreateTasks, flexibilityRule, limitValue } = body;
 
     const isActivityGoal = goalType === 'habitual' || goalType === 'target';
 
@@ -93,6 +95,8 @@ export async function POST(request: Request) {
       dailyTarget: dailyTarget ?? null,
       scheduleDays: scheduleDays ? JSON.stringify(scheduleDays) : null,
       autoCreateTasks: autoCreateTasks || false,
+      flexibilityRule: flexibilityRule || 'must_today',
+      limitValue: limitValue ?? null,
     }).returning();
 
     // Auto-create individual tasks for the next 7 days that match the schedule
@@ -138,10 +142,13 @@ export async function POST(request: Request) {
           periodId: periodId || null,
           startDate: dateStr,
           basePoints: 10,
-          flexibilityRule: 'must_today',
+          flexibilityRule: flexibilityRule || 'must_today',
+          limitValue: (flexibilityRule === 'limit_avoid' ? (dailyTarget || limitValue || null) : null),
         }).returning();
 
         // Create the concrete task instance
+        const isLimit = flexibilityRule === 'limit_avoid';
+        const taskLimitValue = isLimit ? (dailyTarget || limitValue || null) : null;
         await db.insert(tasks).values({
           scheduleId: schedule.id,
           userId,
@@ -154,7 +161,9 @@ export async function POST(request: Request) {
           periodId: periodId || null,
           date: dateStr,
           basePoints: 10,
-          flexibilityRule: 'must_today',
+          flexibilityRule: flexibilityRule || 'must_today',
+          limitValue: taskLimitValue,
+          value: isLimit && taskLimitValue ? taskLimitValue : null,
         });
       }
     }

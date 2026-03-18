@@ -275,6 +275,8 @@ export const goals = sqliteTable('Goal', {
   dailyTarget: real('dailyTarget'), // per-session target for count/numeric habitual goals
   scheduleDays: text('scheduleDays'), // JSON weekday array e.g. [1,3,5]
   autoCreateTasks: integer('autoCreateTasks', { mode: 'boolean' }).notNull().default(false),
+  flexibilityRule: text('flexibilityRule').notNull().default('must_today'), // must_today|at_least|limit_avoid
+  limitValue: real('limitValue'),
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({

@@ -33,13 +33,21 @@ function calculateHabitualMomentum(
   }
 
   // Count how many scheduled days were hit
+  const isLimit = goal.flexibilityRule === 'limit_avoid';
   let daysHit = 0;
   const current = new Date(effectiveStart + 'T00:00:00');
   const endD = new Date(effectiveEnd + 'T00:00:00');
   while (current <= endD) {
     const dateStr = current.toISOString().split('T')[0];
-    if (scheduleDays.includes(current.getDay()) && logDates.has(dateStr)) {
-      daysHit++;
+    if (scheduleDays.includes(current.getDay())) {
+      if (isLimit) {
+        // For limit goals: a day is "hit" if value <= limitValue (stayed under)
+        const dayLogs = logs.filter(l => l.loggedAt.split('T')[0] === dateStr);
+        const dayValue = dayLogs.reduce((sum, l) => sum + l.value, 0);
+        if (dayLogs.length > 0 && dayValue <= (goal.limitValue || 0)) daysHit++;
+      } else {
+        if (logDates.has(dateStr)) daysHit++;
+      }
     }
     current.setDate(current.getDate() + 1);
   }
@@ -90,7 +98,11 @@ function calculateTargetMomentum(
   // Where you are
   const actualProgress = goal.currentValue - goal.startValue;
 
-  const momentum = expectedProgress > 0 ? actualProgress / expectedProgress : (actualProgress > 0 ? 2.0 : 1.0);
+  const isLimit = goal.flexibilityRule === 'limit_avoid';
+  // For limit goals: using less than expected = ahead, so invert the ratio
+  const momentum = isLimit
+    ? (actualProgress > 0 ? expectedProgress / actualProgress : (expectedProgress > 0 ? 2.0 : 1.0))
+    : (expectedProgress > 0 ? actualProgress / expectedProgress : (actualProgress > 0 ? 2.0 : 1.0));
 
   // Buffer: how many more scheduled days can you skip
   const remainingDays = totalDays - elapsedDays;

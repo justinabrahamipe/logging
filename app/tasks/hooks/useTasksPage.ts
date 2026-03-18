@@ -435,7 +435,9 @@ export function useTasksPage() {
   const handleCountChange = (task: Task, delta: number) => {
     const current = task.completion?.value || 0;
     const newValue = Math.max(0, current + delta);
-    const completed = task.target ? newValue >= task.target : newValue > 0;
+    const isLimit = task.flexibilityRule === 'limit_avoid';
+    // Limit tasks never auto-complete — user must manually mark done
+    const completed = isLimit ? (task.completion?.completed || false) : (task.target ? newValue >= task.target : newValue > 0);
     handleComplete(task.id, completed, newValue);
   };
 
@@ -443,8 +445,15 @@ export function useTasksPage() {
     const raw = pendingValues[task.id];
     if (raw === undefined) return;
     const numValue = parseFloat(raw) || 0;
-    handleComplete(task.id, numValue > 0, numValue);
+    const isLimit = task.flexibilityRule === 'limit_avoid';
+    const completed = isLimit ? (task.completion?.completed || false) : (numValue > 0);
+    handleComplete(task.id, completed, numValue);
     setPendingValues(prev => { const next = { ...prev }; delete next[task.id]; return next; });
+  };
+
+  const handleMarkDone = (task: Task) => {
+    const currentValue = task.completion?.value || 0;
+    handleComplete(task.id, true, currentValue);
   };
 
   const startTimer = (taskId: number, startElapsed: number) => {
@@ -464,7 +473,8 @@ export function useTasksPage() {
       // Pause: save progress, only mark complete if target reached
       clearInterval(timer.interval);
       const minutes = Math.round(timer.elapsed / 60);
-      const targetReached = task.target ? timer.elapsed >= task.target * 60 : minutes > 0;
+      const isLimit = task.flexibilityRule === 'limit_avoid';
+      const targetReached = isLimit ? (task.completion?.completed || false) : (task.target ? timer.elapsed >= task.target * 60 : minutes > 0);
       handleComplete(task.id, targetReached, minutes);
       setTimers(prev => ({ ...prev, [task.id]: { running: false, elapsed: timer.elapsed } }));
     } else {
@@ -481,8 +491,9 @@ export function useTasksPage() {
     const elapsedSec = minutes * 60;
     // Update elapsed time without starting timer
     setTimers(prev => ({ ...prev, [task.id]: { running: false, elapsed: elapsedSec } }));
-    // Only mark complete if target is reached
-    const targetReached = task.target ? elapsedSec >= task.target * 60 : minutes > 0;
+    // Only mark complete if target is reached (limit tasks never auto-complete)
+    const isLimit = task.flexibilityRule === 'limit_avoid';
+    const targetReached = isLimit ? (task.completion?.completed || false) : (task.target ? elapsedSec >= task.target * 60 : minutes > 0);
     handleComplete(task.id, targetReached, minutes);
     setPendingValues(prev => { const next = { ...prev }; delete next[task.id]; return next; });
   };
@@ -849,6 +860,7 @@ export function useTasksPage() {
     handleDelete,
     handleDiscard,
     handleMoveDate,
+    handleMarkDone,
     // Helpers
     formatTime,
     getDateBucket: (task: Task) => getDateBucket(task, today),

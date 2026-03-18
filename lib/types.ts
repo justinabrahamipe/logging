@@ -64,6 +64,8 @@ export interface Outcome {
   dailyTarget: number | null;
   scheduleDays: string | null;
   autoCreateTasks: boolean;
+  flexibilityRule?: string;
+  limitValue?: number | null;
   pillarName: string | null;
   pillarColor: string | null;
   pillarEmoji: string | null;
@@ -257,6 +259,8 @@ export interface GoalForMomentum {
   startDate: string | null;
   targetDate: string | null;
   scheduleDays: string | null;
+  flexibilityRule?: string;
+  limitValue?: number | null;
 }
 
 export interface GoalLogEntry {
@@ -319,6 +323,7 @@ export interface TaskFormState {
   completionType: string;
   target: string;
   unit: string;
+  flexibilityRule: string;
   frequencyPreset: string;
   frequency: string;
   customDays: number[];
@@ -343,6 +348,7 @@ export interface GoalFormState {
   completionType: "checkbox" | "count" | "numeric" | "duration";
   dailyTarget: string;
   autoCreateTasks: boolean;
+  flexibilityRule: string;
   frequencyPreset: string;
   customDays: number[];
   repeatInterval: string;

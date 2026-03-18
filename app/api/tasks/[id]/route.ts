@@ -66,7 +66,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (type === 'task') {
       // Update a specific task instance
       const updateData: Record<string, unknown> = {};
-      const taskFields = ['name', 'pillarId', 'completionType', 'target', 'unit', 'basePoints', 'goalId', 'periodId', 'date'];
+      const taskFields = ['name', 'pillarId', 'completionType', 'target', 'unit', 'basePoints', 'goalId', 'periodId', 'date', 'flexibilityRule', 'limitValue'];
       for (const field of taskFields) {
         if (body[field] !== undefined) updateData[field] = body[field];
       }

@@ -168,6 +168,8 @@ async function ensureGoalTasks(userId: string, todayStr: string, dates: string[]
       const dow = current.getDay();
 
       if (scheduleDays.includes(dow) && !existingSet.has(`${outcome.id}:${dateStr}`)) {
+        const isLimit = outcome.flexibilityRule === 'limit_avoid';
+        const goalLimitValue = isLimit ? (outcome.limitValue || outcome.dailyTarget || null) : null;
         try {
           await db.insert(tasks).values({
             userId,
@@ -176,13 +178,14 @@ async function ensureGoalTasks(userId: string, todayStr: string, dates: string[]
             completionType: taskCompletionType,
             target: taskDailyTarget,
             unit: taskCompletionType === 'checkbox' ? null : (outcome.unit || null),
-            flexibilityRule: 'must_today',
+            flexibilityRule: outcome.flexibilityRule || 'must_today',
+            limitValue: goalLimitValue,
             basePoints: 10,
             goalId: outcome.id,
             periodId: outcome.periodId || null,
             date: dateStr,
             completed: false,
-            value: null,
+            value: isLimit && goalLimitValue ? goalLimitValue : null,
             pointsEarned: 0,
             isHighlighted: false,
             completedAt: null,

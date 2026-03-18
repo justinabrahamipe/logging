@@ -84,6 +84,7 @@ export default function TaskForm({
         completionType: editingTask.completionType,
         target: editingTask.target?.toString() || "",
         unit: editingTask.unit || "",
+        flexibilityRule: editingTask.flexibilityRule || "must_today",
         frequencyPreset: freq.preset,
         frequency: editingTask.frequency,
         customDays: freq.customDays,
@@ -101,6 +102,7 @@ export default function TaskForm({
       completionType: "checkbox",
       target: "",
       unit: "",
+      flexibilityRule: "must_today",
       frequencyPreset: "adhoc",
       frequency: "adhoc",
       customDays: [],
@@ -164,8 +166,12 @@ export default function TaskForm({
     };
 
     body.startDate = form.startDate || null;
+    body.flexibilityRule = form.flexibilityRule;
     if (form.target) body.target = parseFloat(form.target);
     if (form.unit) body.unit = form.unit;
+    if (form.flexibilityRule === 'limit_avoid' && form.target) {
+      body.limitValue = parseFloat(form.target);
+    }
 
     setSaving(true);
     try {
@@ -306,12 +312,42 @@ export default function TaskForm({
         </div>
       </div>
 
-      {/* Target & Unit */}
+      {/* Target/Limit Toggle + Target & Unit */}
       {form.completionType !== "checkbox" && (
+        <>
+        <div>
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Mode</label>
+          <div className="grid grid-cols-2 gap-1 max-w-xs">
+            <button
+              type="button"
+              onClick={() => setForm({ ...form, flexibilityRule: "must_today" })}
+              className={`px-3 py-2 text-xs rounded-lg border transition-colors ${
+                form.flexibilityRule !== "limit_avoid"
+                  ? "border-zinc-900 dark:border-zinc-100 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white"
+                  : "border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300"
+              }`}
+            >
+              Target
+            </button>
+            <button
+              type="button"
+              onClick={() => setForm({ ...form, flexibilityRule: "limit_avoid" })}
+              className={`px-3 py-2 text-xs rounded-lg border transition-colors ${
+                form.flexibilityRule === "limit_avoid"
+                  ? "border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300"
+                  : "border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300"
+              }`}
+            >
+              Limit
+            </button>
+          </div>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-              {form.completionType === "duration" ? "Target (minutes)" : "Target"}
+              {form.flexibilityRule === "limit_avoid"
+                ? (form.completionType === "duration" ? "Limit (minutes)" : "Limit")
+                : (form.completionType === "duration" ? "Target (minutes)" : "Target")}
             </label>
             <input
               type="number"
@@ -334,6 +370,7 @@ export default function TaskForm({
             </div>
           )}
         </div>
+        </>
       )}
 
       {/* Custom recurrence */}

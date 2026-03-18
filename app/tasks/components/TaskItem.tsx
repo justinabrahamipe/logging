@@ -40,6 +40,7 @@ interface TaskItemProps {
   handleDelete: (id: number) => void;
   handleDiscard: (task: Task) => void;
   handleMoveDate: (task: Task, direction: -1 | 1) => void;
+  handleMarkDone?: (task: Task) => void;
   formatTime: (seconds: number) => string;
 }
 
@@ -67,11 +68,14 @@ export default function TaskItem({
   handleDelete,
   handleDiscard,
   handleMoveDate,
+  handleMarkDone,
   formatTime,
 }: TaskItemProps) {
   const isCompleted = task.completion?.completed || false;
   const currentValue = task.completion?.value || 0;
   const isDiscarded = isCompleted && task.completionType === 'checkbox' && currentValue === 0;
+  const isLimitTask = task.flexibilityRule === 'limit_avoid';
+  const limitVal = task.limitValue ?? task.target ?? 0;
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [menuPos, setMenuPos] = useState<{ top?: number; bottom?: number; right: number }>({ right: 0 });
 
@@ -87,7 +91,12 @@ export default function TaskItem({
       }
     }
   }, [openMenuId, task.id]);
-  const isFullyDone = !isDiscarded && (isCompleted || (task.target != null && task.target > 0 && currentValue >= task.target));
+  const isFullyDone = !isDiscarded && (
+    isLimitTask
+      ? isCompleted
+      : (isCompleted || (task.target != null && task.target > 0 && currentValue >= task.target))
+  );
+  const isOverLimit = isLimitTask && limitVal > 0 && currentValue > limitVal;
   const isHighlighted = task.completion?.isHighlighted || false;
   const isTaskLoading = actionLoading[task.id] || false;
 
@@ -97,13 +106,15 @@ export default function TaskItem({
       className={`rounded-lg px-3 py-2.5 transition-all ${
         isDiscarded
           ? 'bg-zinc-100 dark:bg-zinc-800/60 border border-zinc-300 dark:border-zinc-600 opacity-60'
+          : isOverLimit
+          ? 'bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800'
           : isFullyDone
           ? 'bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800'
           : isHighlighted
           ? 'bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 hover:shadow-md'
           : 'bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:shadow-md hover:border-zinc-300 dark:hover:border-zinc-600'
       } ${isTaskLoading ? 'opacity-60' : ''}`}
-      style={{ borderLeftWidth: 3, borderLeftColor: isDiscarded ? '#9CA3AF' : isFullyDone ? '#4ade80' : isHighlighted ? '#F59E0B' : task._pillarColor }}
+      style={{ borderLeftWidth: 3, borderLeftColor: isDiscarded ? '#9CA3AF' : isOverLimit ? '#ef4444' : isFullyDone ? '#4ade80' : isHighlighted ? '#F59E0B' : task._pillarColor }}
     >
       <div className="flex items-center gap-2">
         {/* Left: star + name, pillar, badges */}
@@ -126,6 +137,16 @@ export default function TaskItem({
           </h3>
           <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
             <span className="text-[11px] text-zinc-500 dark:text-zinc-400 shrink-0">{task._pillarEmoji} {task._pillarName}</span>
+            {isLimitTask && task.completionType !== 'checkbox' && (
+              <span className="text-[10px] px-1.5 py-px rounded-full font-medium bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">
+                Limit
+              </span>
+            )}
+            {!isLimitTask && task.completionType !== 'checkbox' && task.target != null && task.target > 0 && (
+              <span className="text-[10px] px-1.5 py-px rounded-full font-medium bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+                Target
+              </span>
+            )}
             {task.periodId && cycles.find(c => c.id === task.periodId) && (
               <span className="text-[11px] px-1.5 py-px rounded-full font-medium bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400 truncate max-w-[120px]">
                 {cycles.find(c => c.id === task.periodId)?.name}
@@ -172,9 +193,11 @@ export default function TaskItem({
                   <FaMinus className="text-[9px]" />
                 </button>
                 <span className={`text-xs font-bold min-w-[2.5rem] text-center ${
-                  task.target && currentValue >= task.target ? 'text-green-600 dark:text-green-400' : 'text-zinc-900 dark:text-white'
+                  isLimitTask
+                    ? (currentValue > limitVal ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400')
+                    : (task.target && currentValue >= task.target ? 'text-green-600 dark:text-green-400' : 'text-zinc-900 dark:text-white')
                 }`}>
-                  {currentValue}/{task.target || '?'}
+                  {currentValue}/{isLimitTask ? limitVal : (task.target || '?')}
                 </span>
                 <button
                   onClick={() => handleCountChange(task, 1)}
@@ -189,8 +212,9 @@ export default function TaskItem({
               const timer = timers[task.id];
               const elapsed = timer ? timer.elapsed : (currentValue * 60);
               const targetSec = (task.target || 0) * 60;
+              const limitSec = isLimitTask ? (limitVal * 60) : 0;
               const isRunning = timer?.running || false;
-              const done = targetSec > 0 && elapsed >= targetSec;
+              const done = isLimitTask ? false : (targetSec > 0 && elapsed >= targetSec);
               const isEditing = pendingValues[task.id] !== undefined;
               const targetDisplay = task.target ? `${task.target}:00` : null;
               return (
@@ -210,13 +234,16 @@ export default function TaskItem({
                     <button
                       onClick={() => { if (!isRunning) setPendingValues(prev => ({ ...prev, [task.id]: String(Math.round(elapsed / 60)) })); }}
                       className={`text-xs font-mono min-w-[3rem] text-center ${
+                        isLimitTask && limitSec > 0 && elapsed > limitSec ? 'text-red-600 dark:text-red-400 font-bold' :
                         done ? 'text-green-600 dark:text-green-400 font-bold' :
                         isRunning ? 'text-zinc-900 dark:text-white font-bold' :
                         'text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white cursor-text'
                       }`}
                       disabled={isRunning}
                     >
-                      {formatTime(elapsed)}
+                      {isLimitTask && limitSec > 0
+                        ? formatTime(Math.max(0, limitSec - elapsed))
+                        : formatTime(elapsed)}
                       {targetDisplay ? <span className="text-zinc-400 dark:text-zinc-500 font-normal">/{targetDisplay}</span> : null}
                     </button>
                   )}
@@ -278,6 +305,14 @@ export default function TaskItem({
                   className="fixed z-50 w-36 bg-white dark:bg-zinc-800 rounded-lg shadow-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden"
                   style={{ right: menuPos.right, ...(menuPos.top != null ? { top: menuPos.top } : { bottom: menuPos.bottom }) }}
                 >
+                  {isLimitTask && !isCompleted && handleMarkDone && (
+                    <button
+                      onClick={() => { setOpenMenuId(null); handleMarkDone(task); }}
+                      className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20"
+                    >
+                      <FaCheck className="text-xs" /> Mark as Done
+                    </button>
+                  )}
                   <button
                     onClick={() => { setOpenMenuId(null); router.push(`/tasks/${task.id}/edit`); }}
                     className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"

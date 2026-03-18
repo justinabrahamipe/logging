@@ -61,6 +61,8 @@ export async function GET() {
       startDate: g.startDate,
       targetDate: g.targetDate,
       scheduleDays: g.scheduleDays,
+      flexibilityRule: g.flexibilityRule,
+      limitValue: g.limitValue,
     }));
 
     const summary = calculateMomentum(mappedGoals, logs, pillarWeights, today);

@@ -109,6 +109,11 @@ export default function GoalCard({
             <span className="text-[11px] px-1.5 py-px rounded-full font-medium bg-zinc-100 text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400 shrink-0">
               {outcome.goalType === "habitual" ? "Habitual" : outcome.goalType === "target" || outcome.goalType === "effort" ? "Target" : "Outcome"}
             </span>
+            {outcome.flexibilityRule === "limit_avoid" && (
+              <span className="text-[10px] px-1.5 py-px rounded-full font-medium bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 shrink-0">
+                Limit
+              </span>
+            )}
             {!isActivityGoal && (
               outcome.direction === "decrease" ? (
                 <FaArrowDown className="text-xs text-green-500 shrink-0" />
