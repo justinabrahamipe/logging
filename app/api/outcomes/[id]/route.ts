@@ -44,6 +44,39 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       .where(and(eq(goals.id, outcomeId), eq(goals.userId, userId)))
       .returning();
 
+    // Propagate changes to linked uncompleted tasks and their schedules
+    const propagateToTasks: Record<string, unknown> = {};
+    const propagateToSchedules: Record<string, unknown> = {};
+    if (body.name !== undefined) { propagateToTasks.name = body.name; propagateToSchedules.name = body.name; }
+    if (body.pillarId !== undefined) { propagateToTasks.pillarId = body.pillarId || null; propagateToSchedules.pillarId = body.pillarId || null; }
+    if (body.completionType !== undefined) { propagateToTasks.completionType = body.completionType; propagateToSchedules.completionType = body.completionType; }
+    if (body.unit !== undefined) { propagateToTasks.unit = body.unit || null; propagateToSchedules.unit = body.unit || null; }
+    if (body.flexibilityRule !== undefined) { propagateToTasks.flexibilityRule = body.flexibilityRule; propagateToSchedules.flexibilityRule = body.flexibilityRule; }
+    if (body.limitValue !== undefined) { propagateToTasks.limitValue = body.limitValue ?? null; propagateToSchedules.limitValue = body.limitValue ?? null; }
+    if (body.periodId !== undefined) { propagateToTasks.periodId = body.periodId || null; propagateToSchedules.periodId = body.periodId || null; }
+
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    if (Object.keys(propagateToTasks).length > 0) {
+      const linkedTasks = await db
+        .select()
+        .from(tasks)
+        .where(and(eq(tasks.goalId, outcomeId), eq(tasks.userId, userId), eq(tasks.completed, false)));
+
+      for (const t of linkedTasks) {
+        if (t.date >= todayStr) {
+          await db.update(tasks).set(propagateToTasks).where(eq(tasks.id, t.id));
+        }
+      }
+    }
+
+    if (Object.keys(propagateToSchedules).length > 0) {
+      await db
+        .update(taskSchedules)
+        .set(propagateToSchedules)
+        .where(and(eq(taskSchedules.goalId, outcomeId), eq(taskSchedules.userId, userId)));
+    }
+
     return NextResponse.json(updated);
   } catch (error) {
     return errorResponse(error);
