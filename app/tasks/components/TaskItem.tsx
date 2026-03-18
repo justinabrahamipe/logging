@@ -164,11 +164,6 @@ export default function TaskItem({
                 T
               </span>
             )}
-            {task.periodId && cycles.find(c => c.id === task.periodId) && (
-              <span className="text-[11px] px-1.5 py-px rounded-full font-medium bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400 truncate max-w-[120px]">
-                {cycles.find(c => c.id === task.periodId)?.name}
-              </span>
-            )}
             {showDate && (
               <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{showDate}</span>
             )}
@@ -342,13 +337,13 @@ export default function TaskItem({
                         onClick={() => handleMoveDate(task, -1)}
                         className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                       >
-                        <FaArrowLeft className="text-xs" /> Prepone a Day
+                        <FaArrowLeft className="text-xs" /> Prepone
                       </button>
                       <button
                         onClick={() => handleMoveDate(task, 1)}
                         className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                       >
-                        <FaArrowRight className="text-xs" /> Postpone a Day
+                        <FaArrowRight className="text-xs" /> Postpone
                       </button>
                     </>
                   )}
@@ -358,12 +353,21 @@ export default function TaskItem({
                   >
                     <FaCopy className="text-xs" /> Duplicate
                   </button>
-                  <button
-                    onClick={() => handleDiscard(task)}
-                    className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-zinc-500 dark:text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-700"
-                  >
-                    <FaTimes className="text-xs" /> Discard
-                  </button>
+                  {isDiscarded ? (
+                    <button
+                      onClick={() => { setOpenMenuId(null); handleCheckboxToggle(task); }}
+                      className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20"
+                    >
+                      <FaCheck className="text-xs" /> Undiscard
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleDiscard(task)}
+                      className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-zinc-500 dark:text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                    >
+                      <FaTimes className="text-xs" /> Discard
+                    </button>
+                  )}
                   <button
                     onClick={() => { setOpenMenuId(null); handleDelete(task.id); }}
                     className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
