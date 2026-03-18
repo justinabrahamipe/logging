@@ -31,7 +31,7 @@ export default function DashboardPage() {
   if (loading) return <DashboardLoading />;
 
   return (
-    <div className="container mx-auto px-4 py-4 md:py-8 max-w-7xl">
+    <div className="container mx-auto px-4 py-4 md:py-8 max-w-[1800px]">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -54,10 +54,10 @@ export default function DashboardPage() {
           </Link>
         </div>
 
-        {/* Two-column layout on wide screens */}
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-          {/* Left column: score + goals + habits */}
-          <div className="xl:col-span-7">
+        {/* Responsive grid: 1 col mobile, 2 col desktop, 3 col ultrawide */}
+        <div className="grid grid-cols-1 xl:grid-cols-12 2xl:grid-cols-3 gap-6">
+          {/* Column 1: briefing + score */}
+          <div className="xl:col-span-7 2xl:col-span-1">
             {history && (
               <MorningBriefing
                 history={history}
@@ -68,17 +68,30 @@ export default function DashboardPage() {
 
             <ScoreCard score={score} momentumData={momentumData} />
 
+            {/* Streak + calendar move here on 2-col, stay in col 1 on 3-col */}
+            <div className="hidden 2xl:block">
+              {history && <StreakFlameChain scores={history.scores} currentStreak={currentStreak} />}
+              {history && <CalendarHeatmap scores={history.scores} />}
+            </div>
+          </div>
+
+          {/* Column 2: goals + habits */}
+          <div className="xl:col-span-5 2xl:col-span-1">
             <GoalProgress outcomesData={outcomesData} completionDates={completionDates} today={today} />
 
             <HabitTracker outcomesData={outcomesData} completionDates={completionDates} today={today} />
+
+            {/* On 2-col layout, streak + calendar + history here */}
+            <div className="2xl:hidden">
+              {history && <StreakFlameChain scores={history.scores} currentStreak={currentStreak} />}
+              {history && <CalendarHeatmap scores={history.scores} />}
+              {history && <ScoreHistory scores={history.scores} />}
+              {history && <PillarBreakdown scores={history.scores} pillarsMeta={history.pillars} />}
+            </div>
           </div>
 
-          {/* Right column: streaks + charts + history */}
-          <div className="xl:col-span-5">
-            {history && <StreakFlameChain scores={history.scores} currentStreak={currentStreak} />}
-
-            {history && <CalendarHeatmap scores={history.scores} />}
-
+          {/* Column 3: charts + history (only on ultrawide) */}
+          <div className="hidden 2xl:block 2xl:col-span-1">
             {history && <ScoreHistory scores={history.scores} />}
 
             {history && <PillarBreakdown scores={history.scores} pillarsMeta={history.pillars} />}
