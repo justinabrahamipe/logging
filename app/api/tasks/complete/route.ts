@@ -36,7 +36,11 @@ export async function POST(request: Request) {
 
     const completionValue = value ?? (task.completionType === 'checkbox' ? (completed ? 1 : 0) : 0);
     const targetReached = task.target != null && task.target > 0 && completionValue >= task.target;
-    const isCompleted = completed ?? (task.completionType === 'checkbox' ? true : targetReached || completionValue > 0);
+    const isCompleted = completed ?? (
+      task.completionType === 'checkbox' ? true :
+      task.completionType === 'duration' ? targetReached :
+      targetReached || completionValue > 0
+    );
 
     const pointsEarned = calculateTaskScore(
       { id: task.id, pillarId: task.pillarId, completionType: task.completionType, target: task.target, basePoints: task.basePoints, flexibilityRule: task.flexibilityRule, limitValue: task.limitValue },
