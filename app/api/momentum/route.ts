@@ -42,7 +42,9 @@ export async function GET() {
 
       logs = allGoalTasks.map(c => ({
         outcomeId: c.goalId!,
-        value: c.value ?? 0,
+        // For checkbox tasks, value is null when completed — treat as 1 so it counts as a hit.
+        // Discarded tasks have value=0 explicitly, which correctly won't count (0 > 0 = false).
+        value: c.value != null ? c.value : 1,
         loggedAt: c.date + "T12:00:00.000Z",
       }));
     }

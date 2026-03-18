@@ -68,7 +68,7 @@ export async function saveDailyScore(userId: string, date: string) {
       .filter(c => goalIds.includes(c.goalId!))
       .map(c => ({
         outcomeId: c.goalId!,
-        value: c.value ?? 0,
+        value: c.value != null ? c.value : 1,
         loggedAt: c.date + "T12:00:00.000Z",
       }));
 
