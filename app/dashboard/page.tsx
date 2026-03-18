@@ -31,7 +31,7 @@ export default function DashboardPage() {
   if (loading) return <DashboardLoading />;
 
   return (
-    <div className="container mx-auto px-4 py-4 md:py-8 max-w-4xl">
+    <div className="container mx-auto px-4 py-4 md:py-8 max-w-7xl">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -54,27 +54,36 @@ export default function DashboardPage() {
           </Link>
         </div>
 
-        {history && (
-          <MorningBriefing
-            history={history}
-            currentStreak={currentStreak}
-            todayTaskCount={todayTaskCount}
-          />
-        )}
+        {/* Two-column layout on wide screens */}
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+          {/* Left column: score + goals + habits */}
+          <div className="xl:col-span-7">
+            {history && (
+              <MorningBriefing
+                history={history}
+                currentStreak={currentStreak}
+                todayTaskCount={todayTaskCount}
+              />
+            )}
 
-        <ScoreCard score={score} momentumData={momentumData} />
+            <ScoreCard score={score} momentumData={momentumData} />
 
-        <GoalProgress outcomesData={outcomesData} completionDates={completionDates} today={today} />
+            <GoalProgress outcomesData={outcomesData} completionDates={completionDates} today={today} />
 
-        <HabitTracker outcomesData={outcomesData} completionDates={completionDates} today={today} />
+            <HabitTracker outcomesData={outcomesData} completionDates={completionDates} today={today} />
+          </div>
 
-        {history && <StreakFlameChain scores={history.scores} currentStreak={currentStreak} />}
+          {/* Right column: streaks + charts + history */}
+          <div className="xl:col-span-5">
+            {history && <StreakFlameChain scores={history.scores} currentStreak={currentStreak} />}
 
-        {history && <CalendarHeatmap scores={history.scores} />}
+            {history && <CalendarHeatmap scores={history.scores} />}
 
-        {history && <ScoreHistory scores={history.scores} />}
+            {history && <ScoreHistory scores={history.scores} />}
 
-        {history && <PillarBreakdown scores={history.scores} pillarsMeta={history.pillars} />}
+            {history && <PillarBreakdown scores={history.scores} pillarsMeta={history.pillars} />}
+          </div>
+        </div>
       </motion.div>
     </div>
   );
