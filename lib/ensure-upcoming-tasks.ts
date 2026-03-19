@@ -1,6 +1,6 @@
 import { db, taskSchedules, tasks, goals } from "@/lib/db";
 import { eq, and, inArray } from "drizzle-orm";
-import { isScheduleForExactDate, isOverdueAdhocSchedule } from "@/lib/task-schedule";
+import { isScheduleForExactDate } from "@/lib/task-schedule";
 import { countScheduledDaysInRange } from "@/lib/effort-calculations";
 
 // In-memory cache: userId -> last date we ran
@@ -65,22 +65,8 @@ export async function ensureUpcomingTasks(userId: string) {
   const taskValues: (typeof tasks.$inferInsert)[] = [];
 
   for (const schedule of allSchedules) {
-    // For adhoc schedules, only generate on their specific date (or today if overdue)
-    if (schedule.frequency === 'adhoc') {
-      const targetDate = schedule.startDate;
-      if (!targetDate) continue;
-
-      // Generate task for the adhoc date if it's in our range
-      if (dates.includes(targetDate) && !existingSet.has(`${schedule.id}:${targetDate}`)) {
-        taskValues.push(buildTaskFromSchedule(schedule, targetDate, userId));
-      }
-
-      // If overdue (past due, non-goal), generate for today
-      if (isOverdueAdhocSchedule(schedule, todayStr) && !existingSet.has(`${schedule.id}:${todayStr}`)) {
-        taskValues.push(buildTaskFromSchedule(schedule, todayStr, userId));
-      }
-      continue;
-    }
+    // Skip adhoc schedules — adhoc tasks are stored directly in the tasks table
+    if (schedule.frequency === 'adhoc') continue;
 
     // For recurring schedules, check each date in the range
     for (const dateStr of dates) {
@@ -230,12 +216,8 @@ export async function ensureTasksForDate(userId: string, dateStr: string) {
   for (const schedule of allSchedules) {
     if (existingScheduleIds.has(schedule.id)) continue;
 
-    if (schedule.frequency === 'adhoc') {
-      if (schedule.startDate === dateStr) {
-        taskValues.push(buildTaskFromSchedule(schedule, dateStr, userId));
-      }
-      continue;
-    }
+    // Skip adhoc schedules — adhoc tasks are stored directly in the tasks table
+    if (schedule.frequency === 'adhoc') continue;
 
     if (isScheduleForExactDate(schedule, dateStr)) {
       taskValues.push(buildTaskFromSchedule(schedule, dateStr, userId));

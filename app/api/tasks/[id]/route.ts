@@ -90,7 +90,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       .where(and(eq(taskSchedules.id, itemId), eq(taskSchedules.userId, userId)));
 
     if (existing.length === 0) {
-      // Try as task instance (backward compat for adhoc task date moves)
+      // Try as task instance (adhoc tasks are stored directly without schedules)
       const [taskInstance] = await db
         .select()
         .from(tasks)

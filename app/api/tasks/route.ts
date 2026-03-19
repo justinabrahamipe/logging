@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
 import { db, tasks, taskSchedules, pillars } from "@/lib/db";
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and, asc, isNull } from "drizzle-orm";
 import { ensureUpcomingTasks, ensureTasksForDate, invalidateTaskCache } from "@/lib/ensure-upcoming-tasks";
 
 export async function GET(request: NextRequest) {
@@ -44,43 +44,54 @@ export async function GET(request: NextRequest) {
         todayTasks.filter(t => t.scheduleId).map(t => [t.scheduleId!, t])
       );
 
+      // Also fetch adhoc tasks (no schedule) for inclusion in the all view
+      const adhocTasks = await db
+        .select()
+        .from(tasks)
+        .where(and(eq(tasks.userId, userId), isNull(tasks.scheduleId)))
+        .orderBy(asc(tasks.pillarId));
+
+      const adhocTaskItems = adhocTasks
+        .map(t => ({
+          ...t,
+          frequency: 'adhoc' as const,
+          customDays: null,
+          repeatInterval: null,
+          startDate: t.date,
+          completion: {
+            id: t.id,
+            taskId: t.id,
+            completed: t.completed,
+            value: t.value,
+            pointsEarned: t.pointsEarned,
+            isHighlighted: t.isHighlighted,
+          },
+        }));
+
+      const scheduleItems = allSchedules.map(s => {
+        const taskInstance = completionBySchedule.get(s.id);
+        return {
+          ...s,
+          completion: taskInstance ? {
+            id: taskInstance.id,
+            taskId: taskInstance.id,
+            completed: taskInstance.completed,
+            value: taskInstance.value,
+            pointsEarned: taskInstance.pointsEarned,
+            isHighlighted: taskInstance.isHighlighted,
+          } : null,
+        };
+      });
+
+      const allItems = [...scheduleItems, ...adhocTaskItems];
+
       const grouped = userPillars.map(pillar => ({
         pillar,
-        tasks: allSchedules
-          .filter(s => s.pillarId === pillar.id)
-          .map(s => {
-            const taskInstance = completionBySchedule.get(s.id);
-            return {
-              ...s,
-              completion: taskInstance ? {
-                id: taskInstance.id,
-                taskId: taskInstance.id,
-                completed: taskInstance.completed,
-                value: taskInstance.value,
-                pointsEarned: taskInstance.pointsEarned,
-                isHighlighted: taskInstance.isHighlighted,
-              } : null,
-            };
-          }),
+        tasks: allItems.filter(s => s.pillarId === pillar.id),
       })).filter(g => g.tasks.length > 0);
 
-      // Add ungrouped schedules (no pillar)
-      const ungrouped = allSchedules
-        .filter(s => !s.pillarId)
-        .map(s => {
-          const taskInstance = completionBySchedule.get(s.id);
-          return {
-            ...s,
-            completion: taskInstance ? {
-              id: taskInstance.id,
-              taskId: taskInstance.id,
-              completed: taskInstance.completed,
-              value: taskInstance.value,
-              pointsEarned: taskInstance.pointsEarned,
-              isHighlighted: taskInstance.isHighlighted,
-            } : null,
-          };
-        });
+      // Add ungrouped (no pillar)
+      const ungrouped = allItems.filter(s => !s.pillarId);
 
       if (ungrouped.length > 0) {
         grouped.push({
@@ -190,30 +201,10 @@ export async function POST(request: Request) {
       // Return the schedule formatted like old task response
       return NextResponse.json(schedule, { status: 201 });
     } else {
-      // Create a single adhoc task schedule + immediate task instance
+      // Create adhoc task directly in the tasks table (no schedule needed)
       const taskDate = startDate || new Date().toISOString().split('T')[0];
 
-      const [schedule] = await db.insert(taskSchedules).values({
-        pillarId: pillarId || null,
-        userId,
-        name,
-        completionType: completionType || 'checkbox',
-        target: target ?? null,
-        unit: unit ?? null,
-        flexibilityRule: flexibilityRule || 'must_today',
-        limitValue: limitValue ?? null,
-        frequency: 'adhoc',
-        customDays: null,
-        repeatInterval: null,
-        basePoints: basePoints ?? 10,
-        goalId: goalId || null,
-        periodId: periodId || null,
-        startDate: taskDate,
-      }).returning();
-
-      // Create the concrete task instance
       const [task] = await db.insert(tasks).values({
-        scheduleId: schedule.id,
         pillarId: pillarId || null,
         userId,
         name,
@@ -228,7 +219,15 @@ export async function POST(request: Request) {
         date: taskDate,
       }).returning();
 
-      return NextResponse.json({ ...schedule, taskId: task.id }, { status: 201 });
+      // Return with schedule-like fields for frontend compat
+      return NextResponse.json({
+        ...task,
+        frequency: 'adhoc',
+        customDays: null,
+        repeatInterval: null,
+        startDate: taskDate,
+        taskId: task.id,
+      }, { status: 201 });
     }
   } catch (error) {
     return errorResponse(error);
