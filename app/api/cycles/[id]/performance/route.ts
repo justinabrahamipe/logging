@@ -81,9 +81,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       .map(l => ({
         date: l.date,
         value: l.value,
-        progress: Math.max(0, Math.min(100,
-          Math.abs(l.value - o.startValue) / Math.abs(o.targetValue - o.startValue) * 100
-        )),
+        progress: Math.min(100,
+          (l.value - o.startValue) / (o.targetValue - o.startValue) * 100
+        ),
       }));
 
     return {

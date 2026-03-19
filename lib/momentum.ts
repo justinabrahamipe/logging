@@ -107,9 +107,13 @@ function calculateTargetMomentum(
   }
 
   // Where you should be (linear)
-  const expectedProgress = (elapsedDays / totalDays) * goal.targetValue;
-  // Where you are
-  const actualProgress = goal.currentValue - goal.startValue;
+  const isDecrease = goal.targetValue < goal.startValue;
+  const totalDelta = Math.abs(goal.targetValue - goal.startValue);
+  const expectedProgress = (elapsedDays / totalDays) * totalDelta;
+  // Where you are (negative when moving in wrong direction)
+  const actualProgress = isDecrease
+    ? goal.startValue - goal.currentValue
+    : goal.currentValue - goal.startValue;
 
   const isLimit = goal.flexibilityRule === 'limit_avoid';
   // For limit goals: using less than expected = ahead, so invert the ratio
@@ -119,7 +123,7 @@ function calculateTargetMomentum(
 
   // Buffer: how many more scheduled days can you skip
   const remainingDays = totalDays - elapsedDays;
-  const remainingTarget = goal.targetValue - goal.currentValue;
+  const remainingTarget = totalDelta - actualProgress;
   const dailyRate = elapsedDays > 0 ? actualProgress / elapsedDays : 0;
   const requiredRate = remainingDays > 0 ? remainingTarget / remainingDays : remainingTarget;
   const bufferDays = dailyRate > 0 && requiredRate > 0
@@ -177,13 +181,13 @@ export function calculateTrajectory(
     }
 
     const timeProgress = elapsedMs / totalMs;
-    const range = Math.abs(goal.targetValue - goal.startValue);
+    const range = goal.targetValue - goal.startValue;
     if (range === 0) {
       results.push({ goalId: goal.id, pillarId: goal.pillarId, trajectory: 1.0, label: 'Complete' });
       continue;
     }
 
-    const valueProgress = Math.abs(goal.currentValue - goal.startValue) / range;
+    const valueProgress = (goal.currentValue - goal.startValue) / range;
     const trajectory = timeProgress > 0 ? valueProgress / timeProgress : (valueProgress > 0 ? 2.0 : 1.0);
     const label = trajectory >= 1.05 ? `${trajectory.toFixed(1)}x` : trajectory >= 0.95 ? 'On track' : `${trajectory.toFixed(1)}x`;
 

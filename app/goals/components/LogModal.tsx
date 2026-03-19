@@ -22,7 +22,7 @@ export default function LogModal({
         const metrics = calculateEffortMetrics(
           logTarget.startDate, logTarget.targetDate, days,
           logTarget.targetValue, logTarget.currentValue,
-          new Date().toISOString().split("T")[0]
+          new Date().toISOString().split("T")[0], logTarget.startValue
         );
         return String(metrics.dailyTarget);
       }

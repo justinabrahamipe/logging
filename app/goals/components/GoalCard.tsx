@@ -59,7 +59,7 @@ export default function GoalCard({
     if (!isActivityGoal || isHabitual || !outcome.startDate || !outcome.targetDate || scheduleDays.length === 0) return null;
     return calculateEffortMetrics(
       outcome.startDate, outcome.targetDate, scheduleDays,
-      outcome.targetValue, outcome.currentValue, today
+      outcome.targetValue, outcome.currentValue, today, outcome.startValue
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActivityGoal, isHabitual, outcome.startDate, outcome.targetDate, outcome.targetValue, outcome.currentValue, today, outcome.scheduleDays]);

@@ -130,9 +130,9 @@ export default function GoalDetailPage() {
   const color = outcome?.pillarColor || "#3B82F6";
 
   const getProgress = (o: Outcome) => {
-    const range = Math.abs(o.targetValue - o.startValue);
+    const range = o.targetValue - o.startValue;
     if (range === 0) return 100;
-    return Math.max(0, Math.min(Math.abs(o.currentValue - o.startValue) / range * 100, 100));
+    return Math.min((o.currentValue - o.startValue) / range * 100, 100);
   };
 
   const progress = outcome ? getProgress(outcome) : 0;
@@ -141,7 +141,7 @@ export default function GoalDetailPage() {
     if (!outcome || !isActivityGoal || !outcome.startDate || !outcome.targetDate || scheduleDays.length === 0) return null;
     return calculateEffortMetrics(
       outcome.startDate, outcome.targetDate, scheduleDays,
-      outcome.targetValue, outcome.currentValue, today
+      outcome.targetValue, outcome.currentValue, today, outcome.startValue
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [outcome, isActivityGoal, today]);
@@ -330,7 +330,7 @@ export default function GoalDetailPage() {
             <div className="w-full h-3 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
               <motion.div
                 initial={{ width: 0 }}
-                animate={{ width: `${Math.min(progress, 100)}%` }}
+                animate={{ width: `${Math.max(0, Math.min(progress, 100))}%` }}
                 transition={{ duration: 0.8, ease: "easeOut" }}
                 className="h-full rounded-full"
                 style={{ backgroundColor: color }}

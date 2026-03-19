@@ -127,13 +127,13 @@ export function calculateProgressScore(outcomes: OutcomeForScoring[]): number {
   let totalProgress = 0;
 
   for (const outcome of outcomes) {
-    const range = Math.abs(outcome.targetValue - outcome.startValue);
+    const range = outcome.targetValue - outcome.startValue;
     if (range === 0) {
       totalProgress += 100;
       continue;
     }
-    const progress = Math.abs(outcome.currentValue - outcome.startValue) / range * 100;
-    totalProgress += Math.max(0, Math.min(progress, 100));
+    const progress = (outcome.currentValue - outcome.startValue) / range * 100;
+    totalProgress += Math.min(progress, 100);
   }
 
   return Math.round(totalProgress / outcomes.length);

@@ -68,10 +68,10 @@ export default function GoalProgress({ outcomesData, completionDates, today }: G
       const hits = getHabitualHits(o);
       return sum + (expected > 0 ? Math.min((hits / expected) * 100, 100) : 0);
     }
-    const range = Math.abs(o.targetValue - o.startValue);
+    const range = o.targetValue - o.startValue;
     if (range === 0) return sum;
-    const p = Math.abs(o.currentValue - o.startValue) / range * 100;
-    return sum + Math.max(0, Math.min(p, 100));
+    const p = (o.currentValue - o.startValue) / range * 100;
+    return sum + Math.min(p, 100);
   }, 0);
   const overallPct = Math.round(totalProgress / visibleGoals.length);
 
@@ -92,7 +92,7 @@ export default function GoalProgress({ outcomesData, completionDates, today }: G
       <div className="w-full h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden mb-3">
         <motion.div
           initial={{ width: 0 }}
-          animate={{ width: `${Math.min(overallPct, 100)}%` }}
+          animate={{ width: `${Math.max(0, Math.min(overallPct, 100))}%` }}
           transition={{ duration: 0.8, ease: "easeOut" }}
           className="h-full rounded-full bg-emerald-500"
         />
@@ -100,7 +100,7 @@ export default function GoalProgress({ outcomesData, completionDates, today }: G
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {visibleGoals.map((goal) => {
           const isHabitual = goal.goalType === 'habitual';
-          const range = Math.abs(goal.targetValue - goal.startValue);
+          const range = goal.targetValue - goal.startValue;
 
           let progress: number;
           let subtitle: string;
@@ -111,9 +111,9 @@ export default function GoalProgress({ outcomesData, completionDates, today }: G
             const hitsDisplay = Number.isInteger(hits) ? hits : hits.toFixed(1);
             subtitle = `${hitsDisplay} / ${expected} days`;
           } else {
-            progress = range === 0 ? 0 : Math.round(Math.max(0, Math.min(
-              Math.abs(goal.currentValue - goal.startValue) / range * 100, 100
-            )));
+            progress = range === 0 ? 0 : Math.round(Math.min(
+              (goal.currentValue - goal.startValue) / range * 100, 100
+            ));
             subtitle = `${goal.currentValue} / ${goal.targetValue} ${goal.unit}`;
           }
           const progressColor = progress < 30 ? "#EF4444" : progress < 60 ? "#F59E0B" : "#22C55E";
@@ -127,7 +127,7 @@ export default function GoalProgress({ outcomesData, completionDates, today }: G
                 className="absolute inset-0 opacity-15 dark:opacity-20"
                 style={{
                   background: progressColor,
-                  width: `${progress}%`,
+                  width: `${Math.max(0, progress)}%`,
                 }}
               />
               <div className="relative">

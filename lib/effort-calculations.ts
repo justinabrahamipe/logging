@@ -24,28 +24,35 @@ export function calculateEffortMetrics(
   scheduleDays: number[],
   targetValue: number,
   currentValue: number,
-  today: string
+  today: string,
+  startValue: number = 0
 ): EffortMetrics {
+  const isDecrease = targetValue < startValue;
+  const totalDelta = Math.abs(targetValue - startValue);
+  const currentDelta = isDecrease
+    ? Math.max(0, startValue - currentValue)
+    : Math.max(0, currentValue - startValue);
+
   const totalScheduledDays = countScheduledDaysInRange(startDate, endDate, scheduleDays);
-  const dailyTarget = totalScheduledDays > 0 ? Math.ceil(targetValue / totalScheduledDays) : targetValue;
+  const dailyTarget = totalScheduledDays > 0 ? Math.ceil(totalDelta / totalScheduledDays) : totalDelta;
 
   const effectiveToday = today > endDate ? endDate : today < startDate ? startDate : today;
   const elapsedScheduledDays = countScheduledDaysInRange(startDate, effectiveToday, scheduleDays);
-  const currentRate = elapsedScheduledDays > 0 ? currentValue / elapsedScheduledDays : 0;
+  const currentRate = elapsedScheduledDays > 0 ? currentDelta / elapsedScheduledDays : 0;
 
-  const remaining = targetValue - currentValue;
+  const remaining = totalDelta - currentDelta;
   const remainingScheduledDays = countScheduledDaysInRange(effectiveToday, endDate, scheduleDays);
   const requiredRate = remainingScheduledDays > 0 ? Math.ceil(remaining / remainingScheduledDays) : remaining;
 
   const idealProgress = totalScheduledDays > 0
-    ? (elapsedScheduledDays / totalScheduledDays) * targetValue
+    ? (elapsedScheduledDays / totalScheduledDays) * totalDelta
     : 0;
 
   let status: 'ahead' | 'on_track' | 'behind';
   const tolerance = dailyTarget * 0.5;
-  if (currentValue >= idealProgress + tolerance) {
+  if (currentDelta >= idealProgress + tolerance) {
     status = 'ahead';
-  } else if (currentValue >= idealProgress - tolerance) {
+  } else if (currentDelta >= idealProgress - tolerance) {
     status = 'on_track';
   } else {
     status = 'behind';

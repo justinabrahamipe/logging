@@ -182,10 +182,10 @@ export function useGoals() {
   };
 
   const getProgress = (outcome: Outcome) => {
-    const range = Math.abs(outcome.targetValue - outcome.startValue);
+    const range = outcome.targetValue - outcome.startValue;
     if (range === 0) return 100;
-    const progress = Math.abs(outcome.currentValue - outcome.startValue) / range * 100;
-    return Math.max(0, Math.min(progress, 100));
+    const progress = (outcome.currentValue - outcome.startValue) / range * 100;
+    return Math.min(progress, 100);
   };
 
   const today = new Date().toISOString().split("T")[0];
