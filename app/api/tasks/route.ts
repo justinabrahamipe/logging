@@ -65,6 +65,7 @@ export async function GET(request: NextRequest) {
             value: t.value,
             pointsEarned: t.pointsEarned,
             isHighlighted: t.isHighlighted,
+            timerStartedAt: t.timerStartedAt,
           },
         }));
 
@@ -79,6 +80,7 @@ export async function GET(request: NextRequest) {
             value: taskInstance.value,
             pointsEarned: taskInstance.pointsEarned,
             isHighlighted: taskInstance.isHighlighted,
+            timerStartedAt: taskInstance.timerStartedAt,
           } : null,
         };
       });
@@ -126,6 +128,7 @@ export async function GET(request: NextRequest) {
         value: t.value,
         pointsEarned: t.pointsEarned,
         isHighlighted: t.isHighlighted,
+        timerStartedAt: t.timerStartedAt,
       },
     }));
 

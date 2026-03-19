@@ -127,6 +127,7 @@ export const tasks = sqliteTable('Task', {
   pointsEarned: real('pointsEarned').notNull().default(0),
   isHighlighted: integer('isHighlighted', { mode: 'boolean' }).notNull().default(false),
   completedAt: integer('completedAt', { mode: 'timestamp' }),
+  timerStartedAt: integer('timerStartedAt'), // epoch ms when timer was started (null = not running)
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({

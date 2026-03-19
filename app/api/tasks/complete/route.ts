@@ -57,6 +57,7 @@ export async function POST(request: Request) {
         value: completionValue,
         pointsEarned,
         completedAt: isCompleted ? new Date() : null,
+        timerStartedAt: null,
       })
       .where(eq(tasks.id, taskId))
       .returning();
@@ -135,6 +136,7 @@ export async function POST(request: Request) {
       value: result.value,
       pointsEarned: result.pointsEarned,
       isHighlighted: result.isHighlighted,
+      timerStartedAt: result.timerStartedAt,
     });
   } catch (error) {
     return errorResponse(error);

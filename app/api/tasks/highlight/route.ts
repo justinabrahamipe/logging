@@ -65,6 +65,7 @@ export async function POST(request: Request) {
       value: updated.value,
       pointsEarned: updated.pointsEarned,
       isHighlighted: updated.isHighlighted,
+      timerStartedAt: updated.timerStartedAt,
     });
   } catch (error) {
     return errorResponse(error);

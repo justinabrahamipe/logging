@@ -184,42 +184,30 @@ export function useTasksPage() {
   const [scoreSummary, setScoreSummary] = useState<ScoreSummary | null>(null);
   const [timers, setTimers] = useState<Record<number, { running: boolean; elapsed: number; interval?: NodeJS.Timeout }>>({});
 
-  // Persist running timers to localStorage
-  const TIMER_STORAGE_KEY = 'running_timers';
-
-  const saveTimersToStorage = (timerState: Record<number, { startedAt: number; elapsedAtStart: number }>) => {
-    try { localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(timerState)); } catch {}
+  // Persist timer state to database
+  const saveTimerToDb = (taskId: number, action: 'start' | 'stop') => {
+    fetch('/api/tasks/timer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ taskId, action }),
+    }).catch(() => {});
   };
 
-  const clearTimerFromStorage = (taskId: number) => {
-    try {
-      const stored = JSON.parse(localStorage.getItem(TIMER_STORAGE_KEY) || '{}');
-      delete stored[taskId];
-      localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(stored));
-    } catch {}
-  };
-
-  const saveRunningTimer = (taskId: number, elapsedAtStart: number) => {
-    try {
-      const stored = JSON.parse(localStorage.getItem(TIMER_STORAGE_KEY) || '{}');
-      stored[taskId] = { startedAt: Date.now(), elapsedAtStart };
-      localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(stored));
-    } catch {}
-  };
-
-  // Restore running timers from localStorage on mount
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Restore running timers from task data after groups load
+  const timerRestoredRef = useRef<Set<number>>(new Set());
   useEffect(() => {
-    try {
-      const stored: Record<string, { startedAt: number; elapsedAtStart: number }> = JSON.parse(localStorage.getItem(TIMER_STORAGE_KEY) || '{}');
-      for (const [taskIdStr, data] of Object.entries(stored)) {
-        const taskId = parseInt(taskIdStr);
-        const elapsedSinceStart = Math.floor((Date.now() - data.startedAt) / 1000);
-        const totalElapsed = data.elapsedAtStart + elapsedSinceStart;
-        startTimerInternal(taskId, totalElapsed);
+    const allTasks = groups.flatMap(g => g.tasks);
+    for (const task of allTasks) {
+      if (task.completion?.timerStartedAt && !timerRestoredRef.current.has(task.id) && !timers[task.id]?.running) {
+        timerRestoredRef.current.add(task.id);
+        const elapsedAtStart = (task.completion?.value || 0) * 60;
+        const elapsedSinceStart = Math.floor((Date.now() - task.completion.timerStartedAt) / 1000);
+        const totalElapsed = elapsedAtStart + elapsedSinceStart;
+        startTimerInternal(task.id, totalElapsed);
       }
-    } catch {}
-  }, []);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groups]);
   const [pendingValues, setPendingValues] = useState<Record<number, string>>({});
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
   const [actionLoading, setActionLoading] = useState<Record<number, boolean>>({});
@@ -503,7 +491,7 @@ export function useTasksPage() {
 
   const startTimer = (taskId: number, startElapsed: number) => {
     startTimerInternal(taskId, startElapsed);
-    saveRunningTimer(taskId, startElapsed);
+    saveTimerToDb(taskId, 'start');
   };
 
   const handleTimerToggle = (task: Task) => {
@@ -516,7 +504,7 @@ export function useTasksPage() {
       const targetReached = isLimit ? (task.completion?.completed || false) : (task.target ? timer.elapsed >= task.target * 60 : minutes > 0);
       handleComplete(task.id, targetReached, minutes);
       setTimers(prev => ({ ...prev, [task.id]: { running: false, elapsed: timer.elapsed } }));
-      clearTimerFromStorage(task.id);
+      saveTimerToDb(task.id, 'stop');
     } else {
       // Resume: continue from current elapsed time
       const elapsed = timer?.elapsed || ((task.completion?.value || 0) * 60);
@@ -531,7 +519,7 @@ export function useTasksPage() {
     const elapsedSec = minutes * 60;
     // Update elapsed time without starting timer
     setTimers(prev => ({ ...prev, [task.id]: { running: false, elapsed: elapsedSec } }));
-    clearTimerFromStorage(task.id);
+    saveTimerToDb(task.id, 'stop');
     // Only mark complete if target is reached (limit tasks never auto-complete)
     const isLimit = task.flexibilityRule === 'limit_avoid';
     const targetReached = isLimit ? (task.completion?.completed || false) : (task.target ? elapsedSec >= task.target * 60 : minutes > 0);

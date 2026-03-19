@@ -39,6 +39,7 @@ export interface TaskCompletion {
   value: number | null;
   pointsEarned: number;
   isHighlighted: boolean;
+  timerStartedAt: number | null;
 }
 
 export interface TaskGroup {
