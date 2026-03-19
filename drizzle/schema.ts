@@ -149,6 +149,7 @@ export const dailyScores = sqliteTable('DailyScore', {
   date: text('date').notNull(), // YYYY-MM-DD
   actionScore: real('actionScore').notNull().default(0),
   momentumScore: real('momentumScore'), // goal-based momentum (0-200+, 100 = on pace)
+  trajectoryScore: real('trajectoryScore'), // outcome goal trajectory (0-200+, 100 = on pace)
   pillarScores: text('pillarScores'), // JSON: { pillarId: score }
   pillarMomentum: text('pillarMomentum'), // JSON: { pillarId: momentum }
   isPassing: integer('isPassing', { mode: 'boolean' }).notNull().default(false),

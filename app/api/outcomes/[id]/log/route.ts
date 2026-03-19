@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
 import { db, goals, activityLog, tasks, taskSchedules } from "@/lib/db";
+import { saveDailyScore } from "@/lib/save-daily-score";
 import { eq, and, desc } from "drizzle-orm";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -139,6 +140,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       console.error("Failed to create activity log for outcome:", err);
     }
 
+    // Recalculate daily score for the logged date
+    await saveDailyScore(userId, today);
+
     // Return in same format as old outcomeLogs
     return NextResponse.json({
       id: existingTask.id,
@@ -218,6 +222,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
           .where(eq(goals.id, outcomeId));
       }
     }
+
+    // Recalculate daily score for the affected date
+    await saveDailyScore(userId, updated.date);
 
     // Return in same format
     return NextResponse.json({

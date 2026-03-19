@@ -43,16 +43,18 @@ export default function ScoreHistory({ scores }: ScoreHistoryProps) {
         fullDate: s.date,
         action: s.actionScore,
         momentum: s.momentumScore ?? null,
+        trajectory: s.trajectoryScore ?? null,
       }));
   }, [filtered]);
 
   const hasMomentum = data.some((d) => d.momentum !== null);
+  const hasTrajectory = data.some((d) => d.trajectory !== null);
 
   return (
     <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-6 mb-6">
       <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
         <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">
-          {hasMomentum ? "Action Score & Momentum" : "Score Trend"}
+          Performance Trends
         </h2>
         <DateRangeSelector
           startDate={startDate} endDate={endDate}
@@ -75,7 +77,7 @@ export default function ScoreHistory({ scores }: ScoreHistoryProps) {
               interval="preserveStartEnd"
             />
             <YAxis
-              domain={[0, hasMomentum ? 'auto' : 100]}
+              domain={[0, (hasMomentum || hasTrajectory) ? 'auto' : 100]}
               tick={{ fontSize: 11, fill: "#9CA3AF" }}
               tickLine={false}
               axisLine={{ stroke: "#374151" }}
@@ -90,22 +92,22 @@ export default function ScoreHistory({ scores }: ScoreHistoryProps) {
               }}
               formatter={(value, name) => [
                 `${value ?? 0}%`,
-                name === "momentum" ? "Momentum" : "Action Score",
+                name === "momentum" ? "Momentum" : name === "trajectory" ? "Trajectory" : "Action Score",
               ]}
               labelFormatter={(label: unknown) => `Date: ${label}`}
             />
-            {hasMomentum && (
+            {(hasMomentum || hasTrajectory) && (
               <Legend
-                formatter={(value: string) => value === "momentum" ? "Momentum" : "Action Score"}
+                formatter={(value: string) => value === "momentum" ? "Momentum" : value === "trajectory" ? "Trajectory" : "Action Score"}
               />
             )}
             <ReferenceLine
-              y={hasMomentum ? 100 : 70}
+              y={(hasMomentum || hasTrajectory) ? 100 : 70}
               stroke="#22C55E"
               strokeDasharray="5 5"
               strokeOpacity={0.6}
               label={{
-                value: hasMomentum ? "On Pace" : "Pass",
+                value: (hasMomentum || hasTrajectory) ? "On Pace" : "Pass",
                 position: "right",
                 fill: "#22C55E",
                 fontSize: 11,
@@ -127,6 +129,17 @@ export default function ScoreHistory({ scores }: ScoreHistoryProps) {
                 strokeWidth={2}
                 dot={{ fill: "#F59E0B", r: 3 }}
                 activeDot={{ r: 5, fill: "#FCD34D" }}
+                connectNulls
+              />
+            )}
+            {hasTrajectory && (
+              <Line
+                type="monotone"
+                dataKey="trajectory"
+                stroke="#EC4899"
+                strokeWidth={2}
+                dot={{ fill: "#EC4899", r: 3 }}
+                activeDot={{ r: 5, fill: "#F472B6" }}
                 connectNulls
               />
             )}

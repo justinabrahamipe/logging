@@ -1,7 +1,7 @@
 import { db, tasks, pillars, dailyScores, goals } from "@/lib/db";
 import { eq, and, isNotNull, or, gt } from "drizzle-orm";
 import { calculateDailyScore, getScoreTier } from "@/lib/scoring";
-import { calculateMomentum } from "@/lib/momentum";
+import { calculateMomentum, calculateTrajectory } from "@/lib/momentum";
 
 export async function saveDailyScore(userId: string, date: string) {
   // Get task instances for this date (completion data is on the task row)
@@ -46,6 +46,7 @@ export async function saveDailyScore(userId: string, date: string) {
     .where(eq(goals.userId, userId));
 
   let momentumScore: number | null = null;
+  let trajectoryScore: number | null = null;
   let pillarMomentumJson: string | null = null;
 
   if (userGoals.length > 0) {
@@ -76,7 +77,7 @@ export async function saveDailyScore(userId: string, date: string) {
         loggedAt: c.date + "T12:00:00.000Z",
       }));
 
-    const goalsForMomentum = userGoals.filter(g => g.goalType !== 'outcome').map(g => ({
+    const goalsForCalc = userGoals.map(g => ({
       id: g.id,
       goalType: g.goalType,
       pillarId: g.pillarId,
@@ -92,9 +93,16 @@ export async function saveDailyScore(userId: string, date: string) {
       completionType: g.completionType,
     }));
 
+    const goalsForMomentum = goalsForCalc.filter(g => g.goalType !== 'outcome');
     const momentum = calculateMomentum(goalsForMomentum, logsForMomentum, pillarWeights, date);
     momentumScore = Math.round(momentum.overall * 100);
     pillarMomentumJson = JSON.stringify(momentum.pillarMomentum);
+
+    // Calculate trajectory for outcome goals
+    const trajResult = calculateTrajectory(goalsForCalc, date);
+    if (trajResult.goals.length > 0) {
+      trajectoryScore = Math.round(trajResult.overall * 100);
+    }
   }
 
   // Upsert daily score
@@ -109,6 +117,7 @@ export async function saveDailyScore(userId: string, date: string) {
       .set({
         actionScore,
         momentumScore,
+        trajectoryScore,
         pillarScores: JSON.stringify(pillarScores),
         pillarMomentum: pillarMomentumJson,
         isPassing,
@@ -121,11 +130,12 @@ export async function saveDailyScore(userId: string, date: string) {
       date,
       actionScore,
       momentumScore,
+      trajectoryScore,
       pillarScores: JSON.stringify(pillarScores),
       pillarMomentum: pillarMomentumJson,
       isPassing,
     });
   }
 
-  return { actionScore, momentumScore, pillarScores, isPassing };
+  return { actionScore, momentumScore, trajectoryScore, pillarScores, isPassing };
 }
