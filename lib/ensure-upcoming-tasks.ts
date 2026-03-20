@@ -201,6 +201,7 @@ async function ensureGoalTasks(userId: string, todayStr: string, dates: string[]
             pointsEarned: 0,
             isHighlighted: false,
             completedAt: null,
+            sortOrder: 0,
           });
           existingSet.add(`${outcome.id}:${dateStr}`);
         } catch {
@@ -359,5 +360,6 @@ function buildTaskFromSchedule(
     pointsEarned: 0,
     isHighlighted: false,
     completedAt: null,
+    sortOrder: 0,
   };
 }

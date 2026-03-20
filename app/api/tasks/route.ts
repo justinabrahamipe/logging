@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
 import { db, tasks, taskSchedules, pillars } from "@/lib/db";
-import { eq, and, asc, isNull } from "drizzle-orm";
+import { eq, and, asc, isNull, sql } from "drizzle-orm";
 import { ensureUpcomingTasks, ensureTasksForDate, invalidateTaskCache, recalcTargetGoalTasks } from "@/lib/ensure-upcoming-tasks";
 
 export async function GET(request: NextRequest) {
@@ -117,7 +117,7 @@ export async function GET(request: NextRequest) {
       .select()
       .from(tasks)
       .where(and(eq(tasks.userId, userId), eq(tasks.date, dateStr)))
-      .orderBy(asc(tasks.pillarId));
+      .orderBy(asc(tasks.sortOrder), asc(tasks.pillarId));
 
     // Map tasks to include a completion field for backward compat
     const tasksWithCompletion = tasksForDate.map(t => ({

@@ -1,0 +1,1 @@
+ALTER TABLE Task ADD COLUMN sortOrder integer NOT NULL DEFAULT 0;

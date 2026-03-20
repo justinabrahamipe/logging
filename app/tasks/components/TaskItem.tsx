@@ -2,7 +2,7 @@
 
 import { useRef, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaPlus, FaEdit, FaTrash, FaCheck, FaMinus, FaPlay, FaPause, FaStop, FaEllipsisV, FaCopy, FaStar, FaTimes, FaArrowLeft, FaArrowRight } from "react-icons/fa";
+import { FaPlus, FaEdit, FaTrash, FaCheck, FaMinus, FaPlay, FaPause, FaStop, FaEllipsisV, FaCopy, FaStar, FaTimes, FaArrowLeft, FaArrowRight, FaArrowUp, FaArrowDown } from "react-icons/fa";
 import { DAY_NAMES } from "@/lib/constants";
 import type { Task, Outcome, Cycle } from "@/lib/types";
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
@@ -41,6 +41,8 @@ interface TaskItemProps {
   handleDiscard: (task: Task) => void;
   handleMoveDate: (task: Task, direction: -1 | 1) => void;
   handleMarkDone?: (task: Task) => void;
+  handleMoveUp?: (taskId: number) => void;
+  handleMoveDown?: (taskId: number) => void;
   formatTime: (seconds: number) => string;
 }
 
@@ -69,6 +71,8 @@ export default function TaskItem({
   handleDiscard,
   handleMoveDate,
   handleMarkDone,
+  handleMoveUp,
+  handleMoveDown,
   formatTime,
 }: TaskItemProps) {
   const isCompleted = task.completion?.completed || false;
@@ -77,6 +81,7 @@ export default function TaskItem({
   const isLimitTask = task.flexibilityRule === 'limit_avoid';
   const limitVal = task.limitValue ?? task.target ?? 0;
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
   const [menuPos, setMenuPos] = useState<{ top?: number; bottom?: number; right: number }>({ right: 0 });
 
   useEffect(() => {
@@ -110,9 +115,43 @@ export default function TaskItem({
   })();
   const progressColor = isOverLimit ? '#ef4444' : progressPct >= 100 ? '#22C55E' : progressPct > 0 ? '#F59E0B' : 'transparent';
 
+  const handleTouchStart = () => {
+    longPressTimer.current = setTimeout(() => {
+      longPressTimer.current = null;
+      setOpenMenuId(task.id);
+      if (buttonRef.current) {
+        const rect = buttonRef.current.getBoundingClientRect();
+        const right = window.innerWidth - rect.right;
+        const spaceBelow = window.innerHeight - rect.bottom;
+        if (spaceBelow < 220) {
+          setMenuPos({ bottom: window.innerHeight - rect.top + 4, right });
+        } else {
+          setMenuPos({ top: rect.bottom + 4, right });
+        }
+      }
+    }, 500);
+  };
+
+  const handleTouchEnd = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  const handleTouchMove = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
   return (
     <div
       key={task.id}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onTouchMove={handleTouchMove}
       className={`relative rounded-lg px-3 py-2.5 overflow-hidden transition-all ${
         isDiscarded
           ? 'bg-zinc-100 dark:bg-zinc-800/60 border border-zinc-300 dark:border-zinc-600 opacity-60'
@@ -335,6 +374,22 @@ export default function TaskItem({
                   >
                     <FaEdit className="text-xs" /> Edit
                   </button>
+                  {handleMoveUp && (
+                    <button
+                      onClick={() => { setOpenMenuId(null); handleMoveUp(task.id); }}
+                      className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                    >
+                      <FaArrowUp className="text-xs" /> Move Up
+                    </button>
+                  )}
+                  {handleMoveDown && (
+                    <button
+                      onClick={() => { setOpenMenuId(null); handleMoveDown(task.id); }}
+                      className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                    >
+                      <FaArrowDown className="text-xs" /> Move Down
+                    </button>
+                  )}
                   {task.startDate && (
                     <>
                       <button
