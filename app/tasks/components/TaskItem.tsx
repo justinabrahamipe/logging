@@ -80,14 +80,6 @@ export default function TaskItem({
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
   const [menuPos, setMenuPos] = useState<{ top?: number; bottom?: number; right: number }>({ right: 0 });
 
-  // Swipe state (mobile only)
-  const touchStartX = useRef(0);
-  const touchStartY = useRef(0);
-  const [swipeX, setSwipeX] = useState(0);
-  const [swiping, setSwiping] = useState(false);
-  const [touching, setTouching] = useState(false);
-  const swipeLocked = useRef(false);
-  const isHorizontalSwipe = useRef(false);
 
   useEffect(() => {
     if (openMenuId === task.id && buttonRef.current) {
@@ -120,27 +112,28 @@ export default function TaskItem({
   })();
   const progressColor = isOverLimit ? '#ef4444' : progressPct >= 100 ? '#22C55E' : progressPct > 0 ? '#F59E0B' : 'transparent';
 
-  const SWIPE_THRESHOLD = 80;
+  const swipeThreshold = typeof window !== 'undefined' ? window.innerWidth * 0.3 : 120;
   const canSwipe = !isTaskLoading;
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-    touchStartY.current = e.touches[0].clientY;
+    const touchX = e.touches[0].clientX;
+    const touchY = e.touches[0].clientY;
+    touchStartX.current = touchX;
+    touchStartY.current = touchY;
     swipeLocked.current = false;
     isHorizontalSwipe.current = false;
     if (canSwipe) setTouching(true);
     longPressTimer.current = setTimeout(() => {
       longPressTimer.current = null;
+      setTouching(false);
       setOpenMenuId(task.id);
-      if (buttonRef.current) {
-        const rect = buttonRef.current.getBoundingClientRect();
-        const right = window.innerWidth - rect.right;
-        const spaceBelow = window.innerHeight - rect.bottom;
-        if (spaceBelow < 220) {
-          setMenuPos({ bottom: window.innerHeight - rect.top + 4, right });
-        } else {
-          setMenuPos({ top: rect.bottom + 4, right });
-        }
+      // Position menu near touch point
+      const right = Math.max(8, window.innerWidth - touchX - 70);
+      const spaceBelow = window.innerHeight - touchY;
+      if (spaceBelow < 220) {
+        setMenuPos({ bottom: window.innerHeight - touchY + 4, right });
+      } else {
+        setMenuPos({ top: touchY + 4, right });
       }
     }, 500);
   };
@@ -160,12 +153,14 @@ export default function TaskItem({
 
     if (isHorizontalSwipe.current) {
       e.preventDefault();
+      const wasPast = Math.abs(swipeX) >= swipeThreshold;
+      const isPast = Math.abs(dx) >= swipeThreshold;
+      // Haptic feedback when crossing threshold
+      if (isPast && !wasPast && navigator.vibrate) {
+        navigator.vibrate(15);
+      }
       setSwiping(true);
-      // Dampened swipe — slows down past threshold for rubber-band feel
-      const dampen = Math.abs(dx) > SWIPE_THRESHOLD
-        ? SWIPE_THRESHOLD + (Math.abs(dx) - SWIPE_THRESHOLD) * 0.3
-        : Math.abs(dx);
-      setSwipeX(dx > 0 ? dampen : -dampen);
+      setSwipeX(dx);
     }
   };
 
@@ -176,9 +171,9 @@ export default function TaskItem({
     }
     setTouching(false);
     if (swiping) {
-      if (swipeX > SWIPE_THRESHOLD) {
+      if (swipeX > swipeThreshold) {
         handleSwipeRight();
-      } else if (swipeX < -SWIPE_THRESHOLD) {
+      } else if (swipeX < -swipeThreshold) {
         handleSwipeLeft();
       }
       setSwiping(false);
@@ -192,41 +187,44 @@ export default function TaskItem({
     : 0;
   const isTimerRunning = task.completionType === 'duration' && timers[task.id]?.running;
 
+  // For non-checkbox: will a left swipe discard (value at 0) or decrement?
+  const isAtZero = isNonCheckbox && currentValue <= 0;
+
   const handleSwipeRight = () => {
-    if (task.completionType === 'checkbox' || isFullyDone || isDiscarded) {
-      // Checkbox / already done / discarded → toggle
+    if (isDiscarded) {
+      // Discarded → mark as done (undiscard + complete)
+      handleCheckboxToggle(task);
+    } else if (task.completionType === 'checkbox' || isFullyDone) {
       handleCheckboxToggle(task);
     } else if (!isTimerRunning) {
-      // Count / numeric / duration → increment by 10%
       handleCountChange(task, swipeIncrement);
     }
   };
 
   const handleSwipeLeft = () => {
-    if (task.completionType === 'checkbox') {
-      // Checkbox: done → undo, otherwise → discard
+    if (isDiscarded) {
+      // Discarded → undiscard (back to pending)
+      handleCheckboxToggle(task);
+    } else if (task.completionType === 'checkbox') {
       if (isFullyDone) handleCheckboxToggle(task);
       else handleDiscard(task);
-    } else if (isFullyDone) {
-      // Reached target → discard
+    } else if (isFullyDone || isAtZero) {
       handleDiscard(task);
     } else if (!isTimerRunning) {
-      // Count / numeric / duration → decrement by 10%
       handleCountChange(task, -swipeIncrement);
     }
   };
 
-  // Swipe visual feedback
-  const swipeProgress = Math.min(Math.abs(swipeX) / SWIPE_THRESHOLD, 1);
-  const pastThreshold = Math.abs(swipeX) > SWIPE_THRESHOLD;
+  // Swipe visual feedback — progress as % of threshold
+  const swipeProgress = Math.min(Math.abs(swipeX) / swipeThreshold, 1);
+  const pastThreshold = swipeProgress >= 1;
 
   // Context-aware labels and colors
-  const isNonCheckbox = task.completionType !== 'checkbox';
   const showIncrement = isNonCheckbox && !isFullyDone && !isDiscarded && !isTimerRunning;
-  const rightLabel = showIncrement ? `+${swipeIncrement}` : isFullyDone ? 'Undo' : isDiscarded ? 'Undiscard' : 'Done';
-  const leftLabel = showIncrement ? `-${swipeIncrement}` : isFullyDone ? 'Discard' : 'Discard';
-  const rightColor = showIncrement ? 'green' : (isFullyDone || isDiscarded ? 'amber' : 'green');
-  const leftColor = showIncrement ? 'amber' : (isFullyDone ? 'red' : 'red');
+  const rightLabel = isDiscarded ? 'Done' : showIncrement ? `+${swipeIncrement}` : isFullyDone ? 'Undo' : 'Done';
+  const leftLabel = isDiscarded ? 'Undiscard' : (showIncrement && !isAtZero ? `-${swipeIncrement}` : (isFullyDone ? 'Undo' : 'Discard'));
+  const rightColor = isDiscarded ? 'green' : showIncrement ? 'green' : (isFullyDone ? 'amber' : 'green');
+  const leftColor = isDiscarded ? 'amber' : (showIncrement && !isAtZero ? 'amber' : 'red');
 
   return (
     <div className="relative rounded-lg overflow-hidden">
@@ -234,30 +232,36 @@ export default function TaskItem({
       {touching && !swiping && canSwipe && (
         <div className="absolute inset-0 flex items-center justify-between px-3 pointer-events-none rounded-lg">
           <span className={`text-[10px] font-medium opacity-60 ${rightColor === 'green' ? 'text-green-500 dark:text-green-400' : 'text-amber-500 dark:text-amber-400'}`}>{rightLabel}</span>
-          <span className={`text-[10px] font-medium opacity-60 ${leftColor === 'red' ? 'text-red-500 dark:text-red-400' : 'text-amber-500 dark:text-amber-400'}`}>{leftLabel}</span>
+          {leftLabel && (
+            <span className={`text-[10px] font-medium opacity-60 ${leftColor === 'red' ? 'text-red-500 dark:text-red-400' : 'text-amber-500 dark:text-amber-400'}`}>{leftLabel}</span>
+          )}
         </div>
       )}
-      {/* Swipe reveal background */}
-      {swiping && swipeX !== 0 && (
-        <div
-          className={`absolute inset-0 flex items-center rounded-lg ${
-            swipeX > 0
-              ? (pastThreshold
-                  ? (rightColor === 'green' ? 'bg-green-500' : 'bg-amber-500')
-                  : (rightColor === 'green' ? 'bg-green-400/70' : 'bg-amber-400/70'))
-              : (pastThreshold
-                  ? (leftColor === 'red' ? 'bg-red-500' : 'bg-amber-500')
-                  : (leftColor === 'red' ? 'bg-red-400/70' : 'bg-amber-400/70'))
-          } ${swipeX > 0 ? 'justify-start pl-5' : 'justify-end pr-5'}`}
-        >
-          <span className="text-white font-bold" style={{ opacity: swipeProgress, fontSize: pastThreshold ? 16 : 12, transition: 'font-size 0.1s' }}>
-            {swipeX > 0
-              ? (showIncrement ? <FaPlus /> : <FaCheck />)
-              : (showIncrement ? <FaMinus /> : <FaTimes />)
-            }
-          </span>
-        </div>
-      )}
+      {/* Swipe progress bar — fills from the edge */}
+      {swiping && swipeX !== 0 && (() => {
+        const isRight = swipeX > 0;
+        const color = isRight ? rightColor : leftColor;
+        const bgClass = pastThreshold
+          ? (color === 'green' ? 'bg-green-500' : color === 'red' ? 'bg-red-500' : 'bg-amber-500')
+          : (color === 'green' ? 'bg-green-400/80' : color === 'red' ? 'bg-red-400/80' : 'bg-amber-400/80');
+        const icon = isRight
+          ? (showIncrement ? <FaPlus className="text-[10px]" /> : <FaCheck className="text-[10px]" />)
+          : (showIncrement && !isAtZero ? <FaMinus className="text-[10px]" /> : <FaTimes className="text-[10px]" />);
+        const label = isRight ? rightLabel : leftLabel;
+
+        return (
+          <div
+            className={`absolute top-0 bottom-0 ${isRight ? 'left-0' : 'right-0'} ${bgClass} flex items-center ${isRight ? 'justify-end pr-2' : 'justify-start pl-2'} rounded-lg transition-colors`}
+            style={{ width: `${swipeProgress * 100}%` }}
+          >
+            {swipeProgress > 0.3 && (
+              <span className={`flex items-center gap-1 text-white text-[11px] font-semibold whitespace-nowrap ${pastThreshold ? 'opacity-100' : 'opacity-70'}`}>
+                {icon} {label}
+              </span>
+            )}
+          </div>
+        );
+      })()}
       <div
         key={task.id}
         onTouchStart={handleTouchStart}
@@ -271,14 +275,12 @@ export default function TaskItem({
             : isFullyDone
             ? 'bg-white dark:bg-zinc-800 border border-green-200 dark:border-green-800'
             : isHighlighted
-            ? 'bg-amber-50 dark:bg-amber-900 border border-amber-200 dark:border-amber-800 hover:shadow-md'
+            ? 'bg-amber-50 dark:bg-zinc-800 border border-amber-200 dark:border-amber-800 hover:shadow-md'
             : 'bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:shadow-md hover:border-zinc-300 dark:hover:border-zinc-600'
         }`}
         style={{
           borderLeftWidth: 3,
           borderLeftColor: isDiscarded ? '#9CA3AF' : isOverLimit ? '#ef4444' : isFullyDone ? '#4ade80' : isHighlighted ? '#F59E0B' : task._pillarColor,
-          transform: swiping ? `translateX(${swipeX}px)` : undefined,
-          transition: swiping ? 'none' : 'transform 0.2s ease-out',
         }}
       >
       {progressPct > 0 && (
@@ -460,7 +462,7 @@ export default function TaskItem({
             <button
               ref={buttonRef}
               onClick={() => setOpenMenuId(openMenuId === task.id ? null : task.id)}
-              className="hidden md:block p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700"
+              className="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700"
             >
               <FaEllipsisV className="text-[10px]" />
             </button>
