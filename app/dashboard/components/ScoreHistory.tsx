@@ -116,19 +116,19 @@ export default function ScoreHistory({ scores }: ScoreHistoryProps) {
             <Line
               type="monotone"
               dataKey="action"
-              stroke="#8B5CF6"
+              stroke="#3B82F6"
               strokeWidth={2}
-              dot={{ fill: "#8B5CF6", r: 3 }}
-              activeDot={{ r: 5, fill: "#A78BFA" }}
+              dot={{ fill: "#3B82F6", r: 3 }}
+              activeDot={{ r: 5, fill: "#60A5FA" }}
             />
             {hasMomentum && (
               <Line
                 type="monotone"
                 dataKey="momentum"
-                stroke="#F59E0B"
+                stroke="#22C55E"
                 strokeWidth={2}
-                dot={{ fill: "#F59E0B", r: 3 }}
-                activeDot={{ r: 5, fill: "#FCD34D" }}
+                dot={{ fill: "#22C55E", r: 3 }}
+                activeDot={{ r: 5, fill: "#4ADE80" }}
                 connectNulls
               />
             )}
@@ -136,10 +136,10 @@ export default function ScoreHistory({ scores }: ScoreHistoryProps) {
               <Line
                 type="monotone"
                 dataKey="trajectory"
-                stroke="#EC4899"
+                stroke="#A855F7"
                 strokeWidth={2}
-                dot={{ fill: "#EC4899", r: 3 }}
-                activeDot={{ r: 5, fill: "#F472B6" }}
+                dot={{ fill: "#A855F7", r: 3 }}
+                activeDot={{ r: 5, fill: "#C084FC" }}
                 connectNulls
               />
             )}
