@@ -154,13 +154,45 @@ export function useTasksPage() {
   const { data: session, status } = useSession();
   const { dateFormat } = useTheme();
   const router = useRouter();
-  const [groups, setGroups] = useState<TaskGroup[]>([]);
+  const [groups, setGroups] = useState<TaskGroup[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('tasks-cache');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed.date === new Date().toISOString().split('T')[0]) return parsed.groups || [];
+        }
+      } catch { /* ignore */ }
+    }
+    return [];
+  });
   const [pillars, setPillars] = useState<Pillar[]>([]);
   const [goalsList, setGoalsList] = useState<Outcome[]>([]);
   const [cycles, setCycles] = useState<Cycle[]>([]);
-  const [loading, setLoading] = useState(true);
+  const hasCachedData = typeof window !== 'undefined' && (() => {
+    try {
+      const cached = localStorage.getItem('tasks-cache');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        return parsed.date === new Date().toISOString().split('T')[0] && (parsed.groups?.length > 0);
+      }
+    } catch { /* ignore */ }
+    return false;
+  })();
+  const [loading, setLoading] = useState(!hasCachedData);
   const [refreshing, setRefreshing] = useState(false);
-  const [noDateTasks, setNoDateTasks] = useState<Task[]>([]);
+  const [noDateTasks, setNoDateTasks] = useState<Task[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('tasks-cache');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed.date === new Date().toISOString().split('T')[0]) return parsed.noDateTasks || [];
+        }
+      } catch { /* ignore */ }
+    }
+    return [];
+  });
   const [pastDays, setPastDays] = useState<PastDay[]>([]);
   const [filters, setFilters] = useState<TaskFilters>(() => {
     if (typeof window !== 'undefined') {
@@ -182,7 +214,18 @@ export function useTasksPage() {
   const [activePopover, setActivePopover] = useState<null | 'add' | 'date' | 'status' | 'pillar' | 'goal'>(null);
   const [datePickerMode, setDatePickerMode] = useState<null | 'single' | 'range'>(null);
   const [pendingRange, setPendingRange] = useState<{ from: Date; to?: Date } | undefined>(undefined);
-  const [scoreSummary, setScoreSummary] = useState<ScoreSummary | null>(null);
+  const [scoreSummary, setScoreSummary] = useState<ScoreSummary | null>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('tasks-cache');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed.date === new Date().toISOString().split('T')[0] && parsed.scoreSummary) return parsed.scoreSummary;
+        }
+      } catch { /* ignore */ }
+    }
+    return null;
+  });
   const [timers, setTimers] = useState<Record<number, { running: boolean; elapsed: number; interval?: NodeJS.Timeout }>>({});
 
   // Persist timer state to database
@@ -352,13 +395,26 @@ export function useTasksPage() {
     }
   };
 
+  const saveTasksCache = (cacheGroups: TaskGroup[], cacheNoDateTasks: Task[], cacheScore: ScoreSummary | null) => {
+    try {
+      localStorage.setItem('tasks-cache', JSON.stringify({
+        date: today,
+        groups: cacheGroups,
+        noDateTasks: cacheNoDateTasks,
+        scoreSummary: cacheScore,
+      }));
+    } catch { /* ignore quota errors */ }
+  };
+
   const fetchTasks = async () => {
     try {
       if (!loading) setRefreshing(true);
       const url = `/api/tasks?date=${today}&all=true`;
       const res = await fetch(url);
       if (res.ok) {
-        setGroups(await res.json());
+        const data = await res.json();
+        setGroups(data);
+        saveTasksCache(data, [], scoreSummary);
       }
       await fetchScore(today);
     } catch (error) {
@@ -374,12 +430,24 @@ export function useTasksPage() {
       const res = await fetch(`/api/daily-score?date=${date || today}`);
       if (res.ok) {
         const data = await res.json();
-        setScoreSummary({
+        const newScore = {
           actionScore: data.actionScore,
           scoreTier: data.scoreTier,
           completedTasks: data.completedTasks,
           totalTasks: data.totalTasks,
-        });
+        };
+        setScoreSummary(newScore);
+        // Update cache with new score
+        try {
+          const cached = localStorage.getItem('tasks-cache');
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            if (parsed.date === today) {
+              parsed.scoreSummary = newScore;
+              localStorage.setItem('tasks-cache', JSON.stringify(parsed));
+            }
+          }
+        } catch { /* ignore */ }
         try { sessionStorage.removeItem('header-stats'); } catch { /* ignore */ }
         window.dispatchEvent(new Event('score-updated'));
       }
@@ -394,13 +462,19 @@ export function useTasksPage() {
       const res = await fetch(`/api/tasks?date=${date}`);
       if (res.ok) {
         const data = await res.json();
+        let newGroups: TaskGroup[];
+        let newNoDateTasks: Task[];
         if (data.groups) {
-          setGroups(data.groups);
-          setNoDateTasks(data.noDateTasks || []);
+          newGroups = data.groups;
+          newNoDateTasks = data.noDateTasks || [];
         } else {
-          // Backward compat: API returns array directly
-          setGroups(data);
-          setNoDateTasks([]);
+          newGroups = data;
+          newNoDateTasks = [];
+        }
+        setGroups(newGroups);
+        setNoDateTasks(newNoDateTasks);
+        if (date === today) {
+          saveTasksCache(newGroups, newNoDateTasks, scoreSummary);
         }
       }
     } catch (error) {
