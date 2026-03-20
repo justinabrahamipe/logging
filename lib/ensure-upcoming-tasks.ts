@@ -151,16 +151,16 @@ async function ensureGoalTasks(userId: string, todayStr: string, dates: string[]
 
     let taskDailyTarget: number | null = null;
     if (taskCompletionType !== 'checkbox') {
-      if (outcome.dailyTarget) {
-        // Explicit daily target set by user — use as-is for habitual/outcome
-        taskDailyTarget = outcome.dailyTarget;
-      } else if (isTarget) {
-        // For target goals, calculate based on remaining work / remaining days
+      if (isTarget) {
+        // Target goals always calculate dynamically based on remaining work / remaining days
         const remainingValue = (outcome.targetValue ?? 1) - (outcome.currentValue ?? 0);
         const remainingDays = (outcome.targetDate)
           ? (countScheduledDaysInRange(todayStr, outcome.targetDate, scheduleDays) || 1)
           : 1;
         taskDailyTarget = Math.ceil(Math.max(0, remainingValue) / remainingDays);
+      } else if (outcome.dailyTarget) {
+        // Explicit daily target set by user — use as-is for habitual/outcome
+        taskDailyTarget = outcome.dailyTarget;
       }
     }
 
@@ -231,11 +231,12 @@ export async function recalcTargetGoalTasks(userId: string) {
     ));
 
   // Filter to only target goals that need recalculation (in-memory, no extra queries)
+  // Target goals always recalculate dynamically based on remaining work / remaining days,
+  // even if dailyTarget was initially set (it's just the starting estimate).
   const targetGoals = activeGoals.filter(g => {
     if (g.goalType === 'habitual' || g.goalType === 'outcome') return false;
     const ct = g.completionType || 'numeric';
     if (ct === 'checkbox') return false;
-    if (g.dailyTarget) return false; // user-set explicit target
     const days: number[] = g.scheduleDays ? JSON.parse(g.scheduleDays) : [];
     return days.length > 0;
   });
