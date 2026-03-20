@@ -186,7 +186,7 @@ export default function GoalCard({
                 <span className="whitespace-nowrap">{outcome.currentValue} / {outcome.targetValue} {outcome.unit}</span>
                 <span className="font-medium">{Math.round(progress)}%</span>
                 {effortMetrics && (
-                  <span className="text-xs text-zinc-400 dark:text-zinc-500 whitespace-nowrap">· {effortMetrics.dailyTarget} {outcome.unit}/day</span>
+                  <span className="text-xs text-zinc-400 dark:text-zinc-500 whitespace-nowrap">· {effortMetrics.requiredRate}/day</span>
                 )}
               </>
             ) : (

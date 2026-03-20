@@ -260,7 +260,7 @@ export default function TaskItem({
 
         return (
           <div
-            className={`absolute top-0 bottom-0 ${isRight ? 'left-0' : 'right-0'} ${bgClass} flex items-center ${isRight ? 'justify-end pr-2' : 'justify-start pl-2'} rounded-lg transition-colors`}
+            className={`absolute top-0 bottom-0 z-20 ${isRight ? 'left-0' : 'right-0'} ${bgClass} flex items-center ${isRight ? 'justify-end pr-2' : 'justify-start pl-2'} rounded-lg transition-colors`}
             style={{ width: `${swipeProgress * 100}%` }}
           >
             {swipeProgress > 0.3 && (

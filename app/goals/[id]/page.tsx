@@ -347,8 +347,8 @@ export default function GoalDetailPage() {
         {!isHabitual && isActivityGoal && effortMetrics && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
             <div className="bg-zinc-50 dark:bg-zinc-700/50 rounded-lg px-3 py-2">
-              <span className="text-zinc-500 dark:text-zinc-400 text-xs">Today&apos;s target: </span>
-              <span className="font-semibold text-zinc-900 dark:text-white">{effortMetrics.dailyTarget} {outcome.unit}</span>
+              <span className="text-zinc-500 dark:text-zinc-400 text-xs">Initial target: </span>
+              <span className="font-semibold text-zinc-900 dark:text-white">{effortMetrics.dailyTarget} {outcome.unit}/day</span>
             </div>
             <div className="bg-zinc-50 dark:bg-zinc-700/50 rounded-lg px-3 py-2">
               <span className="text-zinc-500 dark:text-zinc-400 text-xs">Required: </span>
