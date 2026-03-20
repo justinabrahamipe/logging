@@ -160,6 +160,7 @@ export function useTasksPage() {
   const [cycles, setCycles] = useState<Cycle[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [noDateTasks, setNoDateTasks] = useState<Task[]>([]);
   const [pastDays, setPastDays] = useState<PastDay[]>([]);
   const [filters, setFilters] = useState<TaskFilters>(() => {
     if (typeof window !== 'undefined') {
@@ -392,7 +393,15 @@ export function useTasksPage() {
       if (!loading) setRefreshing(true);
       const res = await fetch(`/api/tasks?date=${date}`);
       if (res.ok) {
-        setGroups(await res.json());
+        const data = await res.json();
+        if (data.groups) {
+          setGroups(data.groups);
+          setNoDateTasks(data.noDateTasks || []);
+        } else {
+          // Backward compat: API returns array directly
+          setGroups(data);
+          setNoDateTasks([]);
+        }
       }
     } catch (error) {
       console.error("Failed to fetch tasks for date:", error);
@@ -439,6 +448,10 @@ export function useTasksPage() {
             t.id === taskId ? { ...t, completion } : t
           ),
         })));
+        // Remove completed no-date tasks (they now have a date assigned)
+        if (completed) {
+          setNoDateTasks(prev => prev.filter(t => t.id !== taskId));
+        }
         fetchScore(viewDate);
       }
     } catch (err) {
@@ -844,6 +857,7 @@ export function useTasksPage() {
     cycles,
     loading,
     refreshing,
+    noDateTasks,
     pastDays,
     // Filters
     filters,

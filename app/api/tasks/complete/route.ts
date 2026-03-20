@@ -12,8 +12,8 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { taskId, date, value, completed } = body;
 
-    if (!taskId || !date) {
-      return NextResponse.json({ error: "taskId and date are required" }, { status: 400 });
+    if (!taskId) {
+      return NextResponse.json({ error: "taskId is required" }, { status: 400 });
     }
 
     // Verify task belongs to user (try as task instance ID first, then as schedule ID + date)
@@ -50,15 +50,21 @@ export async function POST(request: Request) {
     const pointsBefore = task.pointsEarned ?? 0;
 
     // Update the task row directly (completion data lives on the task)
+    // For no-date tasks, assign today's date when completed
+    const updateData: Record<string, unknown> = {
+      completed: isCompleted,
+      value: completionValue,
+      pointsEarned,
+      completedAt: isCompleted ? new Date() : null,
+      timerStartedAt: null,
+    };
+    if (task.date === '' && isCompleted) {
+      updateData.date = date;
+    }
+
     const [result] = await db
       .update(tasks)
-      .set({
-        completed: isCompleted,
-        value: completionValue,
-        pointsEarned,
-        completedAt: isCompleted ? new Date() : null,
-        timerStartedAt: null,
-      })
+      .set(updateData)
       .where(eq(tasks.id, taskId))
       .returning();
 
@@ -121,11 +127,14 @@ export async function POST(request: Request) {
     }
 
     // Recalculate and save daily score for the task's actual date
-    await saveDailyScore(userId, task.date);
-    // If the client-passed date differs (e.g., viewing today but completing yesterday's task),
-    // also recalculate the client's view date
-    if (date !== task.date) {
-      await saveDailyScore(userId, date);
+    const taskDate = result.date || date;
+    if (taskDate) {
+      await saveDailyScore(userId, taskDate);
+      // If the client-passed date differs (e.g., viewing today but completing yesterday's task),
+      // also recalculate the client's view date
+      if (date && date !== taskDate) {
+        await saveDailyScore(userId, date);
+      }
     }
 
     // Return in completion format for backward compat

@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
-import { FaPlus } from "react-icons/fa";
+import { FaPlus, FaChevronDown, FaChevronRight } from "react-icons/fa";
 import { Snackbar, Alert as MuiAlert } from "@mui/material";
 import { formatDate } from "@/lib/format";
 import { useTasksPage } from "./hooks/useTasksPage";
@@ -23,6 +24,7 @@ export default function TasksPage() {
     cycles,
     loading,
     refreshing,
+    noDateTasks,
     filters,
     setFilters,
     activePopover,
@@ -194,6 +196,16 @@ export default function TasksPage() {
             })}
           </div>
         )}
+        {/* No-date tasks accordion (today view only) */}
+        {isServerFiltered && filters.date.type === 'today' && noDateTasks.length > 0 && (
+          <NoDateAccordion
+            tasks={noDateTasks.map(t => {
+              const p = pillars.find(p => p.id === t.pillarId);
+              return { ...t, _pillarColor: p?.color || '#6B7280', _pillarEmoji: p?.emoji || '📋', _pillarName: p?.name || 'No Pillar' };
+            })}
+            taskItemProps={taskItemProps}
+          />
+        )}
       </motion.div>
 
       {/* Floating Add Task button */}
@@ -214,6 +226,28 @@ export default function TasksPage() {
           Sign in to track your tasks
         </MuiAlert>
       </Snackbar>
+    </div>
+  );
+}
+
+function NoDateAccordion({ tasks, taskItemProps }: { tasks: EnrichedTask[]; taskItemProps: React.ComponentProps<typeof TaskItem> extends infer P ? Omit<P, 'task' | 'showDate'> : never }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mt-4 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center gap-2 px-4 py-3 text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+      >
+        {open ? <FaChevronDown className="text-xs" /> : <FaChevronRight className="text-xs" />}
+        No Date ({tasks.length})
+      </button>
+      {open && (
+        <div className="px-3 pb-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.5rem' }}>
+          {tasks.map(t => (
+            <TaskItem key={t.id} task={t} {...taskItemProps} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

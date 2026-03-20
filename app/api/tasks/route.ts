@@ -110,6 +110,9 @@ export async function GET(request: NextRequest) {
 
     // Date-specific view: return concrete task instances for the date
     const dateStr = date || new Date().toISOString().split('T')[0];
+    const todayStr = new Date().toISOString().split('T')[0];
+    const isToday = dateStr === todayStr;
+
     const tasksForDate = await db
       .select()
       .from(tasks)
@@ -149,7 +152,39 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    return NextResponse.json(grouped);
+    // For today view, also include uncompleted no-date adhoc tasks
+    let noDateTasks: typeof tasksWithCompletion = [];
+    if (isToday) {
+      const noDateRaw = await db
+        .select()
+        .from(tasks)
+        .where(and(
+          eq(tasks.userId, userId),
+          isNull(tasks.scheduleId),
+          eq(tasks.completed, false),
+          eq(tasks.date, ''),
+        ))
+        .orderBy(asc(tasks.pillarId));
+
+      noDateTasks = noDateRaw.map(t => ({
+        ...t,
+        frequency: 'adhoc' as const,
+        customDays: null,
+        repeatInterval: null,
+        startDate: t.date,
+        completion: {
+          id: t.id,
+          taskId: t.id,
+          completed: t.completed,
+          value: t.value,
+          pointsEarned: t.pointsEarned,
+          isHighlighted: t.isHighlighted,
+          timerStartedAt: t.timerStartedAt,
+        },
+      }));
+    }
+
+    return NextResponse.json({ groups: grouped, noDateTasks });
   } catch (error) {
     return errorResponse(error);
   }
@@ -208,7 +243,8 @@ export async function POST(request: Request) {
       return NextResponse.json(schedule, { status: 201 });
     } else {
       // Create adhoc task directly in the tasks table (no schedule needed)
-      const taskDate = startDate || new Date().toISOString().split('T')[0];
+      // If no startDate provided, leave as empty string (no-date task)
+      const taskDate = startDate || '';
 
       const [task] = await db.insert(tasks).values({
         pillarId: pillarId || null,

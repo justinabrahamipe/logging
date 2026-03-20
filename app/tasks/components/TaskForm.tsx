@@ -110,7 +110,20 @@ export default function TaskForm({
       repeatUnit: "days",
       monthDay: 1,
       basePoints: "10",
-      startDate: "",
+      startDate: (() => {
+        try {
+          const saved = localStorage.getItem('tasks-filters');
+          if (saved) {
+            const type = JSON.parse(saved).date?.type;
+            if (type === 'today' || type === 'tomorrow') {
+              const d = new Date();
+              if (type === 'tomorrow') d.setDate(d.getDate() + 1);
+              return d.toISOString().split('T')[0];
+            }
+          }
+        } catch {}
+        return '';
+      })(),
     };
   });
 
