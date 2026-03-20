@@ -246,28 +246,22 @@ export default function TaskItem({
           )}
         </div>
       )}
-      {/* Swipe progress bar — fills from the edge */}
+      {/* Swipe reveal background */}
       {swiping && swipeX !== 0 && (() => {
         const isRight = swipeX > 0;
         const color = isRight ? rightColor : leftColor;
         const bgClass = pastThreshold
           ? (color === 'green' ? 'bg-green-500' : color === 'red' ? 'bg-red-500' : 'bg-amber-500')
-          : (color === 'green' ? 'bg-green-400/80' : color === 'red' ? 'bg-red-400/80' : 'bg-amber-400/80');
+          : (color === 'green' ? 'bg-green-400/70' : color === 'red' ? 'bg-red-400/70' : 'bg-amber-400/70');
         const icon = isRight
-          ? (showIncrement ? <FaPlus className="text-[10px]" /> : <FaCheck className="text-[10px]" />)
-          : (showIncrement && !isAtZero ? <FaMinus className="text-[10px]" /> : <FaTimes className="text-[10px]" />);
-        const label = isRight ? rightLabel : leftLabel;
+          ? (showIncrement ? <FaPlus /> : <FaCheck />)
+          : (showIncrement && !isAtZero ? <FaMinus /> : <FaTimes />);
 
         return (
-          <div
-            className={`absolute top-0 bottom-0 z-20 ${isRight ? 'left-0' : 'right-0'} ${bgClass} flex items-center ${isRight ? 'justify-end pr-2' : 'justify-start pl-2'} rounded-lg transition-colors`}
-            style={{ width: `${swipeProgress * 100}%` }}
-          >
-            {swipeProgress > 0.3 && (
-              <span className={`flex items-center gap-1 text-white text-[11px] font-semibold whitespace-nowrap ${pastThreshold ? 'opacity-100' : 'opacity-70'}`}>
-                {icon} {label}
-              </span>
-            )}
+          <div className={`absolute inset-0 ${bgClass} flex items-center ${isRight ? 'justify-start pl-5' : 'justify-end pr-5'} rounded-lg`}>
+            <span className="text-white font-bold" style={{ opacity: swipeProgress, fontSize: pastThreshold ? 16 : 12, transition: 'font-size 0.1s' }}>
+              {icon}
+            </span>
           </div>
         );
       })()}
@@ -290,6 +284,8 @@ export default function TaskItem({
         style={{
           borderLeftWidth: 3,
           borderLeftColor: isDiscarded ? '#9CA3AF' : isOverLimit ? '#ef4444' : isFullyDone ? '#4ade80' : isHighlighted ? '#F59E0B' : task._pillarColor,
+          transform: swiping ? `translateX(${swipeX * 0.3}px)` : undefined,
+          transition: swiping ? 'none' : 'transform 0.2s ease-out',
         }}
       >
       {progressPct > 0 && (
