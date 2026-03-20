@@ -121,8 +121,7 @@ export default function TaskItem({
   const progressColor = isOverLimit ? '#ef4444' : progressPct >= 100 ? '#22C55E' : progressPct > 0 ? '#F59E0B' : 'transparent';
 
   const SWIPE_THRESHOLD = 80;
-  // Don't allow swipe actions on already completed/discarded tasks
-  const canSwipe = !isFullyDone && !isDiscarded && !isTaskLoading;
+  const canSwipe = !isTaskLoading;
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
@@ -178,12 +177,42 @@ export default function TaskItem({
     setTouching(false);
     if (swiping) {
       if (swipeX > SWIPE_THRESHOLD) {
-        handleCheckboxToggle(task);
+        handleSwipeRight();
       } else if (swipeX < -SWIPE_THRESHOLD) {
-        handleDiscard(task);
+        handleSwipeLeft();
       }
       setSwiping(false);
       setSwipeX(0);
+    }
+  };
+
+  // Compute 10% increment for non-checkbox tasks (min 1)
+  const swipeIncrement = task.completionType !== 'checkbox'
+    ? Math.max(1, Math.round((isLimitTask ? limitVal : (task.target || 10)) * 0.1))
+    : 0;
+  const isTimerRunning = task.completionType === 'duration' && timers[task.id]?.running;
+
+  const handleSwipeRight = () => {
+    if (task.completionType === 'checkbox' || isFullyDone || isDiscarded) {
+      // Checkbox / already done / discarded → toggle
+      handleCheckboxToggle(task);
+    } else if (!isTimerRunning) {
+      // Count / numeric / duration → increment by 10%
+      handleCountChange(task, swipeIncrement);
+    }
+  };
+
+  const handleSwipeLeft = () => {
+    if (task.completionType === 'checkbox') {
+      // Checkbox: done → undo, otherwise → discard
+      if (isFullyDone) handleCheckboxToggle(task);
+      else handleDiscard(task);
+    } else if (isFullyDone) {
+      // Reached target → discard
+      handleDiscard(task);
+    } else if (!isTimerRunning) {
+      // Count / numeric / duration → decrement by 10%
+      handleCountChange(task, -swipeIncrement);
     }
   };
 
@@ -191,13 +220,21 @@ export default function TaskItem({
   const swipeProgress = Math.min(Math.abs(swipeX) / SWIPE_THRESHOLD, 1);
   const pastThreshold = Math.abs(swipeX) > SWIPE_THRESHOLD;
 
+  // Context-aware labels and colors
+  const isNonCheckbox = task.completionType !== 'checkbox';
+  const showIncrement = isNonCheckbox && !isFullyDone && !isDiscarded && !isTimerRunning;
+  const rightLabel = showIncrement ? `+${swipeIncrement}` : isFullyDone ? 'Undo' : isDiscarded ? 'Undiscard' : 'Done';
+  const leftLabel = showIncrement ? `-${swipeIncrement}` : isFullyDone ? 'Discard' : 'Discard';
+  const rightColor = showIncrement ? 'green' : (isFullyDone || isDiscarded ? 'amber' : 'green');
+  const leftColor = showIncrement ? 'amber' : (isFullyDone ? 'red' : 'red');
+
   return (
     <div className="relative rounded-lg overflow-hidden">
       {/* Swipe hint labels on touch */}
       {touching && !swiping && canSwipe && (
         <div className="absolute inset-0 flex items-center justify-between px-3 pointer-events-none rounded-lg">
-          <span className="text-[10px] font-medium text-green-500 dark:text-green-400 opacity-60">Done</span>
-          <span className="text-[10px] font-medium text-red-500 dark:text-red-400 opacity-60">Discard</span>
+          <span className={`text-[10px] font-medium opacity-60 ${rightColor === 'green' ? 'text-green-500 dark:text-green-400' : 'text-amber-500 dark:text-amber-400'}`}>{rightLabel}</span>
+          <span className={`text-[10px] font-medium opacity-60 ${leftColor === 'red' ? 'text-red-500 dark:text-red-400' : 'text-amber-500 dark:text-amber-400'}`}>{leftLabel}</span>
         </div>
       )}
       {/* Swipe reveal background */}
@@ -205,14 +242,20 @@ export default function TaskItem({
         <div
           className={`absolute inset-0 flex items-center rounded-lg ${
             swipeX > 0
-              ? (pastThreshold ? 'bg-green-500' : 'bg-green-400/70')
-              : (pastThreshold ? 'bg-red-500' : 'bg-red-400/70')
+              ? (pastThreshold
+                  ? (rightColor === 'green' ? 'bg-green-500' : 'bg-amber-500')
+                  : (rightColor === 'green' ? 'bg-green-400/70' : 'bg-amber-400/70'))
+              : (pastThreshold
+                  ? (leftColor === 'red' ? 'bg-red-500' : 'bg-amber-500')
+                  : (leftColor === 'red' ? 'bg-red-400/70' : 'bg-amber-400/70'))
           } ${swipeX > 0 ? 'justify-start pl-5' : 'justify-end pr-5'}`}
         >
-          {swipeX > 0
-            ? <FaCheck className="text-white" style={{ opacity: swipeProgress, fontSize: pastThreshold ? 16 : 12, transition: 'font-size 0.1s' }} />
-            : <FaTimes className="text-white" style={{ opacity: swipeProgress, fontSize: pastThreshold ? 16 : 12, transition: 'font-size 0.1s' }} />
-          }
+          <span className="text-white font-bold" style={{ opacity: swipeProgress, fontSize: pastThreshold ? 16 : 12, transition: 'font-size 0.1s' }}>
+            {swipeX > 0
+              ? (showIncrement ? <FaPlus /> : <FaCheck />)
+              : (showIncrement ? <FaMinus /> : <FaTimes />)
+            }
+          </span>
         </div>
       )}
       <div
@@ -222,13 +265,13 @@ export default function TaskItem({
         onTouchMove={handleTouchMove}
         className={`relative rounded-lg px-3 py-2.5 overflow-hidden transition-all ${
           isDiscarded
-            ? 'bg-zinc-100 dark:bg-zinc-800/60 border border-zinc-300 dark:border-zinc-600 opacity-60'
+            ? 'bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 opacity-60'
             : isOverLimit
             ? 'bg-white dark:bg-zinc-800 border border-red-200 dark:border-red-800'
             : isFullyDone
             ? 'bg-white dark:bg-zinc-800 border border-green-200 dark:border-green-800'
             : isHighlighted
-            ? 'bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 hover:shadow-md'
+            ? 'bg-amber-50 dark:bg-amber-900 border border-amber-200 dark:border-amber-800 hover:shadow-md'
             : 'bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:shadow-md hover:border-zinc-300 dark:hover:border-zinc-600'
         }`}
         style={{
