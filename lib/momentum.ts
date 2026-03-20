@@ -187,8 +187,14 @@ export function calculateTrajectory(
       continue;
     }
 
-    const valueProgress = (goal.currentValue - goal.startValue) / range;
-    const trajectory = timeProgress > 0 ? valueProgress / timeProgress : (valueProgress > 0 ? 2.0 : 1.0);
+    // Expected value today based on linear interpolation from start to target
+    const expectedValue = goal.startValue + range * timeProgress;
+    // How far ahead/behind relative to the total range
+    // For increase goals (range > 0): current > expected = ahead (positive)
+    // For decrease goals (range < 0): current < expected = ahead (positive)
+    const deviation = (goal.currentValue - expectedValue) / range;
+    // Convert to trajectory score: 1.0 = on pace, >1 = ahead, <1 = behind
+    const trajectory = Math.max(0, 1.0 + deviation);
     const label = trajectory >= 1.05 ? `${trajectory.toFixed(1)}x` : trajectory >= 0.95 ? 'On track' : `${trajectory.toFixed(1)}x`;
 
     results.push({ goalId: goal.id, pillarId: goal.pillarId, trajectory: Math.round(trajectory * 100) / 100, label });

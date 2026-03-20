@@ -330,20 +330,130 @@ const runMigrations = async () => {
   const allApplied = migrationFiles.every(f => appliedMigrations.has(f.replace('.sql', '')));
   if (allApplied) {
     console.log('All migrations applied successfully!');
-    process.exit(0);
+  } else {
+    // Fallback: run drizzle's migrate for any remaining
+    console.log('Running migrations...');
+
+    try {
+      await migrate(db, { migrationsFolder: './drizzle/migrations' });
+      console.log('Migrations completed successfully!');
+    } catch (error) {
+      console.error('Migration failed:', error);
+      process.exit(1);
+    }
   }
 
-  // Fallback: run drizzle's migrate for any remaining
-  console.log('Running migrations...');
+  // Post-migration: recalculate trajectory scores with the new formula
+  await recalcTrajectoryScores(client);
 
-  try {
-    await migrate(db, { migrationsFolder: './drizzle/migrations' });
-    console.log('Migrations completed successfully!');
-    process.exit(0);
-  } catch (error) {
-    console.error('Migration failed:', error);
-    process.exit(1);
+  process.exit(0);
+};
+
+/**
+ * Recalculate all historical trajectory scores using the new formula:
+ * expected = startValue + range * timeProgress, deviation-based scoring.
+ * Reconstructs historical currentValue for each date from task completion data.
+ */
+async function recalcTrajectoryScores(client: ReturnType<typeof createClient>) {
+  console.log('\nRecalculating trajectory scores...');
+
+  // Get all daily scores
+  const scoresResult = await client.execute(
+    'SELECT id, userId, date, trajectoryScore FROM DailyScore ORDER BY date ASC'
+  );
+  if (scoresResult.rows.length === 0) {
+    console.log('  No daily scores found, skipping.');
+    return;
   }
+
+  // Get all outcome goals
+  const goalsResult = await client.execute(
+    "SELECT id, userId, pillarId, goalType, startValue, targetValue, currentValue, startDate, targetDate FROM Goal WHERE goalType = 'outcome'"
+  );
+  if (goalsResult.rows.length === 0) {
+    console.log('  No outcome goals found, skipping.');
+    return;
+  }
+
+  // Get all completed/progressed tasks linked to goals, sorted by date
+  const tasksResult = await client.execute(
+    'SELECT goalId, value, date, completed FROM Task WHERE goalId IS NOT NULL AND (completed = 1 OR value > 0) ORDER BY date ASC'
+  );
+
+  // Group goals by userId
+  const goalsByUser = new Map<string, typeof goalsResult.rows>();
+  for (const g of goalsResult.rows) {
+    const uid = g.userId as string;
+    const list = goalsByUser.get(uid) || [];
+    list.push(g);
+    goalsByUser.set(uid, list);
+  }
+
+  // Group tasks by goalId
+  const tasksByGoal = new Map<number, typeof tasksResult.rows>();
+  for (const t of tasksResult.rows) {
+    const gid = t.goalId as number;
+    const list = tasksByGoal.get(gid) || [];
+    list.push(t);
+    tasksByGoal.set(gid, list);
+  }
+
+  let updated = 0;
+  for (const score of scoresResult.rows) {
+    const userId = score.userId as string;
+    const date = score.date as string;
+    const userGoals = goalsByUser.get(userId) || [];
+    if (userGoals.length === 0) continue;
+
+    const trajectories: number[] = [];
+
+    for (const goal of userGoals) {
+      const startDate = (goal.startDate as string) || date;
+      const endDate = (goal.targetDate as string) || date;
+      const startValue = goal.startValue as number;
+      const targetValue = goal.targetValue as number;
+
+      if (date < startDate) { trajectories.push(1.0); continue; }
+
+      const totalMs = new Date(endDate).getTime() - new Date(startDate).getTime();
+      const elapsedMs = new Date(date > endDate ? endDate : date).getTime() - new Date(startDate).getTime();
+      if (totalMs <= 0) { trajectories.push(1.0); continue; }
+
+      const range = targetValue - startValue;
+      if (range === 0) { trajectories.push(1.0); continue; }
+
+      // Reconstruct currentValue as of this date
+      const goalId = goal.id as number;
+      const goalTasks = (tasksByGoal.get(goalId) || []).filter(t => (t.date as string) <= date);
+      let currentValue: number;
+      // Outcome goals use latest absolute value
+      const withValue = goalTasks.filter(t => t.value != null && (t.value as number) > 0);
+      currentValue = withValue.length > 0 ? withValue[withValue.length - 1].value as number : startValue;
+
+      const timeProgress = elapsedMs / totalMs;
+      const expectedValue = startValue + range * timeProgress;
+      const deviation = (currentValue - expectedValue) / range;
+      const trajectory = Math.max(0, Math.round((1.0 + deviation) * 100) / 100);
+
+      trajectories.push(trajectory);
+    }
+
+    if (trajectories.length === 0) continue;
+
+    const overall = Math.round((trajectories.reduce((s, t) => s + t, 0) / trajectories.length) * 100) / 100;
+    const newTrajectoryScore = Math.round(overall * 100);
+
+    if (newTrajectoryScore !== score.trajectoryScore) {
+      await client.execute({
+        sql: 'UPDATE DailyScore SET trajectoryScore = ? WHERE id = ?',
+        args: [newTrajectoryScore, score.id as number],
+      });
+      updated++;
+      console.log(`  ${date}: ${score.trajectoryScore} -> ${newTrajectoryScore}`);
+    }
+  }
+
+  console.log(`  Updated ${updated}/${scoresResult.rows.length} trajectory scores.`);
 };
 
 runMigrations();
