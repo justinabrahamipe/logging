@@ -122,6 +122,7 @@ export const tasks = sqliteTable('Task', {
   goalId: integer('goalId').references(() => goals.id, { onDelete: 'set null' }),
   periodId: integer('periodId').references(() => cycles.id, { onDelete: 'set null' }),
   date: text('date').notNull(), // YYYY-MM-DD - the specific date this task is for
+  originalDate: text('originalDate'), // YYYY-MM-DD - the date this task was originally generated for (tracks postponed tasks)
   completed: integer('completed', { mode: 'boolean' }).notNull().default(false),
   value: real('value'),
   pointsEarned: real('pointsEarned').notNull().default(0),

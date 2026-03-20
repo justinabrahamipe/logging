@@ -47,9 +47,11 @@ export async function ensureUpcomingTasks(userId: string) {
   }
 
   // Get existing task instances for these schedules and dates
+  // Use originalDate (if set) to detect postponed tasks — a task moved from
+  // today to tomorrow should still count as "generated for today".
   const scheduleIds = allSchedules.map(s => s.id);
   const existingTasks = await db
-    .select({ scheduleId: tasks.scheduleId, date: tasks.date })
+    .select({ scheduleId: tasks.scheduleId, date: tasks.date, originalDate: tasks.originalDate })
     .from(tasks)
     .where(and(
       eq(tasks.userId, userId),
@@ -59,7 +61,13 @@ export async function ensureUpcomingTasks(userId: string) {
   const existingSet = new Set(
     existingTasks
       .filter(t => t.scheduleId && t.date)
-      .map(t => `${t.scheduleId}:${t.date}`)
+      .flatMap(t => {
+        const keys = [`${t.scheduleId}:${t.date}`];
+        if (t.originalDate && t.originalDate !== t.date) {
+          keys.push(`${t.scheduleId}:${t.originalDate}`);
+        }
+        return keys;
+      })
   );
 
   const taskValues: (typeof tasks.$inferInsert)[] = [];
@@ -110,9 +118,10 @@ async function ensureGoalTasks(userId: string, todayStr: string, dates: string[]
   if (activeGoals.length === 0) return;
 
   // Get existing goal-linked tasks to avoid duplicates
+  // Use originalDate to detect postponed tasks
   const goalIds = activeGoals.map(g => g.id);
   const existingGoalTasks = await db
-    .select({ goalId: tasks.goalId, date: tasks.date })
+    .select({ goalId: tasks.goalId, date: tasks.date, originalDate: tasks.originalDate })
     .from(tasks)
     .where(and(
       eq(tasks.userId, userId),
@@ -122,7 +131,13 @@ async function ensureGoalTasks(userId: string, todayStr: string, dates: string[]
   const existingSet = new Set(
     existingGoalTasks
       .filter(t => t.goalId && t.date)
-      .map(t => `${t.goalId}:${t.date}`)
+      .flatMap(t => {
+        const keys = [`${t.goalId}:${t.date}`];
+        if (t.originalDate && t.originalDate !== t.date) {
+          keys.push(`${t.goalId}:${t.originalDate}`);
+        }
+        return keys;
+      })
   );
 
   for (const outcome of activeGoals) {
@@ -170,6 +185,7 @@ async function ensureGoalTasks(userId: string, todayStr: string, dates: string[]
             goalId: outcome.id,
             periodId: outcome.periodId || null,
             date: dateStr,
+            originalDate: dateStr,
             completed: false,
             value: isLimit && goalLimitValue ? goalLimitValue : null,
             pointsEarned: 0,
@@ -200,16 +216,21 @@ export async function ensureTasksForDate(userId: string, dateStr: string) {
   if (allSchedules.length === 0) return;
 
   const scheduleIds = allSchedules.map(s => s.id);
+  // Check both current date and originalDate to detect postponed tasks
   const existingTasks = await db
-    .select({ scheduleId: tasks.scheduleId })
+    .select({ scheduleId: tasks.scheduleId, date: tasks.date, originalDate: tasks.originalDate })
     .from(tasks)
     .where(and(
       eq(tasks.userId, userId),
-      eq(tasks.date, dateStr),
       inArray(tasks.scheduleId, scheduleIds),
     ));
 
-  const existingScheduleIds = new Set(existingTasks.map(t => t.scheduleId));
+  // A schedule is "covered" for this date if any task has this date as its current date OR originalDate
+  const existingScheduleIds = new Set(
+    existingTasks
+      .filter(t => t.date === dateStr || t.originalDate === dateStr)
+      .map(t => t.scheduleId)
+  );
 
   const taskValues: (typeof tasks.$inferInsert)[] = [];
 
@@ -254,6 +275,7 @@ function buildTaskFromSchedule(
     goalId: schedule.goalId,
     periodId: schedule.periodId,
     date: dateStr,
+    originalDate: dateStr,
     completed: false,
     value: null,
     pointsEarned: 0,
