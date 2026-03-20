@@ -182,7 +182,8 @@ export default function TaskItem({
   };
 
   // Compute 10% increment for non-checkbox tasks (min 1)
-  const swipeIncrement = task.completionType !== 'checkbox'
+  const isNonCheckbox = task.completionType !== 'checkbox';
+  const swipeIncrement = isNonCheckbox
     ? Math.max(1, Math.round((isLimitTask ? limitVal : (task.target || 10)) * 0.1))
     : 0;
   const isTimerRunning = task.completionType === 'duration' && timers[task.id]?.running;
