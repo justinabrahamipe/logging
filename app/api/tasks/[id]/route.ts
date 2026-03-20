@@ -103,7 +103,10 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       // Update the task instance directly
       const updateData: Record<string, unknown> = {};
       if (body.startDate !== undefined) updateData.date = body.startDate;
-      if (body.name !== undefined) updateData.name = body.name;
+      const taskFields = ['name', 'pillarId', 'completionType', 'target', 'unit', 'basePoints', 'goalId', 'periodId', 'flexibilityRule', 'limitValue'];
+      for (const field of taskFields) {
+        if (body[field] !== undefined) updateData[field] = body[field];
+      }
 
       const [updated] = await db
         .update(tasks)

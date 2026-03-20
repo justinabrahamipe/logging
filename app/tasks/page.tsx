@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { FaPlus, FaChevronDown, FaChevronRight } from "react-icons/fa";
 import { Snackbar, Alert as MuiAlert } from "@mui/material";
@@ -128,20 +128,24 @@ export default function TasksPage() {
     return true;
   }) : [];
 
+  // Reset local reorder when the set of task IDs changes (server refresh, filter change, etc.)
+  const filteredTaskIds = filteredTasks.map(t => t.id).join(',');
+  const prevFilteredIdsRef = useRef(filteredTaskIds);
+  useEffect(() => {
+    if (prevFilteredIdsRef.current !== filteredTaskIds) {
+      prevFilteredIdsRef.current = filteredTaskIds;
+      if (reorderedTasks) {
+        const reorderedIds = new Set(reorderedTasks.map(t => t.id));
+        const filteredIds = new Set(filteredTasks.map(t => t.id));
+        if (reorderedIds.size !== filteredIds.size || [...reorderedIds].some(id => !filteredIds.has(id))) {
+          setReorderedTasks(null);
+        }
+      }
+    }
+  }, [filteredTaskIds, reorderedTasks, filteredTasks]);
+
   // Use reorderedTasks if we have a local optimistic reorder, otherwise use filteredTasks
   const displayTasks = reorderedTasks ?? filteredTasks;
-
-  // Reset local reorder when the server data changes
-  const displayTaskIds = filteredTasks.map(t => t.id).join(',');
-  if (reorderedTasks && reorderedTasks.map(t => t.id).join(',') !== displayTaskIds) {
-    // Tasks changed from server (refresh, filter change, etc.) — clear local override
-    // But only if the set of task IDs changed, not just the order
-    const reorderedIds = new Set(reorderedTasks.map(t => t.id));
-    const filteredIds = new Set(filteredTasks.map(t => t.id));
-    if (reorderedIds.size !== filteredIds.size || [...reorderedIds].some(id => !filteredIds.has(id))) {
-      setReorderedTasks(null);
-    }
-  }
 
   // Disable reorder when filters are active (would cause confusing interleaving)
   const hasActiveFilters = filters.pillars.length > 0 || filters.goals.length > 0 || filters.status !== 'all';
@@ -160,23 +164,26 @@ export default function TasksPage() {
     saveReorder(newOrder.map(t => t.id));
   };
 
+  const displayTasksRef = useRef(displayTasks);
+  displayTasksRef.current = displayTasks;
+
   const handleMoveUp = useCallback((taskId: number) => {
-    const tasks = reorderedTasks ?? filteredTasks;
+    const tasks = displayTasksRef.current;
     const idx = tasks.findIndex(t => t.id === taskId);
     if (idx <= 0) return;
     const newOrder = arrayMove(tasks, idx, idx - 1);
     setReorderedTasks(newOrder);
     saveReorder(newOrder.map(t => t.id));
-  }, [reorderedTasks, filteredTasks]);
+  }, []);
 
   const handleMoveDown = useCallback((taskId: number) => {
-    const tasks = reorderedTasks ?? filteredTasks;
+    const tasks = displayTasksRef.current;
     const idx = tasks.findIndex(t => t.id === taskId);
     if (idx === -1 || idx >= tasks.length - 1) return;
     const newOrder = arrayMove(tasks, idx, idx + 1);
     setReorderedTasks(newOrder);
     saveReorder(newOrder.map(t => t.id));
-  }, [reorderedTasks, filteredTasks]);
+  }, []);
 
   const taskItemProps = {
     goalsList,

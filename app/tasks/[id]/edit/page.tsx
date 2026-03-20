@@ -29,6 +29,10 @@ export default function EditTaskPage() {
         fetch("/api/pillars").then((r) => (r.ok ? r.json() : [])),
         fetch("/api/outcomes").then((r) => (r.ok ? r.json() : [])),
       ]).then(([t, p, o]) => {
+        // Map task instance `date` to `startDate` for the form
+        if (t && t.date && !t.startDate) {
+          t.startDate = t.date;
+        }
         setTask(t);
         setPillars(p);
         setGoals(o.map((g: Goal & { pillarEmoji?: string; pillarName?: string }) => ({
@@ -41,7 +45,10 @@ export default function EditTaskPage() {
   }, [session, status, router, id]);
 
   const handleSave = async (body: Record<string, unknown>) => {
-    const res = await fetch(`/api/tasks/${id}`, {
+    // Use scheduleId for the PUT if available, so the schedule update path
+    // handles all fields and propagates changes to future task instances
+    const updateId = task?.scheduleId || id;
+    const res = await fetch(`/api/tasks/${updateId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
