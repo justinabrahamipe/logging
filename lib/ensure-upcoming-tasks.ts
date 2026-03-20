@@ -146,13 +146,23 @@ async function ensureGoalTasks(userId: string, todayStr: string, dates: string[]
 
     const isHabitual = outcome.goalType === 'habitual';
     const isOutcome = outcome.goalType === 'outcome';
+    const isTarget = !isHabitual && !isOutcome;
     const taskCompletionType = outcome.completionType || (isHabitual ? 'checkbox' : 'numeric');
-    const totalScheduledDays = (outcome.startDate && outcome.targetDate)
-      ? (countScheduledDaysInRange(outcome.startDate, outcome.targetDate, scheduleDays) || 1)
-      : 1;
-    const taskDailyTarget = taskCompletionType === 'checkbox'
-      ? null
-      : (outcome.dailyTarget || (isHabitual || isOutcome ? null : Math.ceil((outcome.targetValue ?? 1) / totalScheduledDays)));
+
+    let taskDailyTarget: number | null = null;
+    if (taskCompletionType !== 'checkbox') {
+      if (outcome.dailyTarget) {
+        // Explicit daily target set by user — use as-is for habitual/outcome
+        taskDailyTarget = outcome.dailyTarget;
+      } else if (isTarget) {
+        // For target goals, calculate based on remaining work / remaining days
+        const remainingValue = (outcome.targetValue ?? 1) - (outcome.currentValue ?? 0);
+        const remainingDays = (outcome.targetDate)
+          ? (countScheduledDaysInRange(todayStr, outcome.targetDate, scheduleDays) || 1)
+          : 1;
+        taskDailyTarget = Math.ceil(Math.max(0, remainingValue) / remainingDays);
+      }
+    }
 
     const rangeStart = outcome.startDate && outcome.startDate > todayStr ? outcome.startDate : todayStr;
     const rangeEnd = outcome.targetDate || (() => {
@@ -200,6 +210,73 @@ async function ensureGoalTasks(userId: string, todayStr: string, dates: string[]
 
       current.setDate(current.getDate() + 1);
     }
+  }
+}
+
+/**
+ * Recalculate per-session targets for target goals based on remaining work / remaining days.
+ * This runs on every task fetch (not cached) so targets stay accurate after completing tasks.
+ * Optimised: filters in-memory first, uses a single bulk update per goal, and skips
+ * goals where the computed target hasn't changed.
+ */
+export async function recalcTargetGoalTasks(userId: string) {
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  const activeGoals = await db
+    .select()
+    .from(goals)
+    .where(and(
+      eq(goals.userId, userId),
+      eq(goals.autoCreateTasks, true),
+    ));
+
+  // Filter to only target goals that need recalculation (in-memory, no extra queries)
+  const targetGoals = activeGoals.filter(g => {
+    if (g.goalType === 'habitual' || g.goalType === 'outcome') return false;
+    const ct = g.completionType || 'numeric';
+    if (ct === 'checkbox') return false;
+    if (g.dailyTarget) return false; // user-set explicit target
+    const days: number[] = g.scheduleDays ? JSON.parse(g.scheduleDays) : [];
+    return days.length > 0;
+  });
+
+  if (targetGoals.length === 0) return;
+
+  // Single query: get all uncompleted tasks for these goals
+  const goalIds = targetGoals.map(g => g.id);
+  const futureTasks = await db
+    .select({ id: tasks.id, date: tasks.date, goalId: tasks.goalId, target: tasks.target })
+    .from(tasks)
+    .where(and(
+      eq(tasks.userId, userId),
+      inArray(tasks.goalId, goalIds),
+      eq(tasks.completed, false),
+    ));
+
+  // Group by goalId for efficient processing
+  const tasksByGoal = new Map<number, typeof futureTasks>();
+  for (const ft of futureTasks) {
+    if (!ft.goalId || ft.date < todayStr) continue;
+    const list = tasksByGoal.get(ft.goalId) || [];
+    list.push(ft);
+    tasksByGoal.set(ft.goalId, list);
+  }
+
+  for (const outcome of targetGoals) {
+    const scheduleDays: number[] = JSON.parse(outcome.scheduleDays!);
+    const remainingValue = (outcome.targetValue ?? 1) - (outcome.currentValue ?? 0);
+    const remainingDays = outcome.targetDate
+      ? (countScheduledDaysInRange(todayStr, outcome.targetDate, scheduleDays) || 1)
+      : 1;
+    const newTarget = Math.ceil(Math.max(0, remainingValue) / remainingDays);
+
+    const goalTasks = tasksByGoal.get(outcome.id) || [];
+    // Only update tasks whose target actually differs
+    const toUpdate = goalTasks.filter(ft => ft.target !== newTarget);
+    if (toUpdate.length === 0) continue;
+
+    const ids = toUpdate.map(ft => ft.id);
+    await db.update(tasks).set({ target: newTarget }).where(inArray(tasks.id, ids));
   }
 }
 

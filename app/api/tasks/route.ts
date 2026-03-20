@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
 import { db, tasks, taskSchedules, pillars } from "@/lib/db";
 import { eq, and, asc, isNull } from "drizzle-orm";
-import { ensureUpcomingTasks, ensureTasksForDate, invalidateTaskCache } from "@/lib/ensure-upcoming-tasks";
+import { ensureUpcomingTasks, ensureTasksForDate, invalidateTaskCache, recalcTargetGoalTasks } from "@/lib/ensure-upcoming-tasks";
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,6 +13,9 @@ export async function GET(request: NextRequest) {
 
     // Ensure upcoming task instances exist
     await ensureUpcomingTasks(userId);
+
+    // Recalculate per-session targets for target goals (remaining work / remaining days)
+    await recalcTargetGoalTasks(userId);
 
     // If requesting a specific date beyond the 7-day window, generate on-the-fly
     if (date && !showAll) {
