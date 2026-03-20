@@ -233,16 +233,17 @@ export default function TasksPage() {
 function NoDateAccordion({ tasks, taskItemProps }: { tasks: EnrichedTask[]; taskItemProps: React.ComponentProps<typeof TaskItem> extends infer P ? Omit<P, 'task' | 'showDate'> : never }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="mt-4 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden">
+    <div className="mt-4">
+      <div className="border-t border-zinc-200 dark:border-zinc-700" />
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-2 px-4 py-3 text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+        className="w-full flex items-center gap-2 px-1 py-2 text-xs font-medium text-zinc-400 dark:text-zinc-500"
       >
-        {open ? <FaChevronDown className="text-xs" /> : <FaChevronRight className="text-xs" />}
+        {open ? <FaChevronDown className="text-[10px]" /> : <FaChevronRight className="text-[10px]" />}
         No Date ({tasks.length})
       </button>
       {open && (
-        <div className="px-3 pb-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.5rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.5rem' }}>
           {tasks.map(t => (
             <TaskItem key={t.id} task={t} {...taskItemProps} />
           ))}
