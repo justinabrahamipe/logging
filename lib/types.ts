@@ -15,6 +15,7 @@ export interface Pillar {
 
 export interface Task {
   id: number;
+  scheduleId?: number | null;
   pillarId: number;
   name: string;
   completionType: string;
@@ -65,6 +66,7 @@ export interface Outcome {
   autoCreateTasks: boolean;
   flexibilityRule?: string;
   limitValue?: number | null;
+  minimumTarget?: number | null;
   pillarName: string | null;
   pillarColor: string | null;
   pillarEmoji: string | null;
@@ -296,6 +298,7 @@ export interface TaskForScoring {
   basePoints: number;
   flexibilityRule?: string;
   limitValue?: number | null;
+  minimumTarget?: number | null;
 }
 
 export interface CompletionForScoring {
@@ -348,6 +351,7 @@ export interface GoalFormState {
   goalType: "habitual" | "target" | "outcome";
   completionType: "checkbox" | "count" | "numeric" | "duration";
   dailyTarget: string;
+  minimumTarget: string;
   autoCreateTasks: boolean;
   flexibilityRule: string;
   frequencyPreset: string;

@@ -42,7 +42,7 @@ export async function POST(request: Request) {
     );
 
     const pointsEarned = calculateTaskScore(
-      { id: task.id, pillarId: task.pillarId, completionType: task.completionType, target: task.target, basePoints: task.basePoints, flexibilityRule: task.flexibilityRule, limitValue: task.limitValue },
+      { id: task.id, pillarId: task.pillarId, completionType: task.completionType, target: task.target, basePoints: task.basePoints, flexibilityRule: task.flexibilityRule, limitValue: task.limitValue, minimumTarget: task.minimumTarget },
       { taskId: task.id, completed: isCompleted, value: completionValue }
     );
 

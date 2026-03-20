@@ -35,6 +35,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (body.dailyTarget !== undefined) updateData.dailyTarget = body.dailyTarget ?? null;
     if (body.flexibilityRule !== undefined) updateData.flexibilityRule = body.flexibilityRule;
     if (body.limitValue !== undefined) updateData.limitValue = body.limitValue ?? null;
+    if (body.minimumTarget !== undefined) updateData.minimumTarget = body.minimumTarget ?? null;
 
     const [updated] = await db
       .update(goals)
@@ -51,6 +52,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (body.unit !== undefined) { propagateToTasks.unit = body.unit || null; propagateToSchedules.unit = body.unit || null; }
     if (body.flexibilityRule !== undefined) { propagateToTasks.flexibilityRule = body.flexibilityRule; propagateToSchedules.flexibilityRule = body.flexibilityRule; }
     if (body.limitValue !== undefined) { propagateToTasks.limitValue = body.limitValue ?? null; propagateToSchedules.limitValue = body.limitValue ?? null; }
+    if (body.minimumTarget !== undefined) { propagateToTasks.minimumTarget = body.minimumTarget ?? null; }
     if (body.periodId !== undefined) { propagateToTasks.periodId = body.periodId || null; propagateToSchedules.periodId = body.periodId || null; }
 
     const todayStr = new Date().toISOString().split('T')[0];

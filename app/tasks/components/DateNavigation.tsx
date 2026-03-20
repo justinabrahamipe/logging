@@ -93,7 +93,7 @@ export default function DateNavigation({
       {activePopover && (
         <div className="fixed inset-0 z-40" onClick={closePopover} />
       )}
-      <div className="flex flex-wrap items-center gap-1.5 mt-2 relative z-50">
+      <div className="flex flex-wrap items-center gap-1.5 mt-2 relative z-30">
           {/* Date chip */}
           <div>
             <button

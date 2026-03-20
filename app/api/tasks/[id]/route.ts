@@ -117,8 +117,11 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       // Also update the schedule if it exists
       if (taskInstance.scheduleId) {
         const scheduleUpdate: Record<string, unknown> = {};
+        const scheduleFields = ['name', 'pillarId', 'completionType', 'target', 'unit', 'flexibilityRule', 'frequency', 'customDays', 'repeatInterval', 'basePoints', 'limitValue', 'goalId', 'periodId'];
+        for (const field of scheduleFields) {
+          if (body[field] !== undefined) scheduleUpdate[field] = body[field];
+        }
         if (body.startDate !== undefined) scheduleUpdate.startDate = body.startDate;
-        if (body.name !== undefined) scheduleUpdate.name = body.name;
         if (Object.keys(scheduleUpdate).length > 0) {
           await db.update(taskSchedules).set(scheduleUpdate)
             .where(eq(taskSchedules.id, taskInstance.scheduleId));

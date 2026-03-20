@@ -232,6 +232,13 @@
       "when": 1773800000000,
       "tag": "0032_drop-sort-order",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "6",
+      "when": 1773900000000,
+      "tag": "0033_add-minimum-target",
+      "breakpoints": true
     }
   ]
 }

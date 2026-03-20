@@ -191,6 +191,7 @@ async function ensureGoalTasks(userId: string, todayStr: string, dates: string[]
             unit: taskCompletionType === 'checkbox' ? null : (outcome.unit || null),
             flexibilityRule: outcome.flexibilityRule || 'must_today',
             limitValue: goalLimitValue,
+            minimumTarget: outcome.minimumTarget ?? null,
             basePoints: 10,
             goalId: outcome.id,
             periodId: outcome.periodId || null,
@@ -271,13 +272,18 @@ export async function recalcTargetGoalTasks(userId: string) {
       : 1;
     const newTarget = Math.ceil(Math.max(0, remainingValue) / remainingDays);
 
+    // Recalculate minimumTarget proportionally
+    const newMinimumTarget = outcome.minimumTarget && outcome.dailyTarget && outcome.dailyTarget > 0
+      ? Math.round((outcome.minimumTarget / outcome.dailyTarget) * newTarget)
+      : (outcome.minimumTarget ?? null);
+
     const goalTasks = tasksByGoal.get(outcome.id) || [];
     // Only update tasks whose target actually differs
     const toUpdate = goalTasks.filter(ft => ft.target !== newTarget);
     if (toUpdate.length === 0) continue;
 
     const ids = toUpdate.map(ft => ft.id);
-    await db.update(tasks).set({ target: newTarget }).where(inArray(tasks.id, ids));
+    await db.update(tasks).set({ target: newTarget, minimumTarget: newMinimumTarget }).where(inArray(tasks.id, ids));
   }
 }
 

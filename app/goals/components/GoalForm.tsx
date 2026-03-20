@@ -19,6 +19,7 @@ const DEFAULT_FORM: GoalFormState = {
   goalType: "outcome",
   completionType: "checkbox",
   dailyTarget: "",
+  minimumTarget: "",
   autoCreateTasks: true,
   flexibilityRule: "must_today",
   frequencyPreset: "daily",
@@ -71,6 +72,7 @@ export default function GoalForm({
         goalType: (editingOutcome.goalType === "effort" ? "target" : editingOutcome.goalType as "habitual" | "target" | "outcome") || "outcome",
         completionType: (editingOutcome.completionType as "checkbox" | "count" | "numeric" | "duration") || "checkbox",
         dailyTarget: editingOutcome.dailyTarget ? String(editingOutcome.dailyTarget) : "",
+        minimumTarget: editingOutcome.minimumTarget ? String(editingOutcome.minimumTarget) : "",
         autoCreateTasks: editingOutcome.autoCreateTasks || false,
         flexibilityRule: editingOutcome.flexibilityRule || "must_today",
         frequencyPreset,
@@ -129,6 +131,7 @@ export default function GoalForm({
       goalType: form.goalType,
       completionType: form.completionType,
       dailyTarget: form.dailyTarget ? parseFloat(form.dailyTarget) : null,
+      minimumTarget: form.minimumTarget ? parseFloat(form.minimumTarget) : null,
       flexibilityRule: form.flexibilityRule,
       limitValue: form.flexibilityRule === 'limit_avoid' && form.dailyTarget ? parseFloat(form.dailyTarget) : null,
     };
@@ -290,6 +293,19 @@ export default function GoalForm({
                   placeholder="e.g., reps, pages"
                 />
               </div>
+            </div>
+          )}
+          {form.completionType !== "checkbox" && (form.goalType === "habitual" || form.goalType === "target") && form.flexibilityRule !== "limit_avoid" && (
+            <div className="mt-2 max-w-[180px]">
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Minimum per day</label>
+              <input
+                type="number"
+                step="any"
+                value={form.minimumTarget}
+                onChange={(e) => setForm({ ...form, minimumTarget: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
+                placeholder="e.g., 7"
+              />
             </div>
           )}
           {form.completionType !== "checkbox" && form.goalType === "target" && (

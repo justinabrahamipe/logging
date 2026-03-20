@@ -118,6 +118,7 @@ export const tasks = sqliteTable('Task', {
   unit: text('unit'),
   flexibilityRule: text('flexibilityRule').notNull().default('must_today'),
   limitValue: real('limitValue'),
+  minimumTarget: real('minimumTarget'),
   basePoints: real('basePoints').notNull().default(10),
   goalId: integer('goalId').references(() => goals.id, { onDelete: 'set null' }),
   periodId: integer('periodId').references(() => cycles.id, { onDelete: 'set null' }),
@@ -282,6 +283,7 @@ export const goals = sqliteTable('Goal', {
   autoCreateTasks: integer('autoCreateTasks', { mode: 'boolean' }).notNull().default(false),
   flexibilityRule: text('flexibilityRule').notNull().default('must_today'), // must_today|at_least|limit_avoid
   limitValue: real('limitValue'),
+  minimumTarget: real('minimumTarget'),
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({

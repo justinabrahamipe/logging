@@ -26,6 +26,7 @@ export async function saveDailyScore(userId: string, date: string) {
     basePoints: t.basePoints,
     flexibilityRule: t.flexibilityRule,
     limitValue: t.limitValue,
+    minimumTarget: t.minimumTarget,
   }));
 
   const completionsForScoring = tasksForDay.map(t => ({

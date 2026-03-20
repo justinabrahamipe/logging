@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db, tasks } from "@/lib/db";
-import { eq, and, isNotNull, or, gt } from "drizzle-orm";
+import { eq, and, isNotNull } from "drizzle-orm";
 
 export async function GET() {
   const session = await auth();
@@ -9,24 +9,30 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Get all goal-linked tasks with value > 0 OR completed = true
+  // Get all goal-linked tasks
   const goalTasks = await db
-    .select({ id: tasks.id, goalId: tasks.goalId, date: tasks.date, value: tasks.value, completed: tasks.completed })
+    .select({ id: tasks.id, goalId: tasks.goalId, date: tasks.date, originalDate: tasks.originalDate, value: tasks.value, completed: tasks.completed })
     .from(tasks)
     .where(and(
       eq(tasks.userId, session.user.id),
       isNotNull(tasks.goalId),
-      or(
-        eq(tasks.completed, true),
-        gt(tasks.value, 0),
-      ),
     ));
 
   // Build goalId -> { date, value }[] map
+  // Postponed tasks (originalDate != date) get value=-1 on their original date
+  // so the habit tracker can show them as neutral instead of missed
   const result: Record<number, { date: string; value: number }[]> = {};
   for (const t of goalTasks) {
     const goalId = t.goalId!;
     if (!result[goalId]) result[goalId] = [];
+
+    // Mark postponed original date as neutral (value -1 sentinel)
+    if (t.originalDate && t.originalDate !== t.date) {
+      result[goalId].push({ date: t.originalDate, value: -1 });
+    }
+
+    // Only include tasks with progress or completion
+    if (!t.completed && !(t.value != null && t.value > 0)) continue;
     // For checkbox tasks, value is null when completed — treat as 1
     const value = t.value != null ? t.value : (t.completed ? 1 : 0);
     result[goalId].push({ date: t.date, value });

@@ -58,9 +58,15 @@ export default function HabitTracker({ outcomesData, completionDates, today }: H
           const entries = completionDates[goal.id] || [];
 
           // Build a map of date -> total value for this goal
+          // Entries with value=-1 are postponed markers (task moved to another day)
           const dateValues = new Map<string, number>();
+          const postponedSet = new Set<string>();
           for (const e of entries) {
-            dateValues.set(e.date, (dateValues.get(e.date) || 0) + e.value);
+            if (e.value === -1) {
+              postponedSet.add(e.date);
+            } else {
+              dateValues.set(e.date, (dateValues.get(e.date) || 0) + e.value);
+            }
           }
           const doneDates = new Set(dateValues.keys());
 
@@ -92,6 +98,10 @@ export default function HabitTracker({ outcomesData, completionDates, today }: H
                       return <div key={dateStr} className="aspect-square rounded-sm bg-amber-400" />;
                     }
                     return <div key={dateStr} className="aspect-square rounded-sm bg-green-500" />;
+                  }
+                  // Postponed tasks show as rest (neutral) instead of miss
+                  if (postponedSet.has(dateStr)) {
+                    return <div key={dateStr} className="aspect-square rounded-sm bg-zinc-200 dark:bg-zinc-700 opacity-40" />;
                   }
                   return <div key={dateStr} className="aspect-square rounded-sm bg-red-400" />;
                 })}

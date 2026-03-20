@@ -24,6 +24,13 @@ export function calculateTaskScore(task: TaskForScoring, completion: CompletionF
     return -task.basePoints * Math.min(overRatio, 1);
   }
 
+  // Minimum target: full points when value reaches minimum threshold
+  if (task.minimumTarget && task.target && task.target > 0) {
+    const val = completion.value || 0;
+    if (val >= task.minimumTarget) return task.basePoints;
+    return task.basePoints * (val / task.target);
+  }
+
   // For count, duration, numeric — score based on progress toward target
   if (task.target && task.target > 0) {
     const progress = Math.min((completion.value || 0) / task.target, 1);

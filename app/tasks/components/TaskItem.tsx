@@ -111,12 +111,17 @@ export default function TaskItem({
   const isTaskLoading = actionLoading[task.id] || false;
 
   // Calculate progress percentage for the fill effect
+  // For duration tasks, use live timer elapsed (seconds → minutes) while running
+  const liveValue = task.completionType === 'duration' && timers[task.id]?.running
+    ? timers[task.id].elapsed / 60
+    : currentValue;
+
   const progressPct = (() => {
     if (isDiscarded) return 0;
     if (task.completionType === 'checkbox') return isCompleted ? 100 : 0;
     const target = isLimitTask ? limitVal : (task.target || 0);
-    if (target <= 0) return currentValue > 0 ? 100 : 0;
-    return Math.min((currentValue / target) * 100, 100);
+    if (target <= 0) return liveValue > 0 ? 100 : 0;
+    return Math.min((liveValue / target) * 100, 100);
   })();
   const progressColor = isOverLimit ? '#ef4444' : progressPct >= 100 ? '#22C55E' : progressPct > 0 ? '#F59E0B' : 'transparent';
 

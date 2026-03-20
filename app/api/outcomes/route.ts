@@ -28,6 +28,7 @@ export async function GET() {
         dailyTarget: goals.dailyTarget,
         flexibilityRule: goals.flexibilityRule,
         limitValue: goals.limitValue,
+        minimumTarget: goals.minimumTarget,
         createdAt: goals.createdAt,
         updatedAt: goals.updatedAt,
         pillarName: pillars.name,
@@ -49,7 +50,7 @@ export async function POST(request: Request) {
     const userId = await getAuthenticatedUserId();
 
     const body = await request.json();
-    const { name, targetValue, unit, pillarId, periodId, goalType, completionType, dailyTarget, scheduleDays, autoCreateTasks, flexibilityRule, limitValue } = body;
+    const { name, targetValue, unit, pillarId, periodId, goalType, completionType, dailyTarget, scheduleDays, autoCreateTasks, flexibilityRule, limitValue, minimumTarget } = body;
 
     const isActivityGoal = goalType === 'habitual' || goalType === 'target';
 
@@ -92,6 +93,7 @@ export async function POST(request: Request) {
       autoCreateTasks: autoCreateTasks || false,
       flexibilityRule: flexibilityRule || 'must_today',
       limitValue: limitValue ?? null,
+      minimumTarget: minimumTarget ?? null,
     }).returning();
 
     // Auto-create individual tasks for the next 7 days that match the schedule
@@ -158,6 +160,7 @@ export async function POST(request: Request) {
           basePoints: 10,
           flexibilityRule: flexibilityRule || 'must_today',
           limitValue: taskLimitValue,
+          minimumTarget: minimumTarget ?? null,
           value: isLimit && taskLimitValue ? taskLimitValue : null,
         });
       }
