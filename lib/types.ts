@@ -29,7 +29,6 @@ export interface Task {
   startDate: string | null;
   flexibilityRule?: string;
   limitValue?: number | null;
-  sortOrder?: number;
   completion?: TaskCompletion | null;
 }
 

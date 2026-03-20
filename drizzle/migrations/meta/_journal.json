@@ -225,6 +225,13 @@
       "when": 1773700000000,
       "tag": "0031_add-sort-order",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1773800000000,
+      "tag": "0032_drop-sort-order",
+      "breakpoints": true
     }
   ]
 }
