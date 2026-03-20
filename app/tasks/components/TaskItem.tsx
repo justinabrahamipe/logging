@@ -80,6 +80,14 @@ export default function TaskItem({
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
   const [menuPos, setMenuPos] = useState<{ top?: number; bottom?: number; right: number }>({ right: 0 });
 
+  // Swipe state
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
+  const [swipeX, setSwipeX] = useState(0);
+  const [swiping, setSwiping] = useState(false);
+  const [touching, setTouching] = useState(false);
+  const swipeLocked = useRef(false);
+  const isHorizontalSwipe = useRef(false);
 
   useEffect(() => {
     if (openMenuId === task.id && buttonRef.current) {
