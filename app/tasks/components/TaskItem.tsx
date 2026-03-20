@@ -80,6 +80,15 @@ export default function TaskItem({
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
   const [menuPos, setMenuPos] = useState<{ top?: number; bottom?: number; right: number }>({ right: 0 });
 
+  // Swipe state (mobile only)
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
+  const [swipeX, setSwipeX] = useState(0);
+  const [swiping, setSwiping] = useState(false);
+  const [touching, setTouching] = useState(false);
+  const swipeLocked = useRef(false);
+  const isHorizontalSwipe = useRef(false);
+
   useEffect(() => {
     if (openMenuId === task.id && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
@@ -111,7 +120,16 @@ export default function TaskItem({
   })();
   const progressColor = isOverLimit ? '#ef4444' : progressPct >= 100 ? '#22C55E' : progressPct > 0 ? '#F59E0B' : 'transparent';
 
-  const handleTouchStart = () => {
+  const SWIPE_THRESHOLD = 80;
+  // Don't allow swipe actions on already completed/discarded tasks
+  const canSwipe = !isFullyDone && !isDiscarded && !isTaskLoading;
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+    swipeLocked.current = false;
+    isHorizontalSwipe.current = false;
+    if (canSwipe) setTouching(true);
     longPressTimer.current = setTimeout(() => {
       longPressTimer.current = null;
       setOpenMenuId(task.id);
@@ -128,39 +146,98 @@ export default function TaskItem({
     }, 500);
   };
 
+  const handleTouchMove = (e: React.TouchEvent) => {
+    const dx = e.touches[0].clientX - touchStartX.current;
+    const dy = e.touches[0].clientY - touchStartY.current;
+
+    if (!swipeLocked.current && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
+      swipeLocked.current = true;
+      isHorizontalSwipe.current = canSwipe && Math.abs(dx) > Math.abs(dy);
+      if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current);
+        longPressTimer.current = null;
+      }
+    }
+
+    if (isHorizontalSwipe.current) {
+      e.preventDefault();
+      setSwiping(true);
+      // Dampened swipe — slows down past threshold for rubber-band feel
+      const dampen = Math.abs(dx) > SWIPE_THRESHOLD
+        ? SWIPE_THRESHOLD + (Math.abs(dx) - SWIPE_THRESHOLD) * 0.3
+        : Math.abs(dx);
+      setSwipeX(dx > 0 ? dampen : -dampen);
+    }
+  };
+
   const handleTouchEnd = () => {
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
     }
-  };
-
-  const handleTouchMove = () => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
+    setTouching(false);
+    if (swiping) {
+      if (swipeX > SWIPE_THRESHOLD) {
+        handleCheckboxToggle(task);
+      } else if (swipeX < -SWIPE_THRESHOLD) {
+        handleDiscard(task);
+      }
+      setSwiping(false);
+      setSwipeX(0);
     }
   };
 
+  // Swipe visual feedback
+  const swipeProgress = Math.min(Math.abs(swipeX) / SWIPE_THRESHOLD, 1);
+  const pastThreshold = Math.abs(swipeX) > SWIPE_THRESHOLD;
+
   return (
-    <div
-      key={task.id}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-      onTouchMove={handleTouchMove}
-      className={`relative rounded-lg px-3 py-2.5 overflow-hidden transition-all ${
-        isDiscarded
-          ? 'bg-zinc-100 dark:bg-zinc-800/60 border border-zinc-300 dark:border-zinc-600 opacity-60'
-          : isOverLimit
-          ? 'bg-white dark:bg-zinc-800 border border-red-200 dark:border-red-800'
-          : isFullyDone
-          ? 'bg-white dark:bg-zinc-800 border border-green-200 dark:border-green-800'
-          : isHighlighted
-          ? 'bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 hover:shadow-md'
-          : 'bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:shadow-md hover:border-zinc-300 dark:hover:border-zinc-600'
-      }`}
-      style={{ borderLeftWidth: 3, borderLeftColor: isDiscarded ? '#9CA3AF' : isOverLimit ? '#ef4444' : isFullyDone ? '#4ade80' : isHighlighted ? '#F59E0B' : task._pillarColor }}
-    >
+    <div className="relative rounded-lg overflow-hidden">
+      {/* Swipe hint labels on touch */}
+      {touching && !swiping && canSwipe && (
+        <div className="absolute inset-0 flex items-center justify-between px-3 pointer-events-none rounded-lg">
+          <span className="text-[10px] font-medium text-green-500 dark:text-green-400 opacity-60">Done</span>
+          <span className="text-[10px] font-medium text-red-500 dark:text-red-400 opacity-60">Discard</span>
+        </div>
+      )}
+      {/* Swipe reveal background */}
+      {swiping && swipeX !== 0 && (
+        <div
+          className={`absolute inset-0 flex items-center rounded-lg ${
+            swipeX > 0
+              ? (pastThreshold ? 'bg-green-500' : 'bg-green-400/70')
+              : (pastThreshold ? 'bg-red-500' : 'bg-red-400/70')
+          } ${swipeX > 0 ? 'justify-start pl-5' : 'justify-end pr-5'}`}
+        >
+          {swipeX > 0
+            ? <FaCheck className="text-white" style={{ opacity: swipeProgress, fontSize: pastThreshold ? 16 : 12, transition: 'font-size 0.1s' }} />
+            : <FaTimes className="text-white" style={{ opacity: swipeProgress, fontSize: pastThreshold ? 16 : 12, transition: 'font-size 0.1s' }} />
+          }
+        </div>
+      )}
+      <div
+        key={task.id}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onTouchMove={handleTouchMove}
+        className={`relative rounded-lg px-3 py-2.5 overflow-hidden transition-all ${
+          isDiscarded
+            ? 'bg-zinc-100 dark:bg-zinc-800/60 border border-zinc-300 dark:border-zinc-600 opacity-60'
+            : isOverLimit
+            ? 'bg-white dark:bg-zinc-800 border border-red-200 dark:border-red-800'
+            : isFullyDone
+            ? 'bg-white dark:bg-zinc-800 border border-green-200 dark:border-green-800'
+            : isHighlighted
+            ? 'bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 hover:shadow-md'
+            : 'bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:shadow-md hover:border-zinc-300 dark:hover:border-zinc-600'
+        }`}
+        style={{
+          borderLeftWidth: 3,
+          borderLeftColor: isDiscarded ? '#9CA3AF' : isOverLimit ? '#ef4444' : isFullyDone ? '#4ade80' : isHighlighted ? '#F59E0B' : task._pillarColor,
+          transform: swiping ? `translateX(${swipeX}px)` : undefined,
+          transition: swiping ? 'none' : 'transform 0.2s ease-out',
+        }}
+      >
       {progressPct > 0 && (
         <div
           className="absolute inset-0 opacity-10 dark:opacity-15 pointer-events-none"
@@ -340,7 +417,7 @@ export default function TaskItem({
             <button
               ref={buttonRef}
               onClick={() => setOpenMenuId(openMenuId === task.id ? null : task.id)}
-              className="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700"
+              className="hidden md:block p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700"
             >
               <FaEllipsisV className="text-[10px]" />
             </button>
@@ -419,6 +496,7 @@ export default function TaskItem({
             </AnimatePresence>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );
