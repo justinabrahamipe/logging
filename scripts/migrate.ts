@@ -433,7 +433,7 @@ async function recalcTrajectoryScores(client: ReturnType<typeof createClient>) {
       const timeProgress = elapsedMs / totalMs;
       const expectedValue = startValue + range * timeProgress;
       const deviation = (currentValue - expectedValue) / range;
-      const trajectory = Math.max(0, Math.round((1.0 + deviation) * 100) / 100);
+      const trajectory = Math.round((1.0 + deviation) * 100) / 100;
 
       trajectories.push(trajectory);
     }

@@ -16,7 +16,7 @@ export default function ScoreCard({ score, momentumData }: ScoreCardProps) {
   const mLabel = mVal >= 1.05 ? "Ahead" : mVal >= 0.95 ? "On track" : "Behind";
 
   const tVal = momentumData?.trajectory?.overall ?? 0;
-  const tPct = Math.min(tVal / 2, 1);
+  const tPct = Math.max(0, Math.min(tVal / 2, 1));
   const tColor = tVal >= 1.0 ? "#A855F7" : "#EF4444";
   const tLabel = tVal >= 1.05 ? "Ahead" : tVal >= 0.95 ? "On track" : "Behind";
 

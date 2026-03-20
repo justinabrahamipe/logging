@@ -194,7 +194,7 @@ export function calculateTrajectory(
     // For decrease goals (range < 0): current < expected = ahead (positive)
     const deviation = (goal.currentValue - expectedValue) / range;
     // Convert to trajectory score: 1.0 = on pace, >1 = ahead, <1 = behind
-    const trajectory = Math.max(0, 1.0 + deviation);
+    const trajectory = 1.0 + deviation;
     const label = trajectory >= 1.05 ? `${trajectory.toFixed(1)}x` : trajectory >= 0.95 ? 'On track' : `${trajectory.toFixed(1)}x`;
 
     results.push({ goalId: goal.id, pillarId: goal.pillarId, trajectory: Math.round(trajectory * 100) / 100, label });
