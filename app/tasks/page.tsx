@@ -231,10 +231,9 @@ export default function TasksPage() {
 }
 
 function NoDateAccordion({ tasks, taskItemProps }: { tasks: EnrichedTask[]; taskItemProps: React.ComponentProps<typeof TaskItem> extends infer P ? Omit<P, 'task' | 'showDate'> : never }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   return (
     <div className="mt-4">
-      <div className="border-t border-zinc-200 dark:border-zinc-700" />
       <button
         onClick={() => setOpen(!open)}
         className="w-full flex items-center gap-2 px-1 py-2 text-xs font-medium text-zinc-400 dark:text-zinc-500"
