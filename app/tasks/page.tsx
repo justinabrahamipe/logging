@@ -129,20 +129,19 @@ export default function TasksPage() {
   }) : [];
 
   // Reset local reorder when the set of task IDs changes (server refresh, filter change, etc.)
-  const filteredTaskIds = filteredTasks.map(t => t.id).join(',');
-  const prevFilteredIdsRef = useRef(filteredTaskIds);
+  const filteredIdSet = new Set(filteredTasks.map(t => t.id));
+  const filteredTaskIds = [...filteredIdSet].sort().join(',');
   useEffect(() => {
-    if (prevFilteredIdsRef.current !== filteredTaskIds) {
-      prevFilteredIdsRef.current = filteredTaskIds;
-      if (reorderedTasks) {
-        const reorderedIds = new Set(reorderedTasks.map(t => t.id));
-        const filteredIds = new Set(filteredTasks.map(t => t.id));
-        if (reorderedIds.size !== filteredIds.size || [...reorderedIds].some(id => !filteredIds.has(id))) {
-          setReorderedTasks(null);
-        }
+    setReorderedTasks(prev => {
+      if (!prev) return prev;
+      const reorderedIds = new Set(prev.map(t => t.id));
+      if (reorderedIds.size !== filteredIdSet.size || [...reorderedIds].some(id => !filteredIdSet.has(id))) {
+        return null;
       }
-    }
-  }, [filteredTaskIds, reorderedTasks, filteredTasks]);
+      return prev;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredTaskIds]);
 
   // Use reorderedTasks if we have a local optimistic reorder, otherwise use filteredTasks
   const displayTasks = reorderedTasks ?? filteredTasks;
