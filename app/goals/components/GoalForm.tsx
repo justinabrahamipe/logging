@@ -295,19 +295,6 @@ export default function GoalForm({
               </div>
             </div>
           )}
-          {form.completionType !== "checkbox" && (form.goalType === "habitual" || form.goalType === "target") && form.flexibilityRule !== "limit_avoid" && (
-            <div className="mt-2 max-w-[180px]">
-              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Minimum per day</label>
-              <input
-                type="number"
-                step="any"
-                value={form.minimumTarget}
-                onChange={(e) => setForm({ ...form, minimumTarget: e.target.value })}
-                className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
-                placeholder="e.g., 7"
-              />
-            </div>
-          )}
           {form.completionType !== "checkbox" && form.goalType === "target" && (
             <div className="mt-2">
               <PerSessionLabel form={form} />
@@ -355,7 +342,7 @@ export default function GoalForm({
       )}
 
       {form.goalType === "target" && (
-        <div className="grid grid-cols-2 gap-3">
+        <div className={`grid gap-3 ${form.completionType !== "checkbox" && form.flexibilityRule !== "limit_avoid" ? "grid-cols-3" : "grid-cols-2"}`}>
           <div>
             <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
               {form.flexibilityRule === "limit_avoid" ? "Limit Value" : "Target Value"}
@@ -369,6 +356,19 @@ export default function GoalForm({
               placeholder={form.completionType === "duration" ? "e.g., 600" : "e.g., 120"}
             />
           </div>
+          {form.completionType !== "checkbox" && form.flexibilityRule !== "limit_avoid" && (
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Min per day</label>
+              <input
+                type="number"
+                step="any"
+                value={form.minimumTarget}
+                onChange={(e) => setForm({ ...form, minimumTarget: e.target.value })}
+                className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
+                placeholder="e.g., 7"
+              />
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Unit</label>
             <input
