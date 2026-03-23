@@ -46,7 +46,8 @@ export default function ProgressChart({ outcome, logs, color }: {
     // This lets us draw ideal/required lines that only progress on scheduled days
     const scheduledByDay = new Map<number, number>();
     let totalScheduled = 0;
-    for (let d = 0; d <= endDayNum; d++) {
+    scheduledByDay.set(0, 0); // Day 0 = start, nothing done yet
+    for (let d = 1; d <= endDayNum; d++) {
       const date = new Date(startDay + d * DAY_MS);
       if (scheduleDays.length === 0 || scheduleDays.includes(date.getDay())) {
         totalScheduled++;
