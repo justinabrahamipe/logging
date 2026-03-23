@@ -92,9 +92,11 @@ export default function TaskItem({
   useEffect(() => {
     if (openMenuId === task.id && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
+      // Account for mobile bottom tab bar (~48px) + safe area
+      const bottomBarHeight = window.innerWidth < 768 ? 60 : 0;
+      const spaceBelow = window.innerHeight - rect.bottom - bottomBarHeight;
       const right = window.innerWidth - rect.right;
-      if (spaceBelow < 220) {
+      if (spaceBelow < 280) {
         setMenuPos({ bottom: window.innerHeight - rect.top + 4, right });
       } else {
         setMenuPos({ top: rect.bottom + 4, right });
