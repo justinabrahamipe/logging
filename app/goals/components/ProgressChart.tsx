@@ -37,44 +37,68 @@ export default function ProgressChart({ outcome, logs, color }: {
     const endDay = Math.floor(endDate.getTime() / DAY_MS) * DAY_MS;
 
     const toDayNum = (ts: number) => Math.round((ts - startDay) / DAY_MS);
+    const endDayNum = toDayNum(endDay);
 
+    // Parse scheduled days (e.g., [1,2,3,4,5] for Mon-Fri)
+    const scheduleDays: number[] = outcome.scheduleDays ? JSON.parse(outcome.scheduleDays) : [];
+
+    // Count total scheduled days and build a map of cumulative scheduled days per calendar day
+    // This lets us draw ideal/required lines that only progress on scheduled days
+    const scheduledByDay = new Map<number, number>();
+    let totalScheduled = 0;
+    for (let d = 0; d <= endDayNum; d++) {
+      const date = new Date(startDay + d * DAY_MS);
+      if (scheduleDays.length === 0 || scheduleDays.includes(date.getDay())) {
+        totalScheduled++;
+      }
+      scheduledByDay.set(d, totalScheduled);
+    }
+
+    // Build ideal line: progress proportional to elapsed scheduled days
+    const chartData: { day: number; actual: number | null; ideal: number | null; required: number | null }[] = [];
+
+    // Add ideal line points for each day with a scheduled-day-aware calculation
+    for (let d = 0; d <= endDayNum; d++) {
+      const elapsed = scheduledByDay.get(d) || 0;
+      const idealVal = totalScheduled > 0 ? Math.round((elapsed / totalScheduled) * outcome.targetValue * 10) / 10 : 0;
+      chartData.push({ day: d, actual: null, ideal: idealVal, required: null });
+    }
+
+    // Overlay actual cumulative data
     let cumulative = 0;
-    const chartData: { day: number; actual: number | null; ideal: number | null; required: number | null }[] = [
-      { day: 0, actual: 0, ideal: 0, required: 0 },
-    ];
+    // Set day 0 actual
+    const day0 = chartData.find(d => d.day === 0);
+    if (day0) day0.actual = 0;
 
     for (const log of sorted) {
       cumulative += log.value;
-      chartData.push({
-        day: toDayNum(new Date(log.loggedAt).getTime()),
-        actual: cumulative,
-        ideal: null,
-        required: null,
-      });
-    }
-
-    const endDayNum = toDayNum(endDay);
-    if (endDayNum > 0) {
-      chartData[0].ideal = 0;
-      const lastEntry = chartData[chartData.length - 1];
-      if (lastEntry.day < endDayNum) {
-        chartData.push({ day: endDayNum, actual: null, ideal: outcome.targetValue, required: outcome.targetValue });
+      const logDay = toDayNum(new Date(log.loggedAt).getTime());
+      const existing = chartData.find(d => d.day === logDay);
+      if (existing) {
+        existing.actual = cumulative;
       } else {
-        lastEntry.ideal = outcome.targetValue;
-        lastEntry.required = outcome.targetValue;
+        chartData.push({ day: logDay, actual: cumulative, ideal: null, required: null });
       }
     }
 
     // "Required" line: from start (0) through current progress today to target by end date
     const todayDayNum = toDayNum(Math.floor(Date.now() / DAY_MS) * DAY_MS);
     const currentProgress = cumulative;
-    if (endDayNum > 0) {
-      const todayEntry = chartData.find(d => d.day === todayDayNum);
-      if (todayEntry) {
-        todayEntry.required = currentProgress;
-      } else if (todayDayNum > 0 && todayDayNum < endDayNum) {
-        chartData.push({ day: todayDayNum, actual: null, ideal: null, required: currentProgress });
-      }
+
+    // Set required line: (0, 0) → (today, currentProgress) → (end, targetValue)
+    const day0Req = chartData.find(d => d.day === 0);
+    if (day0Req) day0Req.required = 0;
+
+    const todayEntry = chartData.find(d => d.day === todayDayNum);
+    if (todayEntry) {
+      todayEntry.required = currentProgress;
+    } else if (todayDayNum > 0 && todayDayNum <= endDayNum) {
+      chartData.push({ day: todayDayNum, actual: null, ideal: null, required: currentProgress });
+    }
+
+    const endEntry = chartData.find(d => d.day === endDayNum);
+    if (endEntry) {
+      endEntry.required = outcome.targetValue;
     }
 
     // Sort by day for proper rendering
