@@ -82,32 +82,25 @@ export default function ProgressChart({ outcome, logs, color }: {
       }
     }
 
-    // "Required" line: from current progress to target, stepping on scheduled days
-    // Anchor at the last actual log point to avoid timezone mismatches
+    // "Required" line: where you should be at each point given today's required rate
+    // Calculated backward from target: required[day] = target - (rate * remainingScheduledDays)
+    const currentProgress = cumulative;
+    const scheduledToEnd = totalScheduled;
     const lastLogDay = sorted.length > 0 ? toDayNum(new Date(sorted[sorted.length - 1].loggedAt).getTime()) : 0;
     const todayDayNum = Math.max(lastLogDay, toDayNum(Math.floor(Date.now() / DAY_MS) * DAY_MS));
-    const currentProgress = cumulative;
     const scheduledToToday = scheduledByDay.get(Math.min(todayDayNum, endDayNum)) || 0;
-    const remainingTarget = outcome.targetValue - currentProgress;
-    const scheduledRemaining = totalScheduled - scheduledToToday;
-    const futureRate = scheduledRemaining > 0 ? remainingTarget / scheduledRemaining : 0;
+    const scheduledRemaining = scheduledToEnd - scheduledToToday;
+    const requiredRate = scheduledRemaining > 0 ? (outcome.targetValue - currentProgress) / scheduledRemaining : 0;
 
-    // Build required line from today forward
-    let reqCumulative = currentProgress;
-    for (let d = todayDayNum; d <= endDayNum; d++) {
-      const date = new Date(startDay + d * DAY_MS);
-      const isScheduled = scheduleDays.length === 0 || scheduleDays.includes(date.getDay());
-
-      if (isScheduled && d > todayDayNum) {
-        reqCumulative += futureRate;
-      }
+    // For each day, required = target - (requiredRate * scheduled days remaining from that day)
+    for (let d = 0; d <= endDayNum; d++) {
+      const scheduledElapsed = scheduledByDay.get(d) || 0;
+      const scheduledLeft = totalScheduled - scheduledElapsed;
+      const reqVal = Math.round((outcome.targetValue - requiredRate * scheduledLeft) * 10) / 10;
 
       const entry = chartData.find(e => e.day === d);
-      const reqVal = Math.round(reqCumulative * 10) / 10;
       if (entry) {
         entry.required = reqVal;
-      } else {
-        chartData.push({ day: d, actual: null, ideal: null, required: reqVal });
       }
     }
 
