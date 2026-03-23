@@ -179,7 +179,6 @@ export interface HistoryScore {
   actionScore: number;
   momentumScore: number | null;
   trajectoryScore: number | null;
-  isPassing: boolean;
   pillarScores: Record<string, number>;
   pillarMomentum: Record<string, number>;
 }

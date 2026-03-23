@@ -26,17 +26,17 @@ export function useDashboard() {
 
   const currentStreak = useMemo(() => {
     if (!history?.scores?.length) return 0;
-    const scoreMap = new Map<string, boolean>();
+    const scoreMap = new Map<string, number>();
     for (const s of history.scores) {
-      scoreMap.set(s.date, s.isPassing);
+      scoreMap.set(s.date, s.actionScore);
     }
     let streak = 0;
     const d = new Date();
     d.setDate(d.getDate() - 1);
     while (true) {
       const dateStr = d.toISOString().split("T")[0];
-      const passing = scoreMap.get(dateStr);
-      if (passing === true) {
+      const score = scoreMap.get(dateStr);
+      if (score !== undefined && score >= 95) {
         streak++;
         d.setDate(d.getDate() - 1);
       } else {

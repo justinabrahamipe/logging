@@ -95,14 +95,15 @@ export default function Header() {
       let streak = 0;
       if (historyRes.ok) {
         const hist = await historyRes.json();
-        const scores: { date: string; isPassing: boolean }[] = hist.scores || [];
-        const scoreMap = new Map<string, boolean>();
-        for (const s of scores) scoreMap.set(s.date, s.isPassing);
+        const scores: { date: string; actionScore: number }[] = hist.scores || [];
+        const scoreMap = new Map<string, number>();
+        for (const s of scores) scoreMap.set(s.date, s.actionScore);
         const d = new Date();
         d.setDate(d.getDate() - 1);
         while (true) {
           const ds = d.toISOString().split("T")[0];
-          if (scoreMap.get(ds) === true) { streak++; d.setDate(d.getDate() - 1); }
+          const sc = scoreMap.get(ds);
+          if (sc !== undefined && sc >= 95) { streak++; d.setDate(d.getDate() - 1); }
           else break;
         }
       }

@@ -11,9 +11,9 @@ interface StreakFlameChainProps {
 
 export default function StreakFlameChain({ scores, currentStreak }: StreakFlameChainProps) {
   const days = useMemo(() => {
-    const scoreMap = new Map<string, { isPassing: boolean; score: number }>();
+    const scoreMap = new Map<string, number>();
     for (const s of scores) {
-      scoreMap.set(s.date, { isPassing: s.isPassing, score: s.actionScore });
+      scoreMap.set(s.date, s.actionScore);
     }
 
     const today = new Date();
@@ -24,14 +24,13 @@ export default function StreakFlameChain({ scores, currentStreak }: StreakFlameC
       const d = new Date(today);
       d.setDate(d.getDate() - i);
       const dateStr = d.toISOString().split("T")[0];
-      const entry = scoreMap.get(dateStr);
+      const score = scoreMap.get(dateStr);
 
       let status: "pass" | "fail" | "today" | "none";
       if (dateStr === todayStr) {
-        // Today: show as passing only if already at 95%+, otherwise show as in-progress
-        status = entry?.isPassing ? "pass" : "today";
+        status = score !== undefined && score >= 95 ? "pass" : "today";
       } else {
-        status = entry === undefined ? "none" : entry.isPassing ? "pass" : "fail";
+        status = score === undefined ? "none" : score >= 95 ? "pass" : "fail";
       }
 
       result.push({

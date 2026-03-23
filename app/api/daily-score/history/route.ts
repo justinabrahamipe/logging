@@ -44,7 +44,6 @@ export async function GET(request: NextRequest) {
       actionScore: s.actionScore,
       momentumScore: s.momentumScore,
       trajectoryScore: s.trajectoryScore ?? null,
-      isPassing: s.isPassing,
       pillarScores: s.pillarScores ? JSON.parse(s.pillarScores) : {},
       pillarMomentum: s.pillarMomentum ? JSON.parse(s.pillarMomentum) : {},
     }));

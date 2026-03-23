@@ -1,7 +1,7 @@
 ALTER TABLE Task ADD COLUMN dismissed integer NOT NULL DEFAULT 0;
 
--- Recalculate isPassing for all historical scores using the new 95% threshold
-UPDATE DailyScore SET isPassing = (actionScore >= 95);
+-- Remove unused isPassing column from DailyScore
+ALTER TABLE DailyScore DROP COLUMN isPassing;
 
 -- Contact messages table
 CREATE TABLE IF NOT EXISTS ContactMessage (

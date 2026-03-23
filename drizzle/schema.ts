@@ -156,7 +156,6 @@ export const dailyScores = sqliteTable('DailyScore', {
   trajectoryScore: real('trajectoryScore'), // outcome goal trajectory (0-200+, 100 = on pace)
   pillarScores: text('pillarScores'), // JSON: { pillarId: score }
   pillarMomentum: text('pillarMomentum'), // JSON: { pillarId: momentum }
-  isPassing: integer('isPassing', { mode: 'boolean' }).notNull().default(false),
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({

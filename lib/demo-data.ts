@@ -72,7 +72,6 @@ function generateDemoHistory() {
       actionScore,
       momentumScore: null,
       trajectoryScore: null,
-      isPassing: actionScore >= 70,
       pillarScores: { "1": actionScore + 5, "2": actionScore - 5, "3": actionScore, "5": actionScore + 10 },
       pillarMomentum: {},
     });
