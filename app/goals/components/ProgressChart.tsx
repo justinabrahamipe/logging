@@ -82,37 +82,30 @@ export default function ProgressChart({ outcome, logs, color }: {
       }
     }
 
-    // "Required" line: schedule-aware, from start through current progress to target
+    // "Required" line: from today's progress to target, stepping on scheduled days
     const todayDayNum = toDayNum(Math.floor(Date.now() / DAY_MS) * DAY_MS);
     const currentProgress = cumulative;
-
-    // Count scheduled days in past (start→today) and future (today→end)
     const scheduledToToday = scheduledByDay.get(Math.min(todayDayNum, endDayNum)) || 0;
-    const pastRate = scheduledToToday > 0 ? currentProgress / scheduledToToday : 0;
     const remainingTarget = outcome.targetValue - currentProgress;
     const scheduledRemaining = totalScheduled - scheduledToToday;
     const futureRate = scheduledRemaining > 0 ? remainingTarget / scheduledRemaining : 0;
 
-    // Build required line stepping on scheduled days only
-    let reqCumulative = 0;
-    let pastScheduledSoFar = 0;
-    for (let d = 0; d <= endDayNum; d++) {
+    // Build required line from today forward
+    let reqCumulative = currentProgress;
+    for (let d = todayDayNum; d <= endDayNum; d++) {
       const date = new Date(startDay + d * DAY_MS);
       const isScheduled = scheduleDays.length === 0 || scheduleDays.includes(date.getDay());
 
-      if (isScheduled && d > 0) {
-        if (d <= todayDayNum) {
-          pastScheduledSoFar++;
-          reqCumulative = pastRate * pastScheduledSoFar;
-        } else {
-          reqCumulative += futureRate;
-        }
+      if (isScheduled && d > todayDayNum) {
+        reqCumulative += futureRate;
       }
 
       const entry = chartData.find(e => e.day === d);
       const reqVal = Math.round(reqCumulative * 10) / 10;
       if (entry) {
         entry.required = reqVal;
+      } else {
+        chartData.push({ day: d, actual: null, ideal: null, required: reqVal });
       }
     }
 
