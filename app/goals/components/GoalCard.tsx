@@ -84,13 +84,15 @@ export default function GoalCard({
     }
     if (expected === 0) return null;
 
-    // Proportional hits when dailyTarget exists
-    const filtered = entries.filter(e => e.date >= start && e.date <= today);
+    // Filter: in range, positive value (exclude postpone markers -1)
+    const filtered = entries.filter(e => e.date >= start && e.date <= today && e.value > 0);
     if (!outcome.dailyTarget || outcome.completionType === 'checkbox') {
       const uniqueDates = new Set(filtered.map(e => e.date));
-      const logDates = new Set((logsMap[outcome.id] || []).map(l => l.loggedAt.split('T')[0]));
+      const logDates = new Set((logsMap[outcome.id] || [])
+        .filter(l => { const d = l.loggedAt.split('T')[0]; return d >= start && d <= today; })
+        .map(l => l.loggedAt.split('T')[0]));
       for (const ld of logDates) uniqueDates.add(ld);
-      return Math.round((uniqueDates.size / expected) * 100);
+      return Math.round((Math.min(uniqueDates.size, expected) / expected) * 100);
     }
     const dayValues = new Map<string, number>();
     for (const e of filtered) {
@@ -100,7 +102,7 @@ export default function GoalCard({
     for (const val of dayValues.values()) {
       hits += Math.min(val / outcome.dailyTarget, 1);
     }
-    return Math.round((hits / expected) * 100);
+    return Math.round((Math.min(hits, expected) / expected) * 100);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isHabitual, outcome.startDate, outcome.id, outcome.dailyTarget, outcome.completionType, taskCompletionDates, logsMap, today, outcome.scheduleDays]);
 

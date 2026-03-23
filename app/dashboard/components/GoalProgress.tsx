@@ -30,15 +30,17 @@ export default function GoalProgress({ outcomesData, completionDates, today }: G
   };
 
   // Compute proportional hits for a habitual goal
-  const getHabitualHits = (o: OutcomeData) => {
+  const getHabitualHits = (o: OutcomeData, expected: number) => {
     const entries = completionDates[o.id] || [];
     const start = o.startDate || today;
-    const filtered = entries.filter(e => e.date >= start && e.date <= today);
+
+    // Filter: in range, positive value (exclude postpone markers -1)
+    const filtered = entries.filter(e => e.date >= start && e.date <= today && e.value > 0);
 
     // For checkbox goals (no dailyTarget), keep binary
     if (!o.dailyTarget || o.completionType === 'checkbox') {
       const uniqueDates = new Set(filtered.map(e => e.date));
-      return uniqueDates.size;
+      return Math.min(uniqueDates.size, expected);
     }
 
     // Proportional: sum up fractional credit per day, capped at 1.0 per day
@@ -50,7 +52,7 @@ export default function GoalProgress({ outcomesData, completionDates, today }: G
     for (const val of dayValues.values()) {
       hits += Math.min(val / o.dailyTarget, 1);
     }
-    return hits;
+    return Math.min(hits, expected);
   };
 
   // Hide goals that haven't started yet
@@ -66,7 +68,7 @@ export default function GoalProgress({ outcomesData, completionDates, today }: G
   const totalProgress = visibleGoals.reduce((sum, o) => {
     if (o.goalType === 'habitual') {
       const expected = getExpectedDays(o);
-      const hits = getHabitualHits(o);
+      const hits = getHabitualHits(o, expected);
       return sum + (expected > 0 ? Math.min((hits / expected) * 100, 100) : 0);
     }
     const range = o.targetValue - o.startValue;
@@ -107,7 +109,7 @@ export default function GoalProgress({ outcomesData, completionDates, today }: G
           let subtitle: string;
           if (isHabitual) {
             const expected = getExpectedDays(goal);
-            const hits = getHabitualHits(goal);
+            const hits = getHabitualHits(goal, expected);
             progress = expected > 0 ? Math.round((hits / expected) * 100) : 0;
             const hitsDisplay = Number.isInteger(hits) ? hits : hits.toFixed(1);
             subtitle = `${hitsDisplay} / ${expected} days`;
