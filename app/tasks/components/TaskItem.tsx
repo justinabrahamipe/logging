@@ -4,6 +4,7 @@ import { useRef, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaPlus, FaEdit, FaTrash, FaCheck, FaMinus, FaPlay, FaPause, FaStop, FaEllipsisV, FaCopy, FaStar, FaTimes, FaArrowLeft, FaArrowRight } from "react-icons/fa";
 import { DAY_NAMES } from "@/lib/constants";
+import { getProgressColor } from "@/lib/scoring";
 import type { Task, Outcome, Cycle } from "@/lib/types";
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 
@@ -132,7 +133,7 @@ export default function TaskItem({
     if (target <= 0) return liveValue > 0 ? 100 : 0;
     return Math.min((liveValue / target) * 100, 100);
   })();
-  const progressColor = isOverLimit ? '#ef4444' : progressPct >= 100 ? '#22C55E' : progressPct > 0 ? '#F59E0B' : 'transparent';
+  const progressColor = isOverLimit ? '#ef4444' : progressPct > 0 ? getProgressColor(progressPct) : 'transparent';
 
   const swipeThreshold = typeof window !== 'undefined' ? window.innerWidth * 0.3 : 120;
   const canSwipe = !isTaskLoading;

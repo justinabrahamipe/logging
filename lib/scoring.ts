@@ -169,3 +169,12 @@ export function getTierColor(tier: ScoreTier): string {
     case 'Poor': return '#EF4444';
   }
 }
+
+/** 5-tier progress color: red → orange → amber → emerald → green */
+export function getProgressColor(pct: number): string {
+  if (pct >= 95) return '#22C55E';
+  if (pct >= 75) return '#10B981';
+  if (pct >= 50) return '#F59E0B';
+  if (pct >= 25) return '#F97316';
+  return '#EF4444';
+}

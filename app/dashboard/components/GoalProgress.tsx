@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { FaTrophy } from "react-icons/fa";
 import Link from "next/link";
+import { getProgressColor } from "@/lib/scoring";
 import type { OutcomeData } from "@/lib/types";
 
 interface GoalProgressProps {
@@ -116,7 +117,7 @@ export default function GoalProgress({ outcomesData, completionDates, today }: G
             ));
             subtitle = `${goal.currentValue} / ${goal.targetValue} ${goal.unit}`;
           }
-          const progressColor = progress < 30 ? "#EF4444" : progress < 60 ? "#F59E0B" : "#22C55E";
+          const progressColor = getProgressColor(progress);
 
           return (
             <div
