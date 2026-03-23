@@ -82,8 +82,10 @@ export default function ProgressChart({ outcome, logs, color }: {
       }
     }
 
-    // "Required" line: from today's progress to target, stepping on scheduled days
-    const todayDayNum = toDayNum(Math.floor(Date.now() / DAY_MS) * DAY_MS);
+    // "Required" line: from current progress to target, stepping on scheduled days
+    // Anchor at the last actual log point to avoid timezone mismatches
+    const lastLogDay = sorted.length > 0 ? toDayNum(new Date(sorted[sorted.length - 1].loggedAt).getTime()) : 0;
+    const todayDayNum = Math.max(lastLogDay, toDayNum(Math.floor(Date.now() / DAY_MS) * DAY_MS));
     const currentProgress = cumulative;
     const scheduledToToday = scheduledByDay.get(Math.min(todayDayNum, endDayNum)) || 0;
     const remainingTarget = outcome.targetValue - currentProgress;
