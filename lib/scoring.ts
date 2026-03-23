@@ -1,8 +1,10 @@
 import type { TaskForScoring, CompletionForScoring } from '@/lib/types';
 
 export function calculateTaskScore(task: TaskForScoring, completion: CompletionForScoring): number {
+  // Skipped tasks earn 0 points but stay in denominator
+  if (completion.skipped) return 0;
+
   if (task.completionType === 'checkbox') {
-    // completed=true with value=0 means "discarded" — earns 0 points but stays in denominator
     return (completion.completed && (completion.value ?? 0) > 0) ? task.basePoints : 0;
   }
 

@@ -34,6 +34,7 @@ export async function saveDailyScore(userId: string, date: string) {
     completed: t.completed,
     value: t.value,
     isHighlighted: t.isHighlighted,
+    skipped: t.skipped,
   }));
 
   const { actionScore, pillarScores } = calculateDailyScore(completionsForScoring, tasksForScoring, pillarWeights);

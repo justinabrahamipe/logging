@@ -747,22 +747,26 @@ export function useTasksPage() {
 
   const handleDiscard = async (task: Task) => {
     setOpenMenuId(null);
+    const isSkipped = task.completion?.skipped || false;
     setActionLoading(prev => ({ ...prev, [task.id]: true }));
     try {
-      await fetch('/api/tasks/complete', {
+      const res = await fetch('/api/tasks/skip', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ taskId: task.id, date: viewDate, completed: true, value: 0 }),
+        body: JSON.stringify({ taskId: task.id, skipped: !isSkipped }),
       });
-      setGroups(prev => prev.map(g => ({
-        ...g,
-        tasks: g.tasks.map(t =>
-          t.id === task.id ? { ...t, completion: { ...t.completion, taskId: task.id, completed: true, value: 0, pointsEarned: 0, isHighlighted: t.completion?.isHighlighted ?? false } as TaskCompletion } : t
-        ),
-      })));
+      if (res.ok) {
+        const completion = await res.json();
+        setGroups(prev => prev.map(g => ({
+          ...g,
+          tasks: g.tasks.map(t =>
+            t.id === task.id ? { ...t, completion } : t
+          ),
+        })));
+      }
       await fetchScore(viewDate);
     } catch (error) {
-      console.error("Failed to discard task:", error);
+      console.error("Failed to skip task:", error);
     } finally {
       setActionLoading(prev => ({ ...prev, [task.id]: false }));
     }
@@ -885,14 +889,11 @@ export function useTasksPage() {
     }
   }, [today, filters.date, getEndOfWeek, getTomorrow, getTaskDate, getEndOfMonth]);
 
-  const passesStatusFilter = useCallback((completed: boolean, value: number | null) => {
+  const passesStatusFilter = useCallback((completed: boolean, _value: number | null, skipped?: boolean) => {
     if (filters.status === 'all') return true;
-    const val = value || 0;
-    const isDiscarded = completed && val === 0;
-    const isDone = !isDiscarded && completed;
-    if (filters.status === 'discarded') return isDiscarded;
-    if (filters.status === 'done') return isDone;
-    if (filters.status === 'todo') return !completed;
+    if (filters.status === 'discarded') return skipped === true;
+    if (filters.status === 'done') return completed && !skipped;
+    if (filters.status === 'todo') return !completed && !skipped;
     return true;
   }, [filters.status]);
 

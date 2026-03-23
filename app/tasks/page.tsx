@@ -94,7 +94,7 @@ export default function TasksPage() {
   const filteredTasks = isScheduledView ? [] : allEnrichedTasks.filter(task => {
     if (!isServerFiltered && !isTaskInDateRange(task)) return false;
     const completed = task.completion?.completed || (task.target != null && task.target > 0 && (task.completion?.value || 0) >= task.target);
-    if (!passesStatusFilter(completed, task.completion?.value ?? null)) return false;
+    if (!passesStatusFilter(completed, task.completion?.value ?? null, task.completion?.skipped)) return false;
     if (filters.pillars.length > 0 && !filters.pillars.includes(task.pillarId)) return false;
     if (filters.goals.length > 0 && !(task.goalId && filters.goals.includes(task.goalId))) return false;
     return true;

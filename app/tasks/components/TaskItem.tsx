@@ -73,7 +73,7 @@ export default function TaskItem({
 }: TaskItemProps) {
   const isCompleted = task.completion?.completed || false;
   const currentValue = task.completion?.value || 0;
-  const isDiscarded = isCompleted && task.completionType === 'checkbox' && currentValue === 0;
+  const isDiscarded = task.completion?.skipped || false;
   const isLimitTask = task.flexibilityRule === 'limit_avoid';
   const limitVal = task.limitValue ?? task.target ?? 0;
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -206,8 +206,8 @@ export default function TaskItem({
 
   const handleSwipeRight = () => {
     if (isDiscarded) {
-      // Discarded → mark as done (undiscard + complete)
-      handleCheckboxToggle(task);
+      // Skipped → unskip (back to pending)
+      handleDiscard(task);
     } else if (task.completionType === 'checkbox' || isFullyDone) {
       handleCheckboxToggle(task);
     } else if (!isTimerRunning) {
@@ -217,8 +217,8 @@ export default function TaskItem({
 
   const handleSwipeLeft = () => {
     if (isDiscarded) {
-      // Discarded → undiscard (back to pending)
-      handleCheckboxToggle(task);
+      // Skipped → unskip (back to pending)
+      handleDiscard(task);
     } else if (task.completionType === 'checkbox') {
       if (isFullyDone) handleCheckboxToggle(task);
       else handleDiscard(task);
@@ -235,10 +235,10 @@ export default function TaskItem({
 
   // Context-aware labels and colors
   const showIncrement = isNonCheckbox && !isFullyDone && !isDiscarded && !isTimerRunning;
-  const rightLabel = isDiscarded ? 'Done' : showIncrement ? `+${swipeIncrement}` : isFullyDone ? 'Undo' : 'Done';
+  const rightLabel = isDiscarded ? 'Unskip' : showIncrement ? `+${swipeIncrement}` : isFullyDone ? 'Undo' : 'Done';
   const leftLabel = isDiscarded ? 'Unskip' : (showIncrement && !isAtZero ? `-${swipeIncrement}` : (isFullyDone ? 'Undo' : 'Skip'));
-  const rightColor = isDiscarded ? 'green' : showIncrement ? 'green' : (isFullyDone ? 'amber' : 'green');
-  const leftColor = isDiscarded ? 'amber' : (showIncrement && !isAtZero ? 'amber' : 'red');
+  const rightColor = isDiscarded ? 'amber' : showIncrement ? 'green' : (isFullyDone ? 'amber' : 'green');
+  const leftColor = isDiscarded ? 'amber' : (showIncrement && !isAtZero ? 'amber' : 'amber');
 
   return (
     <div className="relative rounded-lg overflow-hidden">
@@ -277,7 +277,7 @@ export default function TaskItem({
         onTouchMove={handleTouchMove}
         className={`relative rounded-lg px-3 py-2.5 overflow-hidden transition-all ${
           isDiscarded
-            ? 'bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 opacity-60'
+            ? 'bg-amber-50 dark:bg-zinc-800/80 border border-dashed border-amber-300 dark:border-amber-700 opacity-70'
             : isOverLimit
             ? 'bg-white dark:bg-zinc-800 border border-red-200 dark:border-red-800'
             : isFullyDone
@@ -288,7 +288,7 @@ export default function TaskItem({
         }`}
         style={{
           borderLeftWidth: 3,
-          borderLeftColor: isDiscarded ? '#9CA3AF' : isOverLimit ? '#ef4444' : isFullyDone ? '#4ade80' : isHighlighted ? '#F59E0B' : task._pillarColor,
+          borderLeftColor: isDiscarded ? '#F59E0B' : isOverLimit ? '#ef4444' : isFullyDone ? '#4ade80' : isHighlighted ? '#F59E0B' : task._pillarColor,
           transform: swiping ? `translateX(${swipeX * 0.3}px)` : undefined,
           transition: swiping ? 'none' : 'transform 0.2s ease-out',
         }}
@@ -320,7 +320,7 @@ export default function TaskItem({
           </button>
         )}
         <div className="flex-1 min-w-0">
-          <h3 className={`text-sm font-semibold leading-snug truncate ${isDiscarded ? 'line-through text-zinc-400 dark:text-zinc-500 italic' : isFullyDone ? 'line-through text-zinc-400 dark:text-zinc-500' : 'text-zinc-900 dark:text-white'}`}>
+          <h3 className={`text-sm font-semibold leading-snug truncate ${isDiscarded ? 'line-through text-amber-500 dark:text-amber-400 italic' : isFullyDone ? 'line-through text-zinc-400 dark:text-zinc-500' : 'text-zinc-900 dark:text-white'}`}>
             {task.name}
           </h3>
           <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
@@ -526,15 +526,15 @@ export default function TaskItem({
                   </button>
                   {isDiscarded ? (
                     <button
-                      onClick={() => { setOpenMenuId(null); handleCheckboxToggle(task); }}
-                      className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20"
+                      onClick={() => { setOpenMenuId(null); handleDiscard(task); }}
+                      className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20"
                     >
                       <FaCheck className="text-xs" /> Unskip
                     </button>
                   ) : (
                     <button
                       onClick={() => handleDiscard(task)}
-                      className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-zinc-500 dark:text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                      className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20"
                     >
                       <FaTimes className="text-xs" /> Skip
                     </button>

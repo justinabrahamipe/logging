@@ -68,6 +68,7 @@ export async function GET(request: NextRequest) {
             value: t.value,
             pointsEarned: t.pointsEarned,
             isHighlighted: t.isHighlighted,
+            skipped: t.skipped,
             timerStartedAt: t.timerStartedAt,
           },
         }));

@@ -40,6 +40,7 @@ export interface TaskCompletion {
   value: number | null;
   pointsEarned: number;
   isHighlighted: boolean;
+  skipped: boolean;
   timerStartedAt: number | null;
 }
 
@@ -305,6 +306,7 @@ export interface CompletionForScoring {
   completed: boolean;
   value: number | null;
   isHighlighted?: boolean;
+  skipped?: boolean;
 }
 
 // ------ Effort calculation types ------

@@ -1,3 +1,4 @@
+ALTER TABLE Task ADD COLUMN skipped integer NOT NULL DEFAULT 0;
 ALTER TABLE Task ADD COLUMN dismissed integer NOT NULL DEFAULT 0;
 
 -- Remove unused isPassing column from DailyScore
