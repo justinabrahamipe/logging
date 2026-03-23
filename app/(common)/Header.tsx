@@ -8,7 +8,7 @@ interface BeforeInstallPromptEvent extends Event {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaBolt, FaColumns, FaTasks, FaBars, FaTimes, FaSignOutAlt, FaCog, FaDownload, FaHistory, FaChartLine, FaCalendarAlt, FaSun, FaMoon } from "react-icons/fa";
+import { FaBolt, FaColumns, FaTasks, FaBars, FaTimes, FaSignOutAlt, FaCog, FaDownload, FaHistory, FaChartLine, FaCalendarAlt, FaSun, FaMoon, FaEnvelope } from "react-icons/fa";
 import { useState, useEffect, useRef } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useTheme } from "@/components/ThemeProvider";
@@ -282,6 +282,16 @@ export default function Header() {
                           </button>
                         </Link>
 
+                        <Link href="/contact">
+                          <button
+                            onClick={() => setIsProfileMenuOpen(false)}
+                            className="w-full px-3 py-2 text-left flex items-center gap-2.5 text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                          >
+                            <FaEnvelope className="text-xs" />
+                            Contact Us
+                          </button>
+                        </Link>
+
                         <div className="border-t border-zinc-100 dark:border-zinc-800 my-1" />
 
                         <button
@@ -413,6 +423,13 @@ export default function Header() {
                         <div onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2.5 px-3 py-2.5 rounded-md text-sm text-zinc-600 dark:text-zinc-300">
                           <FaCog className="text-sm" />
                           Settings
+                        </div>
+                      </Link>
+
+                      <Link href="/contact">
+                        <div onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2.5 px-3 py-2.5 rounded-md text-sm text-zinc-600 dark:text-zinc-300">
+                          <FaEnvelope className="text-sm" />
+                          Contact Us
                         </div>
                       </Link>
 

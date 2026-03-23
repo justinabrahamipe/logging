@@ -188,6 +188,16 @@ export const activityLog = sqliteTable('ActivityLog', {
   userTimestampIdx: index('ActivityLog_userId_timestamp_idx').on(table.userId, table.timestamp),
 }));
 
+// Contact messages table
+export const contactMessages = sqliteTable('ContactMessage', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: text('userId').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  topic: text('topic').notNull().default('General Feedback'),
+  message: text('message').notNull(),
+  read: integer('read', { mode: 'boolean' }).notNull().default(false),
+  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
   preferences: one(userPreferences),
