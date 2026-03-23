@@ -39,8 +39,8 @@ export default function ProgressChart({ outcome, logs, color }: {
     const toDayNum = (ts: number) => Math.round((ts - startDay) / DAY_MS);
 
     let cumulative = 0;
-    const chartData: { day: number; actual: number | null; ideal: number | null }[] = [
-      { day: 0, actual: 0, ideal: 0 },
+    const chartData: { day: number; actual: number | null; ideal: number | null; required: number | null }[] = [
+      { day: 0, actual: 0, ideal: 0, required: null },
     ];
 
     for (const log of sorted) {
@@ -49,6 +49,7 @@ export default function ProgressChart({ outcome, logs, color }: {
         day: toDayNum(new Date(log.loggedAt).getTime()),
         actual: cumulative,
         ideal: null,
+        required: null,
       });
     }
 
@@ -57,11 +58,29 @@ export default function ProgressChart({ outcome, logs, color }: {
       chartData[0].ideal = 0;
       const lastEntry = chartData[chartData.length - 1];
       if (lastEntry.day < endDayNum) {
-        chartData.push({ day: endDayNum, actual: null, ideal: outcome.targetValue });
+        chartData.push({ day: endDayNum, actual: null, ideal: outcome.targetValue, required: outcome.targetValue });
       } else {
         lastEntry.ideal = outcome.targetValue;
+        lastEntry.required = outcome.targetValue;
       }
     }
+
+    // Add "required" line: from current progress today to target by end date
+    const todayDayNum = toDayNum(Math.floor(Date.now() / DAY_MS) * DAY_MS);
+    const currentProgress = cumulative;
+    if (endDayNum > todayDayNum && currentProgress < outcome.targetValue) {
+      // Find or create chart entry closest to today to anchor the required line
+      const todayEntry = chartData.find(d => d.day === todayDayNum);
+      if (todayEntry) {
+        todayEntry.required = currentProgress;
+      } else {
+        // Insert a point for today
+        chartData.push({ day: todayDayNum, actual: null, ideal: null, required: currentProgress });
+      }
+    }
+
+    // Sort by day for proper rendering
+    chartData.sort((a, b) => a.day - b.day);
 
     const maxDay = Math.max(endDayNum, chartData[chartData.length - 1].day, 1);
     const formatDay = (day: number) => {
@@ -99,15 +118,24 @@ export default function ProgressChart({ outcome, logs, color }: {
               labelFormatter={(day) => formatDay(day as number)}
               formatter={(value, name) => [
                 `${value} ${outcome.unit}`,
-                name === "actual" ? "Actual" : "Ideal",
+                name === "actual" ? "Actual" : name === "required" ? "Required" : "Original Plan",
               ]}
             />
             <Line
               type="linear"
               dataKey="ideal"
               stroke="#9CA3AF"
+              strokeWidth={1.5}
+              strokeDasharray="4 4"
+              dot={false}
+              connectNulls
+            />
+            <Line
+              type="linear"
+              dataKey="required"
+              stroke="#F59E0B"
               strokeWidth={2}
-              strokeDasharray="5 5"
+              strokeDasharray="6 3"
               dot={false}
               connectNulls
             />

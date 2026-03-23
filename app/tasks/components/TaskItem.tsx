@@ -92,7 +92,6 @@ export default function TaskItem({
   useEffect(() => {
     if (openMenuId === task.id && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
-      // Account for mobile bottom tab bar (~48px) + safe area
       const bottomBarHeight = window.innerWidth < 768 ? 60 : 0;
       const spaceBelow = window.innerHeight - rect.bottom - bottomBarHeight;
       const right = window.innerWidth - rect.right;
@@ -103,6 +102,14 @@ export default function TaskItem({
       }
     }
   }, [openMenuId, task.id]);
+
+  // Close menu on scroll
+  useEffect(() => {
+    if (openMenuId !== task.id) return;
+    const onScroll = () => setOpenMenuId(null);
+    window.addEventListener('scroll', onScroll, { capture: true, passive: true });
+    return () => window.removeEventListener('scroll', onScroll, { capture: true });
+  }, [openMenuId, task.id, setOpenMenuId]);
   const isFullyDone = !isDiscarded && (
     isLimitTask
       ? isCompleted
