@@ -49,10 +49,11 @@ export function calculateEffortMetrics(
     : 0;
 
   let status: 'ahead' | 'on_track' | 'behind';
-  const tolerance = dailyTarget * 0.5;
-  if (currentDelta >= idealProgress + tolerance) {
+  if (remaining <= 0) {
     status = 'ahead';
-  } else if (currentDelta >= idealProgress - tolerance) {
+  } else if (currentRate >= requiredRate) {
+    status = 'ahead';
+  } else if (currentRate >= requiredRate * 0.8) {
     status = 'on_track';
   } else {
     status = 'behind';
