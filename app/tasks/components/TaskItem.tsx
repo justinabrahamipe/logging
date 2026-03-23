@@ -385,11 +385,11 @@ export default function TaskItem({
                 >
                   <FaMinus className="text-[9px]" />
                 </button>
-                <span className={`text-xs font-bold min-w-[2.5rem] text-center ${
-                  isLimitTask
-                    ? (currentValue > limitVal ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400')
-                    : (task.target && currentValue >= task.target ? 'text-green-600 dark:text-green-400' : 'text-zinc-900 dark:text-white')
-                }`}>
+                <span className="text-xs font-bold min-w-[2.5rem] text-center"
+                  style={{ color: isLimitTask
+                    ? (currentValue > limitVal ? '#EF4444' : '#22C55E')
+                    : (task.target && task.target > 0 && currentValue > 0 ? getProgressColor((currentValue / task.target) * 100) : undefined)
+                  }}>
                   {currentValue}/{isLimitTask ? limitVal : (task.target || '?')}
                 </span>
                 <button
@@ -427,11 +427,13 @@ export default function TaskItem({
                     <button
                       onClick={() => { if (!isRunning) setPendingValues(prev => ({ ...prev, [task.id]: String(Math.round(elapsed / 60)) })); }}
                       className={`text-xs font-mono min-w-[3rem] text-center ${
-                        isLimitTask && limitSec > 0 && elapsed > limitSec ? 'text-red-600 dark:text-red-400 font-bold' :
-                        done ? 'text-green-600 dark:text-green-400 font-bold' :
-                        isRunning ? 'text-zinc-900 dark:text-white font-bold' :
-                        'text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white cursor-text'
+                        isRunning ? 'font-bold' : elapsed > 0 ? 'font-bold' : 'text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white cursor-text'
                       }`}
+                      style={{
+                        color: isLimitTask && limitSec > 0 && elapsed > limitSec ? '#EF4444' :
+                          !isRunning && targetSec > 0 && elapsed > 0 ? getProgressColor((elapsed / targetSec) * 100) :
+                          undefined
+                      }}
                       disabled={isRunning}
                     >
                       {isLimitTask && limitSec > 0
