@@ -57,6 +57,7 @@ export async function POST(request: Request) {
       pointsEarned,
       completedAt: isCompleted ? new Date() : null,
       timerStartedAt: null,
+      skipped: false, // completing a task clears skip state
     };
     if (task.date === '' && isCompleted) {
       updateData.date = date;
@@ -145,6 +146,7 @@ export async function POST(request: Request) {
       value: result.value,
       pointsEarned: result.pointsEarned,
       isHighlighted: result.isHighlighted,
+      skipped: result.skipped,
       timerStartedAt: result.timerStartedAt,
     });
   } catch (error) {
