@@ -40,7 +40,7 @@ export default function ProgressChart({ outcome, logs, color }: {
 
     let cumulative = 0;
     const chartData: { day: number; actual: number | null; ideal: number | null; required: number | null }[] = [
-      { day: 0, actual: 0, ideal: 0, required: null },
+      { day: 0, actual: 0, ideal: 0, required: 0 },
     ];
 
     for (const log of sorted) {
@@ -65,16 +65,14 @@ export default function ProgressChart({ outcome, logs, color }: {
       }
     }
 
-    // Add "required" line: from current progress today to target by end date
+    // "Required" line: from start (0) through current progress today to target by end date
     const todayDayNum = toDayNum(Math.floor(Date.now() / DAY_MS) * DAY_MS);
     const currentProgress = cumulative;
-    if (endDayNum > todayDayNum && currentProgress < outcome.targetValue) {
-      // Find or create chart entry closest to today to anchor the required line
+    if (endDayNum > 0) {
       const todayEntry = chartData.find(d => d.day === todayDayNum);
       if (todayEntry) {
         todayEntry.required = currentProgress;
-      } else {
-        // Insert a point for today
+      } else if (todayDayNum > 0 && todayDayNum < endDayNum) {
         chartData.push({ day: todayDayNum, actual: null, ideal: null, required: currentProgress });
       }
     }
