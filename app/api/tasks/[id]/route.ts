@@ -194,29 +194,40 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     }
 
     // Try as task instance
-    const deleted = await db
-      .delete(tasks)
-      .where(and(eq(tasks.id, itemId), eq(tasks.userId, userId)))
-      .returning();
+    const [taskInstance] = await db
+      .select()
+      .from(tasks)
+      .where(and(eq(tasks.id, itemId), eq(tasks.userId, userId)));
 
-    if (deleted.length === 0) {
+    if (!taskInstance) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
+    // For goal-linked tasks, mark as dismissed instead of deleting (prevents auto-recreation)
+    if (taskInstance.goalId) {
+      await db
+        .update(tasks)
+        .set({ dismissed: true, completed: false, value: null, pointsEarned: 0 })
+        .where(eq(tasks.id, itemId));
+    } else {
+      await db
+        .delete(tasks)
+        .where(and(eq(tasks.id, itemId), eq(tasks.userId, userId)));
+    }
+
     // Recalculate linked goal's currentValue after task deletion
-    const deletedTask = deleted[0];
-    if (deletedTask.goalId && (deletedTask.completed || (deletedTask.value ?? 0) > 0)) {
+    if (taskInstance.goalId && (taskInstance.completed || (taskInstance.value ?? 0) > 0)) {
       try {
         const [linkedGoal] = await db
           .select()
           .from(goals)
-          .where(and(eq(goals.id, deletedTask.goalId), eq(goals.userId, userId)));
+          .where(and(eq(goals.id, taskInstance.goalId), eq(goals.userId, userId)));
 
         if (linkedGoal && linkedGoal.goalType !== 'outcome') {
           const remaining = await db
             .select({ value: tasks.value })
             .from(tasks)
-            .where(and(eq(tasks.goalId, deletedTask.goalId), or(eq(tasks.completed, true), gt(tasks.value, 0))));
+            .where(and(eq(tasks.goalId, taskInstance.goalId), eq(tasks.dismissed, false), or(eq(tasks.completed, true), gt(tasks.value, 0))));
           const newTotal = remaining.reduce((sum, t) => sum + (t.value ?? 0), 0);
           await db
             .update(goals)

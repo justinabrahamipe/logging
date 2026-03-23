@@ -11,24 +11,33 @@ interface StreakFlameChainProps {
 
 export default function StreakFlameChain({ scores, currentStreak }: StreakFlameChainProps) {
   const days = useMemo(() => {
-    const scoreMap = new Map<string, boolean>();
+    const scoreMap = new Map<string, { isPassing: boolean; score: number }>();
     for (const s of scores) {
-      scoreMap.set(s.date, s.isPassing);
+      scoreMap.set(s.date, { isPassing: s.isPassing, score: s.actionScore });
     }
 
     const today = new Date();
-    const result: { date: string; label: string; status: "pass" | "fail" | "none" }[] = [];
+    const todayStr = today.toISOString().split("T")[0];
+    const result: { date: string; label: string; status: "pass" | "fail" | "today" | "none" }[] = [];
 
     for (let i = 13; i >= 0; i--) {
       const d = new Date(today);
       d.setDate(d.getDate() - i);
       const dateStr = d.toISOString().split("T")[0];
-      const passing = scoreMap.get(dateStr);
+      const entry = scoreMap.get(dateStr);
+
+      let status: "pass" | "fail" | "today" | "none";
+      if (dateStr === todayStr) {
+        // Today: show as passing only if already at 95%+, otherwise show as in-progress
+        status = entry?.isPassing ? "pass" : "today";
+      } else {
+        status = entry === undefined ? "none" : entry.isPassing ? "pass" : "fail";
+      }
 
       result.push({
         date: dateStr,
         label: d.toLocaleDateString("en-US", { weekday: "narrow" }),
-        status: passing === undefined ? "none" : passing ? "pass" : "fail",
+        status,
       });
     }
 
@@ -59,6 +68,8 @@ export default function StreakFlameChain({ scores, currentStreak }: StreakFlameC
               className={`w-5 h-5 md:w-8 md:h-8 rounded-full flex items-center justify-center text-[10px] md:text-sm ${
                 day.status === "pass"
                   ? "bg-orange-500/20 text-orange-500"
+                  : day.status === "today"
+                  ? "bg-blue-500/20 text-blue-500 ring-1 ring-blue-400/50"
                   : day.status === "fail"
                   ? "bg-red-500/20 text-red-400"
                   : "bg-zinc-200 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500"
@@ -66,6 +77,8 @@ export default function StreakFlameChain({ scores, currentStreak }: StreakFlameC
             >
               {day.status === "pass" ? (
                 <FaFire />
+              ) : day.status === "today" ? (
+                <span className="text-[8px] md:text-xs font-bold">...</span>
               ) : day.status === "fail" ? (
                 <FaTimes className="text-[8px] md:text-xs" />
               ) : (

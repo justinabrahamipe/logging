@@ -130,6 +130,7 @@ export const tasks = sqliteTable('Task', {
   isHighlighted: integer('isHighlighted', { mode: 'boolean' }).notNull().default(false),
   completedAt: integer('completedAt', { mode: 'timestamp' }),
   timerStartedAt: integer('timerStartedAt'), // epoch ms when timer was started (null = not running)
+  dismissed: integer('dismissed', { mode: 'boolean' }).notNull().default(false), // true = user explicitly removed this task instance (prevents auto-recreation)
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({

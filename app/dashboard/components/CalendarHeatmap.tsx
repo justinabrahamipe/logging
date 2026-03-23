@@ -29,6 +29,8 @@ export default function CalendarHeatmap({ scores }: CalendarHeatmapProps) {
     }
   };
 
+  const todayStr = new Date().toISOString().split("T")[0];
+
   const { weeks } = useMemo(() => {
     const scoreMap = new Map<string, number>();
     for (const s of scores) {
@@ -37,7 +39,7 @@ export default function CalendarHeatmap({ scores }: CalendarHeatmapProps) {
 
     const start = new Date(startDate + "T00:00:00");
     const end = new Date(endDate + "T00:00:00");
-    const daysArray: { date: string; score: number | null; dayOfWeek: number }[] = [];
+    const daysArray: { date: string; score: number | null; isToday: boolean; dayOfWeek: number }[] = [];
 
     const d = new Date(start);
     while (d <= end) {
@@ -45,6 +47,7 @@ export default function CalendarHeatmap({ scores }: CalendarHeatmapProps) {
       daysArray.push({
         date: dateStr,
         score: scoreMap.get(dateStr) ?? null,
+        isToday: dateStr === todayStr,
         dayOfWeek: d.getDay(),
       });
       d.setDate(d.getDate() + 1);
@@ -72,7 +75,7 @@ export default function CalendarHeatmap({ scores }: CalendarHeatmapProps) {
     if (currentWeek.length > 0) weeksArray.push(currentWeek);
 
     return { days: daysArray, weeks: weeksArray };
-  }, [scores, startDate, endDate]);
+  }, [scores, startDate, endDate, todayStr]);
 
   const dayLabels = ["M", "T", "W", "T", "F", "S", "S"];
 
@@ -106,9 +109,11 @@ export default function CalendarHeatmap({ scores }: CalendarHeatmapProps) {
                 <div
                   key={di}
                   className={`w-4 h-4 rounded-sm cursor-pointer transition-all ${
-                    day.date
-                      ? `${getHeatmapColor(day.score)} ${getHeatmapOpacity(day.score)}`
-                      : "bg-transparent"
+                    !day.date
+                      ? "bg-transparent"
+                      : day.isToday && (day.score === null || day.score < 95)
+                      ? "bg-blue-400 dark:bg-blue-500 opacity-60 ring-1 ring-blue-500"
+                      : `${getHeatmapColor(day.score)} ${getHeatmapOpacity(day.score)}`
                   }`}
                   onMouseEnter={(e) => {
                     if (day.date) {
@@ -132,8 +137,9 @@ export default function CalendarHeatmap({ scores }: CalendarHeatmapProps) {
           <span>Less</span>
           <div className="w-3 h-3 rounded-sm bg-zinc-200 dark:bg-zinc-700 opacity-40" />
           <div className="w-3 h-3 rounded-sm bg-red-500 opacity-80" />
-          <div className="w-3 h-3 rounded-sm bg-yellow-500 opacity-70" />
-          <div className="w-3 h-3 rounded-sm bg-green-500 opacity-80" />
+          <div className="w-3 h-3 rounded-sm bg-orange-500 opacity-80" />
+          <div className="w-3 h-3 rounded-sm bg-yellow-500 opacity-80" />
+          <div className="w-3 h-3 rounded-sm bg-emerald-400 opacity-90" />
           <div className="w-3 h-3 rounded-sm bg-green-500 opacity-100" />
           <span>More</span>
         </div>

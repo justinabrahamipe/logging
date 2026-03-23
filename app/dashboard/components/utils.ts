@@ -21,16 +21,19 @@ export function getTierColor(tier: string): string {
 
 export function getHeatmapColor(score: number | null): string {
   if (score === null) return "bg-zinc-200 dark:bg-zinc-700";
-  if (score >= 70) return "bg-green-500";
+  if (score >= 95) return "bg-green-500";
+  if (score >= 75) return "bg-emerald-400";
   if (score >= 50) return "bg-yellow-500";
+  if (score >= 25) return "bg-orange-500";
   return "bg-red-500";
 }
 
 export function getHeatmapOpacity(score: number | null): string {
   if (score === null) return "opacity-40";
-  if (score >= 90) return "opacity-100";
-  if (score >= 70) return "opacity-80";
-  if (score >= 50) return "opacity-70";
+  if (score >= 95) return "opacity-100";
+  if (score >= 75) return "opacity-90";
+  if (score >= 50) return "opacity-80";
+  if (score >= 25) return "opacity-80";
   return "opacity-80";
 }
 

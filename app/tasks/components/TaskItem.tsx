@@ -236,7 +236,7 @@ export default function TaskItem({
   // Context-aware labels and colors
   const showIncrement = isNonCheckbox && !isFullyDone && !isDiscarded && !isTimerRunning;
   const rightLabel = isDiscarded ? 'Done' : showIncrement ? `+${swipeIncrement}` : isFullyDone ? 'Undo' : 'Done';
-  const leftLabel = isDiscarded ? 'Undiscard' : (showIncrement && !isAtZero ? `-${swipeIncrement}` : (isFullyDone ? 'Undo' : 'Discard'));
+  const leftLabel = isDiscarded ? 'Unskip' : (showIncrement && !isAtZero ? `-${swipeIncrement}` : (isFullyDone ? 'Undo' : 'Skip'));
   const rightColor = isDiscarded ? 'green' : showIncrement ? 'green' : (isFullyDone ? 'amber' : 'green');
   const leftColor = isDiscarded ? 'amber' : (showIncrement && !isAtZero ? 'amber' : 'red');
 
@@ -529,14 +529,14 @@ export default function TaskItem({
                       onClick={() => { setOpenMenuId(null); handleCheckboxToggle(task); }}
                       className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20"
                     >
-                      <FaCheck className="text-xs" /> Undiscard
+                      <FaCheck className="text-xs" /> Unskip
                     </button>
                   ) : (
                     <button
                       onClick={() => handleDiscard(task)}
                       className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-zinc-500 dark:text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                     >
-                      <FaTimes className="text-xs" /> Discard
+                      <FaTimes className="text-xs" /> Skip
                     </button>
                   )}
                   <button

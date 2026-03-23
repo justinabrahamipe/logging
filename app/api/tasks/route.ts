@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
       const todayTasks = await db
         .select()
         .from(tasks)
-        .where(and(eq(tasks.userId, userId), eq(tasks.date, todayStr)));
+        .where(and(eq(tasks.userId, userId), eq(tasks.date, todayStr), eq(tasks.dismissed, false)));
 
       const completionBySchedule = new Map(
         todayTasks.filter(t => t.scheduleId).map(t => [t.scheduleId!, t])
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
       const adhocTasks = await db
         .select()
         .from(tasks)
-        .where(and(eq(tasks.userId, userId), isNull(tasks.scheduleId)))
+        .where(and(eq(tasks.userId, userId), isNull(tasks.scheduleId), eq(tasks.dismissed, false)))
         .orderBy(asc(tasks.pillarId));
 
       const adhocTaskItems = adhocTasks
@@ -116,7 +116,7 @@ export async function GET(request: NextRequest) {
     const tasksForDate = await db
       .select()
       .from(tasks)
-      .where(and(eq(tasks.userId, userId), eq(tasks.date, dateStr)))
+      .where(and(eq(tasks.userId, userId), eq(tasks.date, dateStr), eq(tasks.dismissed, false)))
       .orderBy(asc(tasks.pillarId));
 
     // Map tasks to include a completion field for backward compat
@@ -162,6 +162,7 @@ export async function GET(request: NextRequest) {
           eq(tasks.userId, userId),
           isNull(tasks.scheduleId),
           eq(tasks.completed, false),
+          eq(tasks.dismissed, false),
           eq(tasks.date, ''),
         ))
         .orderBy(asc(tasks.pillarId));

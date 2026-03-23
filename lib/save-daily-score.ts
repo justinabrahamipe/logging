@@ -8,7 +8,7 @@ export async function saveDailyScore(userId: string, date: string) {
   const tasksForDay = await db
     .select()
     .from(tasks)
-    .where(and(eq(tasks.userId, userId), eq(tasks.date, date)));
+    .where(and(eq(tasks.userId, userId), eq(tasks.date, date), eq(tasks.dismissed, false)));
 
   // Get pillars for weights
   const userPillars = await db
@@ -38,7 +38,7 @@ export async function saveDailyScore(userId: string, date: string) {
 
   const { actionScore, pillarScores } = calculateDailyScore(completionsForScoring, tasksForScoring, pillarWeights);
   const tier = getScoreTier(actionScore);
-  const isPassing = tier !== 'Poor' && tier !== 'Needs Work';
+  const isPassing = actionScore >= 95;
 
   // Calculate momentum from goals
   const userGoals = await db

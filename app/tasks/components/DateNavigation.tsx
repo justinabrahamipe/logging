@@ -113,7 +113,7 @@ export default function DateNavigation({
               onClick={() => setActivePopover(activePopover === 'status' ? null : 'status')}
               className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-500 transition-colors"
             >
-              {filters.status === 'todo' ? 'To Do' : filters.status === 'done' ? 'Done' : 'Discarded'}
+              {filters.status === 'todo' ? 'To Do' : filters.status === 'done' ? 'Done' : 'Skipped'}
               <span
                 className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
                 onClick={(e) => { e.stopPropagation(); setFilters(f => ({ ...f, status: 'all' })); }}
@@ -362,7 +362,7 @@ export default function DateNavigation({
                 filters.status === s ? 'bg-zinc-100 dark:bg-zinc-700 font-medium text-zinc-900 dark:text-white' : 'hover:bg-zinc-50 dark:hover:bg-zinc-700/50 text-zinc-600 dark:text-zinc-400'
               }`}
             >
-              {s === 'todo' ? 'To Do' : s === 'done' ? 'Done' : 'Discarded'}
+              {s === 'todo' ? 'To Do' : s === 'done' ? 'Done' : 'Skipped'}
             </button>
           ))}
         </div>
@@ -383,7 +383,7 @@ export default function DateNavigation({
                   onClick={() => { setFilters(f => ({ ...f, status: s })); setActivePopover(null); }}
                   className="w-full px-3 py-1.5 text-left text-sm rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-700/50 text-zinc-600 dark:text-zinc-400"
                 >
-                  {s === 'todo' ? 'To Do' : s === 'done' ? 'Done' : 'Discarded'}
+                  {s === 'todo' ? 'To Do' : s === 'done' ? 'Done' : 'Skipped'}
                 </button>
               ))}
               <div className="border-t border-zinc-100 dark:border-zinc-700 my-1" />

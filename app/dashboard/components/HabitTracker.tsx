@@ -36,6 +36,7 @@ export default function HabitTracker({ outcomesData, completionDates, today }: H
         <div className="flex items-center gap-2 text-[10px] text-zinc-400 dark:text-zinc-500">
           <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" /> Hit</span>
           <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-amber-400 inline-block" /> Partial</span>
+          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-blue-400 inline-block" /> Today</span>
           <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-red-400 inline-block" /> Miss</span>
           <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-zinc-200 dark:bg-zinc-700 inline-block" /> Rest</span>
         </div>
@@ -102,6 +103,10 @@ export default function HabitTracker({ outcomesData, completionDates, today }: H
                   // Postponed tasks show as rest (neutral) instead of miss
                   if (postponedSet.has(dateStr)) {
                     return <div key={dateStr} className="aspect-square rounded-sm bg-zinc-200 dark:bg-zinc-700 opacity-40" />;
+                  }
+                  // Today is still in progress — show blue instead of red
+                  if (dateStr === today) {
+                    return <div key={dateStr} className="aspect-square rounded-sm bg-blue-400 ring-1 ring-blue-500/50" />;
                   }
                   return <div key={dateStr} className="aspect-square rounded-sm bg-red-400" />;
                 })}
