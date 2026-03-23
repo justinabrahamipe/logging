@@ -112,7 +112,7 @@ export default function CalendarHeatmap({ scores }: CalendarHeatmapProps) {
                     !day.date
                       ? "bg-transparent"
                       : day.isToday && (day.score === null || day.score < 95)
-                      ? "bg-blue-400 dark:bg-blue-500 opacity-60 ring-1 ring-blue-500"
+                      ? "bg-blue-400 dark:bg-blue-500 opacity-60"
                       : `${getHeatmapColor(day.score)} ${getHeatmapOpacity(day.score)}`
                   }`}
                   onMouseEnter={(e) => {

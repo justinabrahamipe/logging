@@ -90,7 +90,8 @@ export function useDashboard() {
         setMomentumData(await momentumRes.json());
       }
       if (tasksRes.ok) {
-        const groups = await tasksRes.json();
+        const data = await tasksRes.json();
+        const groups = Array.isArray(data) ? data : (data.groups || []);
         const count = groups.reduce((sum: number, g: { tasks: unknown[] }) => sum + g.tasks.length, 0);
         setTodayTaskCount(count);
       }
