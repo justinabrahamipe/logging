@@ -194,6 +194,7 @@ export const contactMessages = sqliteTable('ContactMessage', {
   userId: text('userId').notNull().references(() => users.id, { onDelete: 'cascade' }),
   topic: text('topic').notNull().default('General Feedback'),
   message: text('message').notNull(),
+  status: text('status').notNull().default('todo'), // todo | in_progress | done
   read: integer('read', { mode: 'boolean' }).notNull().default(false),
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 });
