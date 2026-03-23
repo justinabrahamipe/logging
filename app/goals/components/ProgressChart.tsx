@@ -81,24 +81,38 @@ export default function ProgressChart({ outcome, logs, color }: {
       }
     }
 
-    // "Required" line: from start (0) through current progress today to target by end date
+    // "Required" line: schedule-aware, from start through current progress to target
     const todayDayNum = toDayNum(Math.floor(Date.now() / DAY_MS) * DAY_MS);
     const currentProgress = cumulative;
 
-    // Set required line: (0, 0) → (today, currentProgress) → (end, targetValue)
-    const day0Req = chartData.find(d => d.day === 0);
-    if (day0Req) day0Req.required = 0;
+    // Count scheduled days in past (start→today) and future (today→end)
+    const scheduledToToday = scheduledByDay.get(Math.min(todayDayNum, endDayNum)) || 0;
+    const pastRate = scheduledToToday > 0 ? currentProgress / scheduledToToday : 0;
+    const remainingTarget = outcome.targetValue - currentProgress;
+    const scheduledRemaining = totalScheduled - scheduledToToday;
+    const futureRate = scheduledRemaining > 0 ? remainingTarget / scheduledRemaining : 0;
 
-    const todayEntry = chartData.find(d => d.day === todayDayNum);
-    if (todayEntry) {
-      todayEntry.required = currentProgress;
-    } else if (todayDayNum > 0 && todayDayNum <= endDayNum) {
-      chartData.push({ day: todayDayNum, actual: null, ideal: null, required: currentProgress });
-    }
+    // Build required line stepping on scheduled days only
+    let reqCumulative = 0;
+    let pastScheduledSoFar = 0;
+    for (let d = 0; d <= endDayNum; d++) {
+      const date = new Date(startDay + d * DAY_MS);
+      const isScheduled = scheduleDays.length === 0 || scheduleDays.includes(date.getDay());
 
-    const endEntry = chartData.find(d => d.day === endDayNum);
-    if (endEntry) {
-      endEntry.required = outcome.targetValue;
+      if (isScheduled && d > 0) {
+        if (d <= todayDayNum) {
+          pastScheduledSoFar++;
+          reqCumulative = pastRate * pastScheduledSoFar;
+        } else {
+          reqCumulative += futureRate;
+        }
+      }
+
+      const entry = chartData.find(e => e.day === d);
+      const reqVal = Math.round(reqCumulative * 10) / 10;
+      if (entry) {
+        entry.required = reqVal;
+      }
     }
 
     // Sort by day for proper rendering
