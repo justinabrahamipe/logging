@@ -76,10 +76,14 @@ export default function TasksPage() {
     const aStarred = a.completion?.isHighlighted ? 1 : 0;
     const bStarred = b.completion?.isHighlighted ? 1 : 0;
     if (aStarred !== bStarred) return bStarred - aStarred;
-    // Incomplete first
+    // Incomplete first, then skipped, then done
+    const aSkipped = a.completion?.skipped ? 1 : 0;
+    const bSkipped = b.completion?.skipped ? 1 : 0;
     const aDone = a.completion?.completed || (a.target != null && a.target > 0 && (a.completion?.value || 0) >= a.target) ? 1 : 0;
     const bDone = b.completion?.completed || (b.target != null && b.target > 0 && (b.completion?.value || 0) >= b.target) ? 1 : 0;
-    return aDone - bDone;
+    const aOrder = aSkipped || aDone;
+    const bOrder = bSkipped || bDone;
+    return aOrder - bOrder;
   });
 
   const starredCount = allEnrichedTasks.filter(t => t.completion?.isHighlighted).length;

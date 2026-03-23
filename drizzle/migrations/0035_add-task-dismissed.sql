@@ -1,10 +1,9 @@
 ALTER TABLE Task ADD COLUMN skipped integer NOT NULL DEFAULT 0;
+--> statement-breakpoint
 ALTER TABLE Task ADD COLUMN dismissed integer NOT NULL DEFAULT 0;
-
--- Remove unused isPassing column from DailyScore
+--> statement-breakpoint
 ALTER TABLE DailyScore DROP COLUMN isPassing;
-
--- Contact messages table
+--> statement-breakpoint
 CREATE TABLE IF NOT EXISTS ContactMessage (
   id integer PRIMARY KEY AUTOINCREMENT,
   userId text NOT NULL REFERENCES user(id) ON DELETE CASCADE,
