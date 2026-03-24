@@ -64,10 +64,31 @@ export default function CycleDetailPage() {
     const inRange = cycleScores.filter(s => s.date >= selectedCycle.startDate && s.date <= selectedCycle.endDate);
     if (inRange.length === 0) return null;
     const avgScore = Math.round(inRange.reduce((s, d) => s + d.actionScore, 0) / inRange.length);
-    const trajScores = inRange.filter(s => s.trajectoryScore != null);
-    const avgTrajectory = trajScores.length > 0
-      ? trajScores.reduce((s, d) => s + (d.trajectoryScore ?? 0), 0) / trajScores.length / 100
-      : null;
+
+    // Compute trajectory live from outcome goals
+    const outcomeGoals = selectedCycle.goals.filter(g => g.goalType === "outcome" && g.startDate && g.targetDate);
+    let avgTrajectory: number | null = null;
+    if (outcomeGoals.length > 0) {
+      const todayStr = new Date().toISOString().split("T")[0];
+      const trajectories: number[] = [];
+      for (const g of outcomeGoals) {
+        const startDate = g.startDate!;
+        const endDate = g.targetDate!;
+        const totalMs = new Date(endDate).getTime() - new Date(startDate).getTime();
+        if (totalMs <= 0) continue;
+        const effectiveToday = todayStr > endDate ? endDate : todayStr < startDate ? startDate : todayStr;
+        const elapsedMs = new Date(effectiveToday).getTime() - new Date(startDate).getTime();
+        const timeProgress = elapsedMs / totalMs;
+        const range = g.targetValue - (g.startValue || 0);
+        if (range === 0) continue;
+        const expectedValue = (g.startValue || 0) + range * timeProgress;
+        const deviation = (g.currentValue - expectedValue) / range;
+        trajectories.push(1.0 + deviation);
+      }
+      if (trajectories.length > 0) {
+        avgTrajectory = Math.round(trajectories.reduce((a, b) => a + b, 0) / trajectories.length * 10) / 10;
+      }
+    }
     const sorted = [...inRange].sort((a, b) => a.date.localeCompare(b.date));
     const streaks: number[] = [];
     let cur = 0;
@@ -348,8 +369,8 @@ export default function CycleDetailPage() {
               </div>
               {cycleStats.avgTrajectory !== null && (
                 <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
-                  <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Avg Trajectory</p>
-                  <p className={`text-2xl font-bold ${cycleStats.avgTrajectory >= 1.0 ? "text-purple-500" : "text-red-500"}`}>{cycleStats.avgTrajectory < 0.05 && cycleStats.avgTrajectory > -0.05 ? cycleStats.avgTrajectory.toFixed(2) : cycleStats.avgTrajectory.toFixed(1)}x</p>
+                  <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Trajectory</p>
+                  <p className={`text-2xl font-bold ${cycleStats.avgTrajectory >= 1.0 ? "text-purple-500" : "text-red-500"}`}>{cycleStats.avgTrajectory.toFixed(1)}x</p>
                   <p className="text-xs text-zinc-400 mt-1">{cycleStats.avgTrajectory >= 1.0 ? "On pace" : "Behind"}</p>
                 </div>
               )}
