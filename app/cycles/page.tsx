@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaPlus, FaChevronDown, FaChevronUp } from "react-icons/fa";
+import { FaPlus, FaChevronDown, FaChevronUp, FaFire } from "react-icons/fa";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { getCurrentWeekNumber, getTotalWeeks } from "@/lib/cycle-scoring";
@@ -17,6 +17,8 @@ export default function CyclesPage() {
   const [loading, setLoading] = useState(true);
   const [futureAccordionOpen, setFutureAccordionOpen] = useState(false);
   const [pastAccordionOpen, setPastAccordionOpen] = useState(false);
+  const [goals, setGoals] = useState<{ id: number; periodId: number | null; name: string; goalType: string; status?: string }[]>([]);
+  const [scores, setScores] = useState<{ date: string; actionScore: number }[]>([]);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -25,8 +27,14 @@ export default function CyclesPage() {
       return;
     }
     if (session?.user?.id) {
-      fetch("/api/cycles").then(r => r.ok ? r.json() : []).then(data => {
-        setCycles(data);
+      Promise.all([
+        fetch("/api/cycles").then(r => r.ok ? r.json() : []),
+        fetch("/api/outcomes").then(r => r.ok ? r.json() : []),
+        fetch("/api/daily-score/history?days=365").then(r => r.ok ? r.json() : { scores: [] }),
+      ]).then(([cyclesData, goalsData, historyData]) => {
+        setCycles(cyclesData);
+        setGoals(goalsData);
+        setScores(historyData.scores || []);
         setLoading(false);
       }).catch(() => setLoading(false));
     }
@@ -53,6 +61,20 @@ export default function CyclesPage() {
     const weekNum = getCurrentWeekNumber(cycle.startDate, cycle.endDate);
     const isCompleted = cycleStatus === "Past";
 
+    // Gist stats
+    const cycleGoals = goals.filter(g => g.periodId === cycle.id);
+    const completedGoals = cycleGoals.filter(g => g.status === "completed").length;
+    const inRange = scores.filter(s => s.date >= cycle.startDate && s.date <= cycle.endDate);
+    const avgScore = inRange.length > 0 ? Math.round(inRange.reduce((s, d) => s + d.actionScore, 0) / inRange.length) : null;
+    let topStreak = 0;
+    if (inRange.length > 0) {
+      const sorted = [...inRange].sort((a, b) => a.date.localeCompare(b.date));
+      let cur = 0;
+      for (const s of sorted) {
+        if (s.actionScore >= 95) { cur++; topStreak = Math.max(topStreak, cur); } else { cur = 0; }
+      }
+    }
+
     return (
       <motion.div
         key={cycle.id}
@@ -75,9 +97,29 @@ export default function CyclesPage() {
         {cycle.theme && (
           <p className="text-xs text-zinc-600 dark:text-zinc-400 mb-1 font-medium">{cycle.theme}</p>
         )}
-        <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-3">
+        <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-2">
           {cycle.startDate} &rarr; {cycle.endDate}
         </p>
+
+        {/* Stats gist */}
+        {(cycleGoals.length > 0 || avgScore !== null) && (
+          <div className="flex flex-wrap items-center gap-3 mb-3 text-xs">
+            {cycleGoals.length > 0 && (
+              <span className="text-zinc-500 dark:text-zinc-400">
+                {completedGoals}/{cycleGoals.length} goals
+              </span>
+            )}
+            {avgScore !== null && (
+              <span className="font-semibold text-zinc-900 dark:text-white">{avgScore}% avg</span>
+            )}
+            {topStreak > 0 && (
+              <span className="flex items-center gap-0.5 text-amber-600 dark:text-amber-400 font-medium">
+                <FaFire className="text-[10px]" /> {topStreak}
+              </span>
+            )}
+          </div>
+        )}
+
         <div className="flex gap-1">
           {Array.from({ length: cycleTotalWeeks }, (_, i) => (
             <div
