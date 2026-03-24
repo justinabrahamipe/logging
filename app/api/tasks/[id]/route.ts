@@ -35,7 +35,17 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       .where(and(eq(tasks.id, taskId), eq(tasks.userId, userId)));
 
     if (task) {
-      return NextResponse.json(task);
+      // Merge schedule data (frequency, customDays, repeatInterval) if available
+      if (task.scheduleId) {
+        const [schedule] = await db
+          .select({ frequency: taskSchedules.frequency, customDays: taskSchedules.customDays, repeatInterval: taskSchedules.repeatInterval })
+          .from(taskSchedules)
+          .where(eq(taskSchedules.id, task.scheduleId));
+        if (schedule) {
+          return NextResponse.json({ ...task, ...schedule });
+        }
+      }
+      return NextResponse.json({ ...task, frequency: 'adhoc', customDays: null, repeatInterval: null });
     }
 
     // Fall back to schedule lookup
