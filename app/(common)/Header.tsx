@@ -71,9 +71,9 @@ export default function Header() {
     { href: "/dashboard", label: "Dashboard", icon: FaBolt },
     { href: "/tasks", label: "Tasks", icon: FaTasks },
     { href: "/goals", label: "Goals", icon: FaChartLine },
-    { href: "/log", label: "Log", icon: FaMapMarkerAlt },
     { href: "/cycles", label: "Cycles", icon: FaCalendarAlt },
     { href: "/pillars", label: "Pillars", icon: FaColumns },
+    { href: "/log", label: "Log", icon: FaMapMarkerAlt },
   ];
 
   const [headerStats, setHeaderStats] = useState<{

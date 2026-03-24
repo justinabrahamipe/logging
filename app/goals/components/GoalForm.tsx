@@ -106,6 +106,37 @@ export default function GoalForm({
     }));
   };
 
+  const getScheduleDays = (): number[] => {
+    if (form.frequencyPreset === 'daily') return [0,1,2,3,4,5,6];
+    if (form.frequencyPreset === 'weekdays') return [1,2,3,4,5];
+    if (form.frequencyPreset === 'custom') return form.repeatUnit === 'weeks' ? form.customDays : [form.monthDay];
+    return [];
+  };
+
+  const computeTargetDate = (perDay: number) => {
+    const total = parseFloat(form.targetValue) || 0;
+    const sched = getScheduleDays();
+    if (perDay <= 0 || total <= 0 || !form.startDate || sched.length === 0) return;
+    const sessionsNeeded = Math.ceil(total / perDay);
+    let count = 0;
+    const d = new Date(form.startDate + 'T12:00:00');
+    for (let i = 0; i < 1825 && count < sessionsNeeded; i++) {
+      if (sched.includes(d.getDay())) count++;
+      if (count < sessionsNeeded) d.setDate(d.getDate() + 1);
+    }
+    setForm(prev => ({ ...prev, targetDate: d.toISOString().split('T')[0] }));
+  };
+
+  const computeMinPerDay = (targetDate: string) => {
+    const total = parseFloat(form.targetValue) || 0;
+    const sched = getScheduleDays();
+    if (total <= 0 || !form.startDate || !targetDate || sched.length === 0) return;
+    const days = countScheduledDaysInRange(form.startDate, targetDate, sched);
+    if (days > 0) {
+      setForm(prev => ({ ...prev, minimumTarget: String(Math.ceil(total / days)) }));
+    }
+  };
+
   const handleSubmit = async () => {
     if (!form.name.trim()) return;
     const isHabitual = form.goalType === "habitual";
@@ -297,7 +328,7 @@ export default function GoalForm({
           )}
           {form.completionType !== "checkbox" && form.goalType === "target" && (
             <div className="mt-2">
-              <PerSessionLabel form={form} onFormChange={(updates) => setForm(prev => ({ ...prev, ...updates }))} />
+              <PerSessionLabel form={form} />
             </div>
           )}
         </div>
@@ -363,7 +394,12 @@ export default function GoalForm({
                 type="number"
                 step="any"
                 value={form.minimumTarget}
-                onChange={(e) => setForm({ ...form, minimumTarget: e.target.value })}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setForm(prev => ({ ...prev, minimumTarget: val }));
+                  const perDay = parseFloat(val);
+                  if (perDay > 0 && !form.targetDate) computeTargetDate(perDay);
+                }}
                 className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
                 placeholder="e.g., 7"
               />
@@ -514,7 +550,10 @@ export default function GoalForm({
           <input
             type="date"
             value={form.targetDate}
-            onChange={(e) => setForm({ ...form, targetDate: e.target.value, dailyTarget: "" })}
+            onChange={(e) => {
+              setForm(prev => ({ ...prev, targetDate: e.target.value }));
+              if (form.goalType === "target" && e.target.value) computeMinPerDay(e.target.value);
+            }}
             className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
           />
         </div>

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaPlus, FaEdit, FaTrash, FaTimes, FaMapMarkerAlt, FaSearch, FaSortAmountDown, FaSortAmountUp, FaExternalLinkAlt, FaDownload } from "react-icons/fa";
+import { FaPlus, FaEdit, FaTrash, FaTimes, FaMapMarkerAlt, FaSearch, FaSortAmountDown, FaSortAmountUp, FaExternalLinkAlt, FaDownload, FaKey, FaCopy, FaCheck } from "react-icons/fa";
 import { formatDate } from "@/lib/format";
 import { useTheme } from "@/components/ThemeProvider";
 import LocationsLoading from "./loading";
@@ -27,6 +27,9 @@ export default function LogPage() {
   const [search, setSearch] = useState("");
   const [sortAsc, setSortAsc] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [apiKeyCopied, setApiKeyCopied] = useState(false);
+  const [showApiSection, setShowApiSection] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const fetchLogs = useCallback(async () => {
@@ -42,7 +45,10 @@ export default function LogPage() {
 
   useEffect(() => {
     if (status === "unauthenticated") { setLoading(false); return; }
-    if (session?.user?.id) fetchLogs();
+    if (session?.user?.id) {
+      fetchLogs();
+      fetch("/api/settings").then(r => r.ok ? r.json() : null).then(d => { if (d?.apiKey) setApiKey(d.apiKey); });
+    }
   }, [session, status, fetchLogs]);
 
   const handleDelete = async (id: number) => {
@@ -244,6 +250,74 @@ export default function LogPage() {
             {filtered.length} entr{filtered.length === 1 ? "y" : "ies"}{search ? " matching" : ""}
           </div>
         )}
+
+        {/* API Access */}
+        <div className="mt-8 border-t border-zinc-200 dark:border-zinc-700 pt-6">
+          <button
+            onClick={() => setShowApiSection(!showApiSection)}
+            className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
+          >
+            <FaKey className="text-xs" />
+            API Access
+            <span className="text-[10px]">{showApiSection ? "▲" : "▼"}</span>
+          </button>
+
+          {showApiSection && (
+            <div className="mt-3 space-y-3">
+              {apiKey ? (
+                <>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 px-3 py-2 bg-zinc-100 dark:bg-zinc-900 rounded-lg text-xs text-zinc-700 dark:text-zinc-300 font-mono truncate">
+                      {apiKey}
+                    </code>
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(apiKey); setApiKeyCopied(true); setTimeout(() => setApiKeyCopied(false), 2000); }}
+                      className="p-2 rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 shrink-0"
+                    >
+                      {apiKeyCopied ? <FaCheck className="text-green-500" /> : <FaCopy />}
+                    </button>
+                  </div>
+                  <div className="bg-zinc-50 dark:bg-zinc-900 rounded-lg p-3 text-xs text-zinc-600 dark:text-zinc-400 space-y-1.5">
+                    <p className="font-medium text-zinc-700 dark:text-zinc-300">Endpoints:</p>
+                    <code className="block truncate">{typeof window !== "undefined" ? window.location.origin : ""}/api/locations/public?key={apiKey}</code>
+                    <p className="mt-2">Params: <code>section=all|logs|tasks|goals|scores|pillars</code>, <code>format=text|json</code>, <code>search=</code>, <code>from=</code>, <code>to=</code></p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={async () => {
+                        const res = await fetch("/api/settings/api-key", { method: "POST" });
+                        if (res.ok) { const d = await res.json(); setApiKey(d.apiKey); }
+                      }}
+                      className="px-3 py-2 text-xs rounded-lg bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-600"
+                    >
+                      Regenerate
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const res = await fetch("/api/settings/api-key", { method: "DELETE" });
+                        if (res.ok) setApiKey(null);
+                      }}
+                      className="px-3 py-2 text-xs rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                    >
+                      Disable
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <button
+                  onClick={async () => {
+                    const res = await fetch("/api/settings/api-key", { method: "POST" });
+                    if (res.ok) { const d = await res.json(); setApiKey(d.apiKey); }
+                  }}
+                  className="px-4 py-2.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-sm font-medium rounded-lg hover:bg-zinc-800 dark:hover:bg-zinc-100 flex items-center gap-2"
+                >
+                  <FaKey className="text-xs" />
+                  Enable API Access
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </motion.div>
     </div>
   );
