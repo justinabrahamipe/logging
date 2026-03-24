@@ -11,7 +11,7 @@ import HabitTracker from "./components/HabitTracker";
 import StreakFlameChain from "./components/StreakFlameChain";
 import CalendarHeatmap from "./components/CalendarHeatmap";
 import ScoreHistory from "./components/ScoreHistory";
-import PillarBreakdown from "./components/PillarBreakdown";
+import CyclePerformance from "./components/CyclePerformance";
 import DashboardLoading from "./loading";
 
 export default function DashboardPage() {
@@ -81,15 +81,14 @@ export default function DashboardPage() {
 
             {history && <ScoreHistory scores={history.scores} />}
 
-            {/* Pillar breakdown: in col 2 on 2-col, moves to col 3 on ultrawide */}
             <div className="2xl:hidden">
-              {history && <PillarBreakdown scores={history.scores} pillarsMeta={history.pillars} />}
+              <CyclePerformance />
             </div>
           </div>
 
           {/* Column 3: ultrawide only */}
           <div className="hidden 2xl:block">
-            {history && <PillarBreakdown scores={history.scores} pillarsMeta={history.pillars} />}
+            <CyclePerformance />
           </div>
         </div>
       </motion.div>

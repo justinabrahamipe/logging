@@ -256,7 +256,7 @@ export default function GoalsPage() {
                     {pillarInfo.name}
                   </h2>
                 </div>
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   {grouped[key].map((outcome) => (
                     <GoalCard
                       key={outcome.id}

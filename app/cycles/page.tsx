@@ -67,6 +67,8 @@ export default function CyclesPage() {
     }
   };
 
+  const [cycleScores, setCycleScores] = useState<{ date: string; actionScore: number; momentumScore: number | null; trajectoryScore: number | null }[]>([]);
+
   const fetchCycleDetail = async (id: number) => {
     setLoadingDetail(true);
     try {
@@ -74,6 +76,13 @@ export default function CyclesPage() {
       if (res.ok) {
         const data = await res.json();
         setSelectedCycle(data);
+        // Fetch daily scores for this cycle's date range
+        const daysDiff = Math.ceil((Date.now() - new Date(data.startDate).getTime()) / 86400000) + 1;
+        const scoresRes = await fetch(`/api/daily-score/history?days=${Math.min(daysDiff, 365)}`);
+        if (scoresRes.ok) {
+          const scoresData = await scoresRes.json();
+          setCycleScores(scoresData.scores || []);
+        }
       }
     } catch (error) {
       console.error("Failed to fetch cycle detail:", error);
@@ -137,6 +146,40 @@ export default function CyclesPage() {
     if (!selectedCycle || selectedCycle.goals.length === 0) return null;
     return computeCycleAnalytics(selectedCycle.goals, currentWeek, totalWeeks);
   }, [selectedCycle, currentWeek, totalWeeks]);
+
+  // Cycle score stats
+  const cycleStats = useMemo(() => {
+    if (!selectedCycle || cycleScores.length === 0) return null;
+    // Filter scores within cycle date range
+    const inRange = cycleScores.filter(s => s.date >= selectedCycle.startDate && s.date <= selectedCycle.endDate);
+    if (inRange.length === 0) return null;
+
+    // Average action score
+    const avgScore = Math.round(inRange.reduce((s, d) => s + d.actionScore, 0) / inRange.length);
+
+    // Average trajectory
+    const trajScores = inRange.filter(s => s.trajectoryScore != null);
+    const avgTrajectory = trajScores.length > 0
+      ? Math.round(trajScores.reduce((s, d) => s + (d.trajectoryScore || 0), 0) / trajScores.length) / 100
+      : null;
+
+    // Streaks (consecutive days with actionScore >= 95)
+    const sorted = [...inRange].sort((a, b) => a.date.localeCompare(b.date));
+    const streaks: number[] = [];
+    let current = 0;
+    for (const s of sorted) {
+      if (s.actionScore >= 95) {
+        current++;
+      } else {
+        if (current > 0) streaks.push(current);
+        current = 0;
+      }
+    }
+    if (current > 0) streaks.push(current);
+    const topStreaks = streaks.sort((a, b) => b - a).slice(0, 3);
+
+    return { avgScore, avgTrajectory, topStreaks, totalDays: inRange.length };
+  }, [selectedCycle, cycleScores]);
 
   if (loading || loadingDetail) return <CyclesLoading />;
 
@@ -374,6 +417,46 @@ export default function CyclesPage() {
             </>
           )}
 
+          {/* Cycle Score Stats */}
+          {cycleStats && (
+            <>
+              <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">Cycle Performance</h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
+                  <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Avg Action Score</p>
+                  <p className="text-2xl font-bold text-zinc-900 dark:text-white">{cycleStats.avgScore}%</p>
+                  <p className="text-xs text-zinc-400 mt-1">{cycleStats.totalDays} days tracked</p>
+                </div>
+                {cycleStats.avgTrajectory !== null && (
+                  <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
+                    <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Avg Trajectory</p>
+                    <p className={`text-2xl font-bold ${cycleStats.avgTrajectory >= 1.0 ? "text-purple-500" : "text-red-500"}`}>
+                      {cycleStats.avgTrajectory.toFixed(1)}x
+                    </p>
+                    <p className="text-xs text-zinc-400 mt-1">{cycleStats.avgTrajectory >= 1.0 ? "On pace" : "Behind"}</p>
+                  </div>
+                )}
+                <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 col-span-2">
+                  <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Top Streaks</p>
+                  {cycleStats.topStreaks.length > 0 ? (
+                    <div className="flex items-baseline gap-3 mt-1">
+                      {cycleStats.topStreaks.map((streak, i) => (
+                        <div key={i} className="flex items-baseline gap-1">
+                          <span className={`font-bold ${i === 0 ? "text-2xl text-amber-500" : i === 1 ? "text-xl text-zinc-500 dark:text-zinc-400" : "text-lg text-zinc-400 dark:text-zinc-500"}`}>
+                            {streak}
+                          </span>
+                          <span className="text-xs text-zinc-400">days</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-zinc-400 mt-1">No streaks yet (need 95%+ days)</p>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
           {/* Linked Tasks */}
           {selectedCycle.linkedTasks && selectedCycle.linkedTasks.length > 0 && (
             <>
@@ -502,7 +585,7 @@ export default function CyclesPage() {
             <div className="space-y-4">
               {/* Active cycles */}
               {activeCycles.length > 0 && (
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   {activeCycles.map((c) => renderCycleCard(c, "Active"))}
                 </div>
               )}
@@ -526,7 +609,7 @@ export default function CyclesPage() {
                         transition={{ duration: 0.2 }}
                         className="overflow-hidden"
                       >
-                        <div className="space-y-3 mt-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-3">
                           {futureCycles.map((c) => renderCycleCard(c, "Future"))}
                         </div>
                       </motion.div>
@@ -554,7 +637,7 @@ export default function CyclesPage() {
                         transition={{ duration: 0.2 }}
                         className="overflow-hidden"
                       >
-                        <div className="space-y-3 mt-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-3">
                           {pastCycles.map((c) => renderCycleCard(c, "Past"))}
                         </div>
                       </motion.div>
