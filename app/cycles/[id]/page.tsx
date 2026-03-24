@@ -300,34 +300,24 @@ export default function CycleDetailPage() {
           </div>
         )}
 
-        {/* Analytics */}
-        {analytics && (
-          <>
-            <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">Analytics</h2>
-            <div className="grid grid-cols-2 gap-3 mb-6">
-              <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
-                <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Completion</p>
-                <p className="text-2xl font-bold text-zinc-900 dark:text-white">{Math.round(analytics.overallCompletion)}%</p>
-                <div className="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-full mt-2 overflow-hidden">
-                  <div className="h-full rounded-full bg-zinc-900 dark:bg-zinc-100 transition-all" style={{ width: `${Math.min(analytics.overallCompletion, 100)}%` }} />
-                </div>
-              </div>
-              <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
-                <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Pace</p>
-                <p className={`text-2xl font-bold ${analytics.pace === "ahead" ? "text-green-500" : analytics.pace === "behind" ? "text-red-500" : "text-zinc-500"}`}>
-                  {analytics.pace === "ahead" ? "Ahead" : analytics.pace === "behind" ? "Behind" : "On Track"}
-                </p>
-                <p className="text-xs text-zinc-400 mt-1">Projected: {Math.round(analytics.projectedCompletion)}%</p>
-              </div>
-            </div>
-          </>
-        )}
-
         {/* Cycle Performance */}
-        {cycleStats && (
+        {cycleStats && (() => {
+          const todayStr = new Date().toISOString().split("T")[0];
+          const start = new Date(selectedCycle.startDate + "T00:00:00");
+          const end = new Date(selectedCycle.endDate + "T00:00:00");
+          const today = new Date(todayStr + "T00:00:00");
+          const elapsed = Math.max(0, Math.ceil((Math.min(today.getTime(), end.getTime()) - start.getTime()) / 86400000));
+          const totalDays = Math.ceil((end.getTime() - start.getTime()) / 86400000);
+          const remaining = Math.max(0, totalDays - elapsed);
+          return (
           <>
             <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">Cycle Performance</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+              <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
+                <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Days</p>
+                <p className="text-2xl font-bold text-zinc-900 dark:text-white">{elapsed}<span className="text-sm font-normal text-zinc-400">/{totalDays}</span></p>
+                <p className="text-xs text-zinc-400 mt-1">{remaining > 0 ? `${remaining} remaining` : "Completed"}</p>
+              </div>
               <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
                 <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Avg Action Score</p>
                 <p className="text-2xl font-bold text-zinc-900 dark:text-white">{cycleStats.avgScore}%</p>
@@ -354,6 +344,30 @@ export default function CycleDetailPage() {
                 ) : (
                   <p className="text-sm text-zinc-400 mt-1">No streaks yet (need 95%+ days)</p>
                 )}
+              </div>
+            </div>
+          </>
+          );
+        })()}
+
+        {/* Analytics */}
+        {analytics && (
+          <>
+            <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">Analytics</h2>
+            <div className="grid grid-cols-2 gap-3 mb-6">
+              <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
+                <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Completion</p>
+                <p className="text-2xl font-bold text-zinc-900 dark:text-white">{Math.round(analytics.overallCompletion)}%</p>
+                <div className="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-full mt-2 overflow-hidden">
+                  <div className="h-full rounded-full bg-zinc-900 dark:bg-zinc-100 transition-all" style={{ width: `${Math.min(analytics.overallCompletion, 100)}%` }} />
+                </div>
+              </div>
+              <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
+                <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Pace</p>
+                <p className={`text-2xl font-bold ${analytics.pace === "ahead" ? "text-green-500" : analytics.pace === "behind" ? "text-red-500" : "text-zinc-500"}`}>
+                  {analytics.pace === "ahead" ? "Ahead" : analytics.pace === "behind" ? "Behind" : "On Track"}
+                </p>
+                <p className="text-xs text-zinc-400 mt-1">Projected: {Math.round(analytics.projectedCompletion)}%</p>
               </div>
             </div>
           </>
