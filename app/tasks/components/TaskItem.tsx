@@ -518,7 +518,7 @@ export default function TaskItem({
       <AnimatePresence>
         {openMenuId === task.id && (
           <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpenMenuId(null)} />
+          <div className="fixed inset-0 z-40" onPointerDown={() => setOpenMenuId(null)} />
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -526,19 +526,18 @@ export default function TaskItem({
             transition={{ duration: 0.1 }}
             className="fixed z-50 w-36 bg-white dark:bg-zinc-800 rounded-lg shadow-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden"
             style={{ right: menuPos.right, ...(menuPos.top != null ? { top: menuPos.top } : { bottom: menuPos.bottom }) }}
-            onClick={(e) => e.stopPropagation()}
-            onTouchEnd={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
           >
             {isLimitTask && !isCompleted && handleMarkDone && (
               <button
-                onClick={() => { setOpenMenuId(null); handleMarkDone(task); }}
+                onPointerUp={() => { setOpenMenuId(null); handleMarkDone(task); }}
                 className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20"
               >
                 <FaCheck className="text-xs" /> Mark as Done
               </button>
             )}
             <button
-              onClick={() => { setOpenMenuId(null); router.push(`/tasks/${task.id}/edit`); }}
+              onPointerUp={() => { setOpenMenuId(null); router.push(`/tasks/${task.id}/edit`); }}
               className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
             >
               <FaEdit className="text-xs" /> Edit
@@ -546,13 +545,13 @@ export default function TaskItem({
             {task.startDate && (
               <>
                 <button
-                  onClick={() => handleMoveDate(task, -1)}
+                  onPointerUp={() => handleMoveDate(task, -1)}
                   className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                 >
                   <FaArrowLeft className="text-xs" /> Prepone
                 </button>
                 <button
-                  onClick={() => handleMoveDate(task, 1)}
+                  onPointerUp={() => handleMoveDate(task, 1)}
                   className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                 >
                   <FaArrowRight className="text-xs" /> Postpone
@@ -560,28 +559,28 @@ export default function TaskItem({
               </>
             )}
             <button
-              onClick={() => handleCopy(task)}
+              onPointerUp={() => handleCopy(task)}
               className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
             >
               <FaCopy className="text-xs" /> Duplicate
             </button>
             {isDiscarded ? (
               <button
-                onClick={() => { setOpenMenuId(null); handleDiscard(task); }}
+                onPointerUp={() => { setOpenMenuId(null); handleDiscard(task); }}
                 className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20"
               >
                 <FaCheck className="text-xs" /> Unskip
               </button>
             ) : (
               <button
-                onClick={() => handleDiscard(task)}
+                onPointerUp={() => handleDiscard(task)}
                 className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20"
               >
                 <FaTimes className="text-xs" /> Skip
               </button>
             )}
             <button
-              onClick={() => { setOpenMenuId(null); handleDelete(task.id); }}
+              onPointerUp={() => { setOpenMenuId(null); handleDelete(task.id); }}
               className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
             >
               <FaTrash className="text-xs" /> Delete
