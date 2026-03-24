@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaPlus, FaEdit, FaTrash, FaTimes, FaMapMarkerAlt, FaSearch, FaSortAmountDown, FaSortAmountUp, FaExternalLinkAlt, FaDownload } from "react-icons/fa";
 import { formatDate } from "@/lib/format";
@@ -17,18 +18,14 @@ interface LocationLog {
   createdAt: string;
 }
 
-export default function LocationsPage() {
+export default function LogPage() {
   const { data: session, status } = useSession();
   const { dateFormat } = useTheme();
+  const router = useRouter();
   const [logs, setLogs] = useState<LocationLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [sortAsc, setSortAsc] = useState(false);
-  const [showForm, setShowForm] = useState(false);
-  const [editingLog, setEditingLog] = useState<LocationLog | null>(null);
-  const [detecting, setDetecting] = useState(false);
-  const [formData, setFormData] = useState({ latitude: "", longitude: "", date: new Date().toISOString().split("T")[0], notes: "" });
-  const [saving, setSaving] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -37,7 +34,7 @@ export default function LocationsPage() {
       const res = await fetch(`/api/locations?sort=${sortAsc ? "asc" : "desc"}`);
       if (res.ok) setLogs(await res.json());
     } catch (err) {
-      console.error("Failed to fetch locations:", err);
+      console.error("Failed to fetch logs:", err);
     } finally {
       setLoading(false);
     }
@@ -47,63 +44,6 @@ export default function LocationsPage() {
     if (status === "unauthenticated") { setLoading(false); return; }
     if (session?.user?.id) fetchLogs();
   }, [session, status, fetchLogs]);
-
-  const detectLocation = useCallback(() => {
-    if (!navigator.geolocation) return;
-    setDetecting(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setFormData(prev => ({
-          ...prev,
-          latitude: pos.coords.latitude.toFixed(6),
-          longitude: pos.coords.longitude.toFixed(6),
-        }));
-        setDetecting(false);
-      },
-      () => setDetecting(false),
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
-  }, []);
-
-  const openCreateForm = () => {
-    setEditingLog(null);
-    setFormData({ latitude: "", longitude: "", date: new Date().toISOString().split("T")[0], notes: "" });
-    setShowForm(true);
-    detectLocation();
-  };
-
-  const openEditForm = (log: LocationLog) => {
-    setEditingLog(log);
-    setFormData({
-      latitude: String(log.latitude),
-      longitude: String(log.longitude),
-      date: log.date,
-      notes: log.notes || "",
-    });
-    setShowForm(true);
-  };
-
-  const handleSave = async () => {
-    const lat = parseFloat(formData.latitude);
-    const lng = parseFloat(formData.longitude);
-    if (isNaN(lat) || isNaN(lng) || !formData.date) return;
-    setSaving(true);
-    try {
-      const body = { latitude: lat, longitude: lng, date: formData.date, notes: formData.notes };
-      if (editingLog) {
-        await fetch(`/api/locations/${editingLog.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      } else {
-        await fetch("/api/locations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      }
-      setShowForm(false);
-      setEditingLog(null);
-      await fetchLogs();
-    } catch (err) {
-      console.error("Failed to save:", err);
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleDelete = async (id: number) => {
     try {
@@ -125,6 +65,17 @@ export default function LocationsPage() {
     });
   }, [logs, search]);
 
+  // Group by date
+  const grouped = useMemo(() => {
+    const map = new Map<string, LocationLog[]>();
+    for (const log of filtered) {
+      const arr = map.get(log.date) || [];
+      arr.push(log);
+      map.set(log.date, arr);
+    }
+    return Array.from(map.entries());
+  }, [filtered]);
+
   const handleDownload = () => {
     const lines: string[] = [];
     for (const [date, entries] of grouped) {
@@ -142,30 +93,19 @@ export default function LocationsPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `locations${search ? "-search" : ""}-${new Date().toISOString().split("T")[0]}.txt`;
+    a.download = `log${search ? "-search" : ""}-${new Date().toISOString().split("T")[0]}.txt`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
-  // Group by date
-  const grouped = useMemo(() => {
-    const map = new Map<string, LocationLog[]>();
-    for (const log of filtered) {
-      const arr = map.get(log.date) || [];
-      arr.push(log);
-      map.set(log.date, arr);
-    }
-    return Array.from(map.entries());
-  }, [filtered]);
-
   if (loading) return <LocationsLoading />;
 
   return (
-    <div className="container mx-auto px-4 py-4 md:py-8 max-w-4xl">
+    <div className="container mx-auto px-4 py-4 md:py-8 max-w-2xl">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-xl md:text-2xl font-bold text-zinc-900 dark:text-white">Locations</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-zinc-900 dark:text-white">Log</h1>
           <div className="flex items-center gap-2">
             {filtered.length > 0 && (
               <button
@@ -184,7 +124,7 @@ export default function LocationsPage() {
               {sortAsc ? <FaSortAmountUp /> : <FaSortAmountDown />}
             </button>
             <button
-              onClick={openCreateForm}
+              onClick={() => router.push("/log/new")}
               className="p-2.5 rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100"
             >
               <FaPlus />
@@ -214,8 +154,8 @@ export default function LocationsPage() {
         {grouped.length === 0 ? (
           <div className="text-center py-12 text-zinc-500 dark:text-zinc-400">
             <FaMapMarkerAlt className="text-3xl mx-auto mb-3 opacity-50" />
-            <p className="text-sm">{search ? "No matching entries" : "No location logs yet"}</p>
-            {!search && <p className="text-xs mt-1">Tap + to log your first location</p>}
+            <p className="text-sm">{search ? "No matching entries" : "No log entries yet"}</p>
+            {!search && <p className="text-xs mt-1">Tap + to create your first entry</p>}
           </div>
         ) : (
           <div className="space-y-4">
@@ -242,7 +182,7 @@ export default function LocationsPage() {
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1 min-w-0">
                             {log.notes && (
-                              <p className="text-sm text-zinc-900 dark:text-white mb-1">{log.notes}</p>
+                              <p className="text-sm text-zinc-900 dark:text-white mb-1 whitespace-pre-wrap">{log.notes}</p>
                             )}
                             <div className="flex flex-wrap items-center gap-2">
                               <a
@@ -259,18 +199,26 @@ export default function LocationsPage() {
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
                             <button
-                              onClick={() => openEditForm(log)}
+                              onClick={() => router.push(`/log/${log.id}/edit`)}
                               className="p-1.5 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                             >
                               <FaEdit className="text-xs" />
                             </button>
                             {deleteConfirmId === log.id ? (
-                              <button
-                                onClick={() => handleDelete(log.id)}
-                                className="px-2 py-1 rounded text-xs font-medium text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30"
-                              >
-                                Confirm
-                              </button>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => handleDelete(log.id)}
+                                  className="px-2 py-1 rounded text-xs font-medium text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400"
+                                >
+                                  Delete
+                                </button>
+                                <button
+                                  onClick={() => setDeleteConfirmId(null)}
+                                  className="px-2 py-1 rounded text-xs font-medium text-zinc-500 bg-zinc-100 dark:bg-zinc-700 dark:text-zinc-400"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
                             ) : (
                               <button
                                 onClick={() => setDeleteConfirmId(log.id)}
@@ -297,102 +245,6 @@ export default function LocationsPage() {
           </div>
         )}
       </motion.div>
-
-      {/* Form Modal */}
-      <AnimatePresence>
-        {showForm && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/40 z-40"
-              onClick={() => { setShowForm(false); setEditingLog(null); }}
-            />
-            <motion.div
-              initial={{ opacity: 0, y: 50 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 50 }}
-              className="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-zinc-800 rounded-t-2xl shadow-xl border-t border-zinc-200 dark:border-zinc-700 p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] max-h-[80vh] overflow-y-auto"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
-                  {editingLog ? "Edit Location" : "Log Location"}
-                </h2>
-                <button onClick={() => { setShowForm(false); setEditingLog(null); }} className="p-1 text-zinc-400 hover:text-zinc-600">
-                  <FaTimes />
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Latitude</label>
-                    <input
-                      type="number"
-                      step="any"
-                      value={formData.latitude}
-                      onChange={e => setFormData(prev => ({ ...prev, latitude: e.target.value }))}
-                      placeholder={detecting ? "Detecting..." : "-90 to 90"}
-                      className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-zinc-900 dark:text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Longitude</label>
-                    <input
-                      type="number"
-                      step="any"
-                      value={formData.longitude}
-                      onChange={e => setFormData(prev => ({ ...prev, longitude: e.target.value }))}
-                      placeholder={detecting ? "Detecting..." : "-180 to 180"}
-                      className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-zinc-900 dark:text-white"
-                    />
-                  </div>
-                </div>
-
-                {!editingLog && (
-                  <button
-                    onClick={detectLocation}
-                    disabled={detecting}
-                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50"
-                  >
-                    {detecting ? "Detecting GPS..." : "Re-detect location"}
-                  </button>
-                )}
-
-                <div>
-                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Date</label>
-                  <input
-                    type="date"
-                    value={formData.date}
-                    onChange={e => setFormData(prev => ({ ...prev, date: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-zinc-900 dark:text-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Notes</label>
-                  <textarea
-                    value={formData.notes}
-                    onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                    rows={3}
-                    placeholder="What happened here..."
-                    className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-zinc-900 dark:text-white resize-none"
-                  />
-                </div>
-
-                <button
-                  onClick={handleSave}
-                  disabled={saving || !formData.latitude || !formData.longitude || !formData.date}
-                  className="w-full py-2.5 rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-sm font-medium hover:bg-zinc-800 dark:hover:bg-zinc-100 disabled:opacity-50"
-                >
-                  {saving ? "Saving..." : editingLog ? "Update" : "Save"}
-                </button>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
