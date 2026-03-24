@@ -113,6 +113,7 @@ async function ensureGoalTasks(userId: string, todayStr: string, dates: string[]
     .where(and(
       eq(goals.userId, userId),
       eq(goals.autoCreateTasks, true),
+      eq(goals.status, 'active'),
     ));
 
   if (activeGoals.length === 0) return;
@@ -229,6 +230,7 @@ export async function recalcTargetGoalTasks(userId: string) {
     .where(and(
       eq(goals.userId, userId),
       eq(goals.autoCreateTasks, true),
+      eq(goals.status, 'active'),
     ));
 
   // Filter to only target goals that need recalculation (in-memory, no extra queries)

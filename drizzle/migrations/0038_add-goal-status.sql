@@ -1,0 +1,1 @@
+ALTER TABLE Goal ADD COLUMN status text NOT NULL DEFAULT 'active';

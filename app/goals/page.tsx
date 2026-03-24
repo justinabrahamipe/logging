@@ -33,6 +33,7 @@ export default function GoalsPage() {
     timeCounts,
     today,
     handleArchive,
+    handleStatusChange,
     handleAddTaskForToday,
     getProgress,
     fetchGoals,
@@ -266,6 +267,7 @@ export default function GoalsPage() {
                       setMenuOpen={setMenuOpen}
                       openLogModal={openLogModal}
                       handleArchive={handleArchive}
+                      handleStatusChange={handleStatusChange}
                       getProgress={getProgress}
                       today={today}
                       taskCompletionDates={taskCompletionDates}

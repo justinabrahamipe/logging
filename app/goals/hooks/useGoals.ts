@@ -137,11 +137,28 @@ export function useGoals() {
   };
 
   const handleArchive = async (id: number) => {
+    if (!confirm("Permanently delete this goal and all its data?")) return;
     try {
       await fetch(`/api/outcomes/${id}`, { method: "DELETE" });
       await fetchGoals();
     } catch (error) {
-      console.error("Failed to archive outcome:", error);
+      console.error("Failed to delete outcome:", error);
+    }
+    setMenuOpen(null);
+  };
+
+  const handleStatusChange = async (id: number, newStatus: 'active' | 'completed' | 'abandoned') => {
+    const label = newStatus === 'completed' ? 'complete' : newStatus === 'abandoned' ? 'abandon' : 'reactivate';
+    if (!confirm(`Are you sure you want to ${label} this goal?`)) return;
+    try {
+      await fetch(`/api/outcomes/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      await fetchGoals();
+    } catch (error) {
+      console.error("Failed to update goal status:", error);
     }
     setMenuOpen(null);
   };
@@ -191,6 +208,7 @@ export function useGoals() {
   const today = new Date().toISOString().split("T")[0];
 
   const getTimeCategory = (o: Outcome): "current" | "future" | "past" => {
+    if (o.status === 'completed' || o.status === 'abandoned') return "past";
     if (o.targetDate && o.targetDate < today) return "past";
     if (o.startDate && o.startDate > today) return "future";
     return "current";
@@ -238,6 +256,7 @@ export function useGoals() {
     timeCounts,
     today,
     handleArchive,
+    handleStatusChange,
     handleAddTaskForToday,
     getProgress,
     fetchGoals,

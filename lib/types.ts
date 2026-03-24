@@ -68,6 +68,7 @@ export interface Outcome {
   flexibilityRule?: string;
   limitValue?: number | null;
   minimumTarget?: number | null;
+  status?: string;
   pillarName: string | null;
   pillarColor: string | null;
   pillarEmoji: string | null;

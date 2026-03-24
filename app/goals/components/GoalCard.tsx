@@ -8,9 +8,12 @@ import {
   FaTrash,
   FaArrowUp,
   FaArrowDown,
+  FaArrowLeft,
   FaEllipsisV,
   FaClipboardList,
   FaCopy,
+  FaCheck,
+  FaArchive,
 } from "react-icons/fa";
 import { calculateEffortMetrics } from "@/lib/effort-calculations";
 import { formatDate } from "@/lib/format";
@@ -25,6 +28,7 @@ export default function GoalCard({
   setMenuOpen,
   openLogModal,
   handleArchive,
+  handleStatusChange,
   getProgress,
   today,
   taskCompletionDates,
@@ -39,6 +43,7 @@ export default function GoalCard({
   setMenuOpen: (id: number | null) => void;
   openLogModal: (o: Outcome) => void;
   handleArchive: (id: number) => void;
+  handleStatusChange: (id: number, status: 'active' | 'completed' | 'abandoned') => void;
   getProgress: (o: Outcome) => number;
   today: string;
   taskCompletionDates: Record<number, { date: string; value: number; completed: boolean }[]>;
@@ -149,6 +154,16 @@ export default function GoalCard({
             {outcome.flexibilityRule === "limit_avoid" && (
               <span className="text-[10px] px-1.5 py-px rounded-full font-medium bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 shrink-0">
                 Limit
+              </span>
+            )}
+            {outcome.status === 'completed' && (
+              <span className="text-[10px] px-1.5 py-px rounded-full font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 shrink-0">
+                Completed
+              </span>
+            )}
+            {outcome.status === 'abandoned' && (
+              <span className="text-[10px] px-1.5 py-px rounded-full font-medium bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 shrink-0">
+                Abandoned
               </span>
             )}
             {!isActivityGoal && (
@@ -269,6 +284,29 @@ export default function GoalCard({
                   >
                     <FaEdit /> Edit
                   </button>
+                  {outcome.status === 'active' ? (
+                    <>
+                      <button
+                        onClick={() => { setMenuOpen(null); handleStatusChange(outcome.id, 'completed'); }}
+                        className="w-full px-4 py-2.5 text-left text-sm flex items-center gap-2 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20"
+                      >
+                        <FaCheck /> Complete
+                      </button>
+                      <button
+                        onClick={() => { setMenuOpen(null); handleStatusChange(outcome.id, 'abandoned'); }}
+                        className="w-full px-4 py-2.5 text-left text-sm flex items-center gap-2 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+                      >
+                        <FaArchive /> Abandon
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => { setMenuOpen(null); handleStatusChange(outcome.id, 'active'); }}
+                      className="w-full px-4 py-2.5 text-left text-sm flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                    >
+                      <FaArrowLeft /> Reactivate
+                    </button>
+                  )}
                   <button
                     onClick={() => handleArchive(outcome.id)}
                     className="w-full px-4 py-2.5 text-left text-sm flex items-center gap-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"

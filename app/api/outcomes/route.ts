@@ -29,6 +29,7 @@ export async function GET() {
         flexibilityRule: goals.flexibilityRule,
         limitValue: goals.limitValue,
         minimumTarget: goals.minimumTarget,
+        status: goals.status,
         createdAt: goals.createdAt,
         updatedAt: goals.updatedAt,
         pillarName: pillars.name,

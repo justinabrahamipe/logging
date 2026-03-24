@@ -296,6 +296,7 @@ export const goals = sqliteTable('Goal', {
   flexibilityRule: text('flexibilityRule').notNull().default('must_today'), // must_today|at_least|limit_avoid
   limitValue: real('limitValue'),
   minimumTarget: real('minimumTarget'),
+  status: text('status').notNull().default('active'), // active | completed | abandoned
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({

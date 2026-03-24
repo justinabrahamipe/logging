@@ -267,6 +267,13 @@
       "when": 1774300000000,
       "tag": "0037_add-contact-status",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "6",
+      "when": 1774400000000,
+      "tag": "0038_add-goal-status",
+      "breakpoints": true
     }
   ]
 }

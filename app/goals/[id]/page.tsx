@@ -234,8 +234,22 @@ export default function GoalDetailPage() {
     }
   };
 
-  const handleArchive = async () => {
-    if (!outcome || !confirm("Archive this goal?")) return;
+  const handleStatusChange = async (newStatus: 'active' | 'completed' | 'abandoned') => {
+    if (!outcome) return;
+    const label = newStatus === 'completed' ? 'complete' : newStatus === 'abandoned' ? 'abandon' : 'reactivate';
+    if (!confirm(`Are you sure you want to ${label} this goal?`)) return;
+    setArchiving(true);
+    await fetch(`/api/outcomes/${outcome.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: newStatus }),
+    });
+    setOutcome({ ...outcome, status: newStatus });
+    setArchiving(false);
+  };
+
+  const handleDelete = async () => {
+    if (!outcome || !confirm("Permanently delete this goal and all its data?")) return;
     setArchiving(true);
     await fetch(`/api/outcomes/${outcome.id}`, { method: "DELETE" });
     router.push("/goals");
@@ -268,6 +282,12 @@ export default function GoalDetailPage() {
             <FaArrowLeft />
           </button>
           <h1 className="text-xl md:text-2xl font-bold text-zinc-900 dark:text-white truncate">{outcome.name}</h1>
+          {outcome.status === 'completed' && (
+            <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 shrink-0">Completed</span>
+          )}
+          {outcome.status === 'abandoned' && (
+            <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 shrink-0">Abandoned</span>
+          )}
           {!isActivityGoal && (
             outcome.targetValue < outcome.startValue ? (
               <FaArrowDown className="text-green-500 shrink-0" />
@@ -282,21 +302,51 @@ export default function GoalDetailPage() {
           )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <button
-            onClick={() => router.push(`/goals/${outcome.id}/edit`)}
-            className="p-2 rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700"
-            title="Edit"
-          >
-            <FaEdit />
-          </button>
-          <button
-            onClick={handleArchive}
-            disabled={archiving}
-            className="p-2 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
-            title="Archive"
-          >
-            <FaArchive />
-          </button>
+          {outcome.status === 'active' ? (
+            <>
+              <button
+                onClick={() => handleStatusChange('completed')}
+                disabled={archiving}
+                className="p-2 rounded-lg text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 disabled:opacity-50"
+                title="Mark as Complete"
+              >
+                <FaCheck />
+              </button>
+              <button
+                onClick={() => router.push(`/goals/${outcome.id}/edit`)}
+                className="p-2 rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                title="Edit"
+              >
+                <FaEdit />
+              </button>
+              <button
+                onClick={() => handleStatusChange('abandoned')}
+                disabled={archiving}
+                className="p-2 rounded-lg text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 disabled:opacity-50"
+                title="Abandon"
+              >
+                <FaArchive />
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => handleStatusChange('active')}
+                disabled={archiving}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 dark:text-blue-400 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 disabled:opacity-50"
+              >
+                Reactivate
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={archiving}
+                className="p-2 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
+                title="Delete"
+              >
+                <FaTrash />
+              </button>
+            </>
+          )}
         </div>
       </div>
 

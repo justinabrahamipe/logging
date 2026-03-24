@@ -36,12 +36,32 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (body.flexibilityRule !== undefined) updateData.flexibilityRule = body.flexibilityRule;
     if (body.limitValue !== undefined) updateData.limitValue = body.limitValue ?? null;
     if (body.minimumTarget !== undefined) updateData.minimumTarget = body.minimumTarget ?? null;
+    if (body.status !== undefined) updateData.status = body.status;
 
     const [updated] = await db
       .update(goals)
       .set(updateData)
       .where(and(eq(goals.id, outcomeId), eq(goals.userId, userId)))
       .returning();
+
+    // When goal is completed or abandoned, delete future uncompleted tasks
+    if (body.status === 'completed' || body.status === 'abandoned') {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const futureTasks = await db
+        .select({ id: tasks.id, date: tasks.date })
+        .from(tasks)
+        .where(and(
+          eq(tasks.goalId, outcomeId),
+          eq(tasks.userId, userId),
+          eq(tasks.completed, false),
+        ));
+      const futureIds = futureTasks.filter(t => t.date > todayStr).map(t => t.id);
+      if (futureIds.length > 0) {
+        for (const fid of futureIds) {
+          await db.delete(tasks).where(eq(tasks.id, fid));
+        }
+      }
+    }
 
     // Propagate changes to linked uncompleted tasks and their schedules
     const propagateToTasks: Record<string, unknown> = {};
