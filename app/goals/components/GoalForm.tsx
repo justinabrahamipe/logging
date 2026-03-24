@@ -297,7 +297,7 @@ export default function GoalForm({
           )}
           {form.completionType !== "checkbox" && form.goalType === "target" && (
             <div className="mt-2">
-              <PerSessionLabel form={form} />
+              <PerSessionLabel form={form} onFormChange={(updates) => setForm(prev => ({ ...prev, ...updates }))} />
             </div>
           )}
         </div>
@@ -514,7 +514,7 @@ export default function GoalForm({
           <input
             type="date"
             value={form.targetDate}
-            onChange={(e) => setForm({ ...form, targetDate: e.target.value })}
+            onChange={(e) => setForm({ ...form, targetDate: e.target.value, dailyTarget: "" })}
             className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
           />
         </div>
