@@ -17,7 +17,7 @@ export function useGoals() {
   const [goalTab, setGoalTab] = useState<"all" | "habitual" | "target" | "outcome">("all");
   const [timeTab, setTimeTab] = useState<"current" | "future" | "past">("current");
   const [linkedTasks, setLinkedTasks] = useState<LinkedTask[]>([]);
-  const [taskCompletionDates, setTaskCompletionDates] = useState<Record<number, { date: string; value: number }[]>>({});
+  const [taskCompletionDates, setTaskCompletionDates] = useState<Record<number, { date: string; value: number; completed: boolean }[]>>({});
   const [cycles, setCycles] = useState<CycleOption[]>([]);
 
   useEffect(() => {

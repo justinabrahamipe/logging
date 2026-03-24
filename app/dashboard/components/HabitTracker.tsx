@@ -5,7 +5,7 @@ import type { OutcomeData } from "@/lib/types";
 
 interface HabitTrackerProps {
   outcomesData: OutcomeData[];
-  completionDates: Record<number, { date: string; value: number }[]>;
+  completionDates: Record<number, { date: string; value: number; completed: boolean }[]>;
   today: string;
 }
 

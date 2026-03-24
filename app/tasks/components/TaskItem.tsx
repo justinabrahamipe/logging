@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FaPlus, FaEdit, FaTrash, FaCheck, FaMinus, FaPlay, FaPause, FaStop, FaEllipsisV, FaCopy, FaStar, FaTimes, FaArrowLeft, FaArrowRight } from "react-icons/fa";
 import { DAY_NAMES } from "@/lib/constants";
 import { getProgressColor } from "@/lib/scoring";
+import { countScheduledDaysInRange } from "@/lib/effort-calculations";
 import type { Task, Outcome, Cycle } from "@/lib/types";
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 
@@ -348,6 +349,26 @@ export default function TaskItem({
             {showDate && (
               <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{showDate}</span>
             )}
+            {(() => {
+              if (!task.goalId) return null;
+              const goal = goalsList.find(g => g.id === task.goalId);
+              if (!goal || goal.goalType !== 'outcome' || !goal.startDate || !goal.targetDate) return null;
+              const taskDate = task.startDate || new Date().toISOString().split('T')[0];
+              if (taskDate < goal.startDate || taskDate > goal.targetDate) return null;
+              const sched: number[] = goal.scheduleDays ? JSON.parse(goal.scheduleDays) : [];
+              const total = sched.length > 0
+                ? countScheduledDaysInRange(goal.startDate, goal.targetDate, sched)
+                : Math.max(1, Math.round((new Date(goal.targetDate).getTime() - new Date(goal.startDate).getTime()) / 86400000));
+              const elapsed = sched.length > 0
+                ? countScheduledDaysInRange(goal.startDate, taskDate, sched)
+                : Math.max(0, Math.round((new Date(taskDate).getTime() - new Date(goal.startDate).getTime()) / 86400000));
+              const expected = Math.round((goal.startValue + (goal.targetValue - goal.startValue) * (elapsed / total)) * 10) / 10;
+              return (
+                <span className="text-[10px] text-purple-500 dark:text-purple-400 shrink-0">
+                  exp: {expected} {goal.unit}
+                </span>
+              );
+            })()}
           </div>
           {task.frequency !== 'daily' && task.frequency !== 'adhoc' && (
             <div className="mt-0.5">

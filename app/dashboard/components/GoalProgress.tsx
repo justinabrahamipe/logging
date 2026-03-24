@@ -8,7 +8,7 @@ import type { OutcomeData } from "@/lib/types";
 
 interface GoalProgressProps {
   outcomesData: OutcomeData[];
-  completionDates: Record<number, { date: string; value: number }[]>;
+  completionDates: Record<number, { date: string; value: number; completed: boolean }[]>;
   today: string;
 }
 

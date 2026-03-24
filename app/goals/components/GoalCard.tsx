@@ -41,7 +41,7 @@ export default function GoalCard({
   handleArchive: (id: number) => void;
   getProgress: (o: Outcome) => number;
   today: string;
-  taskCompletionDates: Record<number, { date: string; value: number }[]>;
+  taskCompletionDates: Record<number, { date: string; value: number; completed: boolean }[]>;
   onAddTask: (o: Outcome) => void;
   cycles: Cycle[];
   onCopyToCycle: (outcome: Outcome, cycleId: number) => void;
@@ -67,7 +67,9 @@ export default function GoalCard({
   const allDoneDates = useMemo(() => {
     const dates = new Set<string>();
     for (const l of (logsMap[outcome.id] || [])) dates.add(l.loggedAt.split('T')[0]);
-    for (const e of (taskCompletionDates[outcome.id] || [])) dates.add(e.date);
+    for (const e of (taskCompletionDates[outcome.id] || [])) {
+      if (e.completed) dates.add(e.date);
+    }
     return dates;
   }, [logsMap, taskCompletionDates, outcome.id]);
 

@@ -17,7 +17,7 @@ import {
   FaMinus,
   FaTrash,
 } from "react-icons/fa";
-import { calculateEffortMetrics } from "@/lib/effort-calculations";
+import { calculateEffortMetrics, countScheduledDaysInRange } from "@/lib/effort-calculations";
 import { Outcome, LogEntry, LinkedTask } from "../types";
 import { DAY_NAMES } from "../constants";
 import HabitHeatmap from "../components/HabitHeatmap";
@@ -35,7 +35,7 @@ export default function GoalDetailPage() {
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [linkedTasks, setLinkedTasks] = useState<LinkedTask[]>([]);
-  const [taskCompletionDates, setTaskCompletionDates] = useState<{ date: string; value: number }[]>([]);
+  const [taskCompletionDates, setTaskCompletionDates] = useState<{ date: string; value: number; completed: boolean }[]>([]);
   const [loading, setLoading] = useState(true);
   const [archiving, setArchiving] = useState(false);
   const [sortCol, setSortCol] = useState<"date" | "points" | "status">("date");
@@ -79,14 +79,14 @@ export default function GoalDetailPage() {
         fetch("/api/tasks").then((r) => r.ok ? r.json() : []),
         fetch("/api/outcomes/completions").then((r) => r.ok ? r.json() : {}),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ]).then(([goalsData, logData, taskGroups, completions]: [Outcome[], LogEntry[], any[], Record<number, { date: string; value: number }[]>]) => {
+      ]).then(([goalsData, logData, taskGroups, completions]: [Outcome[], LogEntry[], any[], Record<number, { date: string; value: number; completed: boolean }[]>]) => {
         const found = goalsData.find((o: Outcome) => String(o.id) === id);
         setOutcome(found || null);
         setLogs(logData);
 
         // Build sets for determining completion status of linked tasks
         const goalCompletions = completions[parseInt(id)] || [];
-        const completionDatesSet = new Set<string>(goalCompletions.map(e => e.date));
+        const completedDatesSet = new Set<string>(goalCompletions.filter(e => e.completed).map(e => e.date));
         const logValueByDate = new Map<string, number>();
         for (const log of logData) {
           const dateStr = log.loggedAt.split('T')[0];
@@ -98,7 +98,7 @@ export default function GoalDetailPage() {
           for (const task of group.tasks) {
             if (task.goalId === parseInt(id)) {
               const isCompletedToday = task.completion?.completed || false;
-              const isCompletedOnDate = task.startDate ? completionDatesSet.has(task.startDate) : false;
+              const isCompletedOnDate = task.startDate ? completedDatesSet.has(task.startDate) : false;
               const taskValue = task.completion?.value ?? (task.startDate ? logValueByDate.get(task.startDate) ?? null : null);
 
               tasks.push({
@@ -149,7 +149,9 @@ export default function GoalDetailPage() {
   const allDoneDates = useMemo(() => {
     const dates = new Set<string>();
     for (const l of logs) dates.add(l.loggedAt.split('T')[0]);
-    for (const d of taskCompletionDates) dates.add(d.date);
+    for (const d of taskCompletionDates) {
+      if (d.completed) dates.add(d.date);
+    }
     return dates;
   }, [logs, taskCompletionDates]);
 
@@ -203,7 +205,24 @@ export default function GoalDetailPage() {
     }
   };
 
+  const getExpectedValue = (taskDate: string) => {
+    if (!outcome || !outcome.startDate || !outcome.targetDate || outcome.goalType !== "outcome") return null;
+    if (taskDate < outcome.startDate || taskDate > outcome.targetDate) return null;
+    const totalDays = scheduleDays.length > 0
+      ? countScheduledDaysInRange(outcome.startDate, outcome.targetDate, scheduleDays)
+      : Math.max(1, Math.round((new Date(outcome.targetDate).getTime() - new Date(outcome.startDate).getTime()) / 86400000));
+    const elapsedDays = scheduleDays.length > 0
+      ? countScheduledDaysInRange(outcome.startDate, taskDate, scheduleDays)
+      : Math.max(0, Math.round((new Date(taskDate).getTime() - new Date(outcome.startDate).getTime()) / 86400000));
+    const expected = outcome.startValue + (outcome.targetValue - outcome.startValue) * (elapsedDays / totalDays);
+    return Math.round(expected * 10) / 10;
+  };
+
   const frequencyLabel = (freq: string) => {
+    // Goal-linked tasks are stored as 'adhoc' but recur per the goal's schedule
+    if (freq === "adhoc" && scheduleDays.length > 0) {
+      return scheduleDays.map((d: number) => DAY_NAMES[d]).join(", ");
+    }
     switch (freq) {
       case "daily": return "Daily";
       case "weekly": return "Weekly";
@@ -437,6 +456,14 @@ export default function GoalDetailPage() {
                           <span className="text-[11px] px-1.5 py-px rounded-full bg-zinc-100 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400">
                             {frequencyLabel(task.frequency)}
                           </span>
+                          {task.startDate && (() => {
+                            const expected = getExpectedValue(task.startDate);
+                            return expected !== null ? (
+                              <span className="text-[11px] text-zinc-400 dark:text-zinc-500">
+                                exp: {expected} {outcome?.unit}
+                              </span>
+                            ) : null;
+                          })()}
                         </div>
                       </div>
 
