@@ -1,16 +1,44 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { FaArrowLeft, FaMapMarkerAlt } from "react-icons/fa";
+import { FaArrowLeft, FaMapMarkerAlt, FaMicrophone, FaStop } from "react-icons/fa";
 
 export default function NewLogEntry() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [formData, setFormData] = useState({ latitude: "", longitude: "", date: new Date().toISOString().split("T")[0], notes: "" });
+  const [formData, setFormData] = useState({ latitude: "", longitude: "", date: new Date().toISOString().split("T")[0], time: new Date().toTimeString().slice(0, 5), notes: "" });
   const [detecting, setDetecting] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [listening, setListening] = useState(false);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+
+  const toggleVoice = () => {
+    if (listening && recognitionRef.current) {
+      recognitionRef.current.stop();
+      setListening(false);
+      return;
+    }
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+    recognition.onresult = (e: SpeechRecognitionEvent) => {
+      let transcript = "";
+      for (let i = 0; i < e.results.length; i++) {
+        transcript += e.results[i][0].transcript;
+      }
+      setFormData(prev => ({ ...prev, notes: transcript }));
+    };
+    recognition.onerror = () => setListening(false);
+    recognition.onend = () => setListening(false);
+    recognition.start();
+    recognitionRef.current = recognition;
+    setListening(true);
+  };
 
   useEffect(() => {
     if (!navigator.geolocation) return;
@@ -38,7 +66,7 @@ export default function NewLogEntry() {
       await fetch("/api/locations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ latitude: lat, longitude: lng, date: formData.date, notes: formData.notes }),
+        body: JSON.stringify({ latitude: lat, longitude: lng, date: formData.date, time: formData.time, notes: formData.notes }),
       });
       router.push("/log");
     } catch (err) {
@@ -101,24 +129,45 @@ export default function NewLogEntry() {
           {detecting ? "Detecting GPS..." : "Re-detect location"}
         </button>
 
-        <div>
-          <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Date</label>
-          <input
-            type="date"
-            value={formData.date}
-            onChange={e => setFormData(prev => ({ ...prev, date: e.target.value }))}
-            className="w-full px-3 py-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-zinc-900 dark:text-white"
-          />
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Date</label>
+            <input
+              type="date"
+              value={formData.date}
+              onChange={e => setFormData(prev => ({ ...prev, date: e.target.value }))}
+              className="w-full px-3 py-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-zinc-900 dark:text-white"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Time</label>
+            <input
+              type="time"
+              value={formData.time}
+              onChange={e => setFormData(prev => ({ ...prev, time: e.target.value }))}
+              className="w-full px-3 py-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-zinc-900 dark:text-white"
+            />
+          </div>
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Notes</label>
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Notes</label>
+            <button
+              type="button"
+              onClick={toggleVoice}
+              className={`p-1.5 rounded-lg transition-colors ${listening ? "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 animate-pulse" : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"}`}
+              title={listening ? "Stop recording" : "Voice input"}
+            >
+              {listening ? <FaStop className="text-xs" /> : <FaMicrophone className="text-xs" />}
+            </button>
+          </div>
           <textarea
             value={formData.notes}
             onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))}
             rows={4}
-            placeholder="What happened here..."
-            className="w-full px-3 py-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-zinc-900 dark:text-white resize-none"
+            placeholder={listening ? "Listening..." : "What happened here..."}
+            className={`w-full px-3 py-2.5 rounded-lg border bg-white dark:bg-zinc-900 text-sm text-zinc-900 dark:text-white resize-none ${listening ? "border-red-300 dark:border-red-700" : "border-zinc-200 dark:border-zinc-700"}`}
             autoFocus
           />
         </div>

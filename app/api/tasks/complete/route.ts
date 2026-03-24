@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
-import { db, tasks, activityLog, goals } from "@/lib/db";
-import { eq, and, or, gt } from "drizzle-orm";
+import { db, tasks, activityLog, goals, locationLogs } from "@/lib/db";
+import { eq, and, or, gt, like } from "drizzle-orm";
+import { createAutoLog } from "@/lib/auto-log";
 import { calculateTaskScore } from "@/lib/scoring";
 import { saveDailyScore } from "@/lib/save-daily-score";
 
@@ -94,6 +95,24 @@ export async function POST(request: Request) {
       pointsDelta: pointsEarned - pointsBefore,
       source,
     });
+
+    // Auto-log task completion / remove log on undo
+    try {
+      const taskDate = result.date || date;
+      if (isCompleted && !task.completed) {
+        const valueStr = completionValue > 0 && task.completionType !== 'checkbox' ? ` (${completionValue}${task.unit ? ' ' + task.unit : ''})` : '';
+        await createAutoLog(userId, `✅ ${task.name}${valueStr}`, taskDate);
+      } else if (!isCompleted && task.completed) {
+        const logs = await db.select().from(locationLogs).where(
+          and(eq(locationLogs.userId, userId), like(locationLogs.notes, `✅ ${task.name}%`))
+        );
+        if (logs.length > 0) {
+          await db.delete(locationLogs).where(eq(locationLogs.id, logs[logs.length - 1].id));
+        }
+      }
+    } catch (err) {
+      console.error("Failed to auto-log task:", err);
+    }
 
     // Update linked goal's currentValue by recalculating from all completed tasks
     if (task.goalId) {

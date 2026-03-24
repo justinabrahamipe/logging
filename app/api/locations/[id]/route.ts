@@ -14,6 +14,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (body.latitude !== undefined) updateData.latitude = body.latitude;
     if (body.longitude !== undefined) updateData.longitude = body.longitude;
     if (body.date !== undefined) updateData.date = body.date;
+    if (body.time !== undefined) updateData.time = body.time || null;
     if (body.notes !== undefined) updateData.notes = body.notes || null;
 
     const [updated] = await db

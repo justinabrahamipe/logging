@@ -3,6 +3,7 @@ import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
 import { db, cycles, goals, taskSchedules, pillars } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
 import { calculateEndDate } from "@/lib/cycle-scoring";
+import { createAutoLog } from "@/lib/auto-log";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -89,6 +90,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       .where(and(eq(cycles.id, periodId), eq(cycles.userId, userId)))
       .returning();
 
+    await createAutoLog(userId, `✏️ Cycle updated: ${existing[0].name}`);
     const todayStr = new Date().toISOString().split('T')[0];
     return NextResponse.json({
       ...updated,
@@ -115,6 +117,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
+    await createAutoLog(userId, `🗑️ Cycle deleted: ${deleted[0].name}`);
     return NextResponse.json({ success: true });
   } catch (error) {
     return errorResponse(error);

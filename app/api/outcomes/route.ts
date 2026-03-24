@@ -3,6 +3,7 @@ import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
 import { db, goals, pillars, tasks, taskSchedules, cycles } from "@/lib/db";
 import { eq } from "drizzle-orm";
 import { countScheduledDaysInRange } from "@/lib/effort-calculations";
+import { createAutoLog } from "@/lib/auto-log";
 
 export async function GET() {
   try {
@@ -167,6 +168,7 @@ export async function POST(request: Request) {
       }
     }
 
+    await createAutoLog(userId, `📌 Goal created: ${name}`);
     return NextResponse.json(outcome, { status: 201 });
   } catch (error) {
     return errorResponse(error);

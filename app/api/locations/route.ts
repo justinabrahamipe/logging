@@ -35,7 +35,7 @@ export async function POST(request: Request) {
   try {
     const userId = await getAuthenticatedUserId();
     const body = await request.json();
-    const { latitude, longitude, date, notes } = body;
+    const { latitude, longitude, date, time, notes } = body;
 
     if (latitude == null || longitude == null || !date) {
       return NextResponse.json({ error: "latitude, longitude, and date are required" }, { status: 400 });
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
 
     const [result] = await db
       .insert(locationLogs)
-      .values({ userId, latitude, longitude, date, notes: notes || null })
+      .values({ userId, latitude, longitude, date, time: time || null, notes: notes || null })
       .returning();
 
     return NextResponse.json(result);

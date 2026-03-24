@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaPlus, FaEdit, FaTrash, FaTimes, FaMapMarkerAlt, FaSearch, FaSortAmountDown, FaSortAmountUp, FaExternalLinkAlt, FaDownload } from "react-icons/fa";
+import { FaPlus, FaEdit, FaTrash, FaTimes, FaMapMarkerAlt, FaSearch, FaSortAmountDown, FaSortAmountUp, FaDownload, FaMicrophone, FaStop } from "react-icons/fa";
 import { formatDate } from "@/lib/format";
 import { useTheme } from "@/components/ThemeProvider";
 import LocationsLoading from "./loading";
@@ -14,6 +14,7 @@ interface LocationLog {
   latitude: number;
   longitude: number;
   date: string;
+  time: string | null;
   notes: string | null;
   createdAt: string;
 }
@@ -185,15 +186,17 @@ export default function LogPage() {
                               <p className="text-sm text-zinc-900 dark:text-white mb-1 whitespace-pre-wrap">{log.notes}</p>
                             )}
                             <div className="flex flex-wrap items-center gap-2">
+                              {log.time && (
+                                <span className="text-[11px] text-zinc-500 dark:text-zinc-400">{log.time}</span>
+                              )}
                               <a
                                 href={`https://www.google.com/maps?q=${log.latitude},${log.longitude}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-400 hover:underline"
+                                className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+                                title={`${log.latitude.toFixed(4)}, ${log.longitude.toFixed(4)}`}
                               >
-                                <FaMapMarkerAlt className="text-[9px]" />
-                                {log.latitude.toFixed(4)}, {log.longitude.toFixed(4)}
-                                <FaExternalLinkAlt className="text-[8px]" />
+                                <FaMapMarkerAlt className="text-sm" />
                               </a>
                             </div>
                           </div>

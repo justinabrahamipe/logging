@@ -3,6 +3,7 @@ import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
 import { db, tasks, taskSchedules, pillars } from "@/lib/db";
 import { eq, and, asc, isNull, sql } from "drizzle-orm";
 import { ensureUpcomingTasks, ensureTasksForDate, invalidateTaskCache, recalcTargetGoalTasks } from "@/lib/ensure-upcoming-tasks";
+import { createAutoLog } from "@/lib/auto-log";
 
 export async function GET(request: NextRequest) {
   try {
@@ -243,7 +244,7 @@ export async function POST(request: Request) {
       invalidateTaskCache(userId);
       await ensureUpcomingTasks(userId);
 
-      // Return the schedule formatted like old task response
+      await createAutoLog(userId, `➕ Task created: ${name}`);
       return NextResponse.json(schedule, { status: 201 });
     } else {
       // Create adhoc task directly in the tasks table (no schedule needed)
@@ -265,7 +266,7 @@ export async function POST(request: Request) {
         date: taskDate,
       }).returning();
 
-      // Return with schedule-like fields for frontend compat
+      await createAutoLog(userId, `➕ Task created: ${name}`);
       return NextResponse.json({
         ...task,
         frequency: 'adhoc',

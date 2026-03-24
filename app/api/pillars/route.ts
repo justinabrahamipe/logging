@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
 import { db, pillars } from "@/lib/db";
 import { eq } from "drizzle-orm";
+import { createAutoLog } from "@/lib/auto-log";
 
 export async function GET() {
   try {
@@ -46,6 +47,7 @@ export async function POST(request: Request) {
       description: description || null,
     }).returning();
 
+    await createAutoLog(userId, `📌 Pillar created: ${name}`);
     return NextResponse.json(pillar, { status: 201 });
   } catch (error) {
     return errorResponse(error);

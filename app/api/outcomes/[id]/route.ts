@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
 import { db, goals, tasks, taskSchedules } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
+import { createAutoLog } from "@/lib/auto-log";
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -105,6 +106,20 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         .where(and(eq(taskSchedules.goalId, outcomeId), eq(taskSchedules.userId, userId)));
     }
 
+    // Auto-log goal changes
+    const goalName = existing[0].name;
+    if (body.status === 'completed') {
+      await createAutoLog(userId, `🏆 Goal completed: ${goalName}`);
+    } else if (body.status === 'abandoned') {
+      await createAutoLog(userId, `🚫 Goal abandoned: ${goalName}`);
+    } else if (body.status === 'active' && existing[0].status !== 'active') {
+      await createAutoLog(userId, `🔄 Goal reactivated: ${goalName}`);
+    } else if (body.name && body.name !== goalName) {
+      await createAutoLog(userId, `✏️ Goal renamed: ${goalName} → ${body.name}`);
+    } else if (Object.keys(body).some(k => !['status'].includes(k))) {
+      await createAutoLog(userId, `✏️ Goal updated: ${goalName}`);
+    }
+
     return NextResponse.json(updated);
   } catch (error) {
     return errorResponse(error);
@@ -135,6 +150,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
+    await createAutoLog(userId, `🗑️ Goal deleted: ${deleted[0].name}`);
     return NextResponse.json({ success: true });
   } catch (error) {
     return errorResponse(error);

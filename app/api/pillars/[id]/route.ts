@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
 import { db, pillars } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
+import { createAutoLog } from "@/lib/auto-log";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -54,6 +55,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       .where(and(eq(pillars.id, pillarId), eq(pillars.userId, userId)))
       .returning();
 
+    await createAutoLog(userId, `✏️ Pillar updated: ${existing[0].name}`);
     return NextResponse.json(updated);
   } catch (error) {
     return errorResponse(error);
@@ -76,6 +78,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
+    await createAutoLog(userId, `🗑️ Pillar deleted: ${deleted[0].name}`);
     return NextResponse.json({ success: true });
   } catch (error) {
     return errorResponse(error);

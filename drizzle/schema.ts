@@ -343,6 +343,7 @@ export const locationLogs = sqliteTable('LocationLog', {
   latitude: real('latitude').notNull(),
   longitude: real('longitude').notNull(),
   date: text('date').notNull(), // YYYY-MM-DD
+  time: text('time'), // HH:MM (24h)
   notes: text('notes'),
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),

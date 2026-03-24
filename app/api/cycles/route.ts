@@ -3,6 +3,7 @@ import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
 import { db, cycles } from "@/lib/db";
 import { eq, desc } from "drizzle-orm";
 import { calculateEndDate } from "@/lib/cycle-scoring";
+import { createAutoLog } from "@/lib/auto-log";
 
 export async function GET() {
   try {
@@ -48,6 +49,7 @@ export async function POST(request: Request) {
       theme: theme || null,
     }).returning();
 
+    await createAutoLog(userId, `📅 Cycle created: ${name}`);
     const todayStr = new Date().toISOString().split('T')[0];
     return NextResponse.json({
       ...cycle,

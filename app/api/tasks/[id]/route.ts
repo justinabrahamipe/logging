@@ -3,6 +3,7 @@ import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
 import { db, tasks, taskSchedules, goals } from "@/lib/db";
 import { invalidateTaskCache } from "@/lib/ensure-upcoming-tasks";
 import { eq, and, or, gt } from "drizzle-orm";
+import { createAutoLog } from "@/lib/auto-log";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -202,6 +203,8 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     if (!taskInstance) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
+
+    await createAutoLog(userId, `🗑️ Task deleted: ${taskInstance.name}`);
 
     // For goal-linked tasks, mark as dismissed instead of deleting (prevents auto-recreation)
     if (taskInstance.goalId) {
