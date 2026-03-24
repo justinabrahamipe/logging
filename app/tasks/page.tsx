@@ -195,7 +195,7 @@ export default function TasksPage() {
             handleDelete={handleDelete}
             getScheduleLabel={getScheduleLabel}
           />
-        ) : refreshing ? (
+        ) : refreshing && filteredTasks.length === 0 ? (
           <div className="space-y-3">
             {[...Array(3)].map((_, i) => (
               <div key={i} className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
