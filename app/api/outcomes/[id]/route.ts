@@ -38,6 +38,14 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (body.minimumTarget !== undefined) updateData.minimumTarget = body.minimumTarget ?? null;
     if (body.status !== undefined) updateData.status = body.status;
 
+    // When marking a target/outcome goal as complete, set currentValue = targetValue
+    if (body.status === 'completed') {
+      const goal = existing[0];
+      if (goal.goalType === 'target' || goal.goalType === 'outcome') {
+        updateData.currentValue = goal.targetValue;
+      }
+    }
+
     const [updated] = await db
       .update(goals)
       .set(updateData)
