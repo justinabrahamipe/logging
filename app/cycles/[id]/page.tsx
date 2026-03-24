@@ -349,7 +349,7 @@ export default function CycleDetailPage() {
               {cycleStats.avgTrajectory !== null && (
                 <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
                   <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Avg Trajectory</p>
-                  <p className={`text-2xl font-bold ${cycleStats.avgTrajectory >= 1.0 ? "text-purple-500" : "text-red-500"}`}>{cycleStats.avgTrajectory.toFixed(1)}x</p>
+                  <p className={`text-2xl font-bold ${cycleStats.avgTrajectory >= 1.0 ? "text-purple-500" : "text-red-500"}`}>{cycleStats.avgTrajectory < 0.05 && cycleStats.avgTrajectory > -0.05 ? cycleStats.avgTrajectory.toFixed(2) : cycleStats.avgTrajectory.toFixed(1)}x</p>
                   <p className="text-xs text-zinc-400 mt-1">{cycleStats.avgTrajectory >= 1.0 ? "On pace" : "Behind"}</p>
                 </div>
               )}
