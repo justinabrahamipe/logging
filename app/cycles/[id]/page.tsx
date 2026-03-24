@@ -210,11 +210,12 @@ export default function CycleDetailPage() {
               const color = goal.pillarColor || "#3B82F6";
               const isHabitual = goal.goalType === "habitual";
 
-              // Adherence for habitual goals
+              // Adherence + streak for habitual goals
               let adherence: number | null = null;
-              if (isHabitual && goal.scheduleDays && selectedCycle.startDate) {
+              let streak = 0;
+              if (isHabitual && selectedCycle.startDate) {
                 const entries = completionDates[goal.id] || [];
-                const sched: number[] = (() => { try { return JSON.parse(goal.scheduleDays!); } catch { return []; } })();
+                const sched: number[] = (() => { try { return JSON.parse(goal.scheduleDays || "[]"); } catch { return []; } })();
                 const cycleStart = selectedCycle.startDate;
                 const todayStr = new Date().toISOString().split("T")[0];
                 const cycleEnd = selectedCycle.endDate < todayStr ? selectedCycle.endDate : todayStr;
@@ -225,8 +226,17 @@ export default function CycleDetailPage() {
                   if (sched.length === 0 || sched.includes(d.getDay())) expected++;
                   d.setDate(d.getDate() + 1);
                 }
-                const completed = entries.filter(e => e.completed && e.date >= cycleStart && e.date <= cycleEnd).length;
-                adherence = expected > 0 ? Math.round((Math.min(completed, expected) / expected) * 100) : null;
+                const completedDates = new Set(entries.filter(e => e.completed && e.date >= cycleStart && e.date <= cycleEnd).map(e => e.date));
+                adherence = expected > 0 ? Math.round((Math.min(completedDates.size, expected) / expected) * 100) : null;
+
+                // Streak: count backwards from today/cycleEnd
+                const sd = new Date(cycleEnd + "T12:00:00");
+                if (!completedDates.has(cycleEnd)) sd.setDate(sd.getDate() - 1);
+                while (sd >= new Date(cycleStart + "T12:00:00")) {
+                  const dateStr = sd.toISOString().split("T")[0];
+                  if (sched.length > 0 && !sched.includes(sd.getDay())) { sd.setDate(sd.getDate() - 1); continue; }
+                  if (completedDates.has(dateStr)) { streak++; sd.setDate(sd.getDate() - 1); } else { break; }
+                }
               }
 
               return (
@@ -264,6 +274,11 @@ export default function CycleDetailPage() {
                         {adherence !== null && (
                           <span className={`font-medium ${adherence >= 80 ? "text-green-600 dark:text-green-400" : adherence >= 50 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}>
                             {adherence}%
+                          </span>
+                        )}
+                        {streak > 0 && (
+                          <span className="text-xs px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 font-medium">
+                            {streak}🔥
                           </span>
                         )}
                       </>
