@@ -1,0 +1,337 @@
+"use client";
+
+import { useState, useEffect, useMemo } from "react";
+import { motion } from "framer-motion";
+import {
+  FaCheck,
+  FaArrowLeft,
+  FaTrash,
+  FaEdit,
+} from "react-icons/fa";
+import { useSession } from "next-auth/react";
+import { useRouter, useParams } from "next/navigation";
+import { getCurrentWeekNumber, getGoalStatus, getTotalWeeks } from "@/lib/cycle-scoring";
+import { computeCycleAnalytics } from "@/lib/cycle-analytics";
+import type { CycleDetail } from "@/lib/types";
+
+export default function CycleDetailPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const params = useParams();
+  const id = params.id as string;
+
+  const [selectedCycle, setSelectedCycle] = useState<CycleDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [cycleScores, setCycleScores] = useState<{ date: string; actionScore: number; trajectoryScore: number | null }[]>([]);
+
+  // Inline editing
+  const [editingVision, setEditingVision] = useState(false);
+  const [editingTheme, setEditingTheme] = useState(false);
+  const [visionDraft, setVisionDraft] = useState("");
+  const [themeDraft, setThemeDraft] = useState("");
+  const [editingCycleName, setEditingCycleName] = useState(false);
+  const [editingCycleDates, setEditingCycleDates] = useState(false);
+  const [cycleNameDraft, setCycleNameDraft] = useState("");
+  const [cycleStartDraft, setCycleStartDraft] = useState("");
+  const [cycleEndDraft, setCycleEndDraft] = useState("");
+
+  useEffect(() => {
+    if (status === "loading") return;
+    if (status === "unauthenticated") { setLoading(false); return; }
+    if (!session?.user?.id) { setLoading(false); return; }
+    fetch(`/api/cycles/${id}`).then(r => r.ok ? r.json() : null).then(data => {
+      if (data) {
+        setSelectedCycle(data);
+        const daysDiff = Math.ceil((Date.now() - new Date(data.startDate).getTime()) / 86400000) + 1;
+        fetch(`/api/daily-score/history?days=${Math.min(daysDiff, 365)}`).then(r => r.ok ? r.json() : { scores: [] }).then(s => setCycleScores(s.scores || []));
+      }
+      setLoading(false);
+    });
+  }, [session, status, id]);
+
+  const totalWeeks = selectedCycle ? getTotalWeeks(selectedCycle.startDate, selectedCycle.endDate) : 12;
+  const currentWeek = selectedCycle ? getCurrentWeekNumber(selectedCycle.startDate, selectedCycle.endDate) : 1;
+
+  const analytics = useMemo(() => {
+    if (!selectedCycle || selectedCycle.goals.length === 0) return null;
+    return computeCycleAnalytics(selectedCycle.goals, currentWeek, totalWeeks);
+  }, [selectedCycle, currentWeek, totalWeeks]);
+
+  const cycleStats = useMemo(() => {
+    if (!selectedCycle || cycleScores.length === 0) return null;
+    const inRange = cycleScores.filter(s => s.date >= selectedCycle.startDate && s.date <= selectedCycle.endDate);
+    if (inRange.length === 0) return null;
+    const avgScore = Math.round(inRange.reduce((s, d) => s + d.actionScore, 0) / inRange.length);
+    const trajScores = inRange.filter(s => s.trajectoryScore != null);
+    const avgTrajectory = trajScores.length > 0
+      ? Math.round(trajScores.reduce((s, d) => s + (d.trajectoryScore || 0), 0) / trajScores.length) / 100
+      : null;
+    const sorted = [...inRange].sort((a, b) => a.date.localeCompare(b.date));
+    const streaks: number[] = [];
+    let cur = 0;
+    for (const s of sorted) {
+      if (s.actionScore >= 95) { cur++; } else { if (cur > 0) streaks.push(cur); cur = 0; }
+    }
+    if (cur > 0) streaks.push(cur);
+    const topStreaks = streaks.sort((a, b) => b - a).slice(0, 3);
+    return { avgScore, avgTrajectory, topStreaks, totalDays: inRange.length };
+  }, [selectedCycle, cycleScores]);
+
+  const handleSaveCycleField = async (updates: Record<string, string | boolean>) => {
+    if (!selectedCycle) return;
+    const res = await fetch(`/api/cycles/${selectedCycle.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(updates) });
+    if (res.ok) { const updated = await res.json(); setSelectedCycle({ ...selectedCycle, ...updated }); }
+  };
+
+  const handleSaveVisionTheme = async (field: "vision" | "theme", value: string) => {
+    if (!selectedCycle) return;
+    const res = await fetch(`/api/cycles/${selectedCycle.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ [field]: value }) });
+    if (res.ok) setSelectedCycle({ ...selectedCycle, [field]: value || null });
+  };
+
+  const handleDeleteCycle = async () => {
+    if (!confirm("Delete this cycle?")) return;
+    await fetch(`/api/cycles/${id}`, { method: "DELETE" });
+    router.push("/cycles");
+  };
+
+  if (loading) return (
+    <div className="px-3 py-4 md:px-6 md:py-6 animate-pulse">
+      <div className="h-8 w-48 bg-zinc-200 dark:bg-zinc-700 rounded mb-4" />
+      <div className="h-64 bg-zinc-200 dark:bg-zinc-700 rounded-xl" />
+    </div>
+  );
+
+  if (!selectedCycle) return (
+    <div className="px-3 py-4 md:px-6 md:py-6 text-center py-12">
+      <p className="text-zinc-500 dark:text-zinc-400">Sign in to view cycle details.</p>
+      <button onClick={() => router.push("/cycles")} className="mt-3 px-4 py-2 text-sm bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-lg">Back to Cycles</button>
+    </div>
+  );
+
+  return (
+    <div className="px-3 py-4 md:px-6 md:py-6">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-6">
+          <button onClick={() => router.push("/cycles")} className="p-2 rounded-lg text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800">
+            <FaArrowLeft />
+          </button>
+          <div className="flex-1">
+            {editingCycleName ? (
+              <input
+                autoFocus
+                value={cycleNameDraft}
+                onChange={(e) => setCycleNameDraft(e.target.value)}
+                onBlur={() => { setEditingCycleName(false); if (cycleNameDraft.trim()) handleSaveCycleField({ name: cycleNameDraft.trim() }); }}
+                onKeyDown={(e) => { if (e.key === "Enter") { setEditingCycleName(false); if (cycleNameDraft.trim()) handleSaveCycleField({ name: cycleNameDraft.trim() }); } if (e.key === "Escape") setEditingCycleName(false); }}
+                className="text-2xl md:text-3xl font-bold border-b-2 border-zinc-400 bg-transparent text-zinc-900 dark:text-white outline-none w-full"
+              />
+            ) : (
+              <h1 onClick={() => { setEditingCycleName(true); setCycleNameDraft(selectedCycle.name); }} className="text-2xl md:text-3xl font-bold text-zinc-900 dark:text-white cursor-pointer hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors">
+                {selectedCycle.name}
+              </h1>
+            )}
+            {editingCycleDates ? (
+              <div className="flex flex-wrap items-center gap-2 mt-1">
+                <div>
+                  <label className="block text-xs text-zinc-500 dark:text-zinc-400 mb-0.5">Start</label>
+                  <input type="date" value={cycleStartDraft} onChange={(e) => setCycleStartDraft(e.target.value)} className="px-3 py-1.5 text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white" />
+                </div>
+                <div>
+                  <label className="block text-xs text-zinc-500 dark:text-zinc-400 mb-0.5">End</label>
+                  <input type="date" value={cycleEndDraft} onChange={(e) => setCycleEndDraft(e.target.value)} className="px-3 py-1.5 text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white" />
+                </div>
+                <div className="flex gap-1.5 self-end">
+                  <button onClick={() => { setEditingCycleDates(false); if (cycleStartDraft && cycleEndDraft) handleSaveCycleField({ startDate: cycleStartDraft, endDate: cycleEndDraft }); }} className="px-3 py-1.5 text-sm bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg hover:bg-zinc-800 dark:hover:bg-zinc-200 flex items-center gap-1">
+                    <FaCheck className="text-xs" /> Save
+                  </button>
+                  <button onClick={() => setEditingCycleDates(false)} className="px-3 py-1.5 text-sm text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800">Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <p onClick={() => { setEditingCycleDates(true); setCycleStartDraft(selectedCycle.startDate); setCycleEndDraft(selectedCycle.endDate); }} className="text-sm text-zinc-500 dark:text-zinc-400 cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors flex items-center gap-1.5">
+                {selectedCycle.startDate} &rarr; {selectedCycle.endDate} &middot; Week {currentWeek}/{totalWeeks}
+                <FaEdit className="text-[10px]" />
+              </p>
+            )}
+          </div>
+          <button onClick={handleDeleteCycle} className="p-2 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20">
+            <FaTrash />
+          </button>
+        </div>
+
+        {/* Vision & Theme */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+          <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
+            <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Vision</label>
+            {editingVision ? (
+              <textarea autoFocus value={visionDraft} onChange={(e) => setVisionDraft(e.target.value)} onBlur={() => { setEditingVision(false); handleSaveVisionTheme("vision", visionDraft); }} onKeyDown={(e) => { if (e.key === "Escape") setEditingVision(false); }} className="w-full px-2 py-1 text-sm border border-zinc-400 rounded bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white resize-none" rows={2} />
+            ) : (
+              <p onClick={() => { setEditingVision(true); setVisionDraft(selectedCycle.vision || ""); }} className="text-sm text-zinc-700 dark:text-zinc-300 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50 rounded px-2 py-1 min-h-[2rem]">
+                {selectedCycle.vision || <span className="text-zinc-400 italic">Click to add vision...</span>}
+              </p>
+            )}
+          </div>
+          <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
+            <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Theme</label>
+            {editingTheme ? (
+              <input autoFocus value={themeDraft} onChange={(e) => setThemeDraft(e.target.value)} onBlur={() => { setEditingTheme(false); handleSaveVisionTheme("theme", themeDraft); }} onKeyDown={(e) => { if (e.key === "Escape") setEditingTheme(false); if (e.key === "Enter") { setEditingTheme(false); handleSaveVisionTheme("theme", themeDraft); } }} className="w-full px-2 py-1 text-sm border border-zinc-400 rounded bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white" />
+            ) : (
+              <p onClick={() => { setEditingTheme(true); setThemeDraft(selectedCycle.theme || ""); }} className="text-sm text-zinc-700 dark:text-zinc-300 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50 rounded px-2 py-1 min-h-[2rem]">
+                {selectedCycle.theme || <span className="text-zinc-400 italic">Click to add theme...</span>}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Goals */}
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">Goals</h2>
+          <p className="text-xs text-zinc-400 dark:text-zinc-500">Assign goals via the Goals page</p>
+        </div>
+
+        {selectedCycle.goals.length === 0 ? (
+          <div className="text-center py-8 text-zinc-500 dark:text-zinc-400 bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 mb-6">
+            <p className="mb-1">No goals yet</p>
+            <p className="text-sm">Add your first goal to start tracking</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+            {selectedCycle.goals.map((goal) => {
+              const progress = goal.targetValue > 0 ? ((goal.currentValue - (goal.startValue || 0)) / (goal.targetValue - (goal.startValue || 0))) * 100 : 0;
+              const goalStatus = getGoalStatus(goal.currentValue, goal.targetValue, currentWeek - 1, totalWeeks);
+              const statusColor = goalStatus === "Ahead" ? "text-green-500" : goalStatus === "Behind" ? "text-red-500" : "text-zinc-500";
+              const color = goal.pillarColor || "#3B82F6";
+              const isHabitual = goal.goalType === "habitual";
+              return (
+                <motion.div
+                  key={goal.id}
+                  layout
+                  onClick={() => router.push(`/goals/${goal.id}`)}
+                  className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4 cursor-pointer hover:shadow transition-shadow"
+                  style={{ borderLeftWidth: 4, borderLeftColor: color }}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="font-semibold text-zinc-900 dark:text-white truncate">{goal.name}</h3>
+                    <span className="text-[11px] px-1.5 py-px rounded-full font-medium bg-zinc-100 text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400 shrink-0 capitalize">
+                      {goal.goalType}
+                    </span>
+                    {goal.status === "completed" && (
+                      <span className="text-[10px] px-1.5 py-px rounded-full font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 shrink-0">Completed</span>
+                    )}
+                    {goal.status === "abandoned" && (
+                      <span className="text-[10px] px-1.5 py-px rounded-full font-medium bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 shrink-0">Abandoned</span>
+                    )}
+                    <span className={`text-xs font-medium shrink-0 ${statusColor}`}>{goalStatus}</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-zinc-500 dark:text-zinc-400 mb-2">
+                    {goal.pillarName && (
+                      <span className="text-xs" style={{ color }}>{goal.pillarEmoji} {goal.pillarName}</span>
+                    )}
+                    {isHabitual ? (
+                      <span>{goal.dailyTarget ? `${goal.dailyTarget} ${goal.unit}/session` : goal.unit}</span>
+                    ) : (
+                      <>
+                        <span>{goal.currentValue} / {goal.targetValue} {goal.unit}</span>
+                        <span className="font-medium">{Math.round(Math.max(0, Math.min(progress, 100)))}%</span>
+                      </>
+                    )}
+                  </div>
+                  {!isHabitual && (
+                    <div className="w-full h-2.5 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+                      <motion.div initial={{ width: 0 }} animate={{ width: `${Math.max(0, Math.min(progress, 100))}%` }} transition={{ duration: 0.8, ease: "easeOut" }} className="h-full rounded-full" style={{ backgroundColor: color }} />
+                    </div>
+                  )}
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Analytics */}
+        {analytics && (
+          <>
+            <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">Analytics</h2>
+            <div className="grid grid-cols-2 gap-3 mb-6">
+              <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
+                <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Completion</p>
+                <p className="text-2xl font-bold text-zinc-900 dark:text-white">{Math.round(analytics.overallCompletion)}%</p>
+                <div className="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-full mt-2 overflow-hidden">
+                  <div className="h-full rounded-full bg-zinc-900 dark:bg-zinc-100 transition-all" style={{ width: `${Math.min(analytics.overallCompletion, 100)}%` }} />
+                </div>
+              </div>
+              <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
+                <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Pace</p>
+                <p className={`text-2xl font-bold ${analytics.pace === "ahead" ? "text-green-500" : analytics.pace === "behind" ? "text-red-500" : "text-zinc-500"}`}>
+                  {analytics.pace === "ahead" ? "Ahead" : analytics.pace === "behind" ? "Behind" : "On Track"}
+                </p>
+                <p className="text-xs text-zinc-400 mt-1">Projected: {Math.round(analytics.projectedCompletion)}%</p>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Cycle Performance */}
+        {cycleStats && (
+          <>
+            <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">Cycle Performance</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+              <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
+                <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Avg Action Score</p>
+                <p className="text-2xl font-bold text-zinc-900 dark:text-white">{cycleStats.avgScore}%</p>
+                <p className="text-xs text-zinc-400 mt-1">{cycleStats.totalDays} days tracked</p>
+              </div>
+              {cycleStats.avgTrajectory !== null && (
+                <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
+                  <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Avg Trajectory</p>
+                  <p className={`text-2xl font-bold ${cycleStats.avgTrajectory >= 1.0 ? "text-purple-500" : "text-red-500"}`}>{cycleStats.avgTrajectory.toFixed(1)}x</p>
+                  <p className="text-xs text-zinc-400 mt-1">{cycleStats.avgTrajectory >= 1.0 ? "On pace" : "Behind"}</p>
+                </div>
+              )}
+              <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 col-span-2">
+                <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Top Streaks</p>
+                {cycleStats.topStreaks.length > 0 ? (
+                  <div className="flex items-baseline gap-3 mt-1">
+                    {cycleStats.topStreaks.map((streak, i) => (
+                      <div key={i} className="flex items-baseline gap-1">
+                        <span className={`font-bold ${i === 0 ? "text-2xl text-amber-500" : i === 1 ? "text-xl text-zinc-500 dark:text-zinc-400" : "text-lg text-zinc-400 dark:text-zinc-500"}`}>{streak}</span>
+                        <span className="text-xs text-zinc-400">days</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-zinc-400 mt-1">No streaks yet (need 95%+ days)</p>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Linked Tasks */}
+        {selectedCycle.linkedTasks && selectedCycle.linkedTasks.length > 0 && (
+          <>
+            <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">Linked Tasks</h2>
+            <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 overflow-hidden mb-6">
+              <div className="divide-y divide-zinc-100 dark:divide-zinc-700">
+                {selectedCycle.linkedTasks.map((task) => (
+                  <div key={task.id} className="px-4 py-3 flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-medium text-zinc-900 dark:text-white">{task.name}</span>
+                      <span className="text-xs text-zinc-500 dark:text-zinc-400 ml-2 capitalize">{task.completionType}</span>
+                    </div>
+                    {task.frequency !== 'daily' && (
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400">
+                        {task.frequency === 'adhoc' ? 'One-time' : task.frequency === 'monthly' ? 'Monthly' : task.frequency === 'custom' ? 'Weekly' : task.frequency === 'interval' ? 'Repeat' : task.frequency}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+      </motion.div>
+    </div>
+  );
+}

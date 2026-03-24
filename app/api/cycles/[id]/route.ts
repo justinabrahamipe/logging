@@ -27,17 +27,31 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         id: goals.id,
         periodId: goals.periodId,
         userId: goals.userId,
+        pillarId: goals.pillarId,
         name: goals.name,
         targetValue: goals.targetValue,
         currentValue: goals.currentValue,
-        unit: goals.unit,
         startValue: goals.startValue,
+        unit: goals.unit,
+        startDate: goals.startDate,
+        targetDate: goals.targetDate,
         goalType: goals.goalType,
-        pillarId: goals.pillarId,
+        completionType: goals.completionType,
+        dailyTarget: goals.dailyTarget,
+        scheduleDays: goals.scheduleDays,
+        status: goals.status,
+        flexibilityRule: goals.flexibilityRule,
+        limitValue: goals.limitValue,
+        minimumTarget: goals.minimumTarget,
+        autoCreateTasks: goals.autoCreateTasks,
         createdAt: goals.createdAt,
         updatedAt: goals.updatedAt,
+        pillarName: pillars.name,
+        pillarColor: pillars.color,
+        pillarEmoji: pillars.emoji,
       })
       .from(goals)
+      .leftJoin(pillars, eq(goals.pillarId, pillars.id))
       .where(and(eq(goals.periodId, periodId), eq(goals.userId, userId)));
 
     const linkedTasks = await db

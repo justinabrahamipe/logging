@@ -414,6 +414,18 @@ export interface CycleGoal {
   startValue: number;
   goalType: string;
   pillarId: number | null;
+  startDate?: string | null;
+  targetDate?: string | null;
+  completionType?: string;
+  dailyTarget?: number | null;
+  scheduleDays?: string | null;
+  status?: string;
+  flexibilityRule?: string;
+  limitValue?: number | null;
+  minimumTarget?: number | null;
+  pillarName?: string | null;
+  pillarColor?: string | null;
+  pillarEmoji?: string | null;
 }
 
 export interface CycleDetail extends Cycle {

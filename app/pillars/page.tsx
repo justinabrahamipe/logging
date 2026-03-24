@@ -202,7 +202,8 @@ export default function PillarsPage() {
                 layout
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4"
+                onClick={() => status === "authenticated" && router.push(`/pillars/${pillar.id}`)}
+                className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4 cursor-pointer hover:shadow transition-shadow"
                 style={{ borderLeftWidth: 4, borderLeftColor: pillar.color }}
               >
                 <div className="flex items-center justify-between">
