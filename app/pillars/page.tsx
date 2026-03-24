@@ -131,7 +131,7 @@ export default function PillarsPage() {
   if (loading) return <PillarsLoading />;
 
   return (
-    <div className="container mx-auto px-4 py-4 md:py-8 max-w-4xl">
+    <div className="px-3 py-4 md:px-6 md:py-6">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -235,52 +235,6 @@ export default function PillarsPage() {
                   </div>
                 </div>
 
-                {/* Inline performance chart */}
-                {perfLoading && (
-                  <div className="text-center py-3 text-zinc-400 text-xs">Loading...</div>
-                )}
-                {!perfLoading && hasChartData && (
-                  <div className="mt-3">
-                    <ResponsiveContainer width="100%" height={180}>
-                      <LineChart data={chartData} margin={{ top: 5, right: 10, left: -15, bottom: 5 }}>
-                        <XAxis
-                          dataKey="date"
-                          tick={{ fontSize: 10, fill: '#9CA3AF' }}
-                          tickLine={false}
-                          axisLine={false}
-                          interval="preserveStartEnd"
-                        />
-                        <YAxis
-                          domain={[0, 100]}
-                          tick={{ fontSize: 10, fill: '#9CA3AF' }}
-                          tickLine={false}
-                          axisLine={false}
-                          tickFormatter={(v: number) => `${v}%`}
-                        />
-                        <RechartsTooltip
-                          contentStyle={{
-                            backgroundColor: 'var(--tooltip-bg, #1F2937)',
-                            border: '1px solid #374151',
-                            borderRadius: '6px',
-                            color: 'var(--tooltip-text, #F9FAFB)',
-                            fontSize: 11,
-                            padding: '4px 8px',
-                          }}
-                          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                          formatter={(value: any, name: any) => [
-                            value != null ? `${value}%` : '—',
-                            name === 'avg' ? 'Average' : name === 'ideal' ? 'Target' : 'Score',
-                          ]}
-                        />
-                        <Line type="monotone" dataKey="ideal" stroke={pillar.color} strokeWidth={1} strokeDasharray="5 5" dot={false} opacity={0.3} />
-                        <Line type="monotone" dataKey="avg" stroke={pillar.color} strokeWidth={2.5} dot={false} connectNulls />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
-                {!perfLoading && !hasChartData && selectedCycleId > 0 && (
-                  <p className="text-zinc-400 dark:text-zinc-500 text-xs mt-2">No data yet</p>
-                )}
               </motion.div>
             );
           })}

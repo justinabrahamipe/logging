@@ -186,7 +186,7 @@ export default function CyclesPage() {
   // === CYCLE DETAIL VIEW ===
   if (selectedCycle) {
     return (
-      <div className="container mx-auto px-4 py-4 md:py-8 max-w-5xl">
+      <div className="px-3 py-4 md:px-6 md:py-6">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
           {/* Header */}
           <div className="flex items-center gap-3 mb-6">
