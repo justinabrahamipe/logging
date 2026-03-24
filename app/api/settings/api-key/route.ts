@@ -8,7 +8,7 @@ import crypto from "crypto";
 export async function POST() {
   try {
     const userId = await getAuthenticatedUserId();
-    const key = `loc_${crypto.randomBytes(24).toString("hex")}`;
+    const key = `gc_${crypto.randomBytes(24).toString("hex")}`;
 
     const existing = await db.query.userPreferences.findFirst({
       where: eq(userPreferences.userId, userId),

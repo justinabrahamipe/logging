@@ -272,16 +272,6 @@ export default function Header() {
                           </button>
                         </Link>
 
-                        <Link href="/locations">
-                          <button
-                            onClick={() => setIsProfileMenuOpen(false)}
-                            className="w-full px-3 py-2 text-left flex items-center gap-2.5 text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
-                          >
-                            <FaMapMarkerAlt className="text-xs" />
-                            Locations
-                          </button>
-                        </Link>
-
                         <Link href="/settings">
                           <button
                             onClick={() => setIsProfileMenuOpen(false)}
@@ -426,13 +416,6 @@ export default function Header() {
                         <div onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2.5 px-3 py-2.5 rounded-md text-sm text-zinc-600 dark:text-zinc-300">
                           <FaHistory className="text-sm" />
                           Activity
-                        </div>
-                      </Link>
-
-                      <Link href="/locations">
-                        <div onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2.5 px-3 py-2.5 rounded-md text-sm text-zinc-600 dark:text-zinc-300">
-                          <FaMapMarkerAlt className="text-sm" />
-                          Locations
                         </div>
                       </Link>
 
