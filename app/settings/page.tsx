@@ -25,6 +25,7 @@ export default function SettingsPage() {
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [apiKeyCopied, setApiKeyCopied] = useState(false);
   const [apiLinkCopied, setApiLinkCopied] = useState(false);
+  const [mcpLinkCopied, setMcpLinkCopied] = useState(false);
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -385,6 +386,22 @@ export default function SettingsPage() {
                     </div>
                     <code className="block truncate">{typeof window !== 'undefined' ? window.location.origin : ''}/api/locations/public?key={apiKey}</code>
                     <p className="mt-2">Params: <code>section=all|logs|tasks|goals|scores|pillars</code>, <code>format=text|json</code>, <code>search=</code>, <code>from=</code>, <code>to=</code></p>
+
+                    <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-700">
+                      <p className="font-medium text-zinc-700 dark:text-zinc-300">Claude.ai Connector:</p>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(`${window.location.origin}/api/mcp?key=${apiKey}`);
+                          setMcpLinkCopied(true);
+                          setTimeout(() => setMcpLinkCopied(false), 2000);
+                        }}
+                        className="text-[10px] px-2 py-0.5 rounded bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-600 flex items-center gap-1"
+                      >
+                        {mcpLinkCopied ? <><FaCheck className="text-green-500" /> Copied</> : <><FaCopy /> Copy link</>}
+                      </button>
+                    </div>
+                    <code className="block truncate">{typeof window !== 'undefined' ? window.location.origin : ''}/api/mcp?key={apiKey}</code>
+                    <p className="mt-1">Add this as a custom connector in Claude.ai (Settings → Connectors → Add custom connector)</p>
                   </div>
                   <div className="flex gap-2">
                     <button

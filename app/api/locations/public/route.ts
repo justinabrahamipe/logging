@@ -105,12 +105,27 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      return new NextResponse(lines.join("\n"), { headers: { "Content-Type": "text/plain; charset=utf-8" } });
+      return new NextResponse(lines.join("\n"), {
+        headers: { "Content-Type": "text/plain; charset=utf-8", "Access-Control-Allow-Origin": "*" },
+      });
     }
 
-    return NextResponse.json(data);
+    return NextResponse.json(data, {
+      headers: { "Access-Control-Allow-Origin": "*" },
+    });
   } catch (error) {
     console.error("Public API error:", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
+}
+
+// Handle CORS preflight
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, OPTIONS",
+      "Access-Control-Allow-Headers": "x-api-key, content-type",
+    },
+  });
 }

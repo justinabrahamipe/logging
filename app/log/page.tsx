@@ -102,7 +102,7 @@ export default function LogPage() {
   if (loading) return <LocationsLoading />;
 
   return (
-    <div className="container mx-auto px-4 py-4 md:py-8 max-w-2xl">
+    <div className="container mx-auto px-4 py-4 md:py-8 max-w-5xl">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
@@ -169,7 +169,7 @@ export default function LogPage() {
                   </span>
                   <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-700" />
                 </div>
-                <div className="space-y-2 ml-1 pl-3 border-l-2 border-zinc-200 dark:border-zinc-700">
+                <div className="ml-1 pl-3 border-l-2 border-zinc-200 dark:border-zinc-700 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                   <AnimatePresence>
                     {entries.map(log => (
                       <motion.div
