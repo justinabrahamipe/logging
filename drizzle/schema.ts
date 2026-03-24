@@ -58,6 +58,7 @@ export const userPreferences = sqliteTable('UserPreferences', {
   theme: text('theme').notNull().default('light'),
   timeFormat: text('timeFormat').notNull().default('12h'),
   dateFormat: text('dateFormat').notNull().default('DD/MM/YYYY'),
+  apiKey: text('apiKey'), // null = disabled, value = active key
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
@@ -333,4 +334,20 @@ export const cyclesRelations = relations(cycles, ({ many }) => ({
   linkedSchedules: many(taskSchedules),
   linkedTasks: many(tasks),
   linkedGoals: many(goals),
+}));
+
+// Location Log table
+export const locationLogs = sqliteTable('LocationLog', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: text('userId').notNull(),
+  latitude: real('latitude').notNull(),
+  longitude: real('longitude').notNull(),
+  date: text('date').notNull(), // YYYY-MM-DD
+  notes: text('notes'),
+  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+  updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+}, (table) => ({
+  userIdIdx: index('LocationLog_userId_idx').on(table.userId),
+  dateIdx: index('LocationLog_date_idx').on(table.date),
+  userDateIdx: index('LocationLog_userId_date_idx').on(table.userId, table.date),
 }));

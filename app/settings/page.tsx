@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { FaClock, FaCalendar, FaCheck, FaCog, FaDatabase, FaTrash, FaDownload, FaExclamationTriangle, FaTasks, FaColumns } from "react-icons/fa";
+import { FaClock, FaCalendar, FaCheck, FaCog, FaDatabase, FaTrash, FaDownload, FaExclamationTriangle, FaTasks, FaColumns, FaKey, FaCopy } from "react-icons/fa";
 import { useSession } from "next-auth/react";
 import { useTheme } from "@/components/ThemeProvider";
 import { Snackbar, Alert as MuiAlert } from "@mui/material";
@@ -22,6 +22,8 @@ export default function SettingsPage() {
   const [showResetConfirm, setShowResetConfirm] = useState<null | 'blank' | 'defaults'>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [apiKeyCopied, setApiKeyCopied] = useState(false);
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -60,6 +62,7 @@ export default function SettingsPage() {
         const data = await response.json();
         setTimeFormat(data.timeFormat || "12h");
         setDateFormat(data.dateFormat || "DD/MM/YYYY");
+        setApiKey(data.apiKey || null);
         sessionStorage.setItem('userSettings', JSON.stringify(data));
       }
     } catch (error) {
@@ -337,6 +340,72 @@ export default function SettingsPage() {
                   </motion.button>
                 ))}
               </div>
+            </div>
+
+            {/* API Access */}
+            <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4 md:p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-3 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
+                  <FaKey className="text-2xl text-zinc-600 dark:text-zinc-400" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white">API Access</h2>
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400">Share your location logs with AI tools via API</p>
+                </div>
+              </div>
+
+              {apiKey ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 px-3 py-2 bg-zinc-100 dark:bg-zinc-900 rounded-lg text-xs text-zinc-700 dark:text-zinc-300 font-mono truncate">
+                      {apiKey}
+                    </code>
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(apiKey); setApiKeyCopied(true); setTimeout(() => setApiKeyCopied(false), 2000); }}
+                      className="p-2 rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 shrink-0"
+                      title="Copy"
+                    >
+                      {apiKeyCopied ? <FaCheck className="text-green-500" /> : <FaCopy />}
+                    </button>
+                  </div>
+                  <div className="bg-zinc-50 dark:bg-zinc-900 rounded-lg p-3 text-xs text-zinc-600 dark:text-zinc-400 space-y-1">
+                    <p className="font-medium text-zinc-700 dark:text-zinc-300">Endpoint:</p>
+                    <code className="block truncate">{typeof window !== 'undefined' ? window.location.origin : ''}/api/locations/public?key=YOUR_KEY</code>
+                    <p className="mt-2">Params: <code>format=text|json</code>, <code>search=</code>, <code>from=</code>, <code>to=</code>, <code>sort=asc|desc</code></p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={async () => {
+                        const res = await fetch("/api/settings/api-key", { method: "POST" });
+                        if (res.ok) { const d = await res.json(); setApiKey(d.apiKey); setSnackbar({ open: true, message: "API key regenerated", severity: "success" }); }
+                      }}
+                      className="px-3 py-2 text-sm rounded-lg bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-600"
+                    >
+                      Regenerate
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const res = await fetch("/api/settings/api-key", { method: "DELETE" });
+                        if (res.ok) { setApiKey(null); setSnackbar({ open: true, message: "API access disabled", severity: "info" }); }
+                      }}
+                      className="px-3 py-2 text-sm rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                    >
+                      Disable
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={async () => {
+                    const res = await fetch("/api/settings/api-key", { method: "POST" });
+                    if (res.ok) { const d = await res.json(); setApiKey(d.apiKey); setSnackbar({ open: true, message: "API access enabled", severity: "success" }); }
+                  }}
+                  className="px-4 py-3 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200 font-semibold rounded-lg transition-all flex items-center gap-2"
+                >
+                  <FaKey />
+                  <span className="text-sm">Enable API Access</span>
+                </button>
+              )}
             </div>
 
             {/* Reset Options */}
