@@ -70,6 +70,8 @@ export default function DashboardPage() {
 
             <GoalProgress outcomesData={outcomesData} completionDates={completionDates} today={today} />
 
+            <CyclePerformance />
+
             {history && <CalendarHeatmap scores={history.scores} />}
           </div>
 
@@ -80,15 +82,6 @@ export default function DashboardPage() {
             {history && <StreakFlameChain scores={history.scores} currentStreak={currentStreak} />}
 
             {history && <ScoreHistory scores={history.scores} />}
-
-            <div className="2xl:hidden">
-              <CyclePerformance />
-            </div>
-          </div>
-
-          {/* Column 3: ultrawide only */}
-          <div className="hidden 2xl:block">
-            <CyclePerformance />
           </div>
         </div>
       </motion.div>

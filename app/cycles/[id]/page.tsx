@@ -268,9 +268,9 @@ export default function CycleDetailPage() {
                       <>
                         {goal.dailyTarget ? (
                           <span>{goal.dailyTarget} {goal.unit}/session</span>
-                        ) : (
-                          <span>{goal.completionType === "checkbox" ? "Check-in" : goal.unit}</span>
-                        )}
+                        ) : goal.unit ? (
+                          <span>{goal.unit}</span>
+                        ) : null}
                         {adherence !== null && (
                           <span className={`font-medium ${adherence >= 80 ? "text-green-600 dark:text-green-400" : adherence >= 50 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}>
                             {adherence}%
