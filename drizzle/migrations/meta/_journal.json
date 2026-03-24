@@ -288,6 +288,27 @@
       "when": 1774600000000,
       "tag": "0040_add-api-key",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "6",
+      "when": 1774700000000,
+      "tag": "0041_add-location-log-indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "6",
+      "when": 1774800000000,
+      "tag": "0042_add-location-log-date-idx",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "6",
+      "when": 1774900000000,
+      "tag": "0043_add-location-log-user-date-idx",
+      "breakpoints": true
     }
   ]
 }

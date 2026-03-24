@@ -8,6 +8,3 @@ CREATE TABLE IF NOT EXISTS "LocationLog" (
   "createdAt" integer DEFAULT (unixepoch()) NOT NULL,
   "updatedAt" integer DEFAULT (unixepoch()) NOT NULL
 );
-CREATE INDEX IF NOT EXISTS "LocationLog_userId_idx" ON "LocationLog" ("userId");
-CREATE INDEX IF NOT EXISTS "LocationLog_date_idx" ON "LocationLog" ("date");
-CREATE INDEX IF NOT EXISTS "LocationLog_userId_date_idx" ON "LocationLog" ("userId", "date");
