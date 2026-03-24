@@ -133,7 +133,6 @@ export async function saveDailyScore(userId: string, date: string) {
       trajectoryScore,
       pillarScores: JSON.stringify(pillarScores),
       pillarMomentum: pillarMomentumJson,
-      isPassing,
     });
   }
 
