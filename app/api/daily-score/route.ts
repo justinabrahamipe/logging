@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
 
     // Get task instances and pillars in parallel
     const [tasksForDay, userPillars] = await Promise.all([
-      db.select().from(tasks).where(and(eq(tasks.userId, userId), eq(tasks.date, date))),
+      db.select().from(tasks).where(and(eq(tasks.userId, userId), eq(tasks.date, date), eq(tasks.dismissed, false))),
       db.select().from(pillars).where(eq(pillars.userId, userId)),
     ]);
 

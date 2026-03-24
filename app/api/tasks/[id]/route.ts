@@ -4,6 +4,7 @@ import { db, tasks, taskSchedules, goals } from "@/lib/db";
 import { invalidateTaskCache } from "@/lib/ensure-upcoming-tasks";
 import { eq, and, or, gt } from "drizzle-orm";
 import { createAutoLog } from "@/lib/auto-log";
+import { saveDailyScore } from "@/lib/save-daily-score";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -114,6 +115,12 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         .set(updateData)
         .where(and(eq(tasks.id, itemId), eq(tasks.userId, userId)))
         .returning();
+
+      // Recalculate scores for old and new date when task is moved
+      if (body.startDate !== undefined && taskInstance.date && body.startDate !== taskInstance.date) {
+        await saveDailyScore(userId, taskInstance.date); // old date
+        if (body.startDate) await saveDailyScore(userId, body.startDate); // new date
+      }
 
       // Also update the schedule if it exists
       if (taskInstance.scheduleId) {
