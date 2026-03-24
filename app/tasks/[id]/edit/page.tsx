@@ -28,10 +28,26 @@ export default function EditTaskPage() {
         fetch(`/api/tasks/${id}`).then((r) => (r.ok ? r.json() : null)),
         fetch("/api/pillars").then((r) => (r.ok ? r.json() : [])),
         fetch("/api/outcomes").then((r) => (r.ok ? r.json() : [])),
-      ]).then(([t, p, o]) => {
+      ]).then(async ([t, p, o]) => {
         // Map task instance `date` to `startDate` for the form
         if (t && t.date && !t.startDate) {
           t.startDate = t.date;
+        }
+        // If this is a task instance, merge schedule data for frequency/repeat info
+        if (t && t.scheduleId && !t.frequency) {
+          try {
+            const schedRes = await fetch(`/api/tasks/${t.scheduleId}?type=schedule`);
+            if (schedRes.ok) {
+              const sched = await schedRes.json();
+              t.frequency = sched.frequency;
+              t.customDays = sched.customDays;
+              t.repeatInterval = sched.repeatInterval;
+            }
+          } catch { /* ignore */ }
+        }
+        // Default frequency for adhoc/goal-linked tasks without a schedule
+        if (t && !t.frequency) {
+          t.frequency = "adhoc";
         }
         setTask(t);
         setPillars(p);
