@@ -42,7 +42,8 @@ export default function CyclePerformance() {
     Promise.all([
       fetch("/api/cycles").then(r => r.ok ? r.json() : []),
       fetch("/api/daily-score/history?days=365").then(r => r.ok ? r.json() : { scores: [] }),
-    ]).then(([cycles, historyData]: [CycleData[], { scores: ScoreEntry[] }]) => {
+      fetch("/api/outcomes").then(r => r.ok ? r.json() : []),
+    ]).then(([cycles, historyData, goalsData]: [CycleData[], { scores: ScoreEntry[] }, { id: number; periodId: number | null; goalType: string; startValue: number; targetValue: number; currentValue: number; startDate: string | null; targetDate: string | null }[]]) => {
       const scores = historyData.scores || [];
       // Sort cycles by start date desc, take last 4
       const sorted = [...cycles].sort((a, b) => b.startDate.localeCompare(a.startDate)).slice(0, 4);
@@ -55,10 +56,27 @@ export default function CyclePerformance() {
 
         const avgScore = Math.round(inRange.reduce((s, d) => s + d.actionScore, 0) / inRange.length);
 
-        const trajScores = inRange.filter(s => s.trajectoryScore != null);
-        const avgTrajectory = trajScores.length > 0
-          ? trajScores.reduce((s, d) => s + (d.trajectoryScore ?? 0), 0) / trajScores.length / 100
-          : null;
+        // Compute trajectory live from outcome goals in this cycle
+        const cycleOutcomeGoals = goalsData.filter(g => g.periodId === cycle.id && g.goalType === "outcome" && g.startDate && g.targetDate);
+        let avgTrajectory: number | null = null;
+        if (cycleOutcomeGoals.length > 0) {
+          const todayStr = new Date().toISOString().split("T")[0];
+          const trajectories: number[] = [];
+          for (const g of cycleOutcomeGoals) {
+            const totalMs = new Date(g.targetDate!).getTime() - new Date(g.startDate!).getTime();
+            if (totalMs <= 0) continue;
+            const effectiveToday = todayStr > g.targetDate! ? g.targetDate! : todayStr < g.startDate! ? g.startDate! : todayStr;
+            const elapsedMs = new Date(effectiveToday).getTime() - new Date(g.startDate!).getTime();
+            const range = g.targetValue - (g.startValue || 0);
+            if (range === 0) continue;
+            const expectedValue = (g.startValue || 0) + range * (elapsedMs / totalMs);
+            const deviation = (g.currentValue - expectedValue) / range;
+            trajectories.push(1.0 + deviation);
+          }
+          if (trajectories.length > 0) {
+            avgTrajectory = Math.round(trajectories.reduce((a, b) => a + b, 0) / trajectories.length * 10) / 10;
+          }
+        }
 
         const sortedScores = [...inRange].sort((a, b) => a.date.localeCompare(b.date));
         let maxStreak = 0, current = 0;
