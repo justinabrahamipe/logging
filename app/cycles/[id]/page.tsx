@@ -23,6 +23,7 @@ export default function CycleDetailPage() {
   const [selectedCycle, setSelectedCycle] = useState<CycleDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [cycleScores, setCycleScores] = useState<{ date: string; actionScore: number; trajectoryScore: number | null }[]>([]);
+  const [completionDates, setCompletionDates] = useState<Record<number, { date: string; value: number; completed: boolean }[]>>({});
 
   // Inline editing
   const [editingVision, setEditingVision] = useState(false);
@@ -44,6 +45,7 @@ export default function CycleDetailPage() {
         setSelectedCycle(data);
         const daysDiff = Math.ceil((Date.now() - new Date(data.startDate).getTime()) / 86400000) + 1;
         fetch(`/api/daily-score/history?days=${Math.min(daysDiff, 365)}`).then(r => r.ok ? r.json() : { scores: [] }).then(s => setCycleScores(s.scores || []));
+        fetch("/api/outcomes/completions").then(r => r.ok ? r.json() : {}).then(c => setCompletionDates(c));
       }
       setLoading(false);
     });
@@ -199,11 +201,34 @@ export default function CycleDetailPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
             {selectedCycle.goals.map((goal) => {
-              const progress = goal.targetValue > 0 ? ((goal.currentValue - (goal.startValue || 0)) / (goal.targetValue - (goal.startValue || 0))) * 100 : 0;
+              const start = goal.startValue || 0;
+              const range = goal.targetValue - start;
+              const progress = range !== 0 ? ((goal.currentValue - start) / range) * 100 : (goal.currentValue >= goal.targetValue ? 100 : 0);
+              const clampedProgress = Math.max(0, Math.min(progress, 100));
               const goalStatus = getGoalStatus(goal.currentValue, goal.targetValue, currentWeek - 1, totalWeeks);
               const statusColor = goalStatus === "Ahead" ? "text-green-500" : goalStatus === "Behind" ? "text-red-500" : "text-zinc-500";
               const color = goal.pillarColor || "#3B82F6";
               const isHabitual = goal.goalType === "habitual";
+
+              // Adherence for habitual goals
+              let adherence: number | null = null;
+              if (isHabitual && goal.scheduleDays && selectedCycle.startDate) {
+                const entries = completionDates[goal.id] || [];
+                const sched: number[] = (() => { try { return JSON.parse(goal.scheduleDays!); } catch { return []; } })();
+                const cycleStart = selectedCycle.startDate;
+                const todayStr = new Date().toISOString().split("T")[0];
+                const cycleEnd = selectedCycle.endDate < todayStr ? selectedCycle.endDate : todayStr;
+                let expected = 0;
+                const d = new Date(cycleStart + "T00:00:00");
+                const endD = new Date(cycleEnd + "T00:00:00");
+                while (d <= endD) {
+                  if (sched.length === 0 || sched.includes(d.getDay())) expected++;
+                  d.setDate(d.getDate() + 1);
+                }
+                const completed = entries.filter(e => e.completed && e.date >= cycleStart && e.date <= cycleEnd).length;
+                adherence = expected > 0 ? Math.round((Math.min(completed, expected) / expected) * 100) : null;
+              }
+
               return (
                 <motion.div
                   key={goal.id}
@@ -230,17 +255,28 @@ export default function CycleDetailPage() {
                       <span className="text-xs" style={{ color }}>{goal.pillarEmoji} {goal.pillarName}</span>
                     )}
                     {isHabitual ? (
-                      <span>{goal.dailyTarget ? `${goal.dailyTarget} ${goal.unit}/session` : goal.unit}</span>
+                      <>
+                        {goal.dailyTarget ? (
+                          <span>{goal.dailyTarget} {goal.unit}/session</span>
+                        ) : (
+                          <span>{goal.completionType === "checkbox" ? "Check-in" : goal.unit}</span>
+                        )}
+                        {adherence !== null && (
+                          <span className={`font-medium ${adherence >= 80 ? "text-green-600 dark:text-green-400" : adherence >= 50 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}>
+                            {adherence}%
+                          </span>
+                        )}
+                      </>
                     ) : (
                       <>
                         <span>{goal.currentValue} / {goal.targetValue} {goal.unit}</span>
-                        <span className="font-medium">{Math.round(Math.max(0, Math.min(progress, 100)))}%</span>
+                        <span className="font-medium">{Math.round(progress)}%</span>
                       </>
                     )}
                   </div>
                   {!isHabitual && (
                     <div className="w-full h-2.5 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
-                      <motion.div initial={{ width: 0 }} animate={{ width: `${Math.max(0, Math.min(progress, 100))}%` }} transition={{ duration: 0.8, ease: "easeOut" }} className="h-full rounded-full" style={{ backgroundColor: color }} />
+                      <motion.div initial={{ width: 0 }} animate={{ width: `${clampedProgress}%` }} transition={{ duration: 0.8, ease: "easeOut" }} className="h-full rounded-full" style={{ backgroundColor: color }} />
                     </div>
                   )}
                 </motion.div>
@@ -308,29 +344,6 @@ export default function CycleDetailPage() {
           </>
         )}
 
-        {/* Linked Tasks */}
-        {selectedCycle.linkedTasks && selectedCycle.linkedTasks.length > 0 && (
-          <>
-            <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">Linked Tasks</h2>
-            <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 overflow-hidden mb-6">
-              <div className="divide-y divide-zinc-100 dark:divide-zinc-700">
-                {selectedCycle.linkedTasks.map((task) => (
-                  <div key={task.id} className="px-4 py-3 flex items-center gap-3">
-                    <div className="flex-1 min-w-0">
-                      <span className="text-sm font-medium text-zinc-900 dark:text-white">{task.name}</span>
-                      <span className="text-xs text-zinc-500 dark:text-zinc-400 ml-2 capitalize">{task.completionType}</span>
-                    </div>
-                    {task.frequency !== 'daily' && (
-                      <span className="text-xs px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400">
-                        {task.frequency === 'adhoc' ? 'One-time' : task.frequency === 'monthly' ? 'Monthly' : task.frequency === 'custom' ? 'Weekly' : task.frequency === 'interval' ? 'Repeat' : task.frequency}
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
       </motion.div>
     </div>
   );
