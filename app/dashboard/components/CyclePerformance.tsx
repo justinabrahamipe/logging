@@ -22,6 +22,8 @@ interface ScoreEntry {
 interface CycleStats {
   id: number;
   name: string;
+  startDate: string;
+  endDate: string;
   isActive: boolean;
   avgScore: number;
   avgTrajectory: number | null;
@@ -48,7 +50,7 @@ export default function CyclePerformance() {
       const stats: CycleStats[] = sorted.map(cycle => {
         const inRange = scores.filter(s => s.date >= cycle.startDate && s.date <= cycle.endDate);
         if (inRange.length === 0) {
-          return { id: cycle.id, name: cycle.name, isActive: cycle.isActive, avgScore: 0, avgTrajectory: null, topStreak: 0, totalDays: 0 };
+          return { id: cycle.id, name: cycle.name, startDate: cycle.startDate, endDate: cycle.endDate, isActive: cycle.isActive, avgScore: 0, avgTrajectory: null, topStreak: 0, totalDays: 0 };
         }
 
         const avgScore = Math.round(inRange.reduce((s, d) => s + d.actionScore, 0) / inRange.length);
@@ -65,7 +67,7 @@ export default function CyclePerformance() {
           else { current = 0; }
         }
 
-        return { id: cycle.id, name: cycle.name, isActive: cycle.isActive, avgScore, avgTrajectory, topStreak: maxStreak, totalDays: inRange.length };
+        return { id: cycle.id, name: cycle.name, startDate: cycle.startDate, endDate: cycle.endDate, isActive: cycle.isActive, avgScore, avgTrajectory, topStreak: maxStreak, totalDays: inRange.length };
       });
 
       setCycleStats(stats);
@@ -104,9 +106,15 @@ export default function CyclePerformance() {
                     <span className="text-[10px] px-1.5 py-px rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">Active</span>
                   )}
                 </div>
-                {cycle.totalDays > 0 && (
-                  <span className="text-xs text-zinc-400">{cycle.totalDays}d</span>
-                )}
+                {(() => {
+                  const start = new Date(cycle.startDate + "T00:00:00");
+                  const end = new Date(cycle.endDate + "T00:00:00");
+                  const now = new Date(new Date().toISOString().split("T")[0] + "T00:00:00");
+                  const elapsed = Math.max(0, Math.ceil((Math.min(now.getTime(), end.getTime()) - start.getTime()) / 86400000));
+                  const total = Math.ceil((end.getTime() - start.getTime()) / 86400000);
+                  const remaining = Math.max(0, total - elapsed);
+                  return <span className="text-xs text-zinc-400">{elapsed}/{total}d {remaining > 0 ? `· ${remaining} left` : "· done"}</span>;
+                })()}
               </div>
               {cycle.totalDays > 0 ? (
                 <div className="flex items-center gap-4">
