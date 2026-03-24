@@ -57,7 +57,7 @@ export default function CyclePerformance() {
 
         const trajScores = inRange.filter(s => s.trajectoryScore != null);
         const avgTrajectory = trajScores.length > 0
-          ? Math.round(trajScores.reduce((s, d) => s + (d.trajectoryScore || 0), 0) / trajScores.length) / 100
+          ? trajScores.reduce((s, d) => s + (d.trajectoryScore ?? 0), 0) / trajScores.length / 100
           : null;
 
         const sortedScores = [...inRange].sort((a, b) => a.date.localeCompare(b.date));

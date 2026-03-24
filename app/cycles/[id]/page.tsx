@@ -66,7 +66,7 @@ export default function CycleDetailPage() {
     const avgScore = Math.round(inRange.reduce((s, d) => s + d.actionScore, 0) / inRange.length);
     const trajScores = inRange.filter(s => s.trajectoryScore != null);
     const avgTrajectory = trajScores.length > 0
-      ? Math.round(trajScores.reduce((s, d) => s + (d.trajectoryScore || 0), 0) / trajScores.length) / 100
+      ? trajScores.reduce((s, d) => s + (d.trajectoryScore ?? 0), 0) / trajScores.length / 100
       : null;
     const sorted = [...inRange].sort((a, b) => a.date.localeCompare(b.date));
     const streaks: number[] = [];
