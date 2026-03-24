@@ -108,60 +108,76 @@ export default function CyclePerformance() {
 
   return (
     <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-6 mb-6">
-      <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">Cycle Performance</h2>
-      <div className="space-y-3">
-        {cycleStats.map(cycle => (
-          <Link key={cycle.id} href="/cycles">
-            <div className={`rounded-xl border p-4 transition-colors hover:shadow-sm cursor-pointer ${
-              cycle.isActive
-                ? "border-zinc-900 dark:border-zinc-100 bg-zinc-50 dark:bg-zinc-900"
-                : "border-zinc-200 dark:border-zinc-700"
-            }`}>
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-white">{cycle.name}</h3>
-                  {cycle.isActive && (
-                    <span className="text-[10px] px-1.5 py-px rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">Active</span>
-                  )}
-                </div>
-                {(() => {
-                  const start = new Date(cycle.startDate + "T00:00:00");
-                  const end = new Date(cycle.endDate + "T00:00:00");
-                  const now = new Date(new Date().toISOString().split("T")[0] + "T00:00:00");
-                  const elapsed = Math.max(0, Math.ceil((Math.min(now.getTime(), end.getTime()) - start.getTime()) / 86400000));
-                  const total = Math.ceil((end.getTime() - start.getTime()) / 86400000);
-                  const remaining = Math.max(0, total - elapsed);
-                  return <span className="text-xs text-zinc-400">{elapsed}/{total}d {remaining > 0 ? `· ${remaining} left` : "· done"}</span>;
-                })()}
-              </div>
-              {cycle.totalDays > 0 ? (
-                <div className="flex items-center gap-4">
-                  <div>
-                    <span className="text-xl font-bold text-zinc-900 dark:text-white">{cycle.avgScore}%</span>
-                    <span className="text-[10px] text-zinc-400 ml-1">avg</span>
+      <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">Cycles</h2>
+      <div className="space-y-4">
+        {cycleStats.map(cycle => {
+          const start = new Date(cycle.startDate + "T00:00:00");
+          const end = new Date(cycle.endDate + "T00:00:00");
+          const now = new Date(new Date().toISOString().split("T")[0] + "T00:00:00");
+          const elapsed = Math.max(0, Math.ceil((Math.min(now.getTime(), end.getTime()) - start.getTime()) / 86400000));
+          const total = Math.ceil((end.getTime() - start.getTime()) / 86400000);
+          const remaining = Math.max(0, total - elapsed);
+          const pct = total > 0 ? Math.round((elapsed / total) * 100) : 0;
+
+          return (
+            <Link key={cycle.id} href={`/cycles/${cycle.id}`}>
+              <div className="group rounded-xl p-4 transition-all hover:bg-zinc-50 dark:hover:bg-zinc-700/30 cursor-pointer -mx-2">
+                {/* Title row */}
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-semibold text-zinc-900 dark:text-white">{cycle.name}</h3>
+                    {cycle.isActive && (
+                      <span className="text-[10px] px-1.5 py-px rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 font-medium">Active</span>
+                    )}
                   </div>
-                  {cycle.avgTrajectory !== null && (
-                    <div>
-                      <span className={`text-xl font-bold ${cycle.avgTrajectory >= 1.0 ? "text-purple-500" : "text-red-500"}`}>
-                        {cycle.avgTrajectory.toFixed(1)}x
-                      </span>
-                      <span className="text-[10px] text-zinc-400 ml-1">trajectory</span>
-                    </div>
-                  )}
-                  {cycle.topStreak > 0 && (
-                    <div className="flex items-center gap-1">
-                      <FaFire className="text-amber-500 text-sm" />
-                      <span className="text-xl font-bold text-amber-500">{cycle.topStreak}</span>
-                      <span className="text-[10px] text-zinc-400">best streak</span>
-                    </div>
-                  )}
+                  <span className="text-[11px] text-zinc-400 dark:text-zinc-500">
+                    {remaining > 0 ? `${remaining}d left` : "Completed"}
+                  </span>
                 </div>
-              ) : (
-                <p className="text-xs text-zinc-400">No data yet</p>
-              )}
-            </div>
-          </Link>
-        ))}
+
+                {/* Time progress bar */}
+                <div className="w-full h-1.5 bg-zinc-100 dark:bg-zinc-700 rounded-full mb-3 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-zinc-900 dark:bg-zinc-100 transition-all"
+                    style={{ width: `${Math.min(pct, 100)}%` }}
+                  />
+                </div>
+
+                {/* Stats row */}
+                {cycle.totalDays > 0 ? (
+                  <div className="flex items-center gap-5">
+                    <div className="text-center">
+                      <p className="text-lg font-bold text-zinc-900 dark:text-white leading-none">{cycle.avgScore}%</p>
+                      <p className="text-[10px] text-zinc-400 mt-0.5">Action</p>
+                    </div>
+                    {cycle.avgTrajectory !== null && (
+                      <div className="text-center">
+                        <p className={`text-lg font-bold leading-none ${cycle.avgTrajectory >= 1.0 ? "text-purple-500" : "text-red-500"}`}>
+                          {cycle.avgTrajectory.toFixed(1)}x
+                        </p>
+                        <p className="text-[10px] text-zinc-400 mt-0.5">Trajectory</p>
+                      </div>
+                    )}
+                    {cycle.topStreak > 0 && (
+                      <div className="text-center">
+                        <p className="text-lg font-bold text-amber-500 leading-none flex items-center justify-center gap-1">
+                          {cycle.topStreak} <FaFire className="text-xs" />
+                        </p>
+                        <p className="text-[10px] text-zinc-400 mt-0.5">Streak</p>
+                      </div>
+                    )}
+                    <div className="text-center ml-auto">
+                      <p className="text-lg font-bold text-zinc-500 dark:text-zinc-400 leading-none">{elapsed}<span className="text-xs font-normal">/{total}</span></p>
+                      <p className="text-[10px] text-zinc-400 mt-0.5">Days</p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-zinc-400">No data yet</p>
+                )}
+              </div>
+            </Link>
+          );
+        })}
       </div>
     </div>
   );
