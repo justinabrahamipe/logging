@@ -105,10 +105,11 @@ export default function TaskItem({
     }
   }, [openMenuId, task.id]);
 
-  // Close menu on scroll
+  // Close menu on scroll (debounced to avoid closing on tiny tap movements)
   useEffect(() => {
     if (openMenuId !== task.id) return;
-    const onScroll = () => setOpenMenuId(null);
+    let scrollCount = 0;
+    const onScroll = () => { scrollCount++; if (scrollCount > 2) setOpenMenuId(null); };
     window.addEventListener('scroll', onScroll, { capture: true, passive: true });
     return () => window.removeEventListener('scroll', onScroll, { capture: true });
   }, [openMenuId, task.id, setOpenMenuId]);
@@ -504,6 +505,8 @@ export default function TaskItem({
           <div className="relative" ref={openMenuId === task.id ? menuRef : undefined}>
             <button
               ref={buttonRef}
+              onTouchStart={(e) => e.stopPropagation()}
+              onTouchEnd={(e) => e.stopPropagation()}
               onClick={() => setOpenMenuId(openMenuId === task.id ? null : task.id)}
               className="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700"
             >
