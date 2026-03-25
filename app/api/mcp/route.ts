@@ -11,6 +11,9 @@ const SERVER_INFO = {
   version: "1.0.0",
 };
 
+// Track active sessions: sessionId -> userId
+const sessions = new Map<string, string>();
+
 const TOOLS = [
   {
     name: "get_tasks",
@@ -107,9 +110,15 @@ const TOOLS = [
   },
 ];
 
-async function authenticateFromUrl(request: NextRequest): Promise<string | null> {
-  const key = request.nextUrl.searchParams.get("key");
+async function authenticate(request: NextRequest): Promise<string | null> {
+  // Support Bearer token from Authorization header (used by Claude custom connectors)
+  const authHeader = request.headers.get("authorization");
+  const bearerKey = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+
+  // Fall back to ?key= query param
+  const key = bearerKey || request.nextUrl.searchParams.get("key");
   if (!key) return null;
+
   const [pref] = await db
     .select({ userId: userPreferences.userId })
     .from(userPreferences)
@@ -359,12 +368,16 @@ function jsonRpcError(id: number | string | null, code: number, message: string)
 
 export async function POST(request: NextRequest) {
   try {
-    const userId = await authenticateFromUrl(request);
+    const userId = await authenticate(request);
     const message = await request.json();
 
     // Handle initialization (no auth needed for handshake)
     if (message.method === "initialize") {
       const sessionId = crypto.randomUUID();
+      // Store session -> userId mapping if authenticated
+      if (userId) {
+        sessions.set(sessionId, userId);
+      }
       return new Response(JSON.stringify({
         jsonrpc: "2.0",
         id: message.id,
@@ -386,9 +399,13 @@ export async function POST(request: NextRequest) {
       return new Response(null, { status: 202 });
     }
 
+    // Resolve userId: direct auth or from an existing session
+    const sessionId = request.headers.get("mcp-session-id");
+    const resolvedUserId = userId || (sessionId ? sessions.get(sessionId) : null);
+
     // All other methods need auth
-    if (!userId) {
-      return jsonRpcError(message.id, -32000, "Invalid API key. Add ?key=YOUR_KEY to the MCP server URL.");
+    if (!resolvedUserId) {
+      return jsonRpcError(message.id, -32000, "Invalid API key. Pass via Authorization: Bearer <key> header or ?key= query param.");
     }
 
     // Tool discovery
@@ -399,7 +416,7 @@ export async function POST(request: NextRequest) {
     // Tool execution
     if (message.method === "tools/call") {
       const { name, arguments: args } = message.params;
-      const result = await executeTool(userId, name, args || {});
+      const result = await executeTool(resolvedUserId, name, args || {});
       return jsonRpcResponse(message.id, {
         content: [{ type: "text", text: result }],
       });
@@ -417,12 +434,15 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET() {
-  return new Response(null, { status: 405 });
+export async function DELETE(request: NextRequest) {
+  // Session termination
+  const sessionId = request.headers.get("mcp-session-id");
+  if (sessionId) sessions.delete(sessionId);
+  return new Response(null, { status: 202 });
 }
 
-export async function DELETE() {
-  return new Response(null, { status: 202 });
+export async function GET() {
+  return new Response(null, { status: 405 });
 }
 
 export async function OPTIONS() {
@@ -430,7 +450,7 @@ export async function OPTIONS() {
     headers: {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Mcp-Session-Id, x-api-key",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, Mcp-Session-Id, x-api-key",
     },
   });
 }
