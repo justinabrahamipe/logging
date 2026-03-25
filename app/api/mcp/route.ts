@@ -105,7 +105,7 @@ const TOOLS = [
         frequency: { type: "string", description: "One of: adhoc, daily, weekdays, weekends, custom. Defaults to adhoc." },
         customDays: { type: "string", description: "Comma-separated days (mon,tue,wed,...) for custom frequency." },
         basePoints: { type: "number", description: "Points for completing the task. Defaults to 10." },
-        date: { type: "string", description: "Date for adhoc tasks (YYYY-MM-DD). Defaults to today." },
+        date: { type: "string", description: "Date for adhoc tasks (YYYY-MM-DD). Omit for a no-date task that appears on today's view until completed." },
       },
       required: ["name"],
     },
@@ -449,7 +449,7 @@ async function executeTool(userId: string, name: string, args: Record<string, an
         await createAutoLog(userId, `➕ Task created: ${taskName}`);
         return `Recurring task "${taskName}" created (${frequency}). Schedule ID: ${schedule.id}.`;
       } else {
-        const taskDate = args.date || today();
+        const taskDate = args.date !== undefined ? args.date : '';
         const [task] = await db.insert(tasks).values({
           pillarId,
           userId,
@@ -466,7 +466,7 @@ async function executeTool(userId: string, name: string, args: Record<string, an
         }).returning();
 
         await createAutoLog(userId, `➕ Task created: ${taskName}`);
-        return `Task "${taskName}" created for ${taskDate}. Task ID: ${task.id}.`;
+        return `Task "${taskName}" created${taskDate ? ` for ${taskDate}` : ' (no date)'}. Task ID: ${task.id}.`;
       }
     }
 
