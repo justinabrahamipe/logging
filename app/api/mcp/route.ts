@@ -140,6 +140,7 @@ const TOOLS = [
         unit: { type: "string", description: "Unit of measurement (e.g. 'kg', 'pages', 'days'). Defaults to 'days'." },
         startValue: { type: "number", description: "Starting value. Defaults to 0." },
         pillarId: { type: "number", description: "Pillar ID to link to (optional)." },
+        periodId: { type: "number", description: "Cycle/period ID to link to (optional). Use create_cycle first to get the ID." },
         startDate: { type: "string", description: "Start date (YYYY-MM-DD)." },
         targetDate: { type: "string", description: "Target/deadline date (YYYY-MM-DD)." },
         completionType: { type: "string", description: "One of: checkbox, count, numeric. Defaults to checkbox." },
@@ -164,6 +165,7 @@ const TOOLS = [
         startDate: { type: "string", description: "New start date (YYYY-MM-DD)." },
         targetDate: { type: "string", description: "New target date (YYYY-MM-DD)." },
         status: { type: "string", description: "One of: active, completed, abandoned." },
+        periodId: { type: "number", description: "Cycle/period ID to link to." },
         dailyTarget: { type: "number", description: "New per-session target." },
         completionType: { type: "string", description: "One of: checkbox, count, numeric." },
       },
@@ -255,10 +257,11 @@ async function executeTool(userId: string, name: string, args: Record<string, an
         id: goals.id, name: goals.name, goalType: goals.goalType, status: goals.status,
         startValue: goals.startValue, targetValue: goals.targetValue, currentValue: goals.currentValue,
         unit: goals.unit, startDate: goals.startDate, targetDate: goals.targetDate,
+        periodId: goals.periodId,
         pillarName: pillars.name,
       }).from(goals).leftJoin(pillars, eq(goals.pillarId, pillars.id)).where(eq(goals.userId, userId));
       const lines = result.map(g =>
-        `[${g.status}] (id:${g.id}) ${g.name} (${g.goalType}) — ${g.currentValue}/${g.targetValue} ${g.unit}${g.pillarName ? ` | ${g.pillarName}` : ""}${g.startDate ? ` | ${g.startDate} to ${g.targetDate}` : ""}`
+        `[${g.status}] (id:${g.id}) ${g.name} (${g.goalType}) — ${g.currentValue}/${g.targetValue} ${g.unit}${g.pillarName ? ` | ${g.pillarName}` : ""}${g.periodId ? ` | cycleId:${g.periodId}` : ""}${g.startDate ? ` | ${g.startDate} to ${g.targetDate}` : ""}`
       );
       return lines.join("\n") || "No goals found.";
     }
@@ -569,6 +572,7 @@ async function executeTool(userId: string, name: string, args: Record<string, an
       if (args.startDate !== undefined) updateData.startDate = args.startDate || null;
       if (args.targetDate !== undefined) updateData.targetDate = args.targetDate || null;
       if (args.status !== undefined) updateData.status = args.status;
+      if (args.periodId !== undefined) updateData.periodId = args.periodId || null;
       if (args.dailyTarget !== undefined) updateData.dailyTarget = args.dailyTarget ?? null;
       if (args.completionType !== undefined) updateData.completionType = args.completionType;
 
