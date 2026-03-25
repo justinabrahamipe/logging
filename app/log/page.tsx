@@ -29,6 +29,9 @@ export default function LogPage() {
   const [sortAsc, setSortAsc] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const [quickNote, setQuickNote] = useState("");
+  const [quickSaving, setQuickSaving] = useState(false);
+  const quickInputRef = useRef<HTMLInputElement>(null);
 
   const fetchLogs = useCallback(async () => {
     try {
@@ -54,6 +57,39 @@ export default function LogPage() {
       console.error("Failed to delete:", err);
     }
     setDeleteConfirmId(null);
+  };
+
+  const handleQuickLog = async () => {
+    if (!quickNote.trim() || quickSaving) return;
+    setQuickSaving(true);
+    try {
+      const now = new Date();
+      const date = now.toISOString().split("T")[0];
+      const time = now.toTimeString().slice(0, 5);
+      let latitude = 0;
+      let longitude = 0;
+      try {
+        const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+          navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 5000 })
+        );
+        latitude = pos.coords.latitude;
+        longitude = pos.coords.longitude;
+      } catch {}
+      const res = await fetch("/api/locations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ latitude, longitude, date, time, notes: quickNote.trim() }),
+      });
+      if (res.ok) {
+        const newLog = await res.json();
+        setLogs(prev => sortAsc ? [...prev, newLog] : [newLog, ...prev]);
+        setQuickNote("");
+      }
+    } catch (err) {
+      console.error("Quick log failed:", err);
+    } finally {
+      setQuickSaving(false);
+    }
   };
 
   // Fuzzy search: split terms, match all against notes
@@ -131,6 +167,26 @@ export default function LogPage() {
               <FaPlus />
             </button>
           </div>
+        </div>
+
+        {/* Quick Log */}
+        <div className="flex gap-2 mb-3">
+          <input
+            ref={quickInputRef}
+            type="text"
+            value={quickNote}
+            onChange={e => setQuickNote(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") handleQuickLog(); }}
+            placeholder="Quick log..."
+            className="flex-1 px-3 py-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-zinc-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-300 dark:focus:ring-zinc-600"
+          />
+          <button
+            onClick={handleQuickLog}
+            disabled={!quickNote.trim() || quickSaving}
+            className="px-3 py-2.5 rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 disabled:opacity-50 transition-colors"
+          >
+            <FaPlus className="text-sm" />
+          </button>
         </div>
 
         {/* Search */}

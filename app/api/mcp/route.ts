@@ -1,6 +1,10 @@
 import { NextRequest } from "next/server";
-import { db, locationLogs, tasks, goals, pillars, dailyScores, userPreferences } from "@/lib/db";
-import { eq, and, desc, gte, lte } from "drizzle-orm";
+import { db, locationLogs, tasks, goals, pillars, dailyScores, userPreferences, taskSchedules, activityLog } from "@/lib/db";
+import { eq, and, desc, gte, lte, or, gt } from "drizzle-orm";
+import { calculateTaskScore } from "@/lib/scoring";
+import { saveDailyScore } from "@/lib/save-daily-score";
+import { createAutoLog } from "@/lib/auto-log";
+import { ensureUpcomingTasks, invalidateTaskCache } from "@/lib/ensure-upcoming-tasks";
 
 const SERVER_INFO = {
   name: "grind-console",
@@ -56,6 +60,51 @@ const TOOLS = [
     description: "Get a comprehensive summary of today's tasks, active goals, recent scores, and recent logs.",
     inputSchema: { type: "object", properties: {} },
   },
+  {
+    name: "complete_task",
+    description: "Mark a task as complete or update its value. Use get_tasks first to find the task ID.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        taskId: { type: "number", description: "The task instance ID." },
+        value: { type: "number", description: "The value to set (for numeric tasks). Omit for checkbox tasks." },
+        completed: { type: "boolean", description: "Whether the task is completed. Defaults to true." },
+      },
+      required: ["taskId"],
+    },
+  },
+  {
+    name: "add_log",
+    description: "Add a log entry (note/journal) for a given date.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        notes: { type: "string", description: "The log text/notes." },
+        date: { type: "string", description: "Date for the log (YYYY-MM-DD). Defaults to today." },
+        time: { type: "string", description: "Time for the log (HH:MM). Defaults to current time." },
+      },
+      required: ["notes"],
+    },
+  },
+  {
+    name: "create_task",
+    description: "Create a new task. Can be adhoc (one-time) or recurring (daily/weekly/custom).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Task name." },
+        pillarId: { type: "number", description: "Pillar ID to group under (optional)." },
+        completionType: { type: "string", description: "One of: checkbox, numeric, duration. Defaults to checkbox." },
+        target: { type: "number", description: "Target value for numeric/duration tasks." },
+        unit: { type: "string", description: "Unit label (e.g. 'minutes', 'pages')." },
+        frequency: { type: "string", description: "One of: adhoc, daily, weekdays, weekends, custom. Defaults to adhoc." },
+        customDays: { type: "string", description: "Comma-separated days (mon,tue,wed,...) for custom frequency." },
+        basePoints: { type: "number", description: "Points for completing the task. Defaults to 10." },
+        date: { type: "string", description: "Date for adhoc tasks (YYYY-MM-DD). Defaults to today." },
+      },
+      required: ["name"],
+    },
+  },
 ];
 
 async function authenticateFromUrl(request: NextRequest): Promise<string | null> {
@@ -78,7 +127,8 @@ function daysAgo(n: number) {
   return d.toISOString().split("T")[0];
 }
 
-async function executeTool(userId: string, name: string, args: Record<string, string>): Promise<string> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function executeTool(userId: string, name: string, args: Record<string, any>): Promise<string> {
   switch (name) {
     case "get_tasks": {
       const from = args.from || today();
@@ -88,7 +138,7 @@ async function executeTool(userId: string, name: string, args: Record<string, st
       const lines = result.map(t => {
         const status = t.completed ? "done" : "todo";
         const val = t.completionType !== "checkbox" && t.target ? `${t.value || 0}/${t.target}` : status;
-        return `[${t.date}] ${t.name} — ${val}`;
+        return `[${t.date}] (id:${t.id}) ${t.name} — ${val}`;
       });
       return lines.join("\n") || "No tasks found for this period.";
     }
@@ -132,6 +182,164 @@ async function executeTool(userId: string, name: string, args: Record<string, st
       ]);
       return `=== TODAY'S TASKS ===\n${taskLines}\n\n=== GOALS ===\n${goalLines}\n\n=== SCORES (LAST 7 DAYS) ===\n${scoreLines}\n\n=== RECENT LOGS ===\n${logLines}`;
     }
+    case "complete_task": {
+      const taskId = parseInt(args.taskId);
+      if (!taskId) return "Error: taskId is required.";
+
+      const [task] = await db.select().from(tasks).where(and(eq(tasks.id, taskId), eq(tasks.userId, userId)));
+      if (!task) return "Error: Task not found.";
+
+      const completionValue = args.value != null ? parseFloat(args.value) : (task.completionType === 'checkbox' ? 1 : 0);
+      const targetReached = task.target != null && task.target > 0 && completionValue >= task.target;
+      const isCompleted = args.completed != null ? args.completed === "true" || args.completed === true : (
+        task.completionType === 'checkbox' ? true : targetReached
+      );
+
+      const pointsEarned = calculateTaskScore(
+        { id: task.id, pillarId: task.pillarId, completionType: task.completionType, target: task.target, basePoints: task.basePoints, flexibilityRule: task.flexibilityRule, limitValue: task.limitValue, minimumTarget: task.minimumTarget },
+        { taskId: task.id, completed: isCompleted, value: completionValue }
+      );
+
+      const previousValue = task.value ?? null;
+      const pointsBefore = task.pointsEarned ?? 0;
+
+      await db.update(tasks).set({
+        completed: isCompleted,
+        value: completionValue,
+        pointsEarned,
+        completedAt: isCompleted ? new Date() : null,
+        timerStartedAt: null,
+        skipped: false,
+      }).where(eq(tasks.id, taskId));
+
+      // Activity log
+      let action = 'complete';
+      if (previousValue !== null) {
+        if (completionValue > (previousValue ?? 0)) action = 'add';
+        else if (completionValue < (previousValue ?? 0)) action = 'subtract';
+        else action = 'adjust';
+      }
+      await db.insert(activityLog).values({
+        userId, taskId: task.id, pillarId: task.pillarId, action,
+        previousValue, newValue: completionValue,
+        delta: completionValue - (previousValue ?? 0),
+        pointsBefore, pointsAfter: pointsEarned,
+        pointsDelta: pointsEarned - pointsBefore,
+        source: 'manual',
+      });
+
+      // Auto-log
+      if (isCompleted && !task.completed) {
+        const valueStr = completionValue > 0 && task.completionType !== 'checkbox' ? ` (${completionValue}${task.unit ? ' ' + task.unit : ''})` : '';
+        await createAutoLog(userId, `✅ ${task.name}${valueStr}`, task.date || today());
+      }
+
+      // Update linked goal
+      if (task.goalId) {
+        const [linkedGoal] = await db.select().from(goals).where(and(eq(goals.id, task.goalId), eq(goals.userId, userId)));
+        if (linkedGoal) {
+          let newTotal: number;
+          if (linkedGoal.goalType === 'outcome') {
+            newTotal = isCompleted && completionValue > 0 ? completionValue : linkedGoal.currentValue;
+          } else {
+            const allWithProgress = await db.select({ value: tasks.value }).from(tasks)
+              .where(and(eq(tasks.goalId, task.goalId), or(eq(tasks.completed, true), gt(tasks.value, 0))));
+            newTotal = allWithProgress.reduce((sum, t) => sum + (t.value ?? 0), 0);
+          }
+          await db.update(goals).set({ currentValue: newTotal }).where(eq(goals.id, linkedGoal.id));
+        }
+      }
+
+      // Recalculate daily score
+      const taskDate = task.date || today();
+      if (taskDate) await saveDailyScore(userId, taskDate);
+
+      const status = isCompleted ? "completed" : "updated";
+      const valStr = task.completionType !== 'checkbox' ? ` (value: ${completionValue})` : '';
+      return `Task "${task.name}" ${status}${valStr}. Points: ${pointsEarned}.`;
+    }
+
+    case "add_log": {
+      const notes = args.notes;
+      if (!notes) return "Error: notes is required.";
+
+      const date = args.date || today();
+      const now = new Date();
+      const time = args.time || `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+      await db.insert(locationLogs).values({
+        userId,
+        latitude: 0,
+        longitude: 0,
+        date,
+        time,
+        notes,
+      });
+
+      return `Log added for ${date} at ${time}: "${notes}"`;
+    }
+
+    case "create_task": {
+      const taskName = args.name;
+      if (!taskName) return "Error: name is required.";
+
+      const frequency = args.frequency || 'adhoc';
+      const isRecurring = frequency !== 'adhoc';
+      const completionType = args.completionType || 'checkbox';
+      const basePoints = args.basePoints ? parseInt(args.basePoints) : 10;
+      const target = args.target ? parseFloat(args.target) : null;
+      const pillarId = args.pillarId ? parseInt(args.pillarId) : null;
+
+      if (pillarId) {
+        const [p] = await db.select().from(pillars).where(and(eq(pillars.id, pillarId), eq(pillars.userId, userId)));
+        if (!p) return "Error: Pillar not found.";
+      }
+
+      if (isRecurring) {
+        const [schedule] = await db.insert(taskSchedules).values({
+          pillarId,
+          userId,
+          name: taskName,
+          completionType,
+          target,
+          unit: args.unit || null,
+          flexibilityRule: 'must_today',
+          limitValue: null,
+          frequency,
+          customDays: args.customDays || null,
+          repeatInterval: null,
+          basePoints,
+          goalId: null,
+          periodId: null,
+          startDate: null,
+        }).returning();
+
+        invalidateTaskCache(userId);
+        await ensureUpcomingTasks(userId);
+        await createAutoLog(userId, `➕ Task created: ${taskName}`);
+        return `Recurring task "${taskName}" created (${frequency}). Schedule ID: ${schedule.id}.`;
+      } else {
+        const taskDate = args.date || today();
+        const [task] = await db.insert(tasks).values({
+          pillarId,
+          userId,
+          name: taskName,
+          completionType,
+          target,
+          unit: args.unit || null,
+          flexibilityRule: 'must_today',
+          limitValue: null,
+          basePoints,
+          goalId: null,
+          periodId: null,
+          date: taskDate,
+        }).returning();
+
+        await createAutoLog(userId, `➕ Task created: ${taskName}`);
+        return `Task "${taskName}" created for ${taskDate}. Task ID: ${task.id}.`;
+      }
+    }
+
     default:
       return `Unknown tool: ${name}`;
   }
