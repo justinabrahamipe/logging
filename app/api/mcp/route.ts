@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { db, locationLogs, tasks, goals, pillars, dailyScores, userPreferences, taskSchedules, activityLog, cycles } from "@/lib/db";
+import { db, locationLogs, tasks, goals, pillars, dailyScores, userPreferences, taskSchedules, activityLog, cycles, contactMessages } from "@/lib/db";
 import { eq, and, desc, gte, lte, or, gt } from "drizzle-orm";
 import { calculateTaskScore } from "@/lib/scoring";
 import { saveDailyScore } from "@/lib/save-daily-score";
@@ -207,6 +207,21 @@ const TOOLS = [
         theme: { type: "string", description: "Theme for this cycle (optional)." },
       },
       required: ["name", "startDate", "endDate"],
+    },
+  },
+  {
+    name: "get_cycles",
+    description: "Get all cycles/periods with their dates, vision, and theme.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "get_feedback",
+    description: "Get feedback/contact messages submitted by the user.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        status: { type: "string", description: "Filter by status: todo, in_progress, done. Returns all if omitted." },
+      },
     },
   },
 ];
@@ -682,6 +697,24 @@ async function executeTool(userId: string, name: string, args: Record<string, an
 
       await createAutoLog(userId, `🗑️ Task deleted: ${task.name}`);
       return `Task "${task.name}" ${task.goalId ? "dismissed" : "deleted"}.`;
+    }
+
+    case "get_cycles": {
+      const result = await db.select().from(cycles).where(eq(cycles.userId, userId)).orderBy(desc(cycles.startDate));
+      const lines = result.map(c =>
+        `(id:${c.id}) ${c.name} | ${c.startDate} to ${c.endDate}${c.theme ? ` | theme: ${c.theme}` : ""}${c.vision ? ` | vision: ${c.vision}` : ""}`
+      );
+      return lines.join("\n") || "No cycles found.";
+    }
+
+    case "get_feedback": {
+      const conditions = [eq(contactMessages.userId, userId)];
+      if (args.status) conditions.push(eq(contactMessages.status, args.status));
+      const result = await db.select().from(contactMessages).where(and(...conditions)).orderBy(desc(contactMessages.createdAt));
+      const lines = result.map(m =>
+        `(id:${m.id}) [${m.status}] ${m.topic} — ${m.message}${m.read ? "" : " (unread)"}`
+      );
+      return lines.join("\n") || "No feedback messages found.";
     }
 
     case "create_cycle": {
