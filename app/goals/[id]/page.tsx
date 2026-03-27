@@ -278,27 +278,36 @@ export default function GoalDetailPage() {
       const res = await fetch(`/api/outcomes/${outcome.id}/generate-tasks`, { method: "POST" });
       if (res.ok) {
         setSnackbar({ open: true, message: "Tasks generated successfully", severity: "success" });
-        // Refresh linked tasks
-        const [tasksRes, completionsRes] = await Promise.all([
-          fetch(`/api/tasks`),
-          fetch(`/api/outcomes/completions`),
+        // Refresh everything — same as initial load
+        const [goalsData, logData, taskGroups, completions] = await Promise.all([
+          fetch("/api/outcomes").then(r => r.ok ? r.json() : []),
+          fetch(`/api/outcomes/${outcome.id}/log`).then(r => r.ok ? r.json() : []),
+          fetch("/api/tasks").then(r => r.ok ? r.json() : []),
+          fetch("/api/outcomes/completions").then(r => r.ok ? r.json() : {}),
         ]);
-        if (tasksRes.ok) {
-          const groups = await tasksRes.json();
-          const allTasks: LinkedTask[] = [];
-          for (const group of groups) {
-            for (const task of group.tasks) {
-              if (task.goalId === outcome.id) {
-                allTasks.push({ id: task.id, name: task.name, goalId: task.goalId, frequency: task.frequency, completionType: task.completionType, basePoints: task.basePoints, target: task.target, unit: task.unit, completed: task.completion?.completed || false, value: task.completion?.value || null, startDate: task.startDate || task.date });
-              }
+        const found = goalsData.find((o: Outcome) => String(o.id) === String(outcome.id));
+        if (found) setOutcome(found);
+        setLogs(logData);
+        const goalCompletions = completions[outcome.id] || [];
+        const completedDatesSet = new Set<string>(goalCompletions.filter((e: { completed: boolean; date: string }) => e.completed).map((e: { date: string }) => e.date));
+        const logValueByDate = new Map<string, number>();
+        for (const log of logData) {
+          const dateStr = log.loggedAt.split('T')[0];
+          logValueByDate.set(dateStr, log.value);
+        }
+        const newTasks: LinkedTask[] = [];
+        for (const group of taskGroups) {
+          for (const task of group.tasks) {
+            if (task.goalId === outcome.id) {
+              const isCompletedToday = task.completion?.completed || false;
+              const isCompletedOnDate = task.startDate ? completedDatesSet.has(task.startDate) : false;
+              const taskValue = task.completion?.value ?? (task.startDate ? logValueByDate.get(task.startDate) ?? null : null);
+              newTasks.push({ id: task.id, name: task.name, goalId: task.goalId, frequency: task.frequency || "daily", completionType: task.completionType || "checkbox", basePoints: task.basePoints || 0, target: task.target ?? null, unit: task.unit ?? null, completed: isCompletedToday || isCompletedOnDate, value: taskValue, startDate: task.startDate || null });
             }
           }
-          setLinkedTasks(allTasks);
         }
-        if (completionsRes.ok) {
-          const completions = await completionsRes.json();
-          setTaskCompletionDates(completions[outcome.id] || []);
-        }
+        setLinkedTasks(newTasks);
+        setTaskCompletionDates(goalCompletions);
       } else {
         setSnackbar({ open: true, message: "Failed to generate tasks", severity: "error" });
       }

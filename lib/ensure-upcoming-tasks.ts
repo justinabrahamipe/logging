@@ -144,13 +144,24 @@ export async function generateGoalTasks(userId: string, goalId: number) {
   const isTarget = !isHabitual && !isOutcome;
   const taskCompletionType = outcome.completionType || (isHabitual ? 'checkbox' : 'numeric');
 
+  // Count how many uncompleted tasks already exist (to calculate target accurately)
+  const uncompletedTasks = await db
+    .select({ id: tasks.id })
+    .from(tasks)
+    .where(and(eq(tasks.userId, userId), eq(tasks.goalId, goalId), eq(tasks.completed, false)));
+
   let taskDailyTarget: number | null = null;
   if (taskCompletionType !== 'checkbox') {
     if (isTarget) {
       const remainingValue = (outcome.targetValue ?? 1) - (outcome.currentValue ?? 0);
-      const remainingDays = (outcome.targetDate)
-        ? (countScheduledDaysInRange(todayStr, outcome.targetDate, scheduleDays) || 1)
-        : 1;
+      // Use uncompleted task count if available, otherwise count scheduled days to generate
+      let remainingDays = uncompletedTasks.length;
+      if (remainingDays === 0 && outcome.targetDate) {
+        // No tasks yet — count how many will be created
+        const rangeS = outcome.startDate && outcome.startDate > todayStr ? outcome.startDate : todayStr;
+        remainingDays = countScheduledDaysInRange(rangeS, outcome.targetDate, scheduleDays) || 1;
+      }
+      if (remainingDays === 0) remainingDays = 1;
       taskDailyTarget = Math.ceil(Math.max(0, remainingValue) / remainingDays);
     } else if (outcome.dailyTarget) {
       taskDailyTarget = outcome.dailyTarget;
@@ -263,9 +274,10 @@ export async function recalcTargetGoalTasks(userId: string) {
   for (const outcome of targetGoals) {
     const scheduleDays: number[] = JSON.parse(outcome.scheduleDays!);
     const remainingValue = (outcome.targetValue ?? 1) - (outcome.currentValue ?? 0);
-    const remainingDays = outcome.targetDate
-      ? (countScheduledDaysInRange(todayStr, outcome.targetDate, scheduleDays) || 1)
-      : 1;
+    // Use actual uncompleted task count instead of counting scheduled days
+    // This correctly handles days where the task is already completed
+    const goalTasks = tasksByGoal.get(outcome.id) || [];
+    const remainingDays = goalTasks.length || 1;
     const newTarget = Math.ceil(Math.max(0, remainingValue) / remainingDays);
 
     // Recalculate minimumTarget proportionally

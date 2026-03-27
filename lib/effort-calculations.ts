@@ -41,7 +41,11 @@ export function calculateEffortMetrics(
   const currentRate = elapsedScheduledDays > 0 ? currentDelta / elapsedScheduledDays : 0;
 
   const remaining = totalDelta - currentDelta;
-  const remainingScheduledDays = countScheduledDaysInRange(effectiveToday, endDate, scheduleDays);
+  // Count remaining days from tomorrow (today's work is already reflected in currentDelta)
+  const tomorrow = new Date(effectiveToday + 'T12:00:00');
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().split('T')[0];
+  const remainingScheduledDays = countScheduledDaysInRange(tomorrowStr, endDate, scheduleDays);
   const requiredRate = remainingScheduledDays > 0 ? Math.ceil(remaining / remainingScheduledDays) : remaining;
 
   const idealProgress = totalScheduledDays > 0
