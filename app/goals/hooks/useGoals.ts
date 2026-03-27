@@ -150,31 +150,43 @@ export function useGoals() {
     }
   };
 
-  const handleArchive = async (id: number) => {
-    if (!confirm("Permanently delete this goal and all its data?")) return;
-    try {
-      await fetch(`/api/outcomes/${id}`, { method: "DELETE" });
-      await fetchGoals();
-    } catch (error) {
-      console.error("Failed to delete outcome:", error);
-    }
-    setMenuOpen(null);
+  const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
+
+  const handleArchive = (id: number) => {
+    setConfirmDialog({
+      message: "Permanently delete this goal and all its data?",
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try {
+          await fetch(`/api/outcomes/${id}`, { method: "DELETE" });
+          await fetchGoals();
+        } catch (error) {
+          console.error("Failed to delete outcome:", error);
+        }
+        setMenuOpen(null);
+      },
+    });
   };
 
-  const handleStatusChange = async (id: number, newStatus: 'active' | 'completed' | 'abandoned') => {
+  const handleStatusChange = (id: number, newStatus: 'active' | 'completed' | 'abandoned') => {
     const label = newStatus === 'completed' ? 'complete' : newStatus === 'abandoned' ? 'abandon' : 'reactivate';
-    if (!confirm(`Are you sure you want to ${label} this goal?`)) return;
-    try {
-      await fetch(`/api/outcomes/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      await fetchGoals();
-    } catch (error) {
-      console.error("Failed to update goal status:", error);
-    }
-    setMenuOpen(null);
+    setConfirmDialog({
+      message: `Are you sure you want to ${label} this goal?`,
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try {
+          await fetch(`/api/outcomes/${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: newStatus }),
+          });
+          await fetchGoals();
+        } catch (error) {
+          console.error("Failed to update goal status:", error);
+        }
+        setMenuOpen(null);
+      },
+    });
   };
 
   const handleAddTaskForToday = async (outcome: Outcome): Promise<boolean> => {
@@ -275,5 +287,7 @@ export function useGoals() {
     getProgress,
     fetchGoals,
     fetchLinkedTasks,
+    confirmDialog,
+    setConfirmDialog,
   };
 }

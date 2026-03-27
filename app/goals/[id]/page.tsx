@@ -42,6 +42,7 @@ export default function GoalDetailPage() {
   const [sortAsc, setSortAsc] = useState(false);
   const [pendingValues, setPendingValues] = useState<Record<number, string>>({});
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -234,25 +235,36 @@ export default function GoalDetailPage() {
     }
   };
 
-  const handleStatusChange = async (newStatus: 'active' | 'completed' | 'abandoned') => {
+  const handleStatusChange = (newStatus: 'active' | 'completed' | 'abandoned') => {
     if (!outcome) return;
     const label = newStatus === 'completed' ? 'complete' : newStatus === 'abandoned' ? 'abandon' : 'reactivate';
-    if (!confirm(`Are you sure you want to ${label} this goal?`)) return;
-    setArchiving(true);
-    await fetch(`/api/outcomes/${outcome.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: newStatus }),
+    setConfirmDialog({
+      message: `Are you sure you want to ${label} this goal?`,
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        setArchiving(true);
+        await fetch(`/api/outcomes/${outcome.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: newStatus }),
+        });
+        setOutcome({ ...outcome, status: newStatus });
+        setArchiving(false);
+      },
     });
-    setOutcome({ ...outcome, status: newStatus });
-    setArchiving(false);
   };
 
-  const handleDelete = async () => {
-    if (!outcome || !confirm("Permanently delete this goal and all its data?")) return;
-    setArchiving(true);
-    await fetch(`/api/outcomes/${outcome.id}`, { method: "DELETE" });
-    router.push("/goals");
+  const handleDelete = () => {
+    if (!outcome) return;
+    setConfirmDialog({
+      message: "Permanently delete this goal and all its data?",
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        setArchiving(true);
+        await fetch(`/api/outcomes/${outcome.id}`, { method: "DELETE" });
+        router.push("/goals");
+      },
+    });
   };
 
   if (loading) {
@@ -642,6 +654,29 @@ export default function GoalDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Confirmation Dialog */}
+      {confirmDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setConfirmDialog(null)}>
+          <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-xl p-6 mx-4 max-w-sm w-full" onClick={e => e.stopPropagation()}>
+            <p className="text-sm text-zinc-900 dark:text-white mb-4">{confirmDialog.message}</p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setConfirmDialog(null)}
+                className="px-4 py-2 text-sm rounded-lg bg-zinc-100 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-600"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDialog.onConfirm}
+                className="px-4 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

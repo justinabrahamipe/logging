@@ -166,7 +166,11 @@ export default function TasksPage() {
 
     return (
       <>
-        <div style={gridStyle}>{todoTasks.map(renderItem)}</div>
+        {todoTasks.length > 0 && (
+          <TaskSectionAccordion storageKey="todoAccordionOpen" label="To Do" count={todoTasks.length} color="text-zinc-600 dark:text-zinc-300">
+            <div style={gridStyle}>{todoTasks.map(renderItem)}</div>
+          </TaskSectionAccordion>
+        )}
         {skippedTasks.length > 0 && (
           <TaskSectionAccordion storageKey="skippedAccordionOpen" label="Skipped" count={skippedTasks.length} color="text-amber-500 dark:text-amber-400">
             <div style={gridStyle}>{skippedTasks.map(renderItem)}</div>

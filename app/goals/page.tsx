@@ -37,6 +37,8 @@ export default function GoalsPage() {
     handleAddTaskForToday,
     getProgress,
     fetchGoals,
+    confirmDialog,
+    setConfirmDialog,
   } = useGoals();
 
   const [cycles, setCycles] = useState<Cycle[]>([]);
@@ -332,6 +334,43 @@ export default function GoalsPage() {
       >
         <FaPlus className="text-lg" />
       </button>
+
+      {/* Confirmation Dialog */}
+      <AnimatePresence>
+        {confirmDialog && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+            onClick={() => setConfirmDialog(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white dark:bg-zinc-800 rounded-xl p-6 mx-4 max-w-sm w-full shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <p className="text-sm text-zinc-700 dark:text-zinc-300 mb-4">{confirmDialog.message}</p>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setConfirmDialog(null)}
+                  className="px-4 py-2 text-sm rounded-lg bg-zinc-100 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-600"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDialog.onConfirm}
+                  className="px-4 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700"
+                >
+                  Confirm
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

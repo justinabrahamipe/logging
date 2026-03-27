@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   FaCheck,
   FaArrowLeft,
@@ -114,10 +114,17 @@ export default function CycleDetailPage() {
     if (res.ok) setSelectedCycle({ ...selectedCycle, [field]: value || null });
   };
 
-  const handleDeleteCycle = async () => {
-    if (!confirm("Delete this cycle?")) return;
-    await fetch(`/api/cycles/${id}`, { method: "DELETE" });
-    router.push("/cycles");
+  const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
+
+  const handleDeleteCycle = () => {
+    setConfirmDialog({
+      message: "Delete this cycle? This action cannot be undone.",
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        await fetch(`/api/cycles/${id}`, { method: "DELETE" });
+        router.push("/cycles");
+      },
+    });
   };
 
   if (loading) return (
@@ -397,6 +404,43 @@ export default function CycleDetailPage() {
         })()}
 
       </motion.div>
+
+      {/* Confirmation Dialog */}
+      <AnimatePresence>
+        {confirmDialog && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+            onClick={() => setConfirmDialog(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white dark:bg-zinc-800 rounded-xl p-6 mx-4 max-w-sm w-full shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <p className="text-sm text-zinc-700 dark:text-zinc-300 mb-4">{confirmDialog.message}</p>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setConfirmDialog(null)}
+                  className="px-4 py-2 text-sm rounded-lg bg-zinc-100 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-600"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDialog.onConfirm}
+                  className="px-4 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700"
+                >
+                  Confirm
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
