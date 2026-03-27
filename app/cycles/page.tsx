@@ -77,35 +77,63 @@ export default function CyclesPage() {
       }
     }
 
+    // Day-based progress
+    const startMs = new Date(cycle.startDate + 'T00:00:00').getTime();
+    const endMs = new Date(cycle.endDate + 'T23:59:59').getTime();
+    const nowMs = now.getTime();
+    const totalDays = Math.max(1, Math.round((endMs - startMs) / 86400000));
+    const elapsedDays = cycleStatus === "Future" ? 0 : cycleStatus === "Past" ? totalDays : Math.max(0, Math.min(totalDays, Math.round((nowMs - startMs) / 86400000)));
+    const remainingDays = totalDays - elapsedDays;
+    const progressPct = Math.round((elapsedDays / totalDays) * 100);
+
     return (
       <motion.div
         key={cycle.id}
         layout
         onClick={() => status === "authenticated" && router.push(`/cycles/${cycle.id}`)}
-        className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-5 cursor-pointer hover:border-zinc-400 dark:hover:border-zinc-500 transition-colors"
+        className="relative overflow-hidden bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-5 cursor-pointer hover:border-zinc-400 dark:hover:border-zinc-500 transition-colors"
       >
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">{cycle.name}</h3>
-          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-            cycleStatus === "Active"
-              ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-              : cycleStatus === "Future"
-              ? "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
-              : "bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400"
-          }`}>
-            {cycleStatus}
-          </span>
-        </div>
-        {cycle.theme && (
-          <p className="text-xs text-zinc-600 dark:text-zinc-400 mb-1 font-medium">{cycle.theme}</p>
+        {/* Background progress fill */}
+        {progressPct > 0 && (
+          <div
+            className="absolute inset-0 pointer-events-none bg-zinc-900 dark:bg-zinc-100 opacity-[0.04] dark:opacity-[0.06]"
+            style={{ width: `${progressPct}%` }}
+          />
         )}
-        <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-2">
-          {cycle.startDate} &rarr; {cycle.endDate}
-        </p>
 
-        {/* Stats gist */}
-        {(cycleGoals.length > 0 || avgScore !== null) && (
-          <div className="flex flex-wrap items-center gap-3 mb-3 text-xs">
+        <div className="relative">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">{cycle.name}</h3>
+            <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+              cycleStatus === "Active"
+                ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                : cycleStatus === "Future"
+                ? "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                : "bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400"
+            }`}>
+              {cycleStatus}
+            </span>
+          </div>
+          {cycle.theme && (
+            <p className="text-xs text-zinc-600 dark:text-zinc-400 mb-1 font-medium">{cycle.theme}</p>
+          )}
+          <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-2">
+            {cycle.startDate} &rarr; {cycle.endDate}
+          </p>
+
+          {/* Stats gist */}
+          <div className="flex flex-wrap items-center gap-3 text-xs">
+            <span className="text-zinc-500 dark:text-zinc-400">
+              {elapsedDays} day{elapsedDays !== 1 ? 's' : ''} done
+            </span>
+            <span className="text-zinc-500 dark:text-zinc-400">
+              {remainingDays} day{remainingDays !== 1 ? 's' : ''} left
+            </span>
+            {cycleStatus === "Active" && (
+              <span className="font-medium text-zinc-600 dark:text-zinc-300">
+                Week {weekNum}/{cycleTotalWeeks}
+              </span>
+            )}
             {cycleGoals.length > 0 && (
               <span className="text-zinc-500 dark:text-zinc-400">
                 {completedGoals}/{cycleGoals.length} goals
@@ -120,27 +148,7 @@ export default function CyclesPage() {
               </span>
             )}
           </div>
-        )}
-
-        <div className="flex gap-1">
-          {Array.from({ length: cycleTotalWeeks }, (_, i) => (
-            <div
-              key={i}
-              className={`h-2 flex-1 rounded-full ${
-                i + 1 < weekNum
-                  ? "bg-zinc-900 dark:bg-zinc-100"
-                  : i + 1 === weekNum && !isCompleted
-                  ? "bg-zinc-400 dark:bg-zinc-500"
-                  : isCompleted
-                  ? "bg-zinc-900 dark:bg-zinc-100"
-                  : "bg-zinc-200 dark:bg-zinc-700"
-              }`}
-            />
-          ))}
         </div>
-        {cycleStatus === "Active" && (
-          <p className="text-xs text-zinc-400 mt-1">Week {weekNum} of {cycleTotalWeeks}</p>
-        )}
       </motion.div>
     );
   };
