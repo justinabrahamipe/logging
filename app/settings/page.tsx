@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { FaClock, FaCalendar, FaCheck, FaCog, FaDatabase, FaTrash, FaDownload, FaExclamationTriangle, FaTasks, FaColumns, FaKey, FaCopy } from "react-icons/fa";
+import { FaClock, FaCalendar, FaCheck, FaCog, FaDatabase, FaTrash, FaDownload, FaExclamationTriangle, FaTasks, FaColumns, FaKey, FaCopy, FaFire } from "react-icons/fa";
 import { useSession } from "next-auth/react";
 import { useTheme } from "@/components/ThemeProvider";
 import { Snackbar, Alert as MuiAlert } from "@mui/material";
@@ -22,6 +22,7 @@ export default function SettingsPage() {
   const [showResetConfirm, setShowResetConfirm] = useState<null | 'blank' | 'defaults'>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  const [streakThreshold, setStreakThreshold] = useState(95);
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [apiKeyCopied, setApiKeyCopied] = useState(false);
   const [apiLinkCopied, setApiLinkCopied] = useState(false);
@@ -55,6 +56,7 @@ export default function SettingsPage() {
         const data = JSON.parse(cached);
         setTimeFormat(data.timeFormat || "12h");
         setDateFormat(data.dateFormat || "DD/MM/YYYY");
+        if (data.streakThreshold !== undefined) setStreakThreshold(data.streakThreshold);
       } catch {}
     }
 
@@ -64,6 +66,7 @@ export default function SettingsPage() {
         const data = await response.json();
         setTimeFormat(data.timeFormat || "12h");
         setDateFormat(data.dateFormat || "DD/MM/YYYY");
+        if (data.streakThreshold !== undefined) setStreakThreshold(data.streakThreshold);
         setApiKey(data.apiKey || null);
         sessionStorage.setItem('userSettings', JSON.stringify(data));
       }
@@ -93,6 +96,7 @@ export default function SettingsPage() {
           body: JSON.stringify({
             timeFormat,
             dateFormat,
+            streakThreshold,
           }),
         });
 
@@ -104,6 +108,7 @@ export default function SettingsPage() {
           const settingsData = {
             timeFormat,
             dateFormat,
+            streakThreshold,
           };
           sessionStorage.setItem('userSettings', JSON.stringify(settingsData));
 
@@ -310,6 +315,37 @@ export default function SettingsPage() {
                     </div>
                   </motion.button>
                 ))}
+              </div>
+            </div>
+
+            {/* Streak Threshold */}
+            <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4 md:p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-3 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
+                  <FaFire className="text-2xl text-zinc-600 dark:text-zinc-400" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white">Streak Threshold</h2>
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400">Minimum action score to count as a streak day</p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center gap-4">
+                  <input
+                    type="range"
+                    min="50"
+                    max="100"
+                    step="5"
+                    value={streakThreshold}
+                    onChange={e => setStreakThreshold(parseInt(e.target.value))}
+                    className="flex-1 accent-zinc-900 dark:accent-zinc-100"
+                  />
+                  <span className="text-2xl font-bold text-zinc-900 dark:text-white w-16 text-right">{streakThreshold}%</span>
+                </div>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  Days with an action score at or above {streakThreshold}% will count toward your streak.
+                </p>
               </div>
             </div>
 

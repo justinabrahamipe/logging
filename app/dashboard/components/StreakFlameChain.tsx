@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { FaFire, FaTimes } from "react-icons/fa";
+import { useTheme } from "@/components/ThemeProvider";
 import type { HistoryScore } from "@/lib/types";
 
 interface StreakFlameChainProps {
@@ -10,6 +11,7 @@ interface StreakFlameChainProps {
 }
 
 export default function StreakFlameChain({ scores, currentStreak }: StreakFlameChainProps) {
+  const { streakThreshold } = useTheme();
   const days = useMemo(() => {
     const scoreMap = new Map<string, number>();
     for (const s of scores) {
@@ -28,9 +30,9 @@ export default function StreakFlameChain({ scores, currentStreak }: StreakFlameC
 
       let status: "pass" | "fail" | "today" | "none";
       if (dateStr === todayStr) {
-        status = score !== undefined && score >= 95 ? "pass" : "today";
+        status = score !== undefined && score >= streakThreshold ? "pass" : "today";
       } else {
-        status = score === undefined ? "none" : score >= 95 ? "pass" : "fail";
+        status = score === undefined ? "none" : score >= streakThreshold ? "pass" : "fail";
       }
 
       result.push({
@@ -41,7 +43,7 @@ export default function StreakFlameChain({ scores, currentStreak }: StreakFlameC
     }
 
     return result;
-  }, [scores]);
+  }, [scores, streakThreshold]);
 
   return (
     <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-6 mb-6">

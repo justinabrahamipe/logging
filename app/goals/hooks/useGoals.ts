@@ -14,8 +14,22 @@ export function useGoals() {
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState<number | null>(null);
   const [logsMap, setLogsMap] = useState<Record<number, LogEntry[]>>({});
-  const [goalTab, setGoalTab] = useState<"all" | "habitual" | "target" | "outcome">("all");
-  const [timeTab, setTimeTab] = useState<"current" | "future" | "past">("current");
+  const [goalTab, setGoalTabState] = useState<"all" | "habitual" | "target" | "outcome">(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('goalsGoalTab');
+      if (saved === 'all' || saved === 'habitual' || saved === 'target' || saved === 'outcome') return saved;
+    }
+    return "all";
+  });
+  const setGoalTab = (v: "all" | "habitual" | "target" | "outcome") => { setGoalTabState(v); localStorage.setItem('goalsGoalTab', v); };
+  const [timeTab, setTimeTabState] = useState<"current" | "future" | "past">(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('goalsTimeTab');
+      if (saved === 'current' || saved === 'future' || saved === 'past') return saved;
+    }
+    return "current";
+  });
+  const setTimeTab = (v: "current" | "future" | "past") => { setTimeTabState(v); localStorage.setItem('goalsTimeTab', v); };
   const [linkedTasks, setLinkedTasks] = useState<LinkedTask[]>([]);
   const [taskCompletionDates, setTaskCompletionDates] = useState<Record<number, { date: string; value: number; completed: boolean }[]>>({});
   const [cycles, setCycles] = useState<CycleOption[]>([]);

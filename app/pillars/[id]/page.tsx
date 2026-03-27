@@ -61,7 +61,7 @@ interface CyclePerf {
 
 export default function PillarDetailPage() {
   const { data: session, status } = useSession();
-  const { dateFormat } = useTheme();
+  const { dateFormat, streakThreshold } = useTheme();
   const router = useRouter();
   const params = useParams();
   const id = parseInt(params.id as string);
@@ -129,7 +129,7 @@ export default function PillarDetailPage() {
         let maxStreak = 0, cur = 0;
         for (const s of sorted) {
           const score = pillarScoreValues.length > 0 ? (() => { try { const ps = JSON.parse(s.pillarScores || "{}"); return ps[id] ?? 0; } catch { return 0; } })() : s.actionScore;
-          if (score >= 95) { cur++; maxStreak = Math.max(maxStreak, cur); } else { cur = 0; }
+          if (score >= streakThreshold) { cur++; maxStreak = Math.max(maxStreak, cur); } else { cur = 0; }
         }
 
         return { cycle, goals: cycleGoals, avgPillarScore, avgActionScore, topStreak: maxStreak, totalDays: inRange.length };

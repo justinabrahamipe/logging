@@ -97,8 +97,6 @@ export default function TasksPage() {
 
   const filteredTasks = isScheduledView ? [] : allEnrichedTasks.filter(task => {
     if (!isServerFiltered && !isTaskInDateRange(task)) return false;
-    const completed = task.completion?.completed || (task.target != null && task.target > 0 && (task.completion?.value || 0) >= task.target);
-    if (!passesStatusFilter(completed, task.completion?.value ?? null, task.completion?.skipped)) return false;
     if (filters.pillars.length > 0 && !filters.pillars.includes(task.pillarId)) return false;
     if (filters.goals.length > 0 && !(task.goalId && filters.goals.includes(task.goalId))) return false;
     return true;
@@ -146,20 +144,41 @@ export default function TasksPage() {
       );
     }
 
-    const taskElements = filteredTasks.map((t) => {
+    const isDone = (t: EnrichedTask) =>
+      t.completion?.completed || (t.target != null && t.target > 0 && (t.completion?.value || 0) >= t.target);
+    const isSkipped = (t: EnrichedTask) => t.completion?.skipped;
+
+    const todoTasks = filteredTasks.filter(t => !isDone(t) && !isSkipped(t));
+    const doneTasks = filteredTasks.filter(t => isDone(t) && !isSkipped(t));
+    const skippedTasks = filteredTasks.filter(t => isSkipped(t));
+
+    const renderItem = (t: EnrichedTask) => {
       const bucket = getDateBucket(t);
       const showDate = (!isServerFiltered && filters.date.type !== 'today' && bucket !== 'Today') ? (
         bucket === 'Tomorrow' ? 'Tomorrow' :
         bucket === 'No Date' ? undefined :
         t.startDate ? formatDate(t.startDate, dateFormat) : undefined
       ) : undefined;
-
       return <TaskItem key={t.id} task={t} showDate={showDate} {...taskItemProps} />;
-    });
+    };
 
     const gridStyle = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.5rem' };
 
-    return <div style={gridStyle}>{taskElements}</div>;
+    return (
+      <>
+        <div style={gridStyle}>{todoTasks.map(renderItem)}</div>
+        {skippedTasks.length > 0 && (
+          <TaskSectionAccordion storageKey="skippedAccordionOpen" label="Skipped" count={skippedTasks.length} color="text-amber-500 dark:text-amber-400">
+            <div style={gridStyle}>{skippedTasks.map(renderItem)}</div>
+          </TaskSectionAccordion>
+        )}
+        {doneTasks.length > 0 && (
+          <TaskSectionAccordion storageKey="doneAccordionOpen" label="Done" count={doneTasks.length} color="text-green-500 dark:text-green-400">
+            <div style={gridStyle}>{doneTasks.map(renderItem)}</div>
+          </TaskSectionAccordion>
+        )}
+      </>
+    );
   };
 
   return (
@@ -244,12 +263,50 @@ export default function TasksPage() {
   );
 }
 
-function NoDateAccordion({ tasks, taskItemProps }: { tasks: EnrichedTask[]; taskItemProps: React.ComponentProps<typeof TaskItem> extends infer P ? Omit<P, 'task' | 'showDate'> : never }) {
-  const [open, setOpen] = useState(true);
+function TaskSectionAccordion({ storageKey, label, count, color, children }: { storageKey: string; label: string; count: number; color: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(storageKey);
+      return saved !== null ? saved === 'true' : true;
+    }
+    return true;
+  });
+  const toggleOpen = () => {
+    const next = !open;
+    setOpen(next);
+    localStorage.setItem(storageKey, String(next));
+  };
   return (
     <div className="mt-4">
       <button
-        onClick={() => setOpen(!open)}
+        onClick={toggleOpen}
+        className={`w-full flex items-center gap-2 px-1 py-2 text-xs font-medium ${color}`}
+      >
+        {open ? <FaChevronDown className="text-[10px]" /> : <FaChevronRight className="text-[10px]" />}
+        {label} ({count})
+      </button>
+      {open && children}
+    </div>
+  );
+}
+
+function NoDateAccordion({ tasks, taskItemProps }: { tasks: EnrichedTask[]; taskItemProps: React.ComponentProps<typeof TaskItem> extends infer P ? Omit<P, 'task' | 'showDate'> : never }) {
+  const [open, setOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('noDateAccordionOpen');
+      return saved !== null ? saved === 'true' : true;
+    }
+    return true;
+  });
+  const toggleOpen = () => {
+    const next = !open;
+    setOpen(next);
+    localStorage.setItem('noDateAccordionOpen', String(next));
+  };
+  return (
+    <div className="mt-4">
+      <button
+        onClick={toggleOpen}
         className="w-full flex items-center gap-2 px-1 py-2 text-xs font-medium text-zinc-400 dark:text-zinc-500"
       >
         {open ? <FaChevronDown className="text-[10px]" /> : <FaChevronRight className="text-[10px]" />}

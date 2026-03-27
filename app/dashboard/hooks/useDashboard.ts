@@ -13,7 +13,7 @@ import type {
 
 export function useDashboard() {
   const { data: session, status } = useSession();
-  const { dateFormat } = useTheme();
+  const { dateFormat, streakThreshold } = useTheme();
   const [score, setScore] = useState<DailyScoreData | null>(null);
   const [history, setHistory] = useState<HistoryData | null>(null);
   const [outcomesData, setOutcomesData] = useState<OutcomeData[]>([]);
@@ -36,7 +36,7 @@ export function useDashboard() {
     while (true) {
       const dateStr = d.toISOString().split("T")[0];
       const score = scoreMap.get(dateStr);
-      if (score !== undefined && score >= 95) {
+      if (score !== undefined && score >= streakThreshold) {
         streak++;
         d.setDate(d.getDate() - 1);
       } else {
@@ -44,7 +44,7 @@ export function useDashboard() {
       }
     }
     return streak;
-  }, [history]);
+  }, [history, streakThreshold]);
 
   useEffect(() => {
     if (status === "unauthenticated") {

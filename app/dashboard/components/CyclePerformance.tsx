@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { FaFire } from "react-icons/fa";
+import { useTheme } from "@/components/ThemeProvider";
 
 interface CycleData {
   id: number;
@@ -33,6 +34,7 @@ interface CycleStats {
 
 export default function CyclePerformance() {
   const { data: session } = useSession();
+  const { streakThreshold } = useTheme();
   const [cycleStats, setCycleStats] = useState<CycleStats[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -81,7 +83,7 @@ export default function CyclePerformance() {
         const sortedScores = [...inRange].sort((a, b) => a.date.localeCompare(b.date));
         let maxStreak = 0, current = 0;
         for (const s of sortedScores) {
-          if (s.actionScore >= 95) { current++; maxStreak = Math.max(maxStreak, current); }
+          if (s.actionScore >= streakThreshold) { current++; maxStreak = Math.max(maxStreak, current); }
           else { current = 0; }
         }
 

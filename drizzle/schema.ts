@@ -59,6 +59,7 @@ export const userPreferences = sqliteTable('UserPreferences', {
   timeFormat: text('timeFormat').notNull().default('12h'),
   dateFormat: text('dateFormat').notNull().default('DD/MM/YYYY'),
   apiKey: text('apiKey'), // null = disabled, value = active key
+  streakThreshold: integer('streakThreshold').notNull().default(95), // minimum action score % to count as a streak day
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({

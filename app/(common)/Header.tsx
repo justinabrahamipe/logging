@@ -14,7 +14,7 @@ import { useSession, signOut } from "next-auth/react";
 import { useTheme } from "@/components/ThemeProvider";
 
 export default function Header() {
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, streakThreshold } = useTheme();
   const [isDark, setIsDark] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
@@ -104,7 +104,7 @@ export default function Header() {
         while (true) {
           const ds = d.toISOString().split("T")[0];
           const sc = scoreMap.get(ds);
-          if (sc !== undefined && sc >= 95) { streak++; d.setDate(d.getDate() - 1); }
+          if (sc !== undefined && sc >= streakThreshold) { streak++; d.setDate(d.getDate() - 1); }
           else break;
         }
       }

@@ -70,11 +70,9 @@ export default function DateNavigation({
   closePopover,
 }: DateNavigationProps) {
   const dateRef = useRef<HTMLButtonElement>(null);
-  const statusRef = useRef<HTMLButtonElement>(null);
   const addRef = useRef<HTMLButtonElement>(null);
 
   const datePos = usePopoverPosition(dateRef, activePopover === 'date', 'left');
-  const statusPos = usePopoverPosition(statusRef, activePopover === 'status', 'left');
   const addPos = usePopoverPosition(addRef, activePopover === 'add', 'right');
 
   return (
@@ -105,23 +103,6 @@ export default function DateNavigation({
             {getDateLabel()}
             <FaChevronDown className="text-[8px] text-zinc-400" />
           </button>
-
-          {/* Status chip */}
-          {filters.status !== 'all' && (
-            <button
-              ref={statusRef}
-              onClick={() => setActivePopover(activePopover === 'status' ? null : 'status')}
-              className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-500 transition-colors"
-            >
-              {filters.status === 'todo' ? 'To Do' : filters.status === 'done' ? 'Done' : 'Skipped'}
-              <span
-                className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
-                onClick={(e) => { e.stopPropagation(); setFilters(f => ({ ...f, status: 'all' })); }}
-              >
-                <FaTimes className="text-[8px]" />
-              </span>
-            </button>
-          )}
 
           {/* Pillar chips */}
           {filters.pillars.map(pillarId => {
@@ -349,46 +330,11 @@ export default function DateNavigation({
         </div>
       )}
 
-      {activePopover === 'status' && statusPos && (
-        <div
-          className="fixed z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-lg p-1.5 min-w-[120px]"
-          style={{ top: statusPos.top, left: statusPos.left }}
-        >
-          {(['todo', 'done', 'discarded'] as const).map(s => (
-            <button
-              key={s}
-              onClick={() => { setFilters(f => ({ ...f, status: s })); setActivePopover(null); }}
-              className={`w-full px-3 py-1.5 text-left text-sm rounded-lg transition-colors ${
-                filters.status === s ? 'bg-zinc-100 dark:bg-zinc-700 font-medium text-zinc-900 dark:text-white' : 'hover:bg-zinc-50 dark:hover:bg-zinc-700/50 text-zinc-600 dark:text-zinc-400'
-              }`}
-            >
-              {s === 'todo' ? 'To Do' : s === 'done' ? 'Done' : 'Skipped'}
-            </button>
-          ))}
-        </div>
-      )}
-
       {activePopover === 'add' && addPos && (
         <div
           className="fixed z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-lg p-1.5 w-[180px] max-h-[calc(100vh-4rem)] overflow-y-auto"
           style={{ top: addPos.top, left: addPos.left }}
         >
-          {/* Status section */}
-          {filters.status === 'all' && (
-            <>
-              <p className="px-3 py-1 text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Status</p>
-              {(['todo', 'done', 'discarded'] as const).map(s => (
-                <button
-                  key={s}
-                  onClick={() => { setFilters(f => ({ ...f, status: s })); setActivePopover(null); }}
-                  className="w-full px-3 py-1.5 text-left text-sm rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-700/50 text-zinc-600 dark:text-zinc-400"
-                >
-                  {s === 'todo' ? 'To Do' : s === 'done' ? 'Done' : 'Skipped'}
-                </button>
-              ))}
-              <div className="border-t border-zinc-100 dark:border-zinc-700 my-1" />
-            </>
-          )}
           {/* Pillar section */}
           <p className="px-3 py-1 text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Pillar</p>
           {pillars.map(p => (

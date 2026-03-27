@@ -9,9 +9,11 @@ import { getCurrentWeekNumber, getTotalWeeks } from "@/lib/cycle-scoring";
 import { DEMO_CYCLES } from "@/lib/demo-data";
 import type { Cycle } from "@/lib/types";
 import CyclesLoading from "./loading";
+import { useTheme } from "@/components/ThemeProvider";
 
 export default function CyclesPage() {
   const { data: session, status } = useSession();
+  const { streakThreshold } = useTheme();
   const router = useRouter();
   const [cycles, setCycles] = useState<Cycle[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,7 +73,7 @@ export default function CyclesPage() {
       const sorted = [...inRange].sort((a, b) => a.date.localeCompare(b.date));
       let cur = 0;
       for (const s of sorted) {
-        if (s.actionScore >= 95) { cur++; topStreak = Math.max(topStreak, cur); } else { cur = 0; }
+        if (s.actionScore >= streakThreshold) { cur++; topStreak = Math.max(topStreak, cur); } else { cur = 0; }
       }
     }
 

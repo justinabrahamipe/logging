@@ -516,15 +516,36 @@ export function useTasksPage() {
       });
       if (res.ok) {
         const completion = await res.json();
-        setGroups(prev => prev.map(g => ({
-          ...g,
-          tasks: g.tasks.map(t =>
-            t.id === taskId ? { ...t, completion } : t
-          ),
-        })));
-        // Remove completed no-date tasks (they now have a date assigned)
-        if (completed) {
+        // Check if this is a no-date task being completed (needs to move into groups)
+        const noDateTask = noDateTasks.find(t => t.id === taskId);
+        if (noDateTask && completed) {
           setNoDateTasks(prev => prev.filter(t => t.id !== taskId));
+          setGroups(prev => {
+            const updated = prev.map(g => ({
+              ...g,
+              tasks: g.tasks.map(t => t.id === taskId ? { ...t, completion } : t),
+            }));
+            const alreadyInGroup = updated.some(g => g.tasks.some(t => t.id === taskId));
+            if (!alreadyInGroup) {
+              const taskWithCompletion = { ...noDateTask, completion };
+              const group = updated.find(g => g.pillar.id === (noDateTask.pillarId || 0));
+              if (group) {
+                return updated.map(g => g === group ? { ...g, tasks: [...g.tasks, taskWithCompletion] } : g);
+              }
+              // No matching group — add to first group or create a fallback
+              if (updated.length > 0) {
+                return updated.map((g, i) => i === 0 ? { ...g, tasks: [...g.tasks, taskWithCompletion] } : g);
+              }
+            }
+            return updated;
+          });
+        } else {
+          setGroups(prev => prev.map(g => ({
+            ...g,
+            tasks: g.tasks.map(t =>
+              t.id === taskId ? { ...t, completion } : t
+            ),
+          })));
         }
         fetchScore(viewDate);
       }

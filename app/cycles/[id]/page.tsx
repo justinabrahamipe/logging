@@ -13,9 +13,11 @@ import { useRouter, useParams } from "next/navigation";
 import { getCurrentWeekNumber, getGoalStatus, getTotalWeeks } from "@/lib/cycle-scoring";
 import { computeCycleAnalytics } from "@/lib/cycle-analytics";
 import type { CycleDetail } from "@/lib/types";
+import { useTheme } from "@/components/ThemeProvider";
 
 export default function CycleDetailPage() {
   const { data: session, status } = useSession();
+  const { streakThreshold } = useTheme();
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
@@ -93,7 +95,7 @@ export default function CycleDetailPage() {
     const streaks: number[] = [];
     let cur = 0;
     for (const s of sorted) {
-      if (s.actionScore >= 95) { cur++; } else { if (cur > 0) streaks.push(cur); cur = 0; }
+      if (s.actionScore >= streakThreshold) { cur++; } else { if (cur > 0) streaks.push(cur); cur = 0; }
     }
     if (cur > 0) streaks.push(cur);
     const topStreaks = streaks.sort((a, b) => b - a).slice(0, 3);
