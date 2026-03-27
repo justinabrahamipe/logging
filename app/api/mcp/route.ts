@@ -106,6 +106,10 @@ const TOOLS = [
         customDays: { type: "string", description: "Comma-separated days (mon,tue,wed,...) for custom frequency." },
         basePoints: { type: "number", description: "Points for completing the task. Defaults to 10." },
         goalId: { type: "number", description: "Goal ID to link this task to (optional). Use get_goals to find the ID." },
+        periodId: { type: "number", description: "Cycle/period ID to link to (optional)." },
+        flexibilityRule: { type: "string", description: "One of: must_today, at_least, limit_avoid. Defaults to must_today." },
+        limitValue: { type: "number", description: "Limit value for limit_avoid tasks (max allowed)." },
+        minimumTarget: { type: "number", description: "Minimum target for partial credit." },
         date: { type: "string", description: "Date for adhoc tasks (YYYY-MM-DD). Omit for a no-date task that appears on today's view until completed." },
       },
       required: ["name"],
@@ -137,8 +141,10 @@ const TOOLS = [
         basePoints: { type: "number", description: "New base points." },
         date: { type: "string", description: "New date (YYYY-MM-DD)." },
         goalId: { type: "number", description: "Goal ID to link to. Pass 0 to unlink." },
+        periodId: { type: "number", description: "Cycle/period ID. Pass 0 to unlink." },
         flexibilityRule: { type: "string", description: "One of: must_today, at_least, limit_avoid." },
         limitValue: { type: "number", description: "Limit value for limit_avoid rule." },
+        minimumTarget: { type: "number", description: "Minimum target for partial credit." },
       },
       required: ["taskId"],
     },
@@ -162,6 +168,9 @@ const TOOLS = [
         dailyTarget: { type: "number", description: "Per-session target for habitual/target goals." },
         autoCreateTasks: { type: "boolean", description: "Auto-create daily tasks for this goal. Defaults to false." },
         scheduleDays: { type: "array", items: { type: "number" }, description: "Days of week to schedule (0=Sun, 1=Mon, ..., 6=Sat)." },
+        flexibilityRule: { type: "string", description: "One of: must_today, at_least, limit_avoid. Defaults to must_today." },
+        limitValue: { type: "number", description: "Limit value for limit_avoid goals." },
+        minimumTarget: { type: "number", description: "Minimum target for partial credit." },
       },
       required: ["name"],
     },
@@ -180,20 +189,15 @@ const TOOLS = [
         startDate: { type: "string", description: "New start date (YYYY-MM-DD)." },
         targetDate: { type: "string", description: "New target date (YYYY-MM-DD)." },
         status: { type: "string", description: "One of: active, completed, abandoned." },
-        periodId: { type: "number", description: "Cycle/period ID to link to." },
+        periodId: { type: "number", description: "Cycle/period ID to link to. Pass 0 to unlink." },
         dailyTarget: { type: "number", description: "New per-session target." },
         completionType: { type: "string", description: "One of: checkbox, count, numeric." },
-      },
-      required: ["goalId"],
-    },
-  },
-  {
-    name: "delete_goal",
-    description: "Delete a goal and all its linked tasks/schedules. Use get_goals first to find the goal ID.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        goalId: { type: "number", description: "The goal ID to delete." },
+        goalType: { type: "string", description: "One of: outcome, target, habitual." },
+        scheduleDays: { type: "array", items: { type: "number" }, description: "Days of week (0=Sun..6=Sat)." },
+        autoCreateTasks: { type: "boolean", description: "Auto-create daily tasks." },
+        flexibilityRule: { type: "string", description: "One of: must_today, at_least, limit_avoid." },
+        limitValue: { type: "number", description: "Limit value for limit_avoid." },
+        minimumTarget: { type: "number", description: "Minimum target for partial credit." },
       },
       required: ["goalId"],
     },
@@ -222,6 +226,53 @@ const TOOLS = [
         theme: { type: "string", description: "Theme for this cycle (optional)." },
       },
       required: ["name", "startDate", "endDate"],
+    },
+  },
+  {
+    name: "create_pillar",
+    description: "Create a new life pillar (category for grouping tasks and goals).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Pillar name (e.g. 'Health', 'Career')." },
+        emoji: { type: "string", description: "Emoji icon. Defaults to '📌'." },
+        color: { type: "string", description: "Hex color (e.g. '#3B82F6'). Defaults to blue." },
+        weight: { type: "number", description: "Importance weight (0-10). Defaults to 0." },
+        description: { type: "string", description: "Description of this pillar (optional)." },
+      },
+      required: ["name"],
+    },
+  },
+  {
+    name: "edit_pillar",
+    description: "Edit an existing pillar. Use get_pillars to find the ID.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        pillarId: { type: "number", description: "The pillar ID to edit." },
+        name: { type: "string", description: "New name." },
+        emoji: { type: "string", description: "New emoji." },
+        color: { type: "string", description: "New hex color." },
+        weight: { type: "number", description: "New weight." },
+        description: { type: "string", description: "New description." },
+      },
+      required: ["pillarId"],
+    },
+  },
+  {
+    name: "edit_cycle",
+    description: "Edit an existing cycle/period. Use get_cycles to find the ID.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        cycleId: { type: "number", description: "The cycle ID to edit." },
+        name: { type: "string", description: "New name." },
+        startDate: { type: "string", description: "New start date (YYYY-MM-DD)." },
+        endDate: { type: "string", description: "New end date (YYYY-MM-DD)." },
+        vision: { type: "string", description: "New vision statement." },
+        theme: { type: "string", description: "New theme." },
+      },
+      required: ["cycleId"],
     },
   },
   {
@@ -302,7 +353,13 @@ async function executeTool(userId: string, name: string, args: Record<string, an
         if (g.startDate) parts.push(`${g.startDate} to ${g.targetDate}`);
         if (g.completionType !== 'checkbox') parts.push(`type: ${g.completionType}`);
         if (g.dailyTarget) parts.push(`daily: ${g.dailyTarget}`);
-        if (g.scheduleDays) parts.push(`days: ${g.scheduleDays}`);
+        if (g.scheduleDays) {
+          try {
+            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const days = JSON.parse(g.scheduleDays) as number[];
+            parts.push(`days: ${days.map(d => dayNames[d] || d).join(',')}`);
+          } catch { parts.push(`days: ${g.scheduleDays}`); }
+        }
         if (g.autoCreateTasks) parts.push('auto-tasks');
         if (g.flexibilityRule !== 'must_today') parts.push(`rule: ${g.flexibilityRule}`);
         if (g.limitValue != null) parts.push(`limit: ${g.limitValue}`);
@@ -464,14 +521,14 @@ async function executeTool(userId: string, name: string, args: Record<string, an
           completionType,
           target,
           unit: args.unit || null,
-          flexibilityRule: 'must_today',
-          limitValue: null,
+          flexibilityRule: args.flexibilityRule || 'must_today',
+          limitValue: args.limitValue ?? null,
           frequency,
           customDays: args.customDays || null,
           repeatInterval: null,
           basePoints,
           goalId: args.goalId ? parseInt(args.goalId) : null,
-          periodId: null,
+          periodId: args.periodId ? parseInt(args.periodId) : null,
           startDate: null,
         }).returning();
 
@@ -488,11 +545,12 @@ async function executeTool(userId: string, name: string, args: Record<string, an
           completionType,
           target,
           unit: args.unit || null,
-          flexibilityRule: 'must_today',
-          limitValue: null,
+          flexibilityRule: args.flexibilityRule || 'must_today',
+          limitValue: args.limitValue ?? null,
+          minimumTarget: args.minimumTarget ?? null,
           basePoints,
           goalId: args.goalId ? parseInt(args.goalId) : null,
-          periodId: null,
+          periodId: args.periodId ? parseInt(args.periodId) : null,
           date: taskDate,
         }).returning();
 
@@ -568,6 +626,8 @@ async function executeTool(userId: string, name: string, args: Record<string, an
       if (args.goalId !== undefined) updateData.goalId = args.goalId === 0 ? null : args.goalId;
       if (args.flexibilityRule !== undefined) updateData.flexibilityRule = args.flexibilityRule;
       if (args.limitValue !== undefined) updateData.limitValue = args.limitValue ?? null;
+      if (args.minimumTarget !== undefined) updateData.minimumTarget = args.minimumTarget ?? null;
+      if (args.periodId !== undefined) updateData.periodId = args.periodId === 0 ? null : args.periodId;
 
       if (Object.keys(updateData).length === 0) return "Error: No fields to update.";
 
@@ -584,6 +644,7 @@ async function executeTool(userId: string, name: string, args: Record<string, an
         if (args.basePoints !== undefined) scheduleUpdate.basePoints = args.basePoints;
         if (args.date !== undefined) scheduleUpdate.startDate = args.date;
         if (args.goalId !== undefined) scheduleUpdate.goalId = args.goalId === 0 ? null : args.goalId;
+        if (args.periodId !== undefined) scheduleUpdate.periodId = args.periodId === 0 ? null : args.periodId;
         if (args.flexibilityRule !== undefined) scheduleUpdate.flexibilityRule = args.flexibilityRule;
         if (args.limitValue !== undefined) scheduleUpdate.limitValue = args.limitValue ?? null;
         if (Object.keys(scheduleUpdate).length > 0) {
@@ -673,9 +734,15 @@ async function executeTool(userId: string, name: string, args: Record<string, an
       if (args.startDate !== undefined) updateData.startDate = args.startDate || null;
       if (args.targetDate !== undefined) updateData.targetDate = args.targetDate || null;
       if (args.status !== undefined) updateData.status = args.status;
-      if (args.periodId !== undefined) updateData.periodId = args.periodId || null;
+      if (args.periodId !== undefined) updateData.periodId = args.periodId === 0 ? null : args.periodId;
       if (args.dailyTarget !== undefined) updateData.dailyTarget = args.dailyTarget ?? null;
       if (args.completionType !== undefined) updateData.completionType = args.completionType;
+      if (args.goalType !== undefined) updateData.goalType = args.goalType;
+      if (args.scheduleDays !== undefined) updateData.scheduleDays = args.scheduleDays ? JSON.stringify(args.scheduleDays) : null;
+      if (args.autoCreateTasks !== undefined) updateData.autoCreateTasks = args.autoCreateTasks;
+      if (args.flexibilityRule !== undefined) updateData.flexibilityRule = args.flexibilityRule;
+      if (args.limitValue !== undefined) updateData.limitValue = args.limitValue ?? null;
+      if (args.minimumTarget !== undefined) updateData.minimumTarget = args.minimumTarget ?? null;
 
       if (Object.keys(updateData).length === 0) return "Error: No fields to update.";
 
@@ -737,20 +804,63 @@ async function executeTool(userId: string, name: string, args: Record<string, an
       return `Goal "${args.name || goalName}" updated.`;
     }
 
-    case "delete_goal": {
-      const goalId = parseInt(args.goalId);
-      if (!goalId) return "Error: goalId is required.";
+    case "create_pillar": {
+      const pillarName = args.name;
+      if (!pillarName) return "Error: name is required.";
 
-      const [existing] = await db.select().from(goals).where(and(eq(goals.id, goalId), eq(goals.userId, userId)));
-      if (!existing) return "Error: Goal not found.";
+      const [pillar] = await db.insert(pillars).values({
+        userId,
+        name: pillarName,
+        emoji: args.emoji || '📌',
+        color: args.color || '#3B82F6',
+        weight: args.weight ?? 0,
+        description: args.description || null,
+      }).returning();
 
-      // Delete linked tasks and schedules first
-      await db.delete(tasks).where(and(eq(tasks.goalId, goalId), eq(tasks.userId, userId)));
-      await db.delete(taskSchedules).where(and(eq(taskSchedules.goalId, goalId), eq(taskSchedules.userId, userId)));
-      await db.delete(goals).where(and(eq(goals.id, goalId), eq(goals.userId, userId)));
+      await createAutoLog(userId, `📌 Pillar created: ${pillarName}`);
+      return `Pillar "${pillarName}" created. Pillar ID: ${pillar.id}.`;
+    }
 
-      await createAutoLog(userId, `🗑️ Goal deleted: ${existing.name}`);
-      return `Goal "${existing.name}" deleted along with its linked tasks.`;
+    case "edit_pillar": {
+      const pillarId = parseInt(args.pillarId);
+      if (!pillarId) return "Error: pillarId is required.";
+
+      const [existing] = await db.select().from(pillars).where(and(eq(pillars.id, pillarId), eq(pillars.userId, userId)));
+      if (!existing) return "Error: Pillar not found.";
+
+      const updateData: Record<string, unknown> = {};
+      if (args.name !== undefined) updateData.name = args.name;
+      if (args.emoji !== undefined) updateData.emoji = args.emoji;
+      if (args.color !== undefined) updateData.color = args.color;
+      if (args.weight !== undefined) updateData.weight = args.weight;
+      if (args.description !== undefined) updateData.description = args.description || null;
+
+      if (Object.keys(updateData).length === 0) return "Error: No fields to update.";
+
+      await db.update(pillars).set(updateData).where(and(eq(pillars.id, pillarId), eq(pillars.userId, userId)));
+      await createAutoLog(userId, `✏️ Pillar updated: ${args.name || existing.name}`);
+      return `Pillar "${args.name || existing.name}" updated.`;
+    }
+
+    case "edit_cycle": {
+      const cycleId = parseInt(args.cycleId);
+      if (!cycleId) return "Error: cycleId is required.";
+
+      const [existing] = await db.select().from(cycles).where(and(eq(cycles.id, cycleId), eq(cycles.userId, userId)));
+      if (!existing) return "Error: Cycle not found.";
+
+      const updateData: Record<string, unknown> = {};
+      if (args.name !== undefined) updateData.name = args.name;
+      if (args.startDate !== undefined) updateData.startDate = args.startDate;
+      if (args.endDate !== undefined) updateData.endDate = args.endDate;
+      if (args.vision !== undefined) updateData.vision = args.vision || null;
+      if (args.theme !== undefined) updateData.theme = args.theme || null;
+
+      if (Object.keys(updateData).length === 0) return "Error: No fields to update.";
+
+      await db.update(cycles).set(updateData).where(and(eq(cycles.id, cycleId), eq(cycles.userId, userId)));
+      await createAutoLog(userId, `✏️ Cycle updated: ${args.name || existing.name}`);
+      return `Cycle "${args.name || existing.name}" updated.`;
     }
 
     case "delete_task": {
