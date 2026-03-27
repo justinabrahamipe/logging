@@ -36,3 +36,19 @@ export const COMPLETION_TYPE_LABELS: Record<string, string> = {
 export function getCompletionTypeLabel(type: string): string {
   return COMPLETION_TYPE_LABELS[type] || type;
 }
+
+const SHORT_DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+
+/**
+ * Format schedule days as a short label: "Daily", "Mon–Fri", "Mo, We, Fr", etc.
+ */
+export function formatScheduleLabel(days: number[]): string {
+  if (days.length === 0) return "";
+  if (days.length === 7) return "Daily";
+  const sorted = [...days].sort((a, b) => a - b);
+  if (sorted.length === 5 && sorted[0] === 1 && sorted[4] === 5 && sorted.every((d, i) => d === i + 1)) return "Mon–Fri";
+  if (sorted.length === 6 && sorted[0] === 1 && sorted[5] === 6 && sorted.every((d, i) => d === i + 1)) return "Mon–Sat";
+  const isConsecutive = sorted.every((d, i) => i === 0 || d === sorted[i - 1] + 1);
+  if (isConsecutive && sorted.length >= 3) return `${SHORT_DAYS[sorted[0]]}–${SHORT_DAYS[sorted[sorted.length - 1]]}`;
+  return sorted.map(d => SHORT_DAYS[d]).join(", ");
+}

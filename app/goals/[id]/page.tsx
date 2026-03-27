@@ -21,7 +21,7 @@ import {
 import { Snackbar, Alert as MuiAlert } from "@mui/material";
 import { calculateEffortMetrics, countScheduledDaysInRange } from "@/lib/effort-calculations";
 import { Outcome, LogEntry, LinkedTask } from "../types";
-import { DAY_NAMES } from "../constants";
+import { formatScheduleLabel } from "@/lib/constants";
 import HabitHeatmap from "../components/HabitHeatmap";
 import ProgressChart from "../components/ProgressChart";
 import { formatDate } from "@/lib/format";
@@ -224,9 +224,8 @@ export default function GoalDetailPage() {
   };
 
   const frequencyLabel = (freq: string) => {
-    // Goal-linked tasks are stored as 'adhoc' but recur per the goal's schedule
     if (freq === "adhoc" && scheduleDays.length > 0) {
-      return scheduleDays.map((d: number) => DAY_NAMES[d]).join(", ");
+      return formatScheduleLabel(scheduleDays);
     }
     switch (freq) {
       case "daily": return "Daily";
@@ -458,9 +457,9 @@ export default function GoalDetailPage() {
             </span>
           )}
           {/* Schedule days inline */}
-          {isActivityGoal && scheduleDays.length > 0 && scheduleDays.length < 7 && (
+          {isActivityGoal && scheduleDays.length > 0 && (
             <span className="text-xs text-zinc-500 dark:text-zinc-400">
-              {scheduleDays.map((d) => DAY_NAMES[d]).join(", ")}
+              {formatScheduleLabel(scheduleDays)}
             </span>
           )}
         </div>

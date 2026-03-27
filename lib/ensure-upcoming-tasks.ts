@@ -144,24 +144,25 @@ export async function generateGoalTasks(userId: string, goalId: number) {
   const isTarget = !isHabitual && !isOutcome;
   const taskCompletionType = outcome.completionType || (isHabitual ? 'checkbox' : 'numeric');
 
-  // Count how many uncompleted tasks already exist (to calculate target accurately)
-  const uncompletedTasks = await db
-    .select({ id: tasks.id })
-    .from(tasks)
-    .where(and(eq(tasks.userId, userId), eq(tasks.goalId, goalId), eq(tasks.completed, false)));
-
   let taskDailyTarget: number | null = null;
   if (taskCompletionType !== 'checkbox') {
     if (isTarget) {
       const remainingValue = (outcome.targetValue ?? 1) - (outcome.currentValue ?? 0);
-      // Use uncompleted task count if available, otherwise count scheduled days to generate
-      let remainingDays = uncompletedTasks.length;
-      if (remainingDays === 0 && outcome.targetDate) {
-        // No tasks yet — count how many will be created
-        const rangeS = outcome.startDate && outcome.startDate > todayStr ? outcome.startDate : todayStr;
-        remainingDays = countScheduledDaysInRange(rangeS, outcome.targetDate, scheduleDays) || 1;
+      // Count remaining scheduled days from tomorrow (matches calculateEffortMetrics)
+      const isFuture = todayStr < (outcome.startDate || todayStr);
+      let remainingDays: number;
+      if (isFuture) {
+        remainingDays = outcome.targetDate
+          ? countScheduledDaysInRange(outcome.startDate!, outcome.targetDate, scheduleDays) || 1
+          : 1;
+      } else {
+        const tmrw = new Date(todayStr + 'T12:00:00');
+        tmrw.setDate(tmrw.getDate() + 1);
+        const tmrwStr = tmrw.toISOString().split('T')[0];
+        remainingDays = outcome.targetDate
+          ? (countScheduledDaysInRange(tmrwStr, outcome.targetDate, scheduleDays) || 1)
+          : 1;
       }
-      if (remainingDays === 0) remainingDays = 1;
       taskDailyTarget = Math.ceil(Math.max(0, remainingValue) / remainingDays);
     } else if (outcome.dailyTarget) {
       taskDailyTarget = outcome.dailyTarget;
@@ -271,13 +272,23 @@ export async function recalcTargetGoalTasks(userId: string) {
     tasksByGoal.set(ft.goalId, list);
   }
 
+  // Calculate tomorrow's date for consistent "from tomorrow" counting
+  const tomorrow = new Date(todayStr + 'T12:00:00');
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
   for (const outcome of targetGoals) {
     const scheduleDays: number[] = JSON.parse(outcome.scheduleDays!);
     const remainingValue = (outcome.targetValue ?? 1) - (outcome.currentValue ?? 0);
-    // Use actual uncompleted task count instead of counting scheduled days
-    // This correctly handles days where the task is already completed
+    // Count remaining scheduled days from tomorrow (matches calculateEffortMetrics)
+    // Today's work is already reflected in currentValue
+    const isFuture = todayStr < (outcome.startDate || todayStr);
+    const remainingDays = isFuture
+      ? (countScheduledDaysInRange(outcome.startDate!, outcome.targetDate!, scheduleDays) || 1)
+      : (outcome.targetDate
+        ? (countScheduledDaysInRange(tomorrowStr, outcome.targetDate, scheduleDays) || 1)
+        : 1);
     const goalTasks = tasksByGoal.get(outcome.id) || [];
-    const remainingDays = goalTasks.length || 1;
     const newTarget = Math.ceil(Math.max(0, remainingValue) / remainingDays);
 
     // Recalculate minimumTarget proportionally

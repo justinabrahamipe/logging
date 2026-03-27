@@ -17,6 +17,7 @@ import {
 } from "react-icons/fa";
 import { calculateEffortMetrics } from "@/lib/effort-calculations";
 import { formatDate } from "@/lib/format";
+import { formatScheduleLabel } from "@/lib/constants";
 import { useTheme } from "@/components/ThemeProvider";
 import { Outcome, LogEntry, LinkedTask, Cycle } from "../types";
 
@@ -137,17 +138,7 @@ export default function GoalCard({
 
   const scheduleLabel = useMemo(() => {
     if (scheduleDays.length === 0) return null;
-    if (scheduleDays.length === 7) return "Daily";
-    const SHORT = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
-    const sorted = [...scheduleDays].sort((a, b) => a - b);
-    // Mon-Fri
-    if (sorted.length === 5 && sorted[0] === 1 && sorted[4] === 5 && sorted.every((d, i) => d === i + 1)) return "Mon–Fri";
-    // Mon-Sat
-    if (sorted.length === 6 && sorted[0] === 1 && sorted[5] === 6 && sorted.every((d, i) => d === i + 1)) return "Mon–Sat";
-    // Check for consecutive range
-    const isConsecutive = sorted.every((d, i) => i === 0 || d === sorted[i - 1] + 1);
-    if (isConsecutive && sorted.length >= 3) return `${SHORT[sorted[0]]}–${SHORT[sorted[sorted.length - 1]]}`;
-    return sorted.map(d => SHORT[d]).join(", ");
+    return formatScheduleLabel(scheduleDays);
   }, [scheduleDays]);
 
   return (
@@ -207,6 +198,11 @@ export default function GoalCard({
                 {adherence}%
               </span>
             )}
+            {isHabitual && streak > 0 && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 font-medium whitespace-nowrap shrink-0">
+                {streak}🔥
+              </span>
+            )}
             {!isHabitual && isActivityGoal && effortMetrics && (
               <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${
                 effortMetrics.status === 'ahead' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
@@ -221,9 +217,6 @@ export default function GoalCard({
             {isHabitual ? (
               <>
                 {outcome.dailyTarget ? <span className="whitespace-nowrap">{outcome.dailyTarget} {outcome.unit}/session</span> : <span>{outcome.unit}</span>}
-                <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 font-medium whitespace-nowrap">
-                  {streak}🔥
-                </span>
               </>
             ) : isActivityGoal ? (
               <>

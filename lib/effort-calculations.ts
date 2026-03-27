@@ -36,16 +36,23 @@ export function calculateEffortMetrics(
   const totalScheduledDays = countScheduledDaysInRange(startDate, endDate, scheduleDays);
   const dailyTarget = totalScheduledDays > 0 ? Math.ceil(totalDelta / totalScheduledDays) : totalDelta;
 
-  const effectiveToday = today > endDate ? endDate : today < startDate ? startDate : today;
-  const elapsedScheduledDays = countScheduledDaysInRange(startDate, effectiveToday, scheduleDays);
+  const isFuture = today < startDate;
+  const effectiveToday = today > endDate ? endDate : isFuture ? startDate : today;
+  const elapsedScheduledDays = isFuture ? 0 : countScheduledDaysInRange(startDate, effectiveToday, scheduleDays);
   const currentRate = elapsedScheduledDays > 0 ? currentDelta / elapsedScheduledDays : 0;
 
   const remaining = totalDelta - currentDelta;
-  // Count remaining days from tomorrow (today's work is already reflected in currentDelta)
-  const tomorrow = new Date(effectiveToday + 'T12:00:00');
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowStr = tomorrow.toISOString().split('T')[0];
-  const remainingScheduledDays = countScheduledDaysInRange(tomorrowStr, endDate, scheduleDays);
+  let remainingScheduledDays: number;
+  if (isFuture) {
+    // Goal hasn't started — all days are remaining, required = dailyTarget
+    remainingScheduledDays = totalScheduledDays;
+  } else {
+    // Count from tomorrow (today's work is already reflected in currentDelta)
+    const tomorrow = new Date(effectiveToday + 'T12:00:00');
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+    remainingScheduledDays = countScheduledDaysInRange(tomorrowStr, endDate, scheduleDays);
+  }
   const requiredRate = remainingScheduledDays > 0 ? Math.ceil(remaining / remainingScheduledDays) : remaining;
 
   const idealProgress = totalScheduledDays > 0
@@ -55,6 +62,8 @@ export function calculateEffortMetrics(
   let status: 'ahead' | 'on_track' | 'behind';
   if (remaining <= 0) {
     status = 'ahead';
+  } else if (isFuture) {
+    status = 'on_track';
   } else if (currentRate >= requiredRate) {
     status = 'ahead';
   } else if (currentRate >= requiredRate * 0.8) {

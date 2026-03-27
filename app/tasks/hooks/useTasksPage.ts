@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { DEMO_TASK_GROUPS, DEMO_PILLARS } from "@/lib/demo-data";
 import { useTheme } from "@/components/ThemeProvider";
 import { formatDate } from "@/lib/format";
-import { DAY_NAMES } from "@/lib/constants";
+import { formatScheduleLabel } from "@/lib/constants";
 import type { Pillar, Task, TaskCompletion, TaskGroup, Outcome, Cycle } from "@/lib/types";
 
 export interface ScoreSummary {
@@ -43,7 +43,6 @@ export interface PastDay {
   }[];
 }
 
-const DAYS_OF_WEEK = DAY_NAMES;
 
 function getDateBucket(task: { frequency: string; customDays?: string | null; createdAt?: unknown; repeatInterval?: number | null; startDate?: string | null; goalId?: number | null }, todayStr: string): string {
   if (task.frequency === 'daily' && (!task.startDate || task.startDate <= todayStr)) return 'Today';
@@ -924,9 +923,9 @@ export function useTasksPage() {
     if (task.frequency === 'custom' && task.customDays) {
       try {
         const days: number[] = JSON.parse(task.customDays);
-        const dayLabels = days.map((d: number) => DAYS_OF_WEEK[d]).join(', ');
+        const label = formatScheduleLabel(days);
         const interval = task.repeatInterval && task.repeatInterval > 7 ? Math.round(task.repeatInterval / 7) : 1;
-        return interval > 1 ? `${dayLabels} (every ${interval} weeks)` : dayLabels;
+        return interval > 1 ? `${label} (every ${interval} weeks)` : label;
       } catch { return 'Custom'; }
     }
     if (task.frequency === 'monthly' && task.customDays) {
