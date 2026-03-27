@@ -142,30 +142,6 @@ export default function GoalsPage() {
     setLogTarget(null);
   };
 
-  // Group filtered outcomes by pillar
-  const grouped: Record<string, Outcome[]> = {};
-  for (const o of filteredGoals) {
-    const key = o.pillarId ? `${o.pillarId}` : "none";
-    if (!grouped[key]) grouped[key] = [];
-    grouped[key].push(o);
-  }
-
-  const groupKeys = Object.keys(grouped).sort((a, b) => {
-    if (a === "none") return 1;
-    if (b === "none") return -1;
-    return 0;
-  });
-
-  const getPillarInfo = (key: string) => {
-    if (key === "none") return { name: "No Pillar", emoji: "", color: "#6B7280" };
-    const outcome = grouped[key][0];
-    return {
-      name: outcome.pillarName || "Unknown",
-      emoji: outcome.pillarEmoji || "",
-      color: outcome.pillarColor || "#6B7280",
-    };
-  };
-
   if (loading) return <GoalsLoading />;
 
   return (
@@ -247,41 +223,28 @@ export default function GoalsPage() {
         </div>
 
         {/* Goal Cards */}
-        {groupKeys.length > 0 ? (
-          groupKeys.map((key) => {
-            const pillarInfo = getPillarInfo(key);
-            return (
-              <div key={key} className="mb-6">
-                <div className="flex items-center gap-2 mb-3">
-                  {pillarInfo.emoji && <span className="text-lg">{pillarInfo.emoji}</span>}
-                  <h2 className="text-lg font-semibold" style={{ color: pillarInfo.color }}>
-                    {pillarInfo.name}
-                  </h2>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {grouped[key].map((outcome) => (
-                    <GoalCard
-                      key={outcome.id}
-                      outcome={outcome}
-                      logsMap={logsMap}
-                      linkedTasks={linkedTasks}
-                      menuOpen={menuOpen}
-                      setMenuOpen={setMenuOpen}
-                      openLogModal={openLogModal}
-                      handleArchive={handleArchive}
-                      handleStatusChange={handleStatusChange}
-                      getProgress={getProgress}
-                      today={today}
-                      taskCompletionDates={taskCompletionDates}
-                      onAddTask={async (o) => { if (status !== "authenticated") { setAuthSnackbar(true); return; } const ok = await handleAddTaskForToday(o); setSnackbar({ open: true, message: ok ? "Task added and completed" : "Failed to add task", severity: ok ? "success" : "error" }); }}
-                      cycles={cycles}
-                      onCopyToCycle={handleCopyToCycle}
-                    />
-                  ))}
-                </div>
-              </div>
-            );
-          })
+        {filteredGoals.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {filteredGoals.map((outcome) => (
+              <GoalCard
+                key={outcome.id}
+                outcome={outcome}
+                logsMap={logsMap}
+                linkedTasks={linkedTasks}
+                menuOpen={menuOpen}
+                setMenuOpen={setMenuOpen}
+                openLogModal={openLogModal}
+                handleArchive={handleArchive}
+                handleStatusChange={handleStatusChange}
+                getProgress={getProgress}
+                today={today}
+                taskCompletionDates={taskCompletionDates}
+                onAddTask={async (o) => { if (status !== "authenticated") { setAuthSnackbar(true); return; } const ok = await handleAddTaskForToday(o); setSnackbar({ open: true, message: ok ? "Task added and completed" : "Failed to add task", severity: ok ? "success" : "error" }); }}
+                cycles={cycles}
+                onCopyToCycle={handleCopyToCycle}
+              />
+            ))}
+          </div>
         ) : (
           <div className="text-center py-12 text-zinc-500 dark:text-zinc-400">
             <p className="text-lg mb-2">No {timeTab} {goalTab === "all" ? "" : goalTab + " "}goals</p>

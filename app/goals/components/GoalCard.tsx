@@ -135,6 +135,21 @@ export default function GoalCard({
     return count;
   }, [isHabitual, allDoneDates, today, scheduleDays]);
 
+  const scheduleLabel = useMemo(() => {
+    if (scheduleDays.length === 0) return null;
+    if (scheduleDays.length === 7) return "Daily";
+    const SHORT = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+    const sorted = [...scheduleDays].sort((a, b) => a - b);
+    // Mon-Fri
+    if (sorted.length === 5 && sorted[0] === 1 && sorted[4] === 5 && sorted.every((d, i) => d === i + 1)) return "Mon–Fri";
+    // Mon-Sat
+    if (sorted.length === 6 && sorted[0] === 1 && sorted[5] === 6 && sorted.every((d, i) => d === i + 1)) return "Mon–Sat";
+    // Check for consecutive range
+    const isConsecutive = sorted.every((d, i) => i === 0 || d === sorted[i - 1] + 1);
+    if (isConsecutive && sorted.length >= 3) return `${SHORT[sorted[0]]}–${SHORT[sorted[sorted.length - 1]]}`;
+    return sorted.map(d => SHORT[d]).join(", ");
+  }, [scheduleDays]);
+
   return (
     <motion.div
       layout
@@ -146,8 +161,16 @@ export default function GoalCard({
     >
       <div className="flex items-center justify-between">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <h3 className="font-semibold text-zinc-900 dark:text-white truncate">{outcome.name}</h3>
+            {outcome.pillarName && (
+              <span
+                className="text-[10px] px-1.5 py-px rounded-full font-medium shrink-0"
+                style={{ backgroundColor: color + '20', color }}
+              >
+                {outcome.pillarEmoji ? `${outcome.pillarEmoji} ` : ''}{outcome.pillarName}
+              </span>
+            )}
             <span className="text-[11px] px-1.5 py-px rounded-full font-medium bg-zinc-100 text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400 shrink-0">
               {outcome.goalType === "habitual" ? "Habitual" : outcome.goalType === "target" || outcome.goalType === "effort" ? "Target" : "Outcome"}
             </span>
@@ -219,6 +242,11 @@ export default function GoalCard({
             {outcome.startDate && (
               <span className="text-[11px] text-zinc-400 dark:text-zinc-500 whitespace-nowrap">
                 {formatDate(outcome.startDate, dateFormat)}{outcome.targetDate ? ` – ${formatDate(outcome.targetDate, dateFormat)}` : ''}
+              </span>
+            )}
+            {scheduleLabel && (
+              <span className="text-[10px] px-1.5 py-px rounded-full bg-zinc-100 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400 font-medium whitespace-nowrap">
+                {scheduleLabel}
               </span>
             )}
           </div>

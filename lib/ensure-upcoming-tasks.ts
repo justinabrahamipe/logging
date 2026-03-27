@@ -285,7 +285,6 @@ export async function recalcTargetGoalTasks(userId: string) {
       ? Math.round((outcome.minimumTarget / outcome.dailyTarget) * newTarget)
       : (outcome.minimumTarget ?? null);
 
-    const goalTasks = tasksByGoal.get(outcome.id) || [];
     // Only update tasks whose target actually differs
     const toUpdate = goalTasks.filter(ft => ft.target !== newTarget);
     if (toUpdate.length === 0) continue;
