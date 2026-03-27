@@ -6,6 +6,9 @@ import { countScheduledDaysInRange } from "@/lib/effort-calculations";
 // In-memory cache: userId -> last date we ran
 const lastRunCache = new Map<string, string>();
 
+// Concurrency guard: prevent parallel ensureUpcomingTasks for the same user
+const runningPromises = new Map<string, Promise<void>>();
+
 /**
  * Invalidate the cache for a user so the next call to ensureUpcomingTasks
  * will regenerate task instances (e.g. after creating/deleting a schedule).
@@ -25,6 +28,17 @@ export async function ensureUpcomingTasks(userId: string) {
 
   // Skip if already ran today for this user
   if (lastRunCache.get(userId) === todayStr) return;
+
+  // Prevent concurrent runs for the same user (avoids duplicate task creation)
+  const existing = runningPromises.get(userId);
+  if (existing) { await existing; return; }
+
+  const promise = _ensureUpcomingTasksInner(userId, todayStr);
+  runningPromises.set(userId, promise);
+  try { await promise; } finally { runningPromises.delete(userId); }
+}
+
+async function _ensureUpcomingTasksInner(userId: string, todayStr: string) {
 
   // Get all active schedules for this user
   const allSchedules = await db
@@ -106,7 +120,7 @@ export async function ensureUpcomingTasks(userId: string) {
  * Create task instances directly from goals with autoCreateTasks.
  * These go straight into the tasks table without creating schedule entries.
  */
-async function ensureGoalTasks(userId: string, todayStr: string, dates: string[]) {
+async function ensureGoalTasks(userId: string, todayStr: string, _dates: string[]) {
   const activeGoals = await db
     .select()
     .from(goals)
@@ -166,11 +180,11 @@ async function ensureGoalTasks(userId: string, todayStr: string, dates: string[]
     }
 
     const rangeStart = outcome.startDate && outcome.startDate > todayStr ? outcome.startDate : todayStr;
-    const rangeEnd = outcome.targetDate || (() => {
-      const d = new Date();
-      d.setDate(d.getDate() + 7);
-      return d.toISOString().split('T')[0];
-    })();
+    // Cap at 8 days ahead (same window as schedule-based tasks) — don't generate entire cycle upfront
+    const maxAhead = new Date();
+    maxAhead.setDate(maxAhead.getDate() + 7);
+    const maxAheadStr = maxAhead.toISOString().split('T')[0];
+    const rangeEnd = outcome.targetDate && outcome.targetDate < maxAheadStr ? outcome.targetDate : maxAheadStr;
 
     const current = new Date(rangeStart + 'T12:00:00');
     const endDate = new Date(rangeEnd + 'T12:00:00');
