@@ -72,16 +72,12 @@ async function _ensureUpcomingTasksInner(userId: string, todayStr: string) {
       inArray(tasks.scheduleId, scheduleIds),
     ));
 
+  // For dedup: use originalDate (the slot this task was generated for).
+  // If postponed from Mon→Tue, Monday's slot is covered but Tuesday still needs its own task.
   const existingSet = new Set(
     existingTasks
       .filter(t => t.scheduleId && t.date)
-      .flatMap(t => {
-        const keys = [`${t.scheduleId}:${t.date}`];
-        if (t.originalDate && t.originalDate !== t.date) {
-          keys.push(`${t.scheduleId}:${t.originalDate}`);
-        }
-        return keys;
-      })
+      .map(t => `${t.scheduleId}:${t.originalDate || t.date}`)
   );
 
   const taskValues: (typeof tasks.$inferInsert)[] = [];
@@ -143,16 +139,13 @@ async function ensureGoalTasks(userId: string, todayStr: string, _dates: string[
       inArray(tasks.goalId, goalIds),
     ));
 
+  // For dedup: use originalDate (the slot this task was generated for).
+  // If a task was postponed from Monday to Tuesday, Monday's slot is "used up"
+  // but Tuesday should still get its own task.
   const existingSet = new Set(
     existingGoalTasks
       .filter(t => t.goalId && t.date)
-      .flatMap(t => {
-        const keys = [`${t.goalId}:${t.date}`];
-        if (t.originalDate && t.originalDate !== t.date) {
-          keys.push(`${t.goalId}:${t.originalDate}`);
-        }
-        return keys;
-      })
+      .map(t => `${t.goalId}:${t.originalDate || t.date}`)
   );
 
   for (const outcome of activeGoals) {
@@ -325,10 +318,11 @@ export async function ensureTasksForDate(userId: string, dateStr: string) {
       inArray(tasks.scheduleId, scheduleIds),
     ));
 
-  // A schedule is "covered" for this date if any task has this date as its current date OR originalDate
+  // A schedule is "covered" for this date if any task has this date as its originalDate (the generated slot).
+  // Postponed tasks only block their original date, not their moved-to date.
   const existingScheduleIds = new Set(
     existingTasks
-      .filter(t => t.date === dateStr || t.originalDate === dateStr)
+      .filter(t => (t.originalDate || t.date) === dateStr)
       .map(t => t.scheduleId)
   );
 
