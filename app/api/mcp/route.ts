@@ -765,6 +765,17 @@ async function executeTool(userId: string, name: string, args: Record<string, an
         }
       }
 
+      // When targetDate is preponed, delete uncompleted tasks beyond the new end date
+      if (args.targetDate !== undefined && args.targetDate) {
+        const beyondTasks = await db.select({ id: tasks.id, date: tasks.date }).from(tasks)
+          .where(and(eq(tasks.goalId, goalId), eq(tasks.userId, userId), eq(tasks.completed, false)));
+        for (const t of beyondTasks) {
+          if (t.date > args.targetDate) {
+            await db.delete(tasks).where(eq(tasks.id, t.id));
+          }
+        }
+      }
+
       // Propagate name/pillar/completionType changes to linked tasks
       const propagate: Record<string, unknown> = {};
       if (args.name !== undefined) propagate.name = args.name;

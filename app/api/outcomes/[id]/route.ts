@@ -72,6 +72,25 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       }
     }
 
+    // When targetDate is preponed, delete uncompleted tasks beyond the new end date
+    if (body.targetDate !== undefined && body.targetDate) {
+      const newTargetDate = body.targetDate;
+      const beyondTasks = await db
+        .select({ id: tasks.id, date: tasks.date })
+        .from(tasks)
+        .where(and(
+          eq(tasks.goalId, outcomeId),
+          eq(tasks.userId, userId),
+          eq(tasks.completed, false),
+        ));
+      const beyondIds = beyondTasks.filter(t => t.date > newTargetDate).map(t => t.id);
+      if (beyondIds.length > 0) {
+        for (const fid of beyondIds) {
+          await db.delete(tasks).where(eq(tasks.id, fid));
+        }
+      }
+    }
+
     // Propagate changes to linked uncompleted tasks and their schedules
     const propagateToTasks: Record<string, unknown> = {};
     const propagateToSchedules: Record<string, unknown> = {};
