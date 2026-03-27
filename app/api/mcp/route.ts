@@ -105,9 +105,21 @@ const TOOLS = [
         frequency: { type: "string", description: "One of: adhoc, daily, weekdays, weekends, custom. Defaults to adhoc." },
         customDays: { type: "string", description: "Comma-separated days (mon,tue,wed,...) for custom frequency." },
         basePoints: { type: "number", description: "Points for completing the task. Defaults to 10." },
+        goalId: { type: "number", description: "Goal ID to link this task to (optional). Use get_goals to find the ID." },
         date: { type: "string", description: "Date for adhoc tasks (YYYY-MM-DD). Omit for a no-date task that appears on today's view until completed." },
       },
       required: ["name"],
+    },
+  },
+  {
+    name: "get_task_details",
+    description: "Get full details of a specific task including schedule info, goal link, points, and completion state.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        taskId: { type: "number", description: "The task instance ID." },
+      },
+      required: ["taskId"],
     },
   },
   {
@@ -124,6 +136,9 @@ const TOOLS = [
         unit: { type: "string", description: "New unit label." },
         basePoints: { type: "number", description: "New base points." },
         date: { type: "string", description: "New date (YYYY-MM-DD)." },
+        goalId: { type: "number", description: "Goal ID to link to. Pass 0 to unlink." },
+        flexibilityRule: { type: "string", description: "One of: must_today, at_least, limit_avoid." },
+        limitValue: { type: "number", description: "Limit value for limit_avoid rule." },
       },
       required: ["taskId"],
     },
@@ -272,12 +287,28 @@ async function executeTool(userId: string, name: string, args: Record<string, an
         id: goals.id, name: goals.name, goalType: goals.goalType, status: goals.status,
         startValue: goals.startValue, targetValue: goals.targetValue, currentValue: goals.currentValue,
         unit: goals.unit, startDate: goals.startDate, targetDate: goals.targetDate,
-        periodId: goals.periodId,
+        periodId: goals.periodId, pillarId: goals.pillarId,
+        completionType: goals.completionType, dailyTarget: goals.dailyTarget,
+        scheduleDays: goals.scheduleDays, autoCreateTasks: goals.autoCreateTasks,
+        flexibilityRule: goals.flexibilityRule, limitValue: goals.limitValue, minimumTarget: goals.minimumTarget,
         pillarName: pillars.name,
       }).from(goals).leftJoin(pillars, eq(goals.pillarId, pillars.id)).where(eq(goals.userId, userId));
-      const lines = result.map(g =>
-        `[${g.status}] (id:${g.id}) ${g.name} (${g.goalType}) — ${g.currentValue}/${g.targetValue} ${g.unit}${g.pillarName ? ` | ${g.pillarName}` : ""}${g.periodId ? ` | cycleId:${g.periodId}` : ""}${g.startDate ? ` | ${g.startDate} to ${g.targetDate}` : ""}`
-      );
+      const lines = result.map(g => {
+        const parts = [
+          `[${g.status}] (id:${g.id}) ${g.name} (${g.goalType}) — ${g.currentValue}/${g.targetValue} ${g.unit}`,
+        ];
+        if (g.pillarName) parts.push(`pillar: ${g.pillarName} (id:${g.pillarId})`);
+        if (g.periodId) parts.push(`cycleId:${g.periodId}`);
+        if (g.startDate) parts.push(`${g.startDate} to ${g.targetDate}`);
+        if (g.completionType !== 'checkbox') parts.push(`type: ${g.completionType}`);
+        if (g.dailyTarget) parts.push(`daily: ${g.dailyTarget}`);
+        if (g.scheduleDays) parts.push(`days: ${g.scheduleDays}`);
+        if (g.autoCreateTasks) parts.push('auto-tasks');
+        if (g.flexibilityRule !== 'must_today') parts.push(`rule: ${g.flexibilityRule}`);
+        if (g.limitValue != null) parts.push(`limit: ${g.limitValue}`);
+        if (g.minimumTarget != null) parts.push(`min: ${g.minimumTarget}`);
+        return parts.join(' | ');
+      });
       return lines.join("\n") || "No goals found.";
     }
     case "get_scores": {
@@ -439,7 +470,7 @@ async function executeTool(userId: string, name: string, args: Record<string, an
           customDays: args.customDays || null,
           repeatInterval: null,
           basePoints,
-          goalId: null,
+          goalId: args.goalId ? parseInt(args.goalId) : null,
           periodId: null,
           startDate: null,
         }).returning();
@@ -460,7 +491,7 @@ async function executeTool(userId: string, name: string, args: Record<string, an
           flexibilityRule: 'must_today',
           limitValue: null,
           basePoints,
-          goalId: null,
+          goalId: args.goalId ? parseInt(args.goalId) : null,
           periodId: null,
           date: taskDate,
         }).returning();
@@ -468,6 +499,55 @@ async function executeTool(userId: string, name: string, args: Record<string, an
         await createAutoLog(userId, `➕ Task created: ${taskName}`);
         return `Task "${taskName}" created${taskDate ? ` for ${taskDate}` : ' (no date)'}. Task ID: ${task.id}.`;
       }
+    }
+
+    case "get_task_details": {
+      const taskId = parseInt(args.taskId);
+      if (!taskId) return "Error: taskId is required.";
+
+      const [task] = await db.select().from(tasks).where(and(eq(tasks.id, taskId), eq(tasks.userId, userId)));
+      if (!task) return "Error: Task not found.";
+
+      // Get schedule info if linked
+      let frequency = 'adhoc';
+      let customDays: string | null = null;
+      if (task.scheduleId) {
+        const [sched] = await db.select({ frequency: taskSchedules.frequency, customDays: taskSchedules.customDays })
+          .from(taskSchedules).where(eq(taskSchedules.id, task.scheduleId));
+        if (sched) { frequency = sched.frequency; customDays = sched.customDays; }
+      }
+
+      // Get pillar name if linked
+      let pillarName: string | null = null;
+      if (task.pillarId) {
+        const [p] = await db.select({ name: pillars.name }).from(pillars).where(eq(pillars.id, task.pillarId));
+        if (p) pillarName = p.name;
+      }
+
+      // Get goal name if linked
+      let goalName: string | null = null;
+      if (task.goalId) {
+        const [g] = await db.select({ name: goals.name }).from(goals).where(eq(goals.id, task.goalId));
+        if (g) goalName = g.name;
+      }
+
+      const lines = [
+        `Task: ${task.name} (id:${task.id})`,
+        `Status: ${task.completed ? 'done' : task.skipped ? 'skipped' : 'todo'}`,
+        `Date: ${task.date || '(no date)'}`,
+        `Type: ${task.completionType} | Frequency: ${frequency}`,
+        `Target: ${task.target ?? 'none'} | Value: ${task.value ?? 0} | Unit: ${task.unit || 'none'}`,
+        `Points: ${task.pointsEarned}/${task.basePoints} | Flexibility: ${task.flexibilityRule}`,
+        `Pillar: ${pillarName ? `${pillarName} (id:${task.pillarId})` : 'none'}`,
+        `Goal: ${goalName ? `${goalName} (id:${task.goalId})` : 'none'}`,
+        `Schedule: ${task.scheduleId ? `id:${task.scheduleId}` : 'none'}${customDays ? ` | Days: ${customDays}` : ''}`,
+        `Highlighted: ${task.isHighlighted} | Dismissed: ${task.dismissed}`,
+        task.limitValue != null ? `Limit: ${task.limitValue}` : null,
+        task.minimumTarget != null ? `Minimum: ${task.minimumTarget}` : null,
+        task.completedAt ? `Completed at: ${task.completedAt.toISOString()}` : null,
+      ].filter(Boolean);
+
+      return lines.join('\n');
     }
 
     case "edit_task": {
@@ -485,6 +565,9 @@ async function executeTool(userId: string, name: string, args: Record<string, an
       if (args.unit !== undefined) updateData.unit = args.unit || null;
       if (args.basePoints !== undefined) updateData.basePoints = args.basePoints;
       if (args.date !== undefined) updateData.date = args.date;
+      if (args.goalId !== undefined) updateData.goalId = args.goalId === 0 ? null : args.goalId;
+      if (args.flexibilityRule !== undefined) updateData.flexibilityRule = args.flexibilityRule;
+      if (args.limitValue !== undefined) updateData.limitValue = args.limitValue ?? null;
 
       if (Object.keys(updateData).length === 0) return "Error: No fields to update.";
 
@@ -500,6 +583,9 @@ async function executeTool(userId: string, name: string, args: Record<string, an
         if (args.unit !== undefined) scheduleUpdate.unit = args.unit || null;
         if (args.basePoints !== undefined) scheduleUpdate.basePoints = args.basePoints;
         if (args.date !== undefined) scheduleUpdate.startDate = args.date;
+        if (args.goalId !== undefined) scheduleUpdate.goalId = args.goalId === 0 ? null : args.goalId;
+        if (args.flexibilityRule !== undefined) scheduleUpdate.flexibilityRule = args.flexibilityRule;
+        if (args.limitValue !== undefined) scheduleUpdate.limitValue = args.limitValue ?? null;
         if (Object.keys(scheduleUpdate).length > 0) {
           await db.update(taskSchedules).set(scheduleUpdate).where(eq(taskSchedules.id, task.scheduleId));
         }
