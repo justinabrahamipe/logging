@@ -3,7 +3,7 @@ import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
 import { db, goals, pillars, cycles } from "@/lib/db";
 import { eq } from "drizzle-orm";
 import { createAutoLog } from "@/lib/auto-log";
-import { invalidateTaskCache } from "@/lib/ensure-upcoming-tasks";
+import { generateGoalTasks } from "@/lib/ensure-upcoming-tasks";
 
 export async function GET() {
   try {
@@ -98,9 +98,9 @@ export async function POST(request: Request) {
       minimumTarget: minimumTarget ?? null,
     }).returning();
 
-    // Invalidate task cache so ensureGoalTasks() creates task instances on next request
+    // Generate all tasks upfront for the full goal date range
     if (autoCreateTasks) {
-      invalidateTaskCache(userId);
+      await generateGoalTasks(userId, outcome.id);
     }
 
     await createAutoLog(userId, `📌 Goal created: ${name}`);

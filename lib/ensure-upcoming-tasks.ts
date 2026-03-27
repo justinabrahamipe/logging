@@ -106,119 +106,106 @@ async function _ensureUpcomingTasksInner(userId: string, todayStr: string) {
     }
   }
 
-  // Also generate schedules + tasks from goals with autoCreateTasks
-  await ensureGoalTasks(userId, todayStr, dates);
-
   lastRunCache.set(userId, todayStr);
 }
 
 /**
- * Create task instances directly from goals with autoCreateTasks.
- * These go straight into the tasks table without creating schedule entries.
+ * Generate all task instances for a single goal across its full date range.
+ * Called when a goal is created or edited (event-driven, not lazy).
+ * Skips dates that already have tasks (dedup via originalDate).
  */
-async function ensureGoalTasks(userId: string, todayStr: string, _dates: string[]) {
-  const activeGoals = await db
+export async function generateGoalTasks(userId: string, goalId: number) {
+  const [outcome] = await db
     .select()
     .from(goals)
-    .where(and(
-      eq(goals.userId, userId),
-      eq(goals.autoCreateTasks, true),
-      eq(goals.status, 'active'),
-    ));
+    .where(and(eq(goals.id, goalId), eq(goals.userId, userId)));
 
-  if (activeGoals.length === 0) return;
+  if (!outcome || !outcome.autoCreateTasks || outcome.status !== 'active') return;
 
-  // Get existing goal-linked tasks to avoid duplicates
-  // Use originalDate to detect postponed tasks
-  const goalIds = activeGoals.map(g => g.id);
+  const scheduleDays: number[] = outcome.scheduleDays ? JSON.parse(outcome.scheduleDays) : [];
+  if (scheduleDays.length === 0) return;
+
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  // Get existing tasks to avoid duplicates
   const existingGoalTasks = await db
-    .select({ goalId: tasks.goalId, date: tasks.date, originalDate: tasks.originalDate })
+    .select({ date: tasks.date, originalDate: tasks.originalDate })
     .from(tasks)
-    .where(and(
-      eq(tasks.userId, userId),
-      inArray(tasks.goalId, goalIds),
-    ));
+    .where(and(eq(tasks.userId, userId), eq(tasks.goalId, goalId)));
 
-  // For dedup: use originalDate (the slot this task was generated for).
-  // If a task was postponed from Monday to Tuesday, Monday's slot is "used up"
-  // but Tuesday should still get its own task.
   const existingSet = new Set(
     existingGoalTasks
-      .filter(t => t.goalId && t.date)
-      .map(t => `${t.goalId}:${t.originalDate || t.date}`)
+      .filter(t => t.date)
+      .map(t => t.originalDate || t.date)
   );
 
-  for (const outcome of activeGoals) {
-    const scheduleDays: number[] = outcome.scheduleDays ? JSON.parse(outcome.scheduleDays) : [];
-    if (scheduleDays.length === 0) continue;
+  const isHabitual = outcome.goalType === 'habitual';
+  const isOutcome = outcome.goalType === 'outcome';
+  const isTarget = !isHabitual && !isOutcome;
+  const taskCompletionType = outcome.completionType || (isHabitual ? 'checkbox' : 'numeric');
 
-    const isHabitual = outcome.goalType === 'habitual';
-    const isOutcome = outcome.goalType === 'outcome';
-    const isTarget = !isHabitual && !isOutcome;
-    const taskCompletionType = outcome.completionType || (isHabitual ? 'checkbox' : 'numeric');
-
-    let taskDailyTarget: number | null = null;
-    if (taskCompletionType !== 'checkbox') {
-      if (isTarget) {
-        // Target goals always calculate dynamically based on remaining work / remaining days
-        const remainingValue = (outcome.targetValue ?? 1) - (outcome.currentValue ?? 0);
-        const remainingDays = (outcome.targetDate)
-          ? (countScheduledDaysInRange(todayStr, outcome.targetDate, scheduleDays) || 1)
-          : 1;
-        taskDailyTarget = Math.ceil(Math.max(0, remainingValue) / remainingDays);
-      } else if (outcome.dailyTarget) {
-        // Explicit daily target set by user — use as-is for habitual/outcome
-        taskDailyTarget = outcome.dailyTarget;
-      }
+  let taskDailyTarget: number | null = null;
+  if (taskCompletionType !== 'checkbox') {
+    if (isTarget) {
+      const remainingValue = (outcome.targetValue ?? 1) - (outcome.currentValue ?? 0);
+      const remainingDays = (outcome.targetDate)
+        ? (countScheduledDaysInRange(todayStr, outcome.targetDate, scheduleDays) || 1)
+        : 1;
+      taskDailyTarget = Math.ceil(Math.max(0, remainingValue) / remainingDays);
+    } else if (outcome.dailyTarget) {
+      taskDailyTarget = outcome.dailyTarget;
     }
+  }
 
-    const rangeStart = outcome.startDate && outcome.startDate > todayStr ? outcome.startDate : todayStr;
-    // Cap at 8 days ahead (same window as schedule-based tasks) — don't generate entire cycle upfront
+  // Full range: startDate (or today) to targetDate (or 7 days ahead if no end date)
+  const rangeStart = outcome.startDate && outcome.startDate > todayStr ? outcome.startDate : todayStr;
+  let rangeEnd: string;
+  if (outcome.targetDate) {
+    rangeEnd = outcome.targetDate;
+  } else {
     const maxAhead = new Date();
     maxAhead.setDate(maxAhead.getDate() + 7);
-    const maxAheadStr = maxAhead.toISOString().split('T')[0];
-    const rangeEnd = outcome.targetDate && outcome.targetDate < maxAheadStr ? outcome.targetDate : maxAheadStr;
+    rangeEnd = maxAhead.toISOString().split('T')[0];
+  }
 
-    const current = new Date(rangeStart + 'T12:00:00');
-    const endDate = new Date(rangeEnd + 'T12:00:00');
+  const current = new Date(rangeStart + 'T12:00:00');
+  const endDate = new Date(rangeEnd + 'T12:00:00');
 
-    while (current <= endDate) {
-      const dateStr = current.toISOString().split('T')[0];
-      const dow = current.getDay();
+  while (current <= endDate) {
+    const dateStr = current.toISOString().split('T')[0];
+    const dow = current.getDay();
 
-      if (scheduleDays.includes(dow) && !existingSet.has(`${outcome.id}:${dateStr}`)) {
-        const isLimit = outcome.flexibilityRule === 'limit_avoid';
-        const goalLimitValue = isLimit ? (outcome.limitValue || outcome.dailyTarget || null) : null;
-        try {
-          await db.insert(tasks).values({
-            userId,
-            name: outcome.name,
-            pillarId: outcome.pillarId || null,
-            completionType: taskCompletionType,
-            target: taskDailyTarget,
-            unit: taskCompletionType === 'checkbox' ? null : (outcome.unit || null),
-            flexibilityRule: outcome.flexibilityRule || 'must_today',
-            limitValue: goalLimitValue,
-            minimumTarget: outcome.minimumTarget ?? null,
-            basePoints: 10,
-            goalId: outcome.id,
-            periodId: outcome.periodId || null,
-            date: dateStr,
-            originalDate: dateStr,
-            completed: false,
-            value: isLimit && goalLimitValue ? goalLimitValue : null,
-            pointsEarned: 0,
-            isHighlighted: false,
-            completedAt: null,
-          });
-          existingSet.add(`${outcome.id}:${dateStr}`);
-        } catch {
-          // Ignore duplicates
-        }
+    if (scheduleDays.includes(dow) && !existingSet.has(dateStr)) {
+      const isLimit = outcome.flexibilityRule === 'limit_avoid';
+      const goalLimitValue = isLimit ? (outcome.limitValue || outcome.dailyTarget || null) : null;
+      try {
+        await db.insert(tasks).values({
+          userId,
+          name: outcome.name,
+          pillarId: outcome.pillarId || null,
+          completionType: taskCompletionType,
+          target: taskDailyTarget,
+          unit: taskCompletionType === 'checkbox' ? null : (outcome.unit || null),
+          flexibilityRule: outcome.flexibilityRule || 'must_today',
+          limitValue: goalLimitValue,
+          minimumTarget: outcome.minimumTarget ?? null,
+          basePoints: 10,
+          goalId: outcome.id,
+          periodId: outcome.periodId || null,
+          date: dateStr,
+          originalDate: dateStr,
+          completed: false,
+          value: isLimit && goalLimitValue ? goalLimitValue : null,
+          pointsEarned: 0,
+          isHighlighted: false,
+          completedAt: null,
+        });
+      } catch {
+        // Ignore duplicates
       }
-
-      current.setDate(current.getDate() + 1);
     }
+
+    current.setDate(current.getDate() + 1);
   }
 }
 

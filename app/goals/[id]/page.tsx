@@ -16,7 +16,9 @@ import {
   FaPlus,
   FaMinus,
   FaTrash,
+  FaSyncAlt,
 } from "react-icons/fa";
+import { Snackbar, Alert as MuiAlert } from "@mui/material";
 import { calculateEffortMetrics, countScheduledDaysInRange } from "@/lib/effort-calculations";
 import { Outcome, LogEntry, LinkedTask } from "../types";
 import { DAY_NAMES } from "../constants";
@@ -43,6 +45,8 @@ export default function GoalDetailPage() {
   const [pendingValues, setPendingValues] = useState<Record<number, string>>({});
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: "success" | "error" }>({ open: false, message: "", severity: "success" });
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -267,6 +271,43 @@ export default function GoalDetailPage() {
     });
   };
 
+  const handleGenerateTasks = async () => {
+    if (!outcome) return;
+    setGenerating(true);
+    try {
+      const res = await fetch(`/api/outcomes/${outcome.id}/generate-tasks`, { method: "POST" });
+      if (res.ok) {
+        setSnackbar({ open: true, message: "Tasks generated successfully", severity: "success" });
+        // Refresh linked tasks
+        const [tasksRes, completionsRes] = await Promise.all([
+          fetch(`/api/tasks`),
+          fetch(`/api/outcomes/completions`),
+        ]);
+        if (tasksRes.ok) {
+          const groups = await tasksRes.json();
+          const allTasks: LinkedTask[] = [];
+          for (const group of groups) {
+            for (const task of group.tasks) {
+              if (task.goalId === outcome.id) {
+                allTasks.push({ id: task.id, name: task.name, goalId: task.goalId, frequency: task.frequency, completionType: task.completionType, basePoints: task.basePoints, target: task.target, unit: task.unit, completed: task.completion?.completed || false, value: task.completion?.value || null, startDate: task.startDate || task.date });
+              }
+            }
+          }
+          setLinkedTasks(allTasks);
+        }
+        if (completionsRes.ok) {
+          const completions = await completionsRes.json();
+          setTaskCompletionDates(completions[outcome.id] || []);
+        }
+      } else {
+        setSnackbar({ open: true, message: "Failed to generate tasks", severity: "error" });
+      }
+    } catch {
+      setSnackbar({ open: true, message: "Failed to generate tasks", severity: "error" });
+    }
+    setGenerating(false);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -324,6 +365,16 @@ export default function GoalDetailPage() {
               >
                 <FaCheck />
               </button>
+              {outcome.autoCreateTasks && (
+                <button
+                  onClick={handleGenerateTasks}
+                  disabled={generating}
+                  className="p-2 rounded-lg text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 disabled:opacity-50"
+                  title="Generate Tasks"
+                >
+                  <FaSyncAlt className={generating ? "animate-spin" : ""} />
+                </button>
+              )}
               <button
                 onClick={() => router.push(`/goals/${outcome.id}/edit`)}
                 className="p-2 rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700"
@@ -677,6 +728,17 @@ export default function GoalDetailPage() {
           </div>
         </div>
       )}
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <MuiAlert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} variant="filled" sx={{ width: "100%" }}>
+          {snackbar.message}
+        </MuiAlert>
+      </Snackbar>
     </div>
   );
 }

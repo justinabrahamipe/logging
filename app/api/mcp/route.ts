@@ -4,7 +4,7 @@ import { eq, and, desc, gte, lte, or, gt } from "drizzle-orm";
 import { calculateTaskScore } from "@/lib/scoring";
 import { saveDailyScore } from "@/lib/save-daily-score";
 import { createAutoLog } from "@/lib/auto-log";
-import { ensureUpcomingTasks, invalidateTaskCache } from "@/lib/ensure-upcoming-tasks";
+import { ensureUpcomingTasks, invalidateTaskCache, generateGoalTasks } from "@/lib/ensure-upcoming-tasks";
 
 const SERVER_INFO = {
   name: "grind-console",
@@ -715,6 +715,11 @@ async function executeTool(userId: string, name: string, args: Record<string, an
         minimumTarget: args.minimumTarget ?? null,
       }).returning();
 
+      // Generate all tasks upfront for the full goal date range
+      if (args.autoCreateTasks) {
+        await generateGoalTasks(userId, goal.id);
+      }
+
       await createAutoLog(userId, `📌 Goal created: ${goalName}`);
       return `Goal "${goalName}" created (${goalType}). Goal ID: ${goal.id}.`;
     }
@@ -774,6 +779,51 @@ async function executeTool(userId: string, name: string, args: Record<string, an
             await db.delete(tasks).where(eq(tasks.id, t.id));
           }
         }
+      }
+
+      // When scheduleDays changed, delete uncompleted future tasks on removed days
+      if (args.scheduleDays !== undefined) {
+        const todayStr2 = today();
+        const newDays: number[] = args.scheduleDays || [];
+        const oldDays: number[] = existing.scheduleDays ? JSON.parse(existing.scheduleDays) : [];
+        const removedDays = oldDays.filter((d: number) => !newDays.includes(d));
+        if (removedDays.length > 0) {
+          const ft = await db.select({ id: tasks.id, date: tasks.date }).from(tasks)
+            .where(and(eq(tasks.goalId, goalId), eq(tasks.userId, userId), eq(tasks.completed, false)));
+          for (const t of ft) {
+            if (t.date >= todayStr2) {
+              const dow = new Date(t.date + 'T12:00:00').getDay();
+              if (removedDays.includes(dow)) {
+                await db.delete(tasks).where(eq(tasks.id, t.id));
+              }
+            }
+          }
+        }
+      }
+
+      // When autoCreateTasks is turned off, delete future uncompleted tasks
+      if (args.autoCreateTasks === false && existing.autoCreateTasks) {
+        const todayStr2 = today();
+        const ft = await db.select({ id: tasks.id, date: tasks.date }).from(tasks)
+          .where(and(eq(tasks.goalId, goalId), eq(tasks.userId, userId), eq(tasks.completed, false)));
+        for (const t of ft) {
+          if (t.date > todayStr2) {
+            await db.delete(tasks).where(eq(tasks.id, t.id));
+          }
+        }
+      }
+
+      // Generate new tasks for extended range, new days, or toggled-on autoCreateTasks
+      const updatedGoalAutoCreate = args.autoCreateTasks !== undefined ? args.autoCreateTasks : existing.autoCreateTasks;
+      const updatedGoalStatus = args.status || existing.status;
+      const needsRegen = (
+        (args.targetDate !== undefined && args.targetDate > (existing.targetDate || '')) ||
+        (args.startDate !== undefined) ||
+        (args.scheduleDays !== undefined) ||
+        (args.autoCreateTasks === true && !existing.autoCreateTasks)
+      );
+      if (needsRegen && updatedGoalAutoCreate && updatedGoalStatus === 'active') {
+        await generateGoalTasks(userId, goalId);
       }
 
       // Propagate name/pillar/completionType changes to linked tasks

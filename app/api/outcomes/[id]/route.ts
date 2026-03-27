@@ -3,6 +3,7 @@ import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
 import { db, goals, tasks, taskSchedules } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
 import { createAutoLog } from "@/lib/auto-log";
+import { generateGoalTasks } from "@/lib/ensure-upcoming-tasks";
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -53,9 +54,10 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       .where(and(eq(goals.id, outcomeId), eq(goals.userId, userId)))
       .returning();
 
+    const todayStr = new Date().toISOString().split('T')[0];
+
     // When goal is completed or abandoned, delete future uncompleted tasks
     if (body.status === 'completed' || body.status === 'abandoned') {
-      const todayStr = new Date().toISOString().split('T')[0];
       const futureTasks = await db
         .select({ id: tasks.id, date: tasks.date })
         .from(tasks)
@@ -65,16 +67,13 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
           eq(tasks.completed, false),
         ));
       const futureIds = futureTasks.filter(t => t.date > todayStr).map(t => t.id);
-      if (futureIds.length > 0) {
-        for (const fid of futureIds) {
-          await db.delete(tasks).where(eq(tasks.id, fid));
-        }
+      for (const fid of futureIds) {
+        await db.delete(tasks).where(eq(tasks.id, fid));
       }
     }
 
     // When targetDate is preponed, delete uncompleted tasks beyond the new end date
     if (body.targetDate !== undefined && body.targetDate) {
-      const newTargetDate = body.targetDate;
       const beyondTasks = await db
         .select({ id: tasks.id, date: tasks.date })
         .from(tasks)
@@ -83,12 +82,63 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
           eq(tasks.userId, userId),
           eq(tasks.completed, false),
         ));
-      const beyondIds = beyondTasks.filter(t => t.date > newTargetDate).map(t => t.id);
-      if (beyondIds.length > 0) {
-        for (const fid of beyondIds) {
-          await db.delete(tasks).where(eq(tasks.id, fid));
+      const beyondIds = beyondTasks.filter(t => t.date > body.targetDate).map(t => t.id);
+      for (const fid of beyondIds) {
+        await db.delete(tasks).where(eq(tasks.id, fid));
+      }
+    }
+
+    // When scheduleDays changed, delete uncompleted future tasks on removed days
+    if (body.scheduleDays !== undefined) {
+      const newDays: number[] = body.scheduleDays || [];
+      const oldDays: number[] = existing[0].scheduleDays ? JSON.parse(existing[0].scheduleDays) : [];
+      const removedDays = oldDays.filter(d => !newDays.includes(d));
+      if (removedDays.length > 0) {
+        const futureTasks = await db
+          .select({ id: tasks.id, date: tasks.date })
+          .from(tasks)
+          .where(and(
+            eq(tasks.goalId, outcomeId),
+            eq(tasks.userId, userId),
+            eq(tasks.completed, false),
+          ));
+        for (const t of futureTasks) {
+          if (t.date >= todayStr) {
+            const dow = new Date(t.date + 'T12:00:00').getDay();
+            if (removedDays.includes(dow)) {
+              await db.delete(tasks).where(eq(tasks.id, t.id));
+            }
+          }
         }
       }
+    }
+
+    // When autoCreateTasks is turned off, delete all future uncompleted tasks
+    if (body.autoCreateTasks === false && existing[0].autoCreateTasks) {
+      const futureTasks = await db
+        .select({ id: tasks.id, date: tasks.date })
+        .from(tasks)
+        .where(and(
+          eq(tasks.goalId, outcomeId),
+          eq(tasks.userId, userId),
+          eq(tasks.completed, false),
+        ));
+      for (const t of futureTasks) {
+        if (t.date > todayStr) {
+          await db.delete(tasks).where(eq(tasks.id, t.id));
+        }
+      }
+    }
+
+    // Generate new tasks for extended range, new days, or toggled-on autoCreateTasks
+    const needsRegenerate = (
+      (body.targetDate !== undefined && body.targetDate > (existing[0].targetDate || '')) ||
+      (body.startDate !== undefined) ||
+      (body.scheduleDays !== undefined) ||
+      (body.autoCreateTasks === true && !existing[0].autoCreateTasks)
+    );
+    if (needsRegenerate && updated.autoCreateTasks && updated.status === 'active') {
+      await generateGoalTasks(userId, outcomeId);
     }
 
     // Propagate changes to linked uncompleted tasks and their schedules
@@ -102,8 +152,6 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (body.limitValue !== undefined) { propagateToTasks.limitValue = body.limitValue ?? null; propagateToSchedules.limitValue = body.limitValue ?? null; }
     if (body.minimumTarget !== undefined) { propagateToTasks.minimumTarget = body.minimumTarget ?? null; }
     if (body.periodId !== undefined) { propagateToTasks.periodId = body.periodId || null; propagateToSchedules.periodId = body.periodId || null; }
-
-    const todayStr = new Date().toISOString().split('T')[0];
 
     if (Object.keys(propagateToTasks).length > 0) {
       const linkedTasks = await db
