@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
@@ -10,20 +10,18 @@ import {
   FaArchive,
   FaArrowUp,
   FaArrowDown,
-  FaSortAmountDown,
-  FaSortAmountUp,
   FaCheck,
-  FaPlus,
-  FaMinus,
   FaTrash,
   FaSyncAlt,
 } from "react-icons/fa";
 import { Snackbar, Alert as MuiAlert } from "@mui/material";
-import { calculateEffortMetrics, countScheduledDaysInRange } from "@/lib/effort-calculations";
-import { Outcome, LogEntry, LinkedTask } from "../types";
+import { calculateEffortMetrics } from "@/lib/effort-calculations";
+import { Outcome, LogEntry } from "../types";
 import { formatScheduleLabel } from "@/lib/constants";
 import HabitHeatmap from "../components/HabitHeatmap";
 import ProgressChart from "../components/ProgressChart";
+import TaskItem from "@/app/tasks/components/TaskItem";
+import type { EnrichedTask } from "@/app/tasks/components/TaskItem";
 import { formatDate } from "@/lib/format";
 import { useTheme } from "@/components/ThemeProvider";
 
@@ -36,31 +34,71 @@ export default function GoalDetailPage() {
 
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [linkedTasks, setLinkedTasks] = useState<LinkedTask[]>([]);
+  const [linkedTasks, setLinkedTasks] = useState<EnrichedTask[]>([]);
   const [taskCompletionDates, setTaskCompletionDates] = useState<{ date: string; value: number; completed: boolean }[]>([]);
   const [loading, setLoading] = useState(true);
   const [archiving, setArchiving] = useState(false);
   const [sortCol, setSortCol] = useState<"date" | "points" | "status">("date");
   const [sortAsc, setSortAsc] = useState(false);
   const [pendingValues, setPendingValues] = useState<Record<number, string>>({});
-  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
   const [generating, setGenerating] = useState(false);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: "success" | "error" }>({ open: false, message: "", severity: "success" });
 
   const today = new Date().toISOString().split("T")[0];
 
-  const handleTaskComplete = async (task: LinkedTask, completed: boolean, value?: number) => {
-    const date = task.startDate || today;
-    const body: Record<string, unknown> = { taskId: task.id, date, completed };
+  const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+  const [actionLoading] = useState<Record<number, boolean>>({});
+  const [timers] = useState<Record<number, { running: boolean; elapsed: number }>>({});
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const completeTask = async (taskId: number, date: string, completed: boolean, value?: number) => {
+    const body: Record<string, unknown> = { taskId, date, completed };
     if (value !== undefined) body.value = value;
-    setLinkedTasks(prev => prev.map(t => t.id === task.id ? { ...t, completed, value: value ?? t.value } : t));
+    setLinkedTasks(prev => prev.map(t => t.id === taskId ? {
+      ...t,
+      completion: { ...t.completion!, completed, value: value ?? t.completion?.value ?? null },
+    } : t));
     try {
       await fetch('/api/tasks/complete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     } catch (err) {
       console.error("Failed to complete task:", err);
     }
   };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleCheckboxToggle = (task: any) => {
+    const isCompleted = task.completion?.completed || false;
+    completeTask(task.id, task.startDate || today, !isCompleted, !isCompleted ? 1 : 0);
+  };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleCountChange = (task: any, delta: number) => {
+    const cur = (task.completion?.value || 0) + delta;
+    const newVal = Math.max(0, cur);
+    const done = task.target != null && task.target > 0 && newVal >= task.target;
+    completeTask(task.id, task.startDate || today, done, newVal);
+  };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleNumericSubmit = (task: any) => {
+    const val = parseFloat(pendingValues[task.id] || "0") || 0;
+    completeTask(task.id, task.startDate || today, val > 0, val);
+    setPendingValues(prev => { const next = { ...prev }; delete next[task.id]; return next; });
+  };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleHighlightToggle = (_taskId: number) => {}; // Not used in goal view
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleCopy = (_task: any) => {};
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleDiscard = async (task: any) => {
+    const skipped = !(task.completion?.skipped);
+    setLinkedTasks(prev => prev.map(t => t.id === task.id ? { ...t, completion: { ...t.completion!, skipped } } : t));
+    await fetch('/api/tasks/skip', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ taskId: task.id, skipped }) });
+  };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleMoveDate = (_task: any, _dir: -1 | 1) => {};
+  const handleTimerToggle = handleCheckboxToggle;
+  const handleDurationManualSubmit = handleNumericSubmit;
+  const formatTime = (s: number) => { const m = Math.floor(s / 60); const sec = s % 60; return `${m}:${String(sec).padStart(2, '0')}`; };
 
   const handleTaskDelete = async (taskId: number) => {
     try {
@@ -81,47 +119,47 @@ export default function GoalDetailPage() {
       Promise.all([
         fetch("/api/outcomes").then((r) => r.ok ? r.json() : []),
         fetch(`/api/outcomes/${id}/log`).then((r) => r.ok ? r.json() : []),
-        fetch("/api/tasks").then((r) => r.ok ? r.json() : []),
+        fetch("/api/outcomes/tasks").then((r) => r.ok ? r.json() : []),
         fetch("/api/outcomes/completions").then((r) => r.ok ? r.json() : {}),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ]).then(([goalsData, logData, taskGroups, completions]: [Outcome[], LogEntry[], any[], Record<number, { date: string; value: number; completed: boolean }[]>]) => {
+      ]).then(([goalsData, logData, goalTasks, completions]: [Outcome[], LogEntry[], { id: number; name: string; goalId: number; completionType: string; basePoints: number; target: number | null; unit: string | null; date: string; completed: boolean; value: number | null }[], Record<number, { date: string; value: number; completed: boolean }[]>]) => {
         const found = goalsData.find((o: Outcome) => String(o.id) === id);
         setOutcome(found || null);
         setLogs(logData);
 
-        // Build sets for determining completion status of linked tasks
         const goalCompletions = completions[parseInt(id)] || [];
-        const completedDatesSet = new Set<string>(goalCompletions.filter(e => e.completed).map(e => e.date));
-        const logValueByDate = new Map<string, number>();
-        for (const log of logData) {
-          const dateStr = log.loggedAt.split('T')[0];
-          logValueByDate.set(dateStr, log.value);
-        }
 
-        const tasks: LinkedTask[] = [];
-        for (const group of taskGroups) {
-          for (const task of group.tasks) {
-            if (task.goalId === parseInt(id)) {
-              const isCompletedToday = task.completion?.completed || false;
-              const isCompletedOnDate = task.startDate ? completedDatesSet.has(task.startDate) : false;
-              const taskValue = task.completion?.value ?? (task.startDate ? logValueByDate.get(task.startDate) ?? null : null);
+        const tasks: EnrichedTask[] = goalTasks
+          .filter(t => t.goalId === parseInt(id))
+          .map(t => ({
+            id: t.id,
+            name: t.name,
+            goalId: t.goalId,
+            pillarId: 0,
+            frequency: "adhoc",
+            customDays: null,
+            repeatInterval: null,
+            completionType: t.completionType || "checkbox",
+            basePoints: t.basePoints || 0,
+            target: t.target,
+            unit: t.unit,
+            startDate: t.date,
+            date: t.date,
+            completion: {
+              id: t.id,
+              taskId: t.id,
+              completed: t.completed,
+              value: t.value,
+              pointsEarned: 0,
+              isHighlighted: false,
+              skipped: !t.completed && (t.value === null || t.value === 0) && t.date < today,
+              timerStartedAt: null,
+            },
+            periodId: null,
+            _pillarColor: color,
+            _pillarEmoji: '',
+            _pillarName: '',
+          } as EnrichedTask));
 
-              tasks.push({
-                id: task.id,
-                name: task.name,
-                goalId: task.goalId,
-                frequency: task.frequency || "daily",
-                completionType: task.completionType || "checkbox",
-                basePoints: task.basePoints || 0,
-                target: task.target ?? null,
-                unit: task.unit ?? null,
-                completed: isCompletedToday || isCompletedOnDate,
-                value: taskValue,
-                startDate: task.startDate || null,
-              });
-            }
-          }
-        }
         setLinkedTasks(tasks);
         setTaskCompletionDates(goalCompletions);
         setLoading(false);
@@ -155,7 +193,7 @@ export default function GoalDetailPage() {
     const dates = new Set<string>();
     for (const l of logs) dates.add(l.loggedAt.split('T')[0]);
     for (const d of taskCompletionDates) {
-      if (d.completed) dates.add(d.date);
+      if (d.completed || d.value > 0) dates.add(d.date);
     }
     return dates;
   }, [logs, taskCompletionDates]);
@@ -163,7 +201,7 @@ export default function GoalDetailPage() {
   const heatmapValues = useMemo(() => {
     const values = new Map<string, number>();
     for (const d of taskCompletionDates) {
-      if (d.completed && d.value > 0) {
+      if (d.value > 0) {
         values.set(d.date, (values.get(d.date) || 0) + d.value);
       }
     }
@@ -209,7 +247,7 @@ export default function GoalDetailPage() {
           cmp = a.basePoints - b.basePoints;
           break;
         case "status":
-          cmp = (a.completed ? 1 : 0) - (b.completed ? 1 : 0);
+          cmp = (a.completion?.completed ? 1 : 0) - (b.completion?.completed ? 1 : 0);
           break;
       }
       return sortAsc ? cmp : -cmp;
@@ -226,33 +264,7 @@ export default function GoalDetailPage() {
     }
   };
 
-  const getExpectedValue = (taskDate: string) => {
-    if (!outcome || !outcome.startDate || !outcome.targetDate || outcome.goalType !== "outcome") return null;
-    if (taskDate < outcome.startDate || taskDate > outcome.targetDate) return null;
-    const totalDays = scheduleDays.length > 0
-      ? countScheduledDaysInRange(outcome.startDate, outcome.targetDate, scheduleDays)
-      : Math.max(1, Math.round((new Date(outcome.targetDate).getTime() - new Date(outcome.startDate).getTime()) / 86400000));
-    const elapsedDays = scheduleDays.length > 0
-      ? countScheduledDaysInRange(outcome.startDate, taskDate, scheduleDays)
-      : Math.max(0, Math.round((new Date(taskDate).getTime() - new Date(outcome.startDate).getTime()) / 86400000));
-    const expected = outcome.startValue + (outcome.targetValue - outcome.startValue) * (elapsedDays / totalDays);
-    return Math.round(expected * 10) / 10;
-  };
 
-  const frequencyLabel = (freq: string) => {
-    if (freq === "adhoc" && scheduleDays.length > 0) {
-      return formatScheduleLabel(scheduleDays);
-    }
-    switch (freq) {
-      case "daily": return "Daily";
-      case "weekly": return "Weekly";
-      case "monthly": return "Monthly";
-      case "adhoc": return "One-time";
-      case "custom": return "Custom";
-      case "interval": return "Interval";
-      default: return freq;
-    }
-  };
 
   const handleStatusChange = (newStatus: 'active' | 'completed' | 'abandoned') => {
     if (!outcome) return;
@@ -294,33 +306,26 @@ export default function GoalDetailPage() {
       if (res.ok) {
         setSnackbar({ open: true, message: "Tasks generated successfully", severity: "success" });
         // Refresh everything — same as initial load
-        const [goalsData, logData, taskGroups, completions] = await Promise.all([
+        const [goalsData, logData, goalTasks, completions] = await Promise.all([
           fetch("/api/outcomes").then(r => r.ok ? r.json() : []),
           fetch(`/api/outcomes/${outcome.id}/log`).then(r => r.ok ? r.json() : []),
-          fetch("/api/tasks").then(r => r.ok ? r.json() : []),
+          fetch("/api/outcomes/tasks").then(r => r.ok ? r.json() : []),
           fetch("/api/outcomes/completions").then(r => r.ok ? r.json() : {}),
         ]);
         const found = goalsData.find((o: Outcome) => String(o.id) === String(outcome.id));
         if (found) setOutcome(found);
         setLogs(logData);
         const goalCompletions = completions[outcome.id] || [];
-        const completedDatesSet = new Set<string>(goalCompletions.filter((e: { completed: boolean; date: string }) => e.completed).map((e: { date: string }) => e.date));
-        const logValueByDate = new Map<string, number>();
-        for (const log of logData) {
-          const dateStr = log.loggedAt.split('T')[0];
-          logValueByDate.set(dateStr, log.value);
-        }
-        const newTasks: LinkedTask[] = [];
-        for (const group of taskGroups) {
-          for (const task of group.tasks) {
-            if (task.goalId === outcome.id) {
-              const isCompletedToday = task.completion?.completed || false;
-              const isCompletedOnDate = task.startDate ? completedDatesSet.has(task.startDate) : false;
-              const taskValue = task.completion?.value ?? (task.startDate ? logValueByDate.get(task.startDate) ?? null : null);
-              newTasks.push({ id: task.id, name: task.name, goalId: task.goalId, frequency: task.frequency || "daily", completionType: task.completionType || "checkbox", basePoints: task.basePoints || 0, target: task.target ?? null, unit: task.unit ?? null, completed: isCompletedToday || isCompletedOnDate, value: taskValue, startDate: task.startDate || null });
-            }
-          }
-        }
+        const todayStr = new Date().toISOString().split('T')[0];
+        const newTasks: EnrichedTask[] = goalTasks
+          .filter((t: { goalId: number }) => t.goalId === outcome.id)
+          .map((t: { id: number; name: string; goalId: number; completionType: string; basePoints: number; target: number | null; unit: string | null; date: string; completed: boolean; value: number | null }) => ({
+            id: t.id, name: t.name, goalId: t.goalId, pillarId: 0, frequency: "adhoc",
+            customDays: null, repeatInterval: null, completionType: t.completionType || "checkbox",
+            basePoints: t.basePoints || 0, target: t.target, unit: t.unit, startDate: t.date, date: t.date,
+            periodId: null, _pillarColor: color, _pillarEmoji: '', _pillarName: '',
+            completion: { id: t.id, taskId: t.id, completed: t.completed, value: t.value, pointsEarned: 0, isHighlighted: false, skipped: !t.completed && (t.value === null || t.value === 0) && t.date < todayStr, timerStartedAt: null },
+          } as EnrichedTask));
         setLinkedTasks(newTasks);
         setTaskCompletionDates(goalCompletions);
       } else {
@@ -570,187 +575,40 @@ export default function GoalDetailPage() {
               </div>
             </div>
             <div className="space-y-2">
-              {sortedTasks.map(task => {
-                const currentValue = task.value || 0;
-                const isFullyDone = task.completed || (task.target != null && task.target > 0 && currentValue >= task.target);
-                const yesterdayDate = new Date(); yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-                const isFrozen = task.startDate ? task.startDate < yesterdayDate.toISOString().split('T')[0] : false;
-                return (
-                  <div
-                    key={task.id}
-                    className={`rounded-lg px-3 py-2.5 transition-all ${
-                      isFullyDone
-                        ? "bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800"
-                        : "bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700"
-                    }`}
-                    style={{ borderLeftWidth: 3, borderLeftColor: isFullyDone ? "#4ade80" : color }}
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 min-w-0">
-                        <h4 className={`text-sm font-semibold leading-snug ${isFullyDone ? "line-through text-zinc-400 dark:text-zinc-500" : "text-zinc-900 dark:text-white"}`}>
-                          {task.name}
-                        </h4>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                            {task.startDate ? formatDate(task.startDate, dateFormat) : "No date"}
-                          </span>
-                          <span className="text-[11px] px-1.5 py-px rounded-full bg-zinc-100 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400">
-                            {frequencyLabel(task.frequency)}
-                          </span>
-                          {task.startDate && (() => {
-                            const expected = getExpectedValue(task.startDate);
-                            return expected !== null ? (
-                              <span className="text-[11px] text-zinc-400 dark:text-zinc-500">
-                                exp: {expected} {outcome?.unit}
-                              </span>
-                            ) : null;
-                          })()}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
-                        {!isFrozen && task.completionType === "checkbox" && (
-                          <button
-                            onClick={() => handleTaskComplete(task, !isFullyDone, !isFullyDone ? 1 : 0)}
-                            className={`w-7 h-7 rounded-md border-2 flex items-center justify-center transition-colors ${
-                              isFullyDone
-                                ? "bg-green-500 border-green-500 text-white"
-                                : "border-zinc-300 dark:border-zinc-600 hover:border-green-500"
-                            }`}
-                          >
-                            {isFullyDone && <FaCheck className="text-xs" />}
-                          </button>
-                        )}
-                        {isFrozen && task.completionType === "checkbox" && isFullyDone && (
-                          <div className="w-7 h-7 rounded-md bg-green-500 border-2 border-green-500 text-white flex items-center justify-center">
-                            <FaCheck className="text-xs" />
-                          </div>
-                        )}
-
-                        {task.completionType === "count" && (
-                          <div className="flex items-center gap-1">
-                            {!isFrozen && (
-                              <button
-                                onClick={() => {
-                                  const newVal = Math.max(0, currentValue - 1);
-                                  const done = task.target != null && task.target > 0 && newVal >= task.target;
-                                  handleTaskComplete(task, done, newVal);
-                                }}
-                                className="w-6 h-6 rounded bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center hover:bg-zinc-300 dark:hover:bg-zinc-600"
-                              >
-                                <FaMinus className="text-[9px]" />
-                              </button>
-                            )}
-                            <span className={`text-xs font-bold min-w-[2.5rem] text-center ${
-                              task.target && currentValue >= task.target ? "text-green-600 dark:text-green-400" : "text-zinc-900 dark:text-white"
-                            }`}>
-                              {currentValue}/{task.target || "?"}
-                            </span>
-                            {!isFrozen && (
-                              <button
-                                onClick={() => {
-                                  const newVal = currentValue + 1;
-                                  const done = task.target != null && task.target > 0 && newVal >= task.target;
-                                  handleTaskComplete(task, done, newVal);
-                                }}
-                                className="w-6 h-6 rounded bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 flex items-center justify-center hover:bg-zinc-800 dark:hover:bg-zinc-100"
-                              >
-                                <FaPlus className="text-[9px]" />
-                              </button>
-                            )}
-                          </div>
-                        )}
-
-                        {(task.completionType === "numeric" || task.completionType === "duration") && (
-                          <div className="flex items-center gap-1">
-                            {!isFrozen ? (
-                              <>
-                                <input
-                                  type="number"
-                                  value={pendingValues[task.id] ?? (currentValue || "")}
-                                  onChange={e => setPendingValues(prev => ({ ...prev, [task.id]: e.target.value }))}
-                                  onKeyDown={e => {
-                                    if (e.key === "Enter") {
-                                      const val = parseFloat(pendingValues[task.id] || "0") || 0;
-                                      handleTaskComplete(task, val > 0, val);
-                                      setPendingValues(prev => { const next = { ...prev }; delete next[task.id]; return next; });
-                                    }
-                                  }}
-                                  placeholder={task.target ? String(task.target) : "0"}
-                                  className="w-14 px-1.5 py-1 text-xs text-right border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
-                                />
-                                {task.unit && <span className="text-[10px] text-zinc-500 dark:text-zinc-400">{task.unit}</span>}
-                                {pendingValues[task.id] !== undefined && (
-                                  <button
-                                    onClick={() => {
-                                      const val = parseFloat(pendingValues[task.id] || "0") || 0;
-                                      handleTaskComplete(task, val > 0, val);
-                                      setPendingValues(prev => { const next = { ...prev }; delete next[task.id]; return next; });
-                                    }}
-                                    className="w-6 h-6 rounded bg-green-500 text-white flex items-center justify-center hover:bg-green-600"
-                                  >
-                                    <FaCheck className="text-[9px]" />
-                                  </button>
-                                )}
-                              </>
-                            ) : (
-                              <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400">
-                                {currentValue} {task.unit || ''}
-                              </span>
-                            )}
-                          </div>
-                        )}
-
-                        {!isFrozen && (
-                          <button
-                            onClick={() => router.push(`/tasks/${task.id}/edit`)}
-                            className="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700"
-                            title="Edit task"
-                          >
-                            <FaEdit className="text-[10px]" />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => setDeleteConfirmId(task.id)}
-                          className="p-1 text-zinc-400 hover:text-red-500 dark:hover:text-red-400 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
-                          title="Delete task"
-                        >
-                          <FaTrash className="text-[10px]" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+              {sortedTasks.map(task => (
+                <TaskItem
+                  key={task.id}
+                  task={task}
+                  hidePillar
+                  showDate={task.startDate ? formatDate(task.startDate, dateFormat) : undefined}
+                  goalsList={[]}
+                  cycles={[]}
+                  maxStarsReached={true}
+                  timers={timers}
+                  pendingValues={pendingValues}
+                  setPendingValues={setPendingValues}
+                  openMenuId={openMenuId}
+                  setOpenMenuId={setOpenMenuId}
+                  actionLoading={actionLoading}
+                  menuRef={menuRef}
+                  router={router}
+                  handleCheckboxToggle={handleCheckboxToggle}
+                  handleCountChange={handleCountChange}
+                  handleNumericSubmit={handleNumericSubmit}
+                  handleTimerToggle={handleTimerToggle}
+                  handleDurationManualSubmit={handleDurationManualSubmit}
+                  handleHighlightToggle={handleHighlightToggle}
+                  handleCopy={handleCopy}
+                  handleDelete={handleTaskDelete}
+                  handleDiscard={handleDiscard}
+                  handleMoveDate={handleMoveDate}
+                  formatTime={formatTime}
+                />
+              ))}
             </div>
           </div>
         )}
 
-        {/* Delete confirmation dialog */}
-        {deleteConfirmId !== null && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setDeleteConfirmId(null)}>
-            <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-lg p-5 mx-4 max-w-sm w-full" onClick={e => e.stopPropagation()}>
-              <h3 className="text-lg font-semibold text-zinc-900 dark:text-white mb-2">Delete Task</h3>
-              <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
-                This will permanently remove this task from scoring. Are you sure?
-              </p>
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => setDeleteConfirmId(null)}
-                  className="px-4 py-2 text-sm rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => handleTaskDelete(deleteConfirmId)}
-                  className="px-4 py-2 text-sm rounded-lg bg-red-500 text-white hover:bg-red-600"
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Confirmation Dialog */}

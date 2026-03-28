@@ -1,5 +1,5 @@
 import { db, taskSchedules, tasks, goals } from "@/lib/db";
-import { eq, and, inArray, lt } from "drizzle-orm";
+import { eq, and, inArray, lt, sql } from "drizzle-orm";
 import { isScheduleForExactDate } from "@/lib/task-schedule";
 import { countScheduledDaysInRange } from "@/lib/effort-calculations";
 
@@ -41,6 +41,7 @@ export async function ensureUpcomingTasks(userId: string) {
 async function _ensureUpcomingTasksInner(userId: string, todayStr: string) {
 
   // Auto-skip past incomplete tasks (date has passed, not completed/skipped/dismissed)
+  // Exclude no-date tasks (empty string date)
   await db.update(tasks)
     .set({ skipped: true })
     .where(and(
@@ -48,7 +49,7 @@ async function _ensureUpcomingTasksInner(userId: string, todayStr: string) {
       eq(tasks.completed, false),
       eq(tasks.skipped, false),
       eq(tasks.dismissed, false),
-      lt(tasks.date, todayStr),
+      sql`${tasks.date} != '' AND ${tasks.date} < ${todayStr}`,
     ));
 
   // Get all active schedules for this user

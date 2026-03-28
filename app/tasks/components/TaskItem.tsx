@@ -18,6 +18,7 @@ export interface EnrichedTask extends Task {
 interface TaskItemProps {
   task: EnrichedTask;
   showDate?: string;
+  hidePillar?: boolean;
   goalsList: Outcome[];
   cycles: Cycle[];
   maxStarsReached: boolean;
@@ -47,6 +48,7 @@ interface TaskItemProps {
 export default function TaskItem({
   task,
   showDate,
+  hidePillar,
   goalsList,
   cycles,
   maxStarsReached,
@@ -75,6 +77,8 @@ export default function TaskItem({
   const currentValue = task.completion?.value || 0;
   const isDiscarded = task.completion?.skipped || false;
   const isLimitTask = task.flexibilityRule === 'limit_avoid';
+  const yesterdayD = new Date(); yesterdayD.setDate(yesterdayD.getDate() - 1);
+  const isFrozen = task.startDate ? task.startDate < yesterdayD.toISOString().split('T')[0] : (task.date ? task.date < yesterdayD.toISOString().split('T')[0] : false);
   const limitVal = task.limitValue ?? task.target ?? 0;
   const buttonRef = useRef<HTMLButtonElement>(null);
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
@@ -215,6 +219,7 @@ export default function TaskItem({
   const isAtZero = isNonCheckbox && currentValue <= 0;
 
   const handleSwipeRight = () => {
+    if (isFrozen) return;
     if (isDiscarded) {
       // Skipped → unskip (back to pending)
       handleDiscard(task);
@@ -226,6 +231,7 @@ export default function TaskItem({
   };
 
   const handleSwipeLeft = () => {
+    if (isFrozen) return;
     if (isDiscarded) {
       // Skipped → unskip (back to pending)
       handleDiscard(task);
@@ -316,7 +322,7 @@ export default function TaskItem({
       )}
       <div className="relative flex items-center gap-2">
         {/* Left: star + name, pillar, badges */}
-        {(isHighlighted || !maxStarsReached) && (
+        {!isFrozen && (isHighlighted || !maxStarsReached) && (
           <button
             onClick={() => handleHighlightToggle(task.id)}
             className={`shrink-0 transition-colors ${
@@ -334,7 +340,7 @@ export default function TaskItem({
             {task.name}
           </h3>
           <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-            <span className="text-[11px] text-zinc-500 dark:text-zinc-400 shrink-0">{task._pillarEmoji} {task._pillarName}</span>
+            {!hidePillar && <span className="text-[11px] text-zinc-500 dark:text-zinc-400 shrink-0">{task._pillarEmoji} {task._pillarName}</span>}
             {isLimitTask && task.completionType !== 'checkbox' && (
               <span title="Limit" className="text-[10px] w-4 h-4 rounded-full font-bold inline-flex items-center justify-center bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">
                 L
@@ -384,7 +390,7 @@ export default function TaskItem({
         {/* Right: completion controls + menu */}
         <div className="flex items-center gap-1.5 shrink-0">
           <>
-            {task.completionType === 'checkbox' && (
+            {task.completionType === 'checkbox' && !isFrozen && (
               <button
                 onClick={() => handleCheckboxToggle(task)}
                 className={`w-7 h-7 rounded-md border-2 flex items-center justify-center transition-colors ${
@@ -397,7 +403,7 @@ export default function TaskItem({
               </button>
             )}
 
-            {task.completionType === 'count' && (
+            {task.completionType === 'count' && !isFrozen && (
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => handleCountChange(task, -1)}
@@ -421,7 +427,7 @@ export default function TaskItem({
               </div>
             )}
 
-            {task.completionType === 'duration' && (() => {
+            {task.completionType === 'duration' && !isFrozen && (() => {
               const timer = timers[task.id];
               const elapsed = timer ? timer.elapsed : (currentValue * 60);
               const targetSec = (task.target || 0) * 60;
@@ -478,7 +484,7 @@ export default function TaskItem({
               );
             })()}
 
-            {task.completionType === 'numeric' && (
+            {task.completionType === 'numeric' && !isFrozen && (
               <div className="flex items-center gap-1">
                 <input
                   type="number"
@@ -530,7 +536,7 @@ export default function TaskItem({
             onTouchStart={(e) => e.stopPropagation()}
             onTouchEnd={(e) => e.stopPropagation()}
           >
-            {isLimitTask && !isCompleted && handleMarkDone && (
+            {!isFrozen && isLimitTask && !isCompleted && handleMarkDone && (
               <button
                 onTouchEnd={(e) => { e.preventDefault(); setOpenMenuId(null); handleMarkDone(task); }}
                 onClick={() => { setOpenMenuId(null); handleMarkDone(task); }}
@@ -539,14 +545,16 @@ export default function TaskItem({
                 <FaCheck className="text-xs" /> Mark as Done
               </button>
             )}
-            <button
-              onTouchEnd={(e) => { e.preventDefault(); setOpenMenuId(null); router.push(`/tasks/${task.id}/edit`); }}
-              onClick={() => { setOpenMenuId(null); router.push(`/tasks/${task.id}/edit`); }}
-              className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
-            >
-              <FaEdit className="text-xs" /> Edit
-            </button>
-            {task.startDate && (
+            {!isFrozen && (
+              <button
+                onTouchEnd={(e) => { e.preventDefault(); setOpenMenuId(null); router.push(`/tasks/${task.id}/edit`); }}
+                onClick={() => { setOpenMenuId(null); router.push(`/tasks/${task.id}/edit`); }}
+                className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+              >
+                <FaEdit className="text-xs" /> Edit
+              </button>
+            )}
+            {!isFrozen && task.startDate && (
               <>
                 <button
                   onTouchEnd={(e) => { e.preventDefault(); handleMoveDate(task, -1); }}
@@ -564,14 +572,16 @@ export default function TaskItem({
                 </button>
               </>
             )}
-            <button
-              onTouchEnd={(e) => { e.preventDefault(); handleCopy(task); }}
-              onClick={() => handleCopy(task)}
-              className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
-            >
-              <FaCopy className="text-xs" /> Duplicate
-            </button>
-            {isDiscarded ? (
+            {!isFrozen && (
+              <button
+                onTouchEnd={(e) => { e.preventDefault(); handleCopy(task); }}
+                onClick={() => handleCopy(task)}
+                className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+              >
+                <FaCopy className="text-xs" /> Duplicate
+              </button>
+            )}
+            {!isFrozen && (isDiscarded ? (
               <button
                 onTouchEnd={(e) => { e.preventDefault(); setOpenMenuId(null); handleDiscard(task); }}
                 onClick={() => { setOpenMenuId(null); handleDiscard(task); }}
@@ -587,7 +597,7 @@ export default function TaskItem({
               >
                 <FaTimes className="text-xs" /> Skip
               </button>
-            )}
+            ))}
             <button
               onTouchEnd={(e) => { e.preventDefault(); setOpenMenuId(null); handleDelete(task.id); }}
               onClick={() => { setOpenMenuId(null); handleDelete(task.id); }}
