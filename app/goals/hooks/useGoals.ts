@@ -59,11 +59,11 @@ export function useGoals() {
 
   const fetchAll = async () => {
     try {
-      const [outcomesRes, logsRes, pillarsRes, tasksRes, completionsRes, cyclesRes] = await Promise.all([
+      const [outcomesRes, logsRes, pillarsRes, goalTasksRes, completionsRes, cyclesRes] = await Promise.all([
         fetch("/api/outcomes"),
         fetch("/api/outcomes/logs"),
         fetch("/api/pillars"),
-        fetch("/api/tasks"),
+        fetch("/api/outcomes/tasks"),
         fetch("/api/outcomes/completions"),
         fetch("/api/cycles"),
       ]);
@@ -79,16 +79,11 @@ export function useGoals() {
       if (pillarsRes.ok) {
         setPillars(await pillarsRes.json());
       }
-      if (tasksRes.ok) {
-        const groups = await tasksRes.json();
-        const allTasks: LinkedTask[] = [];
-        for (const group of groups) {
-          for (const task of group.tasks) {
-            if (task.goalId) {
-              allTasks.push({ id: task.id, name: task.name, goalId: task.goalId, frequency: task.frequency, completionType: task.completionType, basePoints: task.basePoints, target: task.target, unit: task.unit, completed: false, value: null, startDate: task.startDate });
-            }
-          }
-        }
+      if (goalTasksRes.ok) {
+        const goalTasks = await goalTasksRes.json();
+        const allTasks: LinkedTask[] = goalTasks.map((t: { id: number; name: string; goalId: number; completionType: string; basePoints: number; target: number | null; unit: string | null; date: string; completed: boolean; value: number | null }) => ({
+          id: t.id, name: t.name, goalId: t.goalId, frequency: 'adhoc' as const, completionType: t.completionType, basePoints: t.basePoints, target: t.target, unit: t.unit, completed: t.completed, value: t.value, startDate: t.date,
+        }));
         setLinkedTasks(allTasks);
       }
       if (completionsRes.ok) {
@@ -126,20 +121,15 @@ export function useGoals() {
 
   const fetchLinkedTasks = async () => {
     try {
-      const [tasksRes, completionsRes] = await Promise.all([
-        fetch('/api/tasks'),
+      const [goalTasksRes, completionsRes] = await Promise.all([
+        fetch('/api/outcomes/tasks'),
         fetch('/api/outcomes/completions'),
       ]);
-      if (tasksRes.ok) {
-        const groups = await tasksRes.json();
-        const allTasks: LinkedTask[] = [];
-        for (const group of groups) {
-          for (const task of group.tasks) {
-            if (task.goalId) {
-              allTasks.push({ id: task.id, name: task.name, goalId: task.goalId, frequency: task.frequency, completionType: task.completionType, basePoints: task.basePoints, target: task.target, unit: task.unit, completed: false, value: null, startDate: task.startDate });
-            }
-          }
-        }
+      if (goalTasksRes.ok) {
+        const goalTasks = await goalTasksRes.json();
+        const allTasks: LinkedTask[] = goalTasks.map((t: { id: number; name: string; goalId: number; completionType: string; basePoints: number; target: number | null; unit: string | null; date: string; completed: boolean; value: number | null }) => ({
+          id: t.id, name: t.name, goalId: t.goalId, frequency: 'adhoc' as const, completionType: t.completionType, basePoints: t.basePoints, target: t.target, unit: t.unit, completed: t.completed, value: t.value, startDate: t.date,
+        }));
         setLinkedTasks(allTasks);
       }
       if (completionsRes.ok) {

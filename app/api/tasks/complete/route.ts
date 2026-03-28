@@ -5,6 +5,7 @@ import { eq, and, or, gt, like } from "drizzle-orm";
 import { createAutoLog } from "@/lib/auto-log";
 import { calculateTaskScore } from "@/lib/scoring";
 import { saveDailyScore } from "@/lib/save-daily-score";
+import { invalidateRecalcCache } from "@/lib/ensure-upcoming-tasks";
 
 export async function POST(request: Request) {
   try {
@@ -153,6 +154,9 @@ export async function POST(request: Request) {
         console.error("Failed to update linked goal:", err);
       }
     }
+
+    // Invalidate recalc cache so target goals get fresh targets on next load
+    invalidateRecalcCache(userId);
 
     // Recalculate and save daily score for the task's actual date
     const taskDate = result.date || date;

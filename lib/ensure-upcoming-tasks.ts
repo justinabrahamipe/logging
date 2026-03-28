@@ -234,11 +234,23 @@ export async function generateGoalTasks(userId: string, goalId: number) {
 
 /**
  * Recalculate per-session targets for target goals based on remaining work / remaining days.
- * This runs on every task fetch (not cached) so targets stay accurate after completing tasks.
+ * Recalculates after task completions. Cached for 30 seconds per user to avoid
+ * redundant queries on rapid page loads.
  * Optimised: filters in-memory first, uses a single bulk update per goal, and skips
  * goals where the computed target hasn't changed.
  */
+const recalcCache = new Map<string, number>(); // userId -> last run timestamp
+const RECALC_TTL = 30_000; // 30 seconds
+
+export function invalidateRecalcCache(userId: string) {
+  recalcCache.delete(userId);
+}
+
 export async function recalcTargetGoalTasks(userId: string) {
+  const now = Date.now();
+  const lastRun = recalcCache.get(userId);
+  if (lastRun && now - lastRun < RECALC_TTL) return;
+  recalcCache.set(userId, now);
   const todayStr = new Date().toISOString().split('T')[0];
 
   const activeGoals = await db
