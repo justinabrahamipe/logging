@@ -2,12 +2,14 @@
 
 import { useMemo } from "react";
 
-export default function HabitHeatmap({ startDate, endDate, scheduleDays, doneDates, today }: {
+export default function HabitHeatmap({ startDate, endDate, scheduleDays, doneDates, today, dateValues, dailyTarget }: {
   startDate: string;
   endDate: string | null;
   scheduleDays: number[];
   doneDates: Set<string>;
   today: string;
+  dateValues?: Map<string, number>;
+  dailyTarget?: number | null;
 }) {
   const { weeks } = useMemo(() => {
     const todayDate = new Date(today + 'T12:00:00');
@@ -81,7 +83,18 @@ export default function HabitHeatmap({ startDate, endDate, scheduleDays, doneDat
                 }` : ''}
                 className={`w-3 h-3 rounded-sm ${
                   day.date === '' ? 'bg-zinc-200 dark:bg-zinc-700' :
-                  day.status === 'done' ? 'bg-green-500 dark:bg-green-400' :
+                  day.status === 'done' ? (
+                    dateValues && dailyTarget && dailyTarget > 0
+                      ? (() => {
+                          const val = dateValues.get(day.date) || 0;
+                          const pct = val / dailyTarget;
+                          if (pct >= 1.5) return 'bg-emerald-600 dark:bg-emerald-500';
+                          if (pct >= 1) return 'bg-green-500 dark:bg-green-400';
+                          if (pct >= 0.5) return 'bg-amber-400 dark:bg-amber-400';
+                          return 'bg-orange-400 dark:bg-orange-400';
+                        })()
+                      : 'bg-green-500 dark:bg-green-400'
+                  ) :
                   day.status === 'today' ? 'bg-blue-400 dark:bg-blue-500 ring-1 ring-blue-500/50' :
                   day.status === 'missed' ? 'bg-red-400 dark:bg-red-500/70' :
                   day.status === 'off' ? 'bg-zinc-200 dark:bg-zinc-700' :
@@ -93,14 +106,29 @@ export default function HabitHeatmap({ startDate, endDate, scheduleDays, doneDat
         ))}
       </div>
       <div className="flex items-center gap-1.5 mt-2 text-[10px] text-zinc-400 dark:text-zinc-500">
-        <div className="w-2.5 h-2.5 rounded-sm bg-green-500 dark:bg-green-400" />
-        <span>Done</span>
+        {dateValues && dailyTarget && dailyTarget > 0 ? (
+          <>
+            <div className="w-2.5 h-2.5 rounded-sm bg-emerald-600 dark:bg-emerald-500" />
+            <span>150%+</span>
+            <div className="w-2.5 h-2.5 rounded-sm bg-green-500 dark:bg-green-400 ml-1" />
+            <span>100%</span>
+            <div className="w-2.5 h-2.5 rounded-sm bg-amber-400 ml-1" />
+            <span>50%+</span>
+            <div className="w-2.5 h-2.5 rounded-sm bg-orange-400 ml-1" />
+            <span>&lt;50%</span>
+          </>
+        ) : (
+          <>
+            <div className="w-2.5 h-2.5 rounded-sm bg-green-500 dark:bg-green-400" />
+            <span>Done</span>
+          </>
+        )}
         <div className="w-2.5 h-2.5 rounded-sm bg-blue-400 dark:bg-blue-500 ml-1" />
         <span>Today</span>
         <div className="w-2.5 h-2.5 rounded-sm bg-red-400 dark:bg-red-500/70 ml-1" />
         <span>Missed</span>
         <div className="w-2.5 h-2.5 rounded-sm bg-zinc-200 dark:bg-zinc-700 ml-1" />
-        <span>Upcoming</span>
+        <span>Off</span>
       </div>
     </div>
   );

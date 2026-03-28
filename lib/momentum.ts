@@ -98,9 +98,16 @@ function calculateTargetMomentum(
     ? countScheduledDaysInRange(startDate, endDate, scheduleDays)
     : Math.max(1, Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000) + 1);
 
+  // Use yesterday for elapsed calculation — today's work is in progress,
+  // so comparing against today's expected would penalize you mid-day
+  const yesterday = new Date(effectiveToday + 'T12:00:00');
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().split('T')[0];
+  const elapsedEnd = yesterdayStr >= startDate ? yesterdayStr : startDate;
+
   const elapsedDays = scheduleDays.length > 0
-    ? countScheduledDaysInRange(startDate, effectiveToday, scheduleDays)
-    : Math.max(1, Math.ceil((new Date(effectiveToday).getTime() - new Date(startDate).getTime()) / 86400000) + 1);
+    ? countScheduledDaysInRange(startDate, elapsedEnd, scheduleDays)
+    : Math.max(1, Math.ceil((new Date(elapsedEnd).getTime() - new Date(startDate).getTime()) / 86400000) + 1);
 
   if (totalDays === 0 || elapsedDays === 0) {
     return { goalId: goal.id, goalType: goal.goalType, pillarId: goal.pillarId, momentum: 1.0, bufferDays: 0, label: 'On track' };
@@ -173,9 +180,15 @@ export function calculateTrajectory(
     }
 
     const totalMs = new Date(endDate).getTime() - new Date(startDate).getTime();
-    const elapsedMs = new Date(today > endDate ? endDate : today).getTime() - new Date(startDate).getTime();
+    // Use yesterday for elapsed — today's work is in progress
+    const effectiveEnd = today > endDate ? endDate : today;
+    const yd = new Date(effectiveEnd + 'T12:00:00');
+    yd.setDate(yd.getDate() - 1);
+    const ydStr = yd.toISOString().split('T')[0];
+    const elapsedEnd2 = ydStr >= startDate ? ydStr : startDate;
+    const elapsedMs = new Date(elapsedEnd2).getTime() - new Date(startDate).getTime();
 
-    if (totalMs <= 0) {
+    if (totalMs <= 0 || elapsedMs <= 0) {
       results.push({ goalId: goal.id, pillarId: goal.pillarId, trajectory: 1.0, label: 'On track' });
       continue;
     }

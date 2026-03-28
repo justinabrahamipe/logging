@@ -47,8 +47,13 @@ export default function CyclePerformance() {
       fetch("/api/outcomes").then(r => r.ok ? r.json() : []),
     ]).then(([cycles, historyData, goalsData]: [CycleData[], { scores: ScoreEntry[] }, { id: number; periodId: number | null; goalType: string; startValue: number; targetValue: number; currentValue: number; startDate: string | null; targetDate: string | null }[]]) => {
       const scores = historyData.scores || [];
-      // Sort cycles by start date desc, take last 4
-      const sorted = [...cycles].sort((a, b) => b.startDate.localeCompare(a.startDate)).slice(0, 4);
+      // Show only active cycles (currently running)
+      const now = new Date();
+      const sorted = cycles.filter((c: CycleData) => {
+        const start = new Date(c.startDate + 'T00:00:00');
+        const end = new Date(c.endDate + 'T23:59:59');
+        return c.isActive && now >= start && now <= end;
+      });
 
       const stats: CycleStats[] = sorted.map(cycle => {
         const inRange = scores.filter(s => s.date >= cycle.startDate && s.date <= cycle.endDate);

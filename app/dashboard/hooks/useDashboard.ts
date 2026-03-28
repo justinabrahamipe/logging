@@ -21,6 +21,7 @@ export function useDashboard() {
   const [momentumData, setMomentumData] = useState<MomentumData | null>(null);
   const [loading, setLoading] = useState(true);
   const [todayTaskCount, setTodayTaskCount] = useState(0);
+  const [activeCycleIds, setActiveCycleIds] = useState<number[]>([]);
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -63,13 +64,14 @@ export function useDashboard() {
 
   const fetchData = async () => {
     try {
-      const [scoreRes, historyRes, outcomesRes, tasksRes, momentumRes, completionsRes] = await Promise.all([
+      const [scoreRes, historyRes, outcomesRes, tasksRes, momentumRes, completionsRes, cyclesRes] = await Promise.all([
         fetch(`/api/daily-score?date=${today}`),
         fetch("/api/daily-score/history?days=90"),
         fetch("/api/outcomes"),
         fetch(`/api/tasks?date=${today}`),
         fetch("/api/momentum"),
         fetch("/api/outcomes/completions"),
+        fetch("/api/cycles"),
       ]);
 
       let scoreData = null;
@@ -95,6 +97,16 @@ export function useDashboard() {
         const count = groups.reduce((sum: number, g: { tasks: unknown[] }) => sum + g.tasks.length, 0);
         setTodayTaskCount(count);
       }
+      if (cyclesRes.ok) {
+        const cycles = await cyclesRes.json();
+        const now = new Date();
+        const active = cycles.filter((c: { id: number; startDate: string; endDate: string; isActive: boolean }) => {
+          const start = new Date(c.startDate + 'T00:00:00');
+          const end = new Date(c.endDate + 'T23:59:59');
+          return c.isActive && now >= start && now <= end;
+        });
+        setActiveCycleIds(active.map((c: { id: number }) => c.id));
+      }
     } catch (error) {
       console.error("Failed to fetch dashboard data:", error);
     } finally {
@@ -113,5 +125,6 @@ export function useDashboard() {
     today,
     currentStreak,
     dateFormat,
+    activeCycleIds,
   };
 }

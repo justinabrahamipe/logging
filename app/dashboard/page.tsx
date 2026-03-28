@@ -26,7 +26,13 @@ export default function DashboardPage() {
     today,
     currentStreak,
     dateFormat,
+    activeCycleIds,
   } = useDashboard();
+
+  // Filter outcomes to active cycles (or goals with no cycle)
+  const activeOutcomes = outcomesData.filter(o =>
+    !o.periodId || activeCycleIds.includes(o.periodId)
+  );
 
   if (loading) return <DashboardLoading />;
 
@@ -68,7 +74,7 @@ export default function DashboardPage() {
 
             <ScoreCard score={score} momentumData={momentumData} />
 
-            <GoalProgress outcomesData={outcomesData} completionDates={completionDates} today={today} />
+            <GoalProgress outcomesData={activeOutcomes} completionDates={completionDates} today={today} />
 
             <CyclePerformance />
 
@@ -77,7 +83,7 @@ export default function DashboardPage() {
 
           {/* Column 2 */}
           <div>
-            <HabitTracker outcomesData={outcomesData} completionDates={completionDates} today={today} />
+            <HabitTracker outcomesData={activeOutcomes} completionDates={completionDates} today={today} />
 
             {history && <StreakFlameChain scores={history.scores} currentStreak={currentStreak} />}
 

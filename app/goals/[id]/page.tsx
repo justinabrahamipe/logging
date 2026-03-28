@@ -160,6 +160,22 @@ export default function GoalDetailPage() {
     return dates;
   }, [logs, taskCompletionDates]);
 
+  const heatmapValues = useMemo(() => {
+    const values = new Map<string, number>();
+    for (const d of taskCompletionDates) {
+      if (d.completed && d.value > 0) {
+        values.set(d.date, (values.get(d.date) || 0) + d.value);
+      }
+    }
+    for (const l of logs) {
+      const dateStr = l.loggedAt.split('T')[0];
+      if (l.value > 0) {
+        values.set(dateStr, (values.get(dateStr) || 0) + l.value);
+      }
+    }
+    return values;
+  }, [logs, taskCompletionDates]);
+
   const streak = useMemo(() => {
     if (!isHabitual || allDoneDates.size === 0) return 0;
     let count = 0;
@@ -517,6 +533,8 @@ export default function GoalDetailPage() {
             scheduleDays={scheduleDays}
             doneDates={allDoneDates}
             today={today}
+            dateValues={heatmapValues}
+            dailyTarget={outcome.dailyTarget}
           />
         )}
 

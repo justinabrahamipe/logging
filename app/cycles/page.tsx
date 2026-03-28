@@ -7,6 +7,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { getCurrentWeekNumber, getTotalWeeks } from "@/lib/cycle-scoring";
 import { DEMO_CYCLES } from "@/lib/demo-data";
+import { getProgressColor } from "@/lib/scoring";
 import type { Cycle } from "@/lib/types";
 import CyclesLoading from "./loading";
 import { useTheme } from "@/components/ThemeProvider";
@@ -96,7 +97,7 @@ export default function CyclesPage() {
         {/* Background progress fill */}
         {progressPct > 0 && (
           <div
-            className="absolute inset-0 pointer-events-none bg-zinc-900 dark:bg-zinc-100 opacity-[0.04] dark:opacity-[0.06]"
+            className="absolute inset-0 pointer-events-none bg-blue-500 dark:bg-blue-400 opacity-[0.06] dark:opacity-[0.08]"
             style={{ width: `${progressPct}%` }}
           />
         )}
@@ -147,6 +148,42 @@ export default function CyclesPage() {
                 <FaFire className="text-[10px]" /> {topStreak}
               </span>
             )}
+          </div>
+
+          {/* Week segments colored by avg score */}
+          <div className="flex gap-1 mt-3">
+            {Array.from({ length: cycleTotalWeeks }, (_, i) => {
+              const weekStart = new Date(cycle.startDate + 'T00:00:00');
+              weekStart.setDate(weekStart.getDate() + i * 7);
+              const weekEnd = new Date(weekStart);
+              weekEnd.setDate(weekEnd.getDate() + 6);
+              const ws = weekStart.toISOString().split('T')[0];
+              const we = weekEnd.toISOString().split('T')[0];
+
+              const weekScores = scores.filter(s => s.date >= ws && s.date <= we && s.date >= cycle.startDate && s.date <= cycle.endDate);
+              const isPast = i + 1 < weekNum || isCompleted;
+              const isCurrent = i + 1 === weekNum && !isCompleted;
+
+              if (!isPast && !isCurrent) {
+                return <div key={i} className="h-2 flex-1 rounded-full bg-zinc-200 dark:bg-zinc-700" />;
+              }
+
+              if (weekScores.length === 0) {
+                return <div key={i} className={`h-2 flex-1 rounded-full ${isCurrent ? 'bg-zinc-300 dark:bg-zinc-600' : 'bg-zinc-200 dark:bg-zinc-700'}`} />;
+              }
+
+              const avg = Math.round(weekScores.reduce((s, d) => s + d.actionScore, 0) / weekScores.length);
+              const color = getProgressColor(avg);
+
+              return (
+                <div
+                  key={i}
+                  className={`h-2 flex-1 rounded-full ${isCurrent ? 'opacity-70' : ''}`}
+                  style={{ backgroundColor: color }}
+                  title={`Week ${i + 1}: ${avg}%`}
+                />
+              );
+            })}
           </div>
         </div>
       </motion.div>
