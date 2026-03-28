@@ -35,6 +35,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
 
+    // Only allow changes for today and yesterday — older tasks are frozen
+    const now = new Date();
+    const yest = new Date(now); yest.setDate(yest.getDate() - 1);
+    const yesterdayStr = yest.toISOString().split('T')[0];
+    if (task.date < yesterdayStr) {
+      return NextResponse.json({ error: "Cannot modify tasks older than yesterday" }, { status: 403 });
+    }
+
     const completionValue = value ?? (task.completionType === 'checkbox' ? (completed ? 1 : 0) : 0);
     const targetReached = task.target != null && task.target > 0 && completionValue >= task.target;
     const isCompleted = completed ?? (

@@ -77,6 +77,18 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
     if (type === 'task') {
       // Update a specific task instance
+      const [existing] = await db.select().from(tasks).where(and(eq(tasks.id, itemId), eq(tasks.userId, userId)));
+      if (!existing) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+
+      // Only allow edits for today, yesterday, and future — older tasks are frozen
+      const now = new Date();
+      const yest = new Date(now); yest.setDate(yest.getDate() - 1);
+      if (existing.date < yest.toISOString().split('T')[0]) {
+        return NextResponse.json({ error: "Cannot modify tasks older than yesterday" }, { status: 403 });
+      }
+
       const updateData: Record<string, unknown> = {};
       const taskFields = ['name', 'pillarId', 'completionType', 'target', 'unit', 'basePoints', 'goalId', 'periodId', 'date', 'flexibilityRule', 'limitValue'];
       for (const field of taskFields) {

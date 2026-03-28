@@ -403,6 +403,12 @@ async function executeTool(userId: string, name: string, args: Record<string, an
       const [task] = await db.select().from(tasks).where(and(eq(tasks.id, taskId), eq(tasks.userId, userId)));
       if (!task) return "Error: Task not found.";
 
+      // Only allow changes for today, yesterday, and future
+      const yest = new Date(); yest.setDate(yest.getDate() - 1);
+      if (task.date < yest.toISOString().split('T')[0]) {
+        return "Error: Cannot modify tasks older than yesterday.";
+      }
+
       const completionValue = args.value != null ? parseFloat(args.value) : (task.completionType === 'checkbox' ? 1 : 0);
       const targetReached = task.target != null && task.target > 0 && completionValue >= task.target;
       const isCompleted = args.completed != null ? args.completed === "true" || args.completed === true : (
@@ -614,6 +620,12 @@ async function executeTool(userId: string, name: string, args: Record<string, an
 
       const [task] = await db.select().from(tasks).where(and(eq(tasks.id, taskId), eq(tasks.userId, userId)));
       if (!task) return "Error: Task not found.";
+
+      // Only allow edits for today, yesterday, and future
+      const yest2 = new Date(); yest2.setDate(yest2.getDate() - 1);
+      if (task.date < yest2.toISOString().split('T')[0]) {
+        return "Error: Cannot modify tasks older than yesterday.";
+      }
 
       const updateData: Record<string, unknown> = {};
       if (args.name !== undefined) updateData.name = args.name;

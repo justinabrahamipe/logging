@@ -81,25 +81,28 @@ export default function HabitHeatmap({ startDate, endDate, scheduleDays, doneDat
                 title={day.date ? `${new Date(day.date + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} — ${
                   day.status === 'done' ? 'Done' : day.status === 'today' ? 'In progress' : day.status === 'missed' ? 'Missed' : day.status === 'off' ? 'Off day' : 'Upcoming'
                 }` : ''}
-                className={`w-3 h-3 rounded-sm ${
-                  day.date === '' ? 'bg-zinc-200 dark:bg-zinc-700' :
-                  day.status === 'done' ? (
-                    dateValues && dailyTarget && dailyTarget > 0
-                      ? (() => {
-                          const val = dateValues.get(day.date) || 0;
-                          const pct = val / dailyTarget;
-                          if (pct >= 1.5) return 'bg-emerald-600 dark:bg-emerald-500';
-                          if (pct >= 1) return 'bg-green-500 dark:bg-green-400';
-                          if (pct >= 0.5) return 'bg-amber-400 dark:bg-amber-400';
-                          return 'bg-orange-400 dark:bg-orange-400';
-                        })()
-                      : 'bg-green-500 dark:bg-green-400'
-                  ) :
-                  day.status === 'today' ? 'bg-blue-400 dark:bg-blue-500 ring-1 ring-blue-500/50' :
-                  day.status === 'missed' ? 'bg-red-400 dark:bg-red-500/70' :
-                  day.status === 'off' ? 'bg-zinc-200 dark:bg-zinc-700' :
-                  'bg-zinc-200 dark:bg-zinc-700'
-                }`}
+                className={`w-3 h-3 rounded-sm ${(() => {
+                  if (day.date === '') return 'bg-zinc-200 dark:bg-zinc-700';
+                  if (day.status === 'today') return 'bg-blue-400 dark:bg-blue-500 ring-1 ring-blue-500/50';
+                  if (day.status === 'off') return 'bg-zinc-200 dark:bg-zinc-700';
+                  if (day.status === 'future') return 'bg-zinc-200 dark:bg-zinc-700';
+
+                  // For done or missed days, check actual value vs target
+                  if (dateValues && dailyTarget && dailyTarget > 0) {
+                    const val = dateValues.get(day.date) || 0;
+                    const pct = Math.round((val / dailyTarget) * 100);
+                    if (pct >= 95) return 'bg-green-500 dark:bg-green-400';
+                    if (pct >= 75) return 'bg-emerald-500 dark:bg-emerald-400';
+                    if (pct >= 50) return 'bg-amber-400 dark:bg-amber-400';
+                    if (pct >= 25) return 'bg-orange-400 dark:bg-orange-400';
+                    if (pct > 0) return 'bg-red-400 dark:bg-red-400';
+                  } else if (day.status === 'done') {
+                    return 'bg-green-500 dark:bg-green-400';
+                  }
+
+                  // Missed (no value at all)
+                  return 'bg-red-400 dark:bg-red-500/70';
+                })()}`}
               />
             ))}
           </div>
@@ -108,14 +111,14 @@ export default function HabitHeatmap({ startDate, endDate, scheduleDays, doneDat
       <div className="flex items-center gap-1.5 mt-2 text-[10px] text-zinc-400 dark:text-zinc-500">
         {dateValues && dailyTarget && dailyTarget > 0 ? (
           <>
-            <div className="w-2.5 h-2.5 rounded-sm bg-emerald-600 dark:bg-emerald-500" />
-            <span>150%+</span>
-            <div className="w-2.5 h-2.5 rounded-sm bg-green-500 dark:bg-green-400 ml-1" />
-            <span>100%</span>
+            <div className="w-2.5 h-2.5 rounded-sm bg-green-500 dark:bg-green-400" />
+            <span>95%+</span>
+            <div className="w-2.5 h-2.5 rounded-sm bg-emerald-500 dark:bg-emerald-400 ml-1" />
+            <span>75%+</span>
             <div className="w-2.5 h-2.5 rounded-sm bg-amber-400 ml-1" />
             <span>50%+</span>
             <div className="w-2.5 h-2.5 rounded-sm bg-orange-400 ml-1" />
-            <span>&lt;50%</span>
+            <span>25%+</span>
           </>
         ) : (
           <>

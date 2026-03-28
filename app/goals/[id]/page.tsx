@@ -573,6 +573,8 @@ export default function GoalDetailPage() {
               {sortedTasks.map(task => {
                 const currentValue = task.value || 0;
                 const isFullyDone = task.completed || (task.target != null && task.target > 0 && currentValue >= task.target);
+                const yesterdayDate = new Date(); yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+                const isFrozen = task.startDate ? task.startDate < yesterdayDate.toISOString().split('T')[0] : false;
                 return (
                   <div
                     key={task.id}
@@ -607,7 +609,7 @@ export default function GoalDetailPage() {
                       </div>
 
                       <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
-                        {task.completionType === "checkbox" && (
+                        {!isFrozen && task.completionType === "checkbox" && (
                           <button
                             onClick={() => handleTaskComplete(task, !isFullyDone, !isFullyDone ? 1 : 0)}
                             className={`w-7 h-7 rounded-md border-2 flex items-center justify-center transition-colors ${
@@ -619,76 +621,95 @@ export default function GoalDetailPage() {
                             {isFullyDone && <FaCheck className="text-xs" />}
                           </button>
                         )}
+                        {isFrozen && task.completionType === "checkbox" && isFullyDone && (
+                          <div className="w-7 h-7 rounded-md bg-green-500 border-2 border-green-500 text-white flex items-center justify-center">
+                            <FaCheck className="text-xs" />
+                          </div>
+                        )}
 
                         {task.completionType === "count" && (
                           <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => {
-                                const newVal = Math.max(0, currentValue - 1);
-                                const done = task.target != null && task.target > 0 && newVal >= task.target;
-                                handleTaskComplete(task, done, newVal);
-                              }}
-                              className="w-6 h-6 rounded bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center hover:bg-zinc-300 dark:hover:bg-zinc-600"
-                            >
-                              <FaMinus className="text-[9px]" />
-                            </button>
+                            {!isFrozen && (
+                              <button
+                                onClick={() => {
+                                  const newVal = Math.max(0, currentValue - 1);
+                                  const done = task.target != null && task.target > 0 && newVal >= task.target;
+                                  handleTaskComplete(task, done, newVal);
+                                }}
+                                className="w-6 h-6 rounded bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center hover:bg-zinc-300 dark:hover:bg-zinc-600"
+                              >
+                                <FaMinus className="text-[9px]" />
+                              </button>
+                            )}
                             <span className={`text-xs font-bold min-w-[2.5rem] text-center ${
                               task.target && currentValue >= task.target ? "text-green-600 dark:text-green-400" : "text-zinc-900 dark:text-white"
                             }`}>
                               {currentValue}/{task.target || "?"}
                             </span>
-                            <button
-                              onClick={() => {
-                                const newVal = currentValue + 1;
-                                const done = task.target != null && task.target > 0 && newVal >= task.target;
-                                handleTaskComplete(task, done, newVal);
-                              }}
-                              className="w-6 h-6 rounded bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 flex items-center justify-center hover:bg-zinc-800 dark:hover:bg-zinc-100"
-                            >
-                              <FaPlus className="text-[9px]" />
-                            </button>
-                          </div>
-                        )}
-
-                        {(task.completionType === "numeric" || task.completionType === "duration") && (
-                          <div className="flex items-center gap-1">
-                            <input
-                              type="number"
-                              value={pendingValues[task.id] ?? (currentValue || "")}
-                              onChange={e => setPendingValues(prev => ({ ...prev, [task.id]: e.target.value }))}
-                              onKeyDown={e => {
-                                if (e.key === "Enter") {
-                                  const val = parseFloat(pendingValues[task.id] || "0") || 0;
-                                  handleTaskComplete(task, val > 0, val);
-                                  setPendingValues(prev => { const next = { ...prev }; delete next[task.id]; return next; });
-                                }
-                              }}
-                              placeholder={task.target ? String(task.target) : "0"}
-                              className="w-14 px-1.5 py-1 text-xs text-right border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
-                            />
-                            {task.unit && <span className="text-[10px] text-zinc-500 dark:text-zinc-400">{task.unit}</span>}
-                            {pendingValues[task.id] !== undefined && (
+                            {!isFrozen && (
                               <button
                                 onClick={() => {
-                                  const val = parseFloat(pendingValues[task.id] || "0") || 0;
-                                  handleTaskComplete(task, val > 0, val);
-                                  setPendingValues(prev => { const next = { ...prev }; delete next[task.id]; return next; });
+                                  const newVal = currentValue + 1;
+                                  const done = task.target != null && task.target > 0 && newVal >= task.target;
+                                  handleTaskComplete(task, done, newVal);
                                 }}
-                                className="w-6 h-6 rounded bg-green-500 text-white flex items-center justify-center hover:bg-green-600"
+                                className="w-6 h-6 rounded bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 flex items-center justify-center hover:bg-zinc-800 dark:hover:bg-zinc-100"
                               >
-                                <FaCheck className="text-[9px]" />
+                                <FaPlus className="text-[9px]" />
                               </button>
                             )}
                           </div>
                         )}
 
-                        <button
-                          onClick={() => router.push(`/tasks/${task.id}/edit`)}
-                          className="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700"
-                          title="Edit task"
-                        >
-                          <FaEdit className="text-[10px]" />
-                        </button>
+                        {(task.completionType === "numeric" || task.completionType === "duration") && (
+                          <div className="flex items-center gap-1">
+                            {!isFrozen ? (
+                              <>
+                                <input
+                                  type="number"
+                                  value={pendingValues[task.id] ?? (currentValue || "")}
+                                  onChange={e => setPendingValues(prev => ({ ...prev, [task.id]: e.target.value }))}
+                                  onKeyDown={e => {
+                                    if (e.key === "Enter") {
+                                      const val = parseFloat(pendingValues[task.id] || "0") || 0;
+                                      handleTaskComplete(task, val > 0, val);
+                                      setPendingValues(prev => { const next = { ...prev }; delete next[task.id]; return next; });
+                                    }
+                                  }}
+                                  placeholder={task.target ? String(task.target) : "0"}
+                                  className="w-14 px-1.5 py-1 text-xs text-right border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
+                                />
+                                {task.unit && <span className="text-[10px] text-zinc-500 dark:text-zinc-400">{task.unit}</span>}
+                                {pendingValues[task.id] !== undefined && (
+                                  <button
+                                    onClick={() => {
+                                      const val = parseFloat(pendingValues[task.id] || "0") || 0;
+                                      handleTaskComplete(task, val > 0, val);
+                                      setPendingValues(prev => { const next = { ...prev }; delete next[task.id]; return next; });
+                                    }}
+                                    className="w-6 h-6 rounded bg-green-500 text-white flex items-center justify-center hover:bg-green-600"
+                                  >
+                                    <FaCheck className="text-[9px]" />
+                                  </button>
+                                )}
+                              </>
+                            ) : (
+                              <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400">
+                                {currentValue} {task.unit || ''}
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        {!isFrozen && (
+                          <button
+                            onClick={() => router.push(`/tasks/${task.id}/edit`)}
+                            className="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                            title="Edit task"
+                          >
+                            <FaEdit className="text-[10px]" />
+                          </button>
+                        )}
                         <button
                           onClick={() => setDeleteConfirmId(task.id)}
                           className="p-1 text-zinc-400 hover:text-red-500 dark:hover:text-red-400 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
