@@ -1,5 +1,5 @@
 -- One-time: mark all past incomplete tasks as skipped
-UPDATE tasks
+UPDATE Task
 SET skipped = 1
 WHERE completed = 0
   AND skipped = 0
