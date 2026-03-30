@@ -14,12 +14,14 @@ import {
 import type { HistoryScore } from "@/lib/types";
 import DateRangeSelector from "./DateRangeSelector";
 import { getPresetDates, filterScoresByRange } from "./utils";
+import { useTheme } from "@/components/ThemeProvider";
 
 interface ScoreHistoryProps {
   scores: HistoryScore[];
 }
 
 export default function ScoreHistory({ scores }: ScoreHistoryProps) {
+  const { habitualColor, targetColor, outcomeColor } = useTheme();
   const [preset, setPreset] = useState("month");
   const [startDate, setStartDate] = useState(() => getPresetDates("month").start);
   const [endDate, setEndDate] = useState(() => getPresetDates("month").end);
@@ -116,19 +118,19 @@ export default function ScoreHistory({ scores }: ScoreHistoryProps) {
             <Line
               type="monotone"
               dataKey="action"
-              stroke="#3B82F6"
+              stroke={habitualColor}
               strokeWidth={2}
-              dot={{ fill: "#3B82F6", r: 3 }}
-              activeDot={{ r: 5, fill: "#60A5FA" }}
+              dot={{ fill: habitualColor, r: 3 }}
+              activeDot={{ r: 5, fill: habitualColor }}
             />
             {hasMomentum && (
               <Line
                 type="monotone"
                 dataKey="momentum"
-                stroke="#22C55E"
+                stroke={targetColor}
                 strokeWidth={2}
-                dot={{ fill: "#22C55E", r: 3 }}
-                activeDot={{ r: 5, fill: "#4ADE80" }}
+                dot={{ fill: targetColor, r: 3 }}
+                activeDot={{ r: 5, fill: targetColor }}
                 connectNulls
               />
             )}
@@ -136,10 +138,10 @@ export default function ScoreHistory({ scores }: ScoreHistoryProps) {
               <Line
                 type="monotone"
                 dataKey="trajectory"
-                stroke="#A855F7"
+                stroke={outcomeColor}
                 strokeWidth={2}
-                dot={{ fill: "#A855F7", r: 3 }}
-                activeDot={{ r: 5, fill: "#C084FC" }}
+                dot={{ fill: outcomeColor, r: 3 }}
+                activeDot={{ r: 5, fill: outcomeColor }}
                 connectNulls
               />
             )}
