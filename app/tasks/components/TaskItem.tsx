@@ -1,8 +1,8 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { FaPlus, FaEdit, FaTrash, FaCheck, FaMinus, FaPlay, FaPause, FaEllipsisV, FaCopy, FaStar, FaTimes, FaArrowLeft, FaArrowRight } from "react-icons/fa";
+import { motion } from "framer-motion";
+import { FaPlus, FaCheck, FaMinus, FaPlay, FaPause, FaStar, FaTimes } from "react-icons/fa";
 import { formatScheduleLabel } from "@/lib/constants";
 import { getProgressColor } from "@/lib/scoring";
 import { countScheduledDaysInRange } from "@/lib/effort-calculations";
@@ -28,10 +28,7 @@ interface TaskItemProps {
   timers: Record<number, { running: boolean; elapsed: number; interval?: NodeJS.Timeout }>;
   pendingValues: Record<number, string>;
   setPendingValues: React.Dispatch<React.SetStateAction<Record<number, string>>>;
-  openMenuId: number | null;
-  setOpenMenuId: React.Dispatch<React.SetStateAction<number | null>>;
   actionLoading: Record<number, boolean>;
-  menuRef: React.RefObject<HTMLDivElement | null>;
   router: AppRouterInstance;
   // Handlers
   handleCheckboxToggle: (task: Task) => void;
@@ -40,11 +37,7 @@ interface TaskItemProps {
   handleTimerToggle: (task: Task) => void;
   handleDurationManualSubmit: (task: Task) => void;
   handleHighlightToggle?: (taskId: number) => void;
-  handleCopy?: (task: Task) => void;
-  handleDelete: (id: number) => void;
   handleDiscard: (task: Task) => void;
-  handleMoveDate?: (task: Task, direction: -1 | 0 | 1) => void;
-  handleMarkDone?: (task: Task) => void;
   formatTime: (seconds: number) => string;
 }
 
@@ -58,10 +51,7 @@ export default function TaskItem({
   timers,
   pendingValues,
   setPendingValues,
-  openMenuId,
-  setOpenMenuId,
   actionLoading,
-  menuRef,
   router,
   handleCheckboxToggle,
   handleCountChange,
@@ -69,11 +59,7 @@ export default function TaskItem({
   handleTimerToggle,
   handleDurationManualSubmit,
   handleHighlightToggle,
-  handleCopy,
-  handleDelete,
   handleDiscard,
-  handleMoveDate,
-  handleMarkDone,
   formatTime,
 }: TaskItemProps) {
   const { habitualColor, targetColor, outcomeColor } = useTheme();
@@ -96,9 +82,7 @@ export default function TaskItem({
   const yesterdayStr = getYesterdayString();
   const isFrozen = task.startDate ? task.startDate < yesterdayStr : (task.date ? task.date < yesterdayStr : false);
   const limitVal = task.limitValue ?? task.target ?? 0;
-  const buttonRef = useRef<HTMLButtonElement>(null);
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
-  const [menuPos, setMenuPos] = useState<{ top?: number; bottom?: number; right: number }>({ right: 0 });
 
   // Swipe state
   const touchStartX = useRef(0);
@@ -109,28 +93,6 @@ export default function TaskItem({
   const swipeLocked = useRef(false);
   const isHorizontalSwipe = useRef(false);
 
-  useEffect(() => {
-    if (openMenuId === task.id && buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect();
-      const bottomBarHeight = window.innerWidth < 768 ? 60 : 0;
-      const spaceBelow = window.innerHeight - rect.bottom - bottomBarHeight;
-      const right = window.innerWidth - rect.right;
-      if (spaceBelow < 280) {
-        setMenuPos({ bottom: window.innerHeight - rect.top + 4, right });
-      } else {
-        setMenuPos({ top: rect.bottom + 4, right });
-      }
-    }
-  }, [openMenuId, task.id]);
-
-  // Close menu on scroll (debounced to avoid closing on tiny tap movements)
-  useEffect(() => {
-    if (openMenuId !== task.id) return;
-    let scrollCount = 0;
-    const onScroll = () => { scrollCount++; if (scrollCount > 2) setOpenMenuId(null); };
-    window.addEventListener('scroll', onScroll, { capture: true, passive: true });
-    return () => window.removeEventListener('scroll', onScroll, { capture: true });
-  }, [openMenuId, task.id, setOpenMenuId]);
   const isFullyDone = !isDiscarded && (
     isLimitTask
       ? isCompleted
@@ -169,15 +131,7 @@ export default function TaskItem({
     longPressTimer.current = setTimeout(() => {
       longPressTimer.current = null;
       setTouching(false);
-      setOpenMenuId(task.id);
-      // Position menu near touch point
-      const right = Math.max(8, window.innerWidth - touchX - 70);
-      const spaceBelow = window.innerHeight - touchY;
-      if (spaceBelow < 220) {
-        setMenuPos({ bottom: window.innerHeight - touchY + 4, right });
-      } else {
-        setMenuPos({ top: touchY + 4, right });
-      }
+      router.push(`/tasks/${task.id}`);
     }, 500);
   };
 
@@ -338,7 +292,7 @@ export default function TaskItem({
           <div className="w-4 h-4 border-2 border-zinc-300 dark:border-zinc-600 border-t-zinc-600 dark:border-t-zinc-300 rounded-full animate-spin" />
         </div>
       )}
-      <div className="relative flex items-center gap-2">
+      <div className="relative flex items-center gap-2 min-w-0">
         {/* Left: star + name, pillar, badges */}
         {!isFrozen && handleHighlightToggle && (isHighlighted || !maxStarsReached) && (
           <button
@@ -543,7 +497,7 @@ export default function TaskItem({
                   onChange={(e) => setPendingValues(prev => ({ ...prev, [task.id]: e.target.value }))}
                   onKeyDown={(e) => e.key === 'Enter' && handleNumericSubmit(task)}
                   placeholder={task.target ? String(task.target) : '0'}
-                  className="w-14 px-1.5 py-1 text-xs text-right border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
+                  className="w-12 px-1 py-1 text-xs text-right border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
                 />
                 {pendingValues[task.id] !== undefined && (
                   <button
@@ -557,127 +511,9 @@ export default function TaskItem({
             )}
           </>
 
-          <div className="relative">
-            <button
-              ref={buttonRef}
-              onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); setOpenMenuId(openMenuId === task.id ? null : task.id); }}
-              onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === task.id ? null : task.id); }}
-              className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700"
-            >
-              <FaEllipsisV className="text-[10px]" />
-            </button>
-          </div>
         </div>
       </div>
       </div>
-
-      {/* Menu rendered outside overflow-hidden wrapper */}
-      <AnimatePresence>
-        {openMenuId === task.id && (
-          <>
-          <motion.div
-            ref={menuRef}
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.1 }}
-            className="fixed z-50 w-36 bg-white dark:bg-zinc-800 rounded-lg shadow-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden"
-            style={{ right: menuPos.right, ...(menuPos.top != null ? { top: menuPos.top } : { bottom: menuPos.bottom }) }}
-
-            onTouchStart={(e) => e.stopPropagation()}
-            onTouchEnd={(e) => e.stopPropagation()}
-          >
-            {!isFrozen && isLimitTask && !isCompleted && handleMarkDone && (
-              <button
-                onTouchEnd={(e) => { e.preventDefault(); setOpenMenuId(null); handleMarkDone(task); }}
-                onClick={() => { setOpenMenuId(null); handleMarkDone(task); }}
-                className="w-full px-3 py-1.5 text-left text-xs flex items-center gap-2 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20"
-              >
-                <FaCheck className="text-xs" /> Mark as Done
-              </button>
-            )}
-            {!isFrozen && (
-              <button
-                onTouchEnd={(e) => { e.preventDefault(); setOpenMenuId(null); router.push(`/tasks/${task.id}/edit`); }}
-                onClick={() => { setOpenMenuId(null); router.push(`/tasks/${task.id}/edit`); }}
-                className="w-full px-3 py-1.5 text-left text-xs flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
-              >
-                <FaEdit className="text-xs" /> Edit
-              </button>
-            )}
-            {!isFrozen && handleMoveDate && task.startDate && (
-              <>
-                <button
-                  onTouchEnd={(e) => { e.preventDefault(); handleMoveDate(task, -1); }}
-                  onClick={() => handleMoveDate(task, -1)}
-                  className="w-full px-3 py-2 text-left text-xs flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
-                >
-                  <FaArrowLeft className="text-[9px]" /> Prepone
-                </button>
-                <button
-                  onTouchEnd={(e) => { e.preventDefault(); handleMoveDate(task, 1); }}
-                  onClick={() => handleMoveDate(task, 1)}
-                  className="w-full px-3 py-2 text-left text-xs flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
-                >
-                  <FaArrowRight className="text-[9px]" /> Postpone
-                </button>
-              </>
-            )}
-            {!isFrozen && handleMoveDate && !task.startDate && (
-              <>
-                <button
-                  onTouchEnd={(e) => { e.preventDefault(); handleMoveDate(task, 0); }}
-                  onClick={() => handleMoveDate(task, 0)}
-                  className="w-full px-3 py-2 text-left text-xs flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
-                >
-                  <FaArrowRight className="text-[9px]" /> Today
-                </button>
-                <button
-                  onTouchEnd={(e) => { e.preventDefault(); handleMoveDate(task, 1); }}
-                  onClick={() => handleMoveDate(task, 1)}
-                  className="w-full px-3 py-2 text-left text-xs flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
-                >
-                  <FaArrowRight className="text-[9px]" /> Tomorrow
-                </button>
-              </>
-            )}
-            {!isFrozen && handleCopy && (
-              <button
-                onTouchEnd={(e) => { e.preventDefault(); handleCopy(task); }}
-                onClick={() => handleCopy(task)}
-                className="w-full px-3 py-1.5 text-left text-xs flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
-              >
-                <FaCopy className="text-xs" /> Duplicate
-              </button>
-            )}
-            {!isFrozen && (isDiscarded ? (
-              <button
-                onTouchEnd={(e) => { e.preventDefault(); setOpenMenuId(null); handleDiscard(task); }}
-                onClick={() => { setOpenMenuId(null); handleDiscard(task); }}
-                className="w-full px-3 py-1.5 text-left text-xs flex items-center gap-2 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20"
-              >
-                <FaCheck className="text-xs" /> Unskip
-              </button>
-            ) : (
-              <button
-                onTouchEnd={(e) => { e.preventDefault(); handleDiscard(task); }}
-                onClick={() => handleDiscard(task)}
-                className="w-full px-3 py-1.5 text-left text-xs flex items-center gap-2 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20"
-              >
-                <FaTimes className="text-xs" /> Skip
-              </button>
-            ))}
-            <button
-              onTouchEnd={(e) => { e.preventDefault(); setOpenMenuId(null); handleDelete(task.id); }}
-              onClick={() => { setOpenMenuId(null); handleDelete(task.id); }}
-              className="w-full px-3 py-1.5 text-left text-xs flex items-center gap-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-            >
-              <FaTrash className="text-xs" /> Delete
-            </button>
-          </motion.div>
-          </>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

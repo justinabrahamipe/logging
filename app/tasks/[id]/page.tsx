@@ -34,6 +34,7 @@ export default function TaskDetailPage() {
   const [goal, setGoal] = useState<Outcome | null>(null);
   const [loading, setLoading] = useState(true);
   const [description, setDescription] = useState("");
+  const [editingDescription, setEditingDescription] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [pendingNumeric, setPendingNumeric] = useState("");
   const [timerRunning, setTimerRunning] = useState(false);
@@ -432,15 +433,29 @@ export default function TaskDetailPage() {
           {task.name}
         </h1>
 
-        {/* Description textarea */}
-        <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          onBlur={saveDescription}
-          placeholder="Add a description..."
-          rows={3}
-          className="w-full px-3 py-2 mb-4 text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg bg-zinc-50 dark:bg-zinc-900 text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-500 resize-none focus:outline-none focus:ring-1 focus:ring-zinc-400 dark:focus:ring-zinc-500"
-        />
+        {/* Description — click to edit */}
+        {editingDescription ? (
+          <textarea
+            autoFocus
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            onBlur={() => { saveDescription(); setEditingDescription(false); }}
+            onKeyDown={(e) => { if (e.key === 'Escape') { setDescription(task.description || ''); setEditingDescription(false); } }}
+            rows={3}
+            className="w-full px-3 py-2 mb-4 text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white resize-none focus:outline-none focus:ring-1 focus:ring-zinc-400 dark:focus:ring-zinc-500"
+          />
+        ) : (
+          <div
+            onClick={() => !isFrozen && setEditingDescription(true)}
+            className={`mb-4 ${!isFrozen ? 'cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50 rounded-lg px-3 py-2 -mx-3' : ''}`}
+          >
+            {description ? (
+              <p className="text-sm text-zinc-600 dark:text-zinc-400 whitespace-pre-wrap">{description}</p>
+            ) : !isFrozen ? (
+              <p className="text-sm text-zinc-400 dark:text-zinc-500 italic">Add a description...</p>
+            ) : null}
+          </div>
+        )}
 
         {/* Metadata pills */}
         <div className="flex flex-wrap items-center gap-2 mb-6">
