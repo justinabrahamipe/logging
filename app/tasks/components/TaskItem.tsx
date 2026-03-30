@@ -43,7 +43,7 @@ interface TaskItemProps {
   handleCopy?: (task: Task) => void;
   handleDelete: (id: number) => void;
   handleDiscard: (task: Task) => void;
-  handleMoveDate?: (task: Task, direction: -1 | 1) => void;
+  handleMoveDate?: (task: Task, direction: -1 | 0 | 1) => void;
   handleMarkDone?: (task: Task) => void;
   formatTime: (seconds: number) => string;
 }
@@ -588,7 +588,7 @@ export default function TaskItem({
               <button
                 onTouchEnd={(e) => { e.preventDefault(); setOpenMenuId(null); handleMarkDone(task); }}
                 onClick={() => { setOpenMenuId(null); handleMarkDone(task); }}
-                className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20"
+                className="w-full px-3 py-1.5 text-left text-xs flex items-center gap-2 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20"
               >
                 <FaCheck className="text-xs" /> Mark as Done
               </button>
@@ -597,7 +597,7 @@ export default function TaskItem({
               <button
                 onTouchEnd={(e) => { e.preventDefault(); setOpenMenuId(null); router.push(`/tasks/${task.id}/edit`); }}
                 onClick={() => { setOpenMenuId(null); router.push(`/tasks/${task.id}/edit`); }}
-                className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                className="w-full px-3 py-1.5 text-left text-xs flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
               >
                 <FaEdit className="text-xs" /> Edit
               </button>
@@ -607,16 +607,34 @@ export default function TaskItem({
                 <button
                   onTouchEnd={(e) => { e.preventDefault(); handleMoveDate(task, -1); }}
                   onClick={() => handleMoveDate(task, -1)}
-                  className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                  className="w-full px-3 py-2 text-left text-xs flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                 >
-                  <FaArrowLeft className="text-xs" /> Prepone
+                  <FaArrowLeft className="text-[9px]" /> Prepone
                 </button>
                 <button
                   onTouchEnd={(e) => { e.preventDefault(); handleMoveDate(task, 1); }}
                   onClick={() => handleMoveDate(task, 1)}
-                  className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                  className="w-full px-3 py-2 text-left text-xs flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                 >
-                  <FaArrowRight className="text-xs" /> Postpone
+                  <FaArrowRight className="text-[9px]" /> Postpone
+                </button>
+              </>
+            )}
+            {!isFrozen && handleMoveDate && !task.startDate && (
+              <>
+                <button
+                  onTouchEnd={(e) => { e.preventDefault(); handleMoveDate(task, 0); }}
+                  onClick={() => handleMoveDate(task, 0)}
+                  className="w-full px-3 py-2 text-left text-xs flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                >
+                  <FaArrowRight className="text-[9px]" /> Today
+                </button>
+                <button
+                  onTouchEnd={(e) => { e.preventDefault(); handleMoveDate(task, 1); }}
+                  onClick={() => handleMoveDate(task, 1)}
+                  className="w-full px-3 py-2 text-left text-xs flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                >
+                  <FaArrowRight className="text-[9px]" /> Tomorrow
                 </button>
               </>
             )}
@@ -624,7 +642,7 @@ export default function TaskItem({
               <button
                 onTouchEnd={(e) => { e.preventDefault(); handleCopy(task); }}
                 onClick={() => handleCopy(task)}
-                className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                className="w-full px-3 py-1.5 text-left text-xs flex items-center gap-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
               >
                 <FaCopy className="text-xs" /> Duplicate
               </button>
@@ -633,7 +651,7 @@ export default function TaskItem({
               <button
                 onTouchEnd={(e) => { e.preventDefault(); setOpenMenuId(null); handleDiscard(task); }}
                 onClick={() => { setOpenMenuId(null); handleDiscard(task); }}
-                className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+                className="w-full px-3 py-1.5 text-left text-xs flex items-center gap-2 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20"
               >
                 <FaCheck className="text-xs" /> Unskip
               </button>
@@ -641,7 +659,7 @@ export default function TaskItem({
               <button
                 onTouchEnd={(e) => { e.preventDefault(); handleDiscard(task); }}
                 onClick={() => handleDiscard(task)}
-                className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+                className="w-full px-3 py-1.5 text-left text-xs flex items-center gap-2 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20"
               >
                 <FaTimes className="text-xs" /> Skip
               </button>
@@ -649,7 +667,7 @@ export default function TaskItem({
             <button
               onTouchEnd={(e) => { e.preventDefault(); setOpenMenuId(null); handleDelete(task.id); }}
               onClick={() => { setOpenMenuId(null); handleDelete(task.id); }}
-              className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+              className="w-full px-3 py-1.5 text-left text-xs flex items-center gap-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
             >
               <FaTrash className="text-xs" /> Delete
             </button>

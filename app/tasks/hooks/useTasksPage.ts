@@ -792,7 +792,7 @@ export function useTasksPage() {
     }
   };
 
-  const handleMoveDate = async (task: Task, direction: -1 | 1) => {
+  const handleMoveDate = async (task: Task, direction: -1 | 0 | 1) => {
     setOpenMenuId(null);
     const currentDate = task.startDate || today;
     const d = new Date(currentDate + 'T12:00:00');
