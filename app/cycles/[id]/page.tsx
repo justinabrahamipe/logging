@@ -12,7 +12,8 @@ import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
 import { getCurrentWeekNumber, getGoalStatus, getTotalWeeks } from "@/lib/cycle-scoring";
 import { computeCycleAnalytics } from "@/lib/cycle-analytics";
-import type { CycleDetail } from "@/lib/types";
+import { calculateMomentum } from "@/lib/momentum";
+import type { CycleDetail, GoalForMomentum } from "@/lib/types";
 import { useTheme } from "@/components/ThemeProvider";
 
 export default function CycleDetailPage() {
@@ -56,18 +57,11 @@ export default function CycleDetailPage() {
   const totalWeeks = selectedCycle ? getTotalWeeks(selectedCycle.startDate, selectedCycle.endDate) : 12;
   const currentWeek = selectedCycle ? getCurrentWeekNumber(selectedCycle.startDate, selectedCycle.endDate) : 1;
 
-  const analytics = useMemo(() => {
-    if (!selectedCycle || selectedCycle.goals.length === 0) return null;
-    return computeCycleAnalytics(selectedCycle.goals, currentWeek, totalWeeks);
-  }, [selectedCycle, currentWeek, totalWeeks]);
+  // Compute momentum & trajectory first so analytics can use them
+  const goalMetrics = useMemo(() => {
+    if (!selectedCycle) return { avgMomentum: null as number | null, avgTrajectory: null as number | null };
 
-  const cycleStats = useMemo(() => {
-    if (!selectedCycle || cycleScores.length === 0) return null;
-    const inRange = cycleScores.filter(s => s.date >= selectedCycle.startDate && s.date <= selectedCycle.endDate);
-    if (inRange.length === 0) return null;
-    const avgScore = Math.round(inRange.reduce((s, d) => s + d.actionScore, 0) / inRange.length);
-
-    // Compute trajectory live from outcome goals
+    // Trajectory from outcome goals
     const outcomeGoals = selectedCycle.goals.filter(g => g.goalType === "outcome" && g.startDate && g.targetDate);
     let avgTrajectory: number | null = null;
     if (outcomeGoals.length > 0) {
@@ -91,6 +85,76 @@ export default function CycleDetailPage() {
         avgTrajectory = Math.round(trajectories.reduce((a, b) => a + b, 0) / trajectories.length * 10) / 10;
       }
     }
+
+    // Momentum from target goals
+    const targetGoals = selectedCycle.goals.filter(g => g.goalType === "target");
+    let avgMomentum: number | null = null;
+    if (targetGoals.length > 0) {
+      const todayStr = new Date().toISOString().split("T")[0];
+      const goalsForMomentum: GoalForMomentum[] = targetGoals.map(g => ({
+        id: g.id,
+        goalType: g.goalType,
+        targetValue: g.targetValue,
+        currentValue: g.currentValue,
+        startValue: g.startValue || 0,
+        startDate: g.startDate ?? selectedCycle.startDate,
+        targetDate: g.targetDate ?? selectedCycle.endDate,
+        scheduleDays: g.scheduleDays ?? null,
+        pillarId: g.pillarId ?? null,
+        flexibilityRule: g.flexibilityRule ?? undefined,
+      }));
+      const momentumResult = calculateMomentum(goalsForMomentum, [], todayStr);
+      if (momentumResult.goals.length > 0) {
+        avgMomentum = momentumResult.overall;
+      }
+    }
+
+    return { avgMomentum, avgTrajectory };
+  }, [selectedCycle]);
+
+  const analytics = useMemo(() => {
+    if (!selectedCycle || selectedCycle.goals.length === 0) return null;
+    const goalsWithAdherence = selectedCycle.goals.map(g => {
+      if (g.goalType !== "habitual") return g;
+      const entries = completionDates[g.id] || [];
+      const sched: number[] = (() => { try { return JSON.parse(g.scheduleDays || "[]"); } catch { return []; } })();
+      const cycleStart = selectedCycle.startDate;
+      const cycleEnd = selectedCycle.endDate;
+      const todayStr = new Date().toISOString().split("T")[0];
+      const effectiveEnd = cycleEnd < todayStr ? cycleEnd : todayStr;
+
+      let expectedSoFar = 0;
+      let totalExpected = 0;
+      const d = new Date(cycleStart + "T00:00:00");
+      const endD = new Date(cycleEnd + "T00:00:00");
+      const effectiveEndD = new Date(effectiveEnd + "T00:00:00");
+      while (d <= endD) {
+        if (sched.length === 0 || sched.includes(d.getDay())) {
+          totalExpected++;
+          if (d <= effectiveEndD) expectedSoFar++;
+        }
+        d.setDate(d.getDate() + 1);
+      }
+
+      const completedCount = new Set(
+        entries.filter(e => e.completed && e.date >= cycleStart && e.date <= effectiveEnd).map(e => e.date)
+      ).size;
+
+      const adherence = expectedSoFar > 0 ? Math.round((Math.min(completedCount, expectedSoFar) / expectedSoFar) * 100) : null;
+      const remainingDays = totalExpected - expectedSoFar;
+      const maxPossible = totalExpected > 0 ? Math.round(((completedCount + remainingDays) / totalExpected) * 100) : null;
+
+      return { ...g, adherence, maxPossible };
+    });
+    return computeCycleAnalytics(goalsWithAdherence, currentWeek, totalWeeks, goalMetrics.avgMomentum, goalMetrics.avgTrajectory);
+  }, [selectedCycle, currentWeek, totalWeeks, completionDates, goalMetrics]);
+
+  const cycleStats = useMemo(() => {
+    if (!selectedCycle || cycleScores.length === 0) return null;
+    const inRange = cycleScores.filter(s => s.date >= selectedCycle.startDate && s.date <= selectedCycle.endDate);
+    if (inRange.length === 0) return null;
+    const avgScore = Math.round(inRange.reduce((s, d) => s + d.actionScore, 0) / inRange.length);
+
     const sorted = [...inRange].sort((a, b) => a.date.localeCompare(b.date));
     const streaks: number[] = [];
     let cur = 0;
@@ -99,7 +163,7 @@ export default function CycleDetailPage() {
     }
     if (cur > 0) streaks.push(cur);
     const topStreaks = streaks.sort((a, b) => b - a).slice(0, 3);
-    return { avgScore, avgTrajectory, topStreaks, totalDays: inRange.length };
+    return { avgScore, topStreaks, totalDays: inRange.length };
   }, [selectedCycle, cycleScores, streakThreshold]);
 
   const handleSaveCycleField = async (updates: Record<string, string | boolean>) => {
@@ -217,6 +281,87 @@ export default function CycleDetailPage() {
           </div>
         </div>
 
+        {/* Analytics */}
+        {analytics && (
+          <>
+            <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">Analytics</h2>
+            <div className="grid grid-cols-2 gap-3 mb-6">
+              <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
+                <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Completion</p>
+                <p className="text-2xl font-bold text-zinc-900 dark:text-white">{Math.round(analytics.overallCompletion)}%</p>
+                <div className="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-full mt-2 overflow-hidden">
+                  <div className="h-full rounded-full bg-zinc-900 dark:bg-zinc-100 transition-all" style={{ width: `${Math.min(analytics.overallCompletion, 100)}%` }} />
+                </div>
+              </div>
+              <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
+                <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Pace</p>
+                <p className={`text-2xl font-bold ${analytics.pace === "ahead" ? "text-green-500" : analytics.pace === "behind" ? "text-red-500" : "text-zinc-500"}`}>
+                  {analytics.pace === "ahead" ? "Ahead" : analytics.pace === "behind" ? "Behind" : "On Track"}
+                  <span className="text-sm font-normal text-zinc-400 ml-1">{analytics.paceScore.toFixed(2)}x</span>
+                </p>
+                <p className="text-xs text-zinc-400 mt-1">Best possible: {Math.round(analytics.projectedCompletion)}%</p>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Cycle Performance */}
+        {cycleStats && (() => {
+          const todayStr = new Date().toISOString().split("T")[0];
+          const start = new Date(selectedCycle.startDate + "T00:00:00");
+          const end = new Date(selectedCycle.endDate + "T00:00:00");
+          const today = new Date(todayStr + "T00:00:00");
+          const elapsed = Math.max(0, Math.ceil((Math.min(today.getTime(), end.getTime()) - start.getTime()) / 86400000));
+          const totalDays = Math.ceil((end.getTime() - start.getTime()) / 86400000);
+          const remaining = Math.max(0, totalDays - elapsed);
+          return (
+          <>
+            <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">Cycle Performance</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
+              <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
+                <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Days</p>
+                <p className="text-2xl font-bold text-zinc-900 dark:text-white">{elapsed}<span className="text-sm font-normal text-zinc-400">/{totalDays}</span></p>
+                <p className="text-xs text-zinc-400 mt-1">{remaining > 0 ? `${remaining} remaining` : "Completed"}</p>
+              </div>
+              <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
+                <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Avg Action Score</p>
+                <p className="text-2xl font-bold text-zinc-900 dark:text-white">{cycleStats.avgScore}%</p>
+                <p className="text-xs text-zinc-400 mt-1">{cycleStats.totalDays} days tracked</p>
+              </div>
+              {goalMetrics.avgMomentum !== null && (
+                <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
+                  <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Momentum</p>
+                  <p className={`text-2xl font-bold ${goalMetrics.avgMomentum >= 1.0 ? "text-blue-500" : "text-red-500"}`}>{goalMetrics.avgMomentum.toFixed(1)}x</p>
+                  <p className="text-xs text-zinc-400 mt-1">{goalMetrics.avgMomentum >= 1.0 ? "On track" : "Behind"}</p>
+                </div>
+              )}
+              {goalMetrics.avgTrajectory !== null && (
+                <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
+                  <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Trajectory</p>
+                  <p className={`text-2xl font-bold ${goalMetrics.avgTrajectory >= 1.0 ? "text-purple-500" : "text-red-500"}`}>{goalMetrics.avgTrajectory.toFixed(1)}x</p>
+                  <p className="text-xs text-zinc-400 mt-1">{goalMetrics.avgTrajectory >= 1.0 ? "On pace" : "Behind"}</p>
+                </div>
+              )}
+              <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 col-span-2">
+                <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Top Streaks</p>
+                {cycleStats.topStreaks.length > 0 ? (
+                  <div className="flex items-baseline gap-3 mt-1">
+                    {cycleStats.topStreaks.map((streak, i) => (
+                      <div key={i} className="flex items-baseline gap-1">
+                        <span className={`font-bold ${i === 0 ? "text-2xl text-amber-500" : i === 1 ? "text-xl text-zinc-500 dark:text-zinc-400" : "text-lg text-zinc-400 dark:text-zinc-500"}`}>{streak}</span>
+                        <span className="text-xs text-zinc-400">days</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-zinc-400 mt-1">No streaks yet (need 95%+ days)</p>
+                )}
+              </div>
+            </div>
+          </>
+          );
+        })()}
+
         {/* Goals */}
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">Goals</h2>
@@ -329,79 +474,6 @@ export default function CycleDetailPage() {
             })}
           </div>
         )}
-
-        {/* Analytics */}
-        {analytics && (
-          <>
-            <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">Analytics</h2>
-            <div className="grid grid-cols-2 gap-3 mb-6">
-              <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
-                <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Completion</p>
-                <p className="text-2xl font-bold text-zinc-900 dark:text-white">{Math.round(analytics.overallCompletion)}%</p>
-                <div className="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-full mt-2 overflow-hidden">
-                  <div className="h-full rounded-full bg-zinc-900 dark:bg-zinc-100 transition-all" style={{ width: `${Math.min(analytics.overallCompletion, 100)}%` }} />
-                </div>
-              </div>
-              <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
-                <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Pace</p>
-                <p className={`text-2xl font-bold ${analytics.pace === "ahead" ? "text-green-500" : analytics.pace === "behind" ? "text-red-500" : "text-zinc-500"}`}>
-                  {analytics.pace === "ahead" ? "Ahead" : analytics.pace === "behind" ? "Behind" : "On Track"}
-                </p>
-                <p className="text-xs text-zinc-400 mt-1">Projected: {Math.round(analytics.projectedCompletion)}%</p>
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* Cycle Performance */}
-        {cycleStats && (() => {
-          const todayStr = new Date().toISOString().split("T")[0];
-          const start = new Date(selectedCycle.startDate + "T00:00:00");
-          const end = new Date(selectedCycle.endDate + "T00:00:00");
-          const today = new Date(todayStr + "T00:00:00");
-          const elapsed = Math.max(0, Math.ceil((Math.min(today.getTime(), end.getTime()) - start.getTime()) / 86400000));
-          const totalDays = Math.ceil((end.getTime() - start.getTime()) / 86400000);
-          const remaining = Math.max(0, totalDays - elapsed);
-          return (
-          <>
-            <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">Cycle Performance</h2>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
-              <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
-                <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Days</p>
-                <p className="text-2xl font-bold text-zinc-900 dark:text-white">{elapsed}<span className="text-sm font-normal text-zinc-400">/{totalDays}</span></p>
-                <p className="text-xs text-zinc-400 mt-1">{remaining > 0 ? `${remaining} remaining` : "Completed"}</p>
-              </div>
-              <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
-                <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Avg Action Score</p>
-                <p className="text-2xl font-bold text-zinc-900 dark:text-white">{cycleStats.avgScore}%</p>
-                <p className="text-xs text-zinc-400 mt-1">{cycleStats.totalDays} days tracked</p>
-              </div>
-              {cycleStats.avgTrajectory !== null && (
-                <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
-                  <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Trajectory</p>
-                  <p className={`text-2xl font-bold ${cycleStats.avgTrajectory >= 1.0 ? "text-purple-500" : "text-red-500"}`}>{cycleStats.avgTrajectory.toFixed(1)}x</p>
-                  <p className="text-xs text-zinc-400 mt-1">{cycleStats.avgTrajectory >= 1.0 ? "On pace" : "Behind"}</p>
-                </div>
-              )}
-              <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 col-span-2">
-                <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">Top Streaks</p>
-                {cycleStats.topStreaks.length > 0 ? (
-                  <div className="flex items-baseline gap-3 mt-1">
-                    {cycleStats.topStreaks.map((streak, i) => (
-                      <div key={i} className="flex items-baseline gap-1">
-                        <span className={`font-bold ${i === 0 ? "text-2xl text-amber-500" : i === 1 ? "text-xl text-zinc-500 dark:text-zinc-400" : "text-lg text-zinc-400 dark:text-zinc-500"}`}>{streak}</span>
-                        <span className="text-xs text-zinc-400">days</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-zinc-400 mt-1">No streaks yet (need 95%+ days)</p>
-                )}
-              </div>
-            </div>
-          </>
-          );
-        })()}
 
       </motion.div>
 
