@@ -5,7 +5,6 @@ import { FaCheck, FaPlus, FaMinus } from "react-icons/fa";
 import { COMPLETION_TYPES, FREQUENCY_PRESETS, REPEAT_UNITS, DAY_NAMES } from "@/lib/constants";
 import type { Pillar, Task, Goal, TaskFormState } from "@/lib/types";
 
-const DAYS_OF_WEEK = DAY_NAMES;
 
 function taskToPreset(task: Task): {
   preset: string;
@@ -417,7 +416,7 @@ export default function TaskForm({
             <div>
               <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Repeat on</label>
               <div className="flex gap-1">
-                {DAYS_OF_WEEK.map((day, idx) => (
+                {DAY_NAMES.map((day, idx) => (
                   <button
                     key={idx}
                     onClick={() => toggleCustomDay(idx)}

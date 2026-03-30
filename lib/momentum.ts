@@ -4,79 +4,6 @@ import type { GoalForMomentum, GoalLogEntry, GoalMomentum, MomentumSummary } fro
 export type { GoalMomentum, MomentumSummary } from '@/lib/types';
 
 /**
- * Calculate momentum for a habitual goal.
- * Momentum = days_hit / days_expected
- * Over a rolling window (last 2 weeks or cycle-to-date, whichever is shorter).
- */
-function calculateHabitualMomentum(
-  goal: GoalForMomentum,
-  logs: GoalLogEntry[],
-  today: string
-): GoalMomentum | null {
-  const scheduleDays: number[] = goal.scheduleDays ? JSON.parse(goal.scheduleDays) : [];
-  const startDate = goal.startDate || today;
-  const endDate = goal.targetDate || today;
-
-  // Skip goals that haven't started yet
-  if (today < startDate) {
-    return null;
-  }
-
-  const effectiveEnd = today < endDate ? today : endDate;
-
-  // Use cycle-to-date
-  const totalExpected = countScheduledDaysInRange(startDate, effectiveEnd, scheduleDays);
-  if (totalExpected === 0) {
-    return null;
-  }
-
-  // Build per-day value totals
-  const dayValues = new Map<string, number>();
-  for (const log of logs) {
-    const date = log.loggedAt.split('T')[0];
-    if (log.value > 0) {
-      dayValues.set(date, (dayValues.get(date) || 0) + log.value);
-    }
-  }
-
-  // Count how many scheduled days were hit (proportional when dailyTarget exists)
-  const isLimit = goal.flexibilityRule === 'limit_avoid';
-  const hasDailyTarget = goal.dailyTarget && goal.dailyTarget > 0 && goal.completionType !== 'checkbox';
-  let daysHit = 0;
-  const current = new Date(startDate + 'T00:00:00');
-  const endD = new Date(effectiveEnd + 'T00:00:00');
-  while (current <= endD) {
-    const dateStr = current.toISOString().split('T')[0];
-    if (scheduleDays.includes(current.getDay())) {
-      if (isLimit) {
-        // For limit goals: a day is "hit" if value <= limitValue (stayed under)
-        const dayLogs = logs.filter(l => l.loggedAt.split('T')[0] === dateStr);
-        const dayValue = dayLogs.reduce((sum, l) => sum + l.value, 0);
-        if (dayLogs.length > 0 && dayValue <= (goal.limitValue || 0)) daysHit++;
-      } else if (hasDailyTarget) {
-        // Proportional credit: fraction of dailyTarget completed, capped at 1
-        const val = dayValues.get(dateStr) || 0;
-        if (val > 0) daysHit += Math.min(val / goal.dailyTarget!, 1);
-      } else {
-        // Binary: any value > 0 counts as a full hit
-        if (dayValues.has(dateStr)) daysHit++;
-      }
-    }
-    current.setDate(current.getDate() + 1);
-  }
-
-  // Momentum: adherence ratio
-  const momentum = totalExpected > 0 ? daysHit / totalExpected : 1.0;
-
-  // Buffer days = how many more scheduled days you can miss while staying >= 1.0
-  const bufferDays = Math.max(0, Math.floor(daysHit - totalExpected));
-
-  const label = momentum >= 1.05 ? `${momentum.toFixed(1)}x` : momentum >= 0.95 ? 'On track' : `${momentum.toFixed(1)}x`;
-
-  return { goalId: goal.id, goalType: goal.goalType, pillarId: goal.pillarId, momentum: Math.round(momentum * 100) / 100, bufferDays, label };
-}
-
-/**
  * Calculate momentum for a target goal.
  * Momentum = actual_rate / required_rate
  * Where required_rate is based on linear interpolation through the cycle.
@@ -226,7 +153,6 @@ export function calculateTrajectory(
 export function calculateMomentum(
   goals: GoalForMomentum[],
   logs: GoalLogEntry[],
-  pillarWeights: { pillarId: number; weight: number }[],
   today: string
 ): MomentumSummary {
   if (goals.length === 0) {
@@ -242,35 +168,17 @@ export function calculateMomentum(
   const goalResults: GoalMomentum[] = [];
 
   for (const goal of goals) {
-    // Only target goals use momentum — habitual uses action score, outcome uses trajectory
     if (goal.goalType !== 'target') continue;
-
-    let result: GoalMomentum | null;
-
-    switch (goal.goalType) {
-      case 'habitual':
-        result = calculateHabitualMomentum(goal, logsByGoal.get(goal.id) || [], today);
-        break;
-      case 'target':
-      default:
-        // target + legacy 'effort' type
-        result = calculateTargetMomentum(goal, today);
-    }
-
+    const result = calculateTargetMomentum(goal, today);
     if (result) goalResults.push(result);
   }
 
-  // Aggregate by pillar
+  // Aggregate by pillar (equal weight)
   const pillarGoals = new Map<number, GoalMomentum[]>();
   for (const g of goalResults) {
     const pid = g.pillarId ?? 0;
     if (!pillarGoals.has(pid)) pillarGoals.set(pid, []);
     pillarGoals.get(pid)!.push(g);
-  }
-
-  const weightMap = new Map<number, number>();
-  for (const pw of pillarWeights) {
-    weightMap.set(pw.pillarId, pw.weight);
   }
 
   const pillarMomentum: Record<number, number> = {};
@@ -281,9 +189,8 @@ export function calculateMomentum(
     const avg = pGoals.reduce((s, g) => s + g.momentum, 0) / pGoals.length;
     pillarMomentum[pid] = Math.round(avg * 100) / 100;
 
-    const weight = weightMap.get(pid) || 1;
-    totalWeightedMomentum += avg * weight;
-    totalWeight += weight;
+    totalWeightedMomentum += avg;
+    totalWeight += 1;
   }
 
   const overall = totalWeight > 0

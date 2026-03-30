@@ -80,30 +80,6 @@ export function calculateDailyScore(
   return { actionScore, pillarScores };
 }
 
-interface OutcomeForScoring {
-  startValue: number;
-  targetValue: number;
-  currentValue: number;
-}
-
-export function calculateProgressScore(outcomes: OutcomeForScoring[]): number {
-  if (outcomes.length === 0) return 0;
-
-  let totalProgress = 0;
-
-  for (const outcome of outcomes) {
-    const range = outcome.targetValue - outcome.startValue;
-    if (range === 0) {
-      totalProgress += 100;
-      continue;
-    }
-    const progress = (outcome.currentValue - outcome.startValue) / range * 100;
-    totalProgress += Math.min(progress, 100);
-  }
-
-  return Math.round(totalProgress / outcomes.length);
-}
-
 export type ScoreTier = 'LEGENDARY' | 'Excellent' | 'Good' | 'Decent' | 'Needs Work' | 'Poor';
 
 export function getScoreTier(score: number): ScoreTier {
@@ -113,17 +89,6 @@ export function getScoreTier(score: number): ScoreTier {
   if (score >= 50) return 'Decent';
   if (score >= 30) return 'Needs Work';
   return 'Poor';
-}
-
-export function getTierColor(tier: ScoreTier): string {
-  switch (tier) {
-    case 'LEGENDARY': return '#FFD700';
-    case 'Excellent': return '#22C55E';
-    case 'Good': return '#3B82F6';
-    case 'Decent': return '#F59E0B';
-    case 'Needs Work': return '#F97316';
-    case 'Poor': return '#EF4444';
-  }
 }
 
 /** 5-tier progress color: red → orange → amber → emerald → green */

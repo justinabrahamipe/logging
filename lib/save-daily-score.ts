@@ -103,8 +103,7 @@ export async function saveDailyScore(userId: string, date: string) {
     }));
 
     const goalsForMomentum = goalsForCalc.filter(g => g.goalType === 'target');
-    const pillarWeights = userPillars.map(p => ({ pillarId: p.id, weight: 1 }));
-    const momentum = calculateMomentum(goalsForMomentum, logsForMomentum, pillarWeights, date);
+    const momentum = calculateMomentum(goalsForMomentum, logsForMomentum, date);
     momentumScore = Math.round(momentum.overall * 100);
     pillarMomentumJson = JSON.stringify(momentum.pillarMomentum);
 

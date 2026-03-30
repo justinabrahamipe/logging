@@ -53,8 +53,6 @@ export async function GET() {
       }));
     }
 
-    const pillarWeights = userPillars.map(p => ({ pillarId: p.id, weight: 1 }));
-
     const mappedGoals = userGoals.map(g => ({
       id: g.id,
       goalType: g.goalType,
@@ -71,7 +69,7 @@ export async function GET() {
       completionType: g.completionType,
     }));
 
-    const summary = calculateMomentum(mappedGoals, logs, pillarWeights, today);
+    const summary = calculateMomentum(mappedGoals, logs, today);
     const trajectorySummary = calculateTrajectory(mappedGoals, today);
 
     // Enrich with pillar info
