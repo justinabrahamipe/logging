@@ -497,7 +497,7 @@ export default function TaskItem({
                   onChange={(e) => setPendingValues(prev => ({ ...prev, [task.id]: e.target.value }))}
                   onKeyDown={(e) => e.key === 'Enter' && handleNumericSubmit(task)}
                   placeholder={task.target ? String(task.target) : '0'}
-                  className="w-8 px-0.5 py-0.5 text-[11px] text-right border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  className="w-11 px-1 py-1 text-xs text-right border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
                 {pendingValues[task.id] !== undefined && (
                   <button
