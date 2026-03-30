@@ -262,7 +262,7 @@ export default function TaskItem({
         onTouchEnd={handleTouchEnd}
         onTouchMove={handleTouchMove}
         onClick={() => { if (!swiping) router.push(`/tasks/${task.id}`); }}
-        className={`relative rounded-lg px-3 py-2.5 overflow-hidden transition-all cursor-pointer ${
+        className={`relative rounded-lg px-2 py-2.5 overflow-hidden transition-all cursor-pointer ${
           isDiscarded
             ? 'bg-amber-50 dark:bg-zinc-800/80 border border-dashed border-amber-300 dark:border-amber-700 opacity-70'
             : isOverLimit
@@ -396,7 +396,7 @@ export default function TaskItem({
             {task.completionType === 'checkbox' && !isFrozen && (
               <button
                 onClick={(e) => { e.stopPropagation(); handleCheckboxToggle(task); }}
-                className={`w-7 h-7 rounded-md border-2 flex items-center justify-center transition-colors ${
+                className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-colors ${
                   isCompleted
                     ? 'bg-green-500 border-green-500 text-white'
                     : 'border-zinc-300 dark:border-zinc-600 hover:border-green-500'
@@ -410,11 +410,11 @@ export default function TaskItem({
               <div className="flex items-center gap-1">
                 <button
                   onClick={(e) => { e.stopPropagation(); handleCountChange(task, -1); }}
-                  className="w-6 h-6 rounded bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center hover:bg-zinc-300 dark:hover:bg-zinc-600"
+                  className="w-5 h-5 rounded bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center hover:bg-zinc-300 dark:hover:bg-zinc-600"
                 >
                   <FaMinus className="text-[9px]" />
                 </button>
-                <span className="text-xs font-bold min-w-[2.5rem] text-center"
+                <span className="text-[11px] font-bold text-center"
                   style={{ color: isLimitTask
                     ? (currentValue > limitVal ? '#EF4444' : '#22C55E')
                     : (task.target && task.target > 0 && currentValue > 0 ? getProgressColor((currentValue / task.target) * 100) : undefined)
@@ -423,7 +423,7 @@ export default function TaskItem({
                 </span>
                 <button
                   onClick={(e) => { e.stopPropagation(); handleCountChange(task, 1); }}
-                  className="w-6 h-6 rounded bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 flex items-center justify-center hover:bg-zinc-800 dark:hover:bg-zinc-100"
+                  className="w-5 h-5 rounded bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 flex items-center justify-center hover:bg-zinc-800 dark:hover:bg-zinc-100"
                 >
                   <FaPlus className="text-[9px]" />
                 </button>
@@ -456,7 +456,7 @@ export default function TaskItem({
                   ) : (
                     <button
                       onClick={(e) => { e.stopPropagation(); if (!isRunning) setPendingValues(prev => ({ ...prev, [task.id]: String(Math.round(elapsed / 60)) })); }}
-                      className={`text-xs font-mono min-w-[3rem] text-center ${
+                      className={`text-[11px] font-mono text-center ${
                         isRunning ? 'font-bold' : elapsed > 0 ? 'font-bold' : 'text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white cursor-text'
                       }`}
                       style={{
@@ -474,7 +474,7 @@ export default function TaskItem({
                   )}
                   <button
                     onClick={(e) => { e.stopPropagation(); isEditing ? handleDurationManualSubmit(task) : handleTimerToggle(task); }}
-                    className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${
+                    className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${
                       isEditing
                         ? 'bg-green-500 text-white hover:bg-green-600'
                         : isRunning

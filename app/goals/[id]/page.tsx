@@ -437,90 +437,61 @@ export default function GoalDetailPage() {
           )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          {outcome.status === 'active' ? (
-            <>
-              <button
-                onClick={() => setLogTarget(true)}
-                className="p-2 rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700"
-                title="Log Progress"
-              >
-                <FaClipboardList />
-              </button>
-              <div className="relative">
-                <button
-                  onClick={() => setShowCyclePicker(!showCyclePicker)}
-                  className="p-2 rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700"
-                  title="Copy to Cycle"
-                >
-                  <FaCopy />
-                </button>
-                {showCyclePicker && (
-                  <div className="absolute right-0 top-10 w-48 bg-white dark:bg-zinc-800 rounded-lg shadow-lg border border-zinc-200 dark:border-zinc-700 z-50 overflow-hidden">
-                    {cycles.length === 0 ? (
-                      <p className="px-4 py-2 text-xs text-zinc-400">No cycles</p>
-                    ) : cycles.map(c => (
-                      <button key={c.id} onClick={() => handleCopyToCycle(c.id)} className="w-full px-4 py-2 text-left text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700">
-                        {c.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <button
-                onClick={() => handleStatusChange('completed')}
-                disabled={archiving}
-                className="p-2 rounded-lg text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 disabled:opacity-50"
-                title="Mark as Complete"
-              >
-                <FaCheck />
-              </button>
-              {outcome.autoCreateTasks && (
-                <button
-                  onClick={handleGenerateTasks}
-                  disabled={generating}
-                  className="p-2 rounded-lg text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 disabled:opacity-50"
-                  title="Generate Tasks"
-                >
-                  <FaSyncAlt className={generating ? "animate-spin" : ""} />
-                </button>
-              )}
-              <button
-                onClick={() => router.push(`/goals/${outcome.id}/edit`)}
-                className="p-2 rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700"
-                title="Edit"
-              >
-                <FaEdit />
-              </button>
-              <button
-                onClick={() => handleStatusChange('abandoned')}
-                disabled={archiving}
-                className="p-2 rounded-lg text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 disabled:opacity-50"
-                title="Abandon"
-              >
-                <FaArchive />
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={() => handleStatusChange('active')}
-                disabled={archiving}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 dark:text-blue-400 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 disabled:opacity-50"
-              >
-                Reactivate
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={archiving}
-                className="p-2 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
-                title="Delete"
-              >
-                <FaTrash />
-              </button>
-            </>
-          )}
+          <button
+            onClick={handleDelete}
+            disabled={archiving}
+            className="p-2 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
+            title="Delete"
+          >
+            <FaTrash />
+          </button>
         </div>
       </div>
+
+      {/* Action buttons row */}
+      {outcome.status === 'active' ? (
+        <div className="flex flex-wrap gap-2 mb-4">
+          <button onClick={() => setLogTarget(true)} className="px-3 py-1.5 text-xs font-medium rounded-lg bg-zinc-100 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-600">
+            Log Progress
+          </button>
+          <button onClick={() => router.push(`/goals/${outcome.id}/edit`)} className="px-3 py-1.5 text-xs font-medium rounded-lg bg-zinc-100 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-600">
+            Edit
+          </button>
+          <button onClick={() => handleStatusChange('completed')} disabled={archiving} className="px-3 py-1.5 text-xs font-medium rounded-lg bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30 disabled:opacity-50">
+            Complete
+          </button>
+          <button onClick={() => handleStatusChange('abandoned')} disabled={archiving} className="px-3 py-1.5 text-xs font-medium rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/30 disabled:opacity-50">
+            Abandon
+          </button>
+          <div className="relative">
+            <button onClick={() => setShowCyclePicker(!showCyclePicker)} className="px-3 py-1.5 text-xs font-medium rounded-lg bg-zinc-100 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-600">
+              Copy to Cycle
+            </button>
+            {showCyclePicker && (
+              <div className="absolute left-0 top-9 w-48 bg-white dark:bg-zinc-800 rounded-lg shadow-lg border border-zinc-200 dark:border-zinc-700 z-50 overflow-hidden">
+                {cycles.length === 0 ? (
+                  <p className="px-4 py-2 text-xs text-zinc-400">No cycles</p>
+                ) : cycles.map(c => (
+                  <button key={c.id} onClick={() => handleCopyToCycle(c.id)} className="w-full px-4 py-2 text-left text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700">
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {outcome.autoCreateTasks && (
+            <button onClick={handleGenerateTasks} disabled={generating} className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 disabled:opacity-50">
+              {generating ? "Generating..." : "Generate Tasks"}
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2 mb-4">
+          <button onClick={() => handleStatusChange('active')} disabled={archiving} className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 disabled:opacity-50">
+            Reactivate
+          </button>
+        </div>
+      )}
 
       <div className="space-y-4">
         {/* Summary row: metrics + status badge inline */}
