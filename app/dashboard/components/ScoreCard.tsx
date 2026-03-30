@@ -26,7 +26,7 @@ export default function ScoreCard({ score, momentumData }: ScoreCardProps) {
   return (
     <div className="grid grid-cols-3 gap-3 mb-6">
       {/* Action Score */}
-      <div title="Action Score: % of today's tasks completed. Higher = more productive day." className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4 flex flex-col items-center justify-center text-center cursor-help">
+      <div title="Action Score: % of today's tasks completed. Higher = more productive day." className="rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4 flex flex-col items-center justify-center text-center cursor-help" style={{ borderTopWidth: 3, borderTopColor: habitualColor, background: `linear-gradient(to bottom, ${habitualColor}08, transparent)` }}>
         <div className="relative w-20 h-20 md:w-24 md:h-24">
           <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
             <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" strokeWidth="8" className="text-zinc-200 dark:text-zinc-700" />
@@ -55,7 +55,7 @@ export default function ScoreCard({ score, momentumData }: ScoreCardProps) {
       </div>
 
       {/* Momentum */}
-      <div title="Momentum: Are your target goals on pace? 1.0x = on pace, above = ahead, below = behind." className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4 flex flex-col items-center justify-center text-center cursor-help">
+      <div title="Momentum: Are your target goals on pace? 1.0x = on pace, above = ahead, below = behind." className="rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4 flex flex-col items-center justify-center text-center cursor-help" style={{ borderTopWidth: 3, borderTopColor: targetColor, background: `linear-gradient(to bottom, ${targetColor}08, transparent)` }}>
         <div className="relative w-20 h-20 md:w-24 md:h-24">
           <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
             <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" strokeWidth="8" className="text-zinc-200 dark:text-zinc-700" />
@@ -84,7 +84,7 @@ export default function ScoreCard({ score, momentumData }: ScoreCardProps) {
       </div>
 
       {/* Trajectory */}
-      <div title="Trajectory: Are your outcome goals trending in the right direction? 1.0x = on pace, above = ahead, below = behind." className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4 flex flex-col items-center justify-center text-center cursor-help">
+      <div title="Trajectory: Are your outcome goals trending in the right direction? 1.0x = on pace, above = ahead, below = behind." className="rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4 flex flex-col items-center justify-center text-center cursor-help" style={{ borderTopWidth: 3, borderTopColor: outcomeColor, background: `linear-gradient(to bottom, ${outcomeColor}08, transparent)` }}>
         <div className="relative w-20 h-20 md:w-24 md:h-24">
           <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
             <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" strokeWidth="8" className="text-zinc-200 dark:text-zinc-700" />
