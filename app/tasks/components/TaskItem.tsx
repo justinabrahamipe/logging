@@ -307,7 +307,8 @@ export default function TaskItem({
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         onTouchMove={handleTouchMove}
-        className={`relative rounded-lg px-3 py-2.5 overflow-hidden transition-all ${
+        onClick={() => { if (!swiping) router.push(`/tasks/${task.id}`); }}
+        className={`relative rounded-lg px-3 py-2.5 overflow-hidden transition-all cursor-pointer ${
           isDiscarded
             ? 'bg-amber-50 dark:bg-zinc-800/80 border border-dashed border-amber-300 dark:border-amber-700 opacity-70'
             : isOverLimit
@@ -341,7 +342,7 @@ export default function TaskItem({
         {/* Left: star + name, pillar, badges */}
         {!isFrozen && handleHighlightToggle && (isHighlighted || !maxStarsReached) && (
           <button
-            onClick={() => handleHighlightToggle(task.id)}
+            onClick={(e) => { e.stopPropagation(); handleHighlightToggle(task.id); }}
             className={`shrink-0 transition-colors ${
               isHighlighted
                 ? 'text-amber-500'
@@ -440,7 +441,7 @@ export default function TaskItem({
           <>
             {task.completionType === 'checkbox' && !isFrozen && (
               <button
-                onClick={() => handleCheckboxToggle(task)}
+                onClick={(e) => { e.stopPropagation(); handleCheckboxToggle(task); }}
                 className={`w-7 h-7 rounded-md border-2 flex items-center justify-center transition-colors ${
                   isCompleted
                     ? 'bg-green-500 border-green-500 text-white'
@@ -454,7 +455,7 @@ export default function TaskItem({
             {task.completionType === 'count' && !isFrozen && (
               <div className="flex items-center gap-1">
                 <button
-                  onClick={() => handleCountChange(task, -1)}
+                  onClick={(e) => { e.stopPropagation(); handleCountChange(task, -1); }}
                   className="w-6 h-6 rounded bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center hover:bg-zinc-300 dark:hover:bg-zinc-600"
                 >
                   <FaMinus className="text-[9px]" />
@@ -467,7 +468,7 @@ export default function TaskItem({
                   {currentValue}/{isLimitTask ? limitVal : (task.target || '?')}
                 </span>
                 <button
-                  onClick={() => handleCountChange(task, 1)}
+                  onClick={(e) => { e.stopPropagation(); handleCountChange(task, 1); }}
                   className="w-6 h-6 rounded bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 flex items-center justify-center hover:bg-zinc-800 dark:hover:bg-zinc-100"
                 >
                   <FaPlus className="text-[9px]" />
@@ -490,6 +491,7 @@ export default function TaskItem({
                     <input
                       type="number"
                       value={pendingValues[task.id]}
+                      onClick={(e) => e.stopPropagation()}
                       onChange={(e) => setPendingValues(prev => ({ ...prev, [task.id]: e.target.value }))}
                       onKeyDown={(e) => e.key === 'Enter' && handleDurationManualSubmit(task)}
                       onBlur={() => handleDurationManualSubmit(task)}
@@ -499,7 +501,7 @@ export default function TaskItem({
                     />
                   ) : (
                     <button
-                      onClick={() => { if (!isRunning) setPendingValues(prev => ({ ...prev, [task.id]: String(Math.round(elapsed / 60)) })); }}
+                      onClick={(e) => { e.stopPropagation(); if (!isRunning) setPendingValues(prev => ({ ...prev, [task.id]: String(Math.round(elapsed / 60)) })); }}
                       className={`text-xs font-mono min-w-[3rem] text-center ${
                         isRunning ? 'font-bold' : elapsed > 0 ? 'font-bold' : 'text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white cursor-text'
                       }`}
@@ -517,7 +519,7 @@ export default function TaskItem({
                     </button>
                   )}
                   <button
-                    onClick={() => isEditing ? handleDurationManualSubmit(task) : handleTimerToggle(task)}
+                    onClick={(e) => { e.stopPropagation(); isEditing ? handleDurationManualSubmit(task) : handleTimerToggle(task); }}
                     className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${
                       isEditing
                         ? 'bg-green-500 text-white hover:bg-green-600'
@@ -537,6 +539,7 @@ export default function TaskItem({
                 <input
                   type="number"
                   value={pendingValues[task.id] ?? (currentValue || '')}
+                  onClick={(e) => e.stopPropagation()}
                   onChange={(e) => setPendingValues(prev => ({ ...prev, [task.id]: e.target.value }))}
                   onKeyDown={(e) => e.key === 'Enter' && handleNumericSubmit(task)}
                   placeholder={task.target ? String(task.target) : '0'}
@@ -544,7 +547,7 @@ export default function TaskItem({
                 />
                 {pendingValues[task.id] !== undefined && (
                   <button
-                    onClick={() => handleNumericSubmit(task)}
+                    onClick={(e) => { e.stopPropagation(); handleNumericSubmit(task); }}
                     className="w-6 h-6 rounded bg-green-500 text-white flex items-center justify-center hover:bg-green-600"
                   >
                     <FaCheck className="text-[9px]" />
@@ -558,7 +561,7 @@ export default function TaskItem({
             <button
               ref={buttonRef}
               onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); setOpenMenuId(openMenuId === task.id ? null : task.id); }}
-              onClick={() => setOpenMenuId(openMenuId === task.id ? null : task.id)}
+              onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === task.id ? null : task.id); }}
               className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700"
             >
               <FaEllipsisV className="text-[10px]" />

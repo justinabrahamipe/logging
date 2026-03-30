@@ -30,6 +30,7 @@ export interface Task {
   startDate: string | null;
   flexibilityRule?: string;
   limitValue?: number | null;
+  description?: string | null;
   completion?: TaskCompletion | null;
 }
 
@@ -326,6 +327,7 @@ export interface TaskFormState {
   pillarId: number;
   goalId: number;
   name: string;
+  description: string;
   completionType: string;
   target: string;
   unit: string;

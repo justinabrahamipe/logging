@@ -147,6 +147,7 @@ export async function handleGetTaskDetails(args: any, userId: string): Promise<s
 
   const lines = [
     `Task: ${task.name} (id:${task.id})`,
+    task.description ? `Description: ${task.description}` : null,
     `Status: ${task.completed ? 'done' : task.skipped ? 'skipped' : 'todo'}`,
     `Date: ${task.date || '(no date)'}`,
     `Type: ${task.completionType} | Frequency: ${frequency}`,

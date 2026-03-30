@@ -89,7 +89,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       }
 
       const updateData: Record<string, unknown> = {};
-      const taskFields = ['name', 'pillarId', 'completionType', 'target', 'unit', 'basePoints', 'goalId', 'periodId', 'date', 'flexibilityRule', 'limitValue'];
+      const taskFields = ['name', 'pillarId', 'completionType', 'target', 'unit', 'basePoints', 'goalId', 'periodId', 'date', 'flexibilityRule', 'limitValue', 'description'];
       for (const field of taskFields) {
         if (body[field] !== undefined) updateData[field] = body[field];
       }
@@ -126,7 +126,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       // Update the task instance directly
       const updateData: Record<string, unknown> = {};
       if (body.startDate !== undefined) updateData.date = body.startDate || '';
-      const taskFields = ['name', 'pillarId', 'completionType', 'target', 'unit', 'basePoints', 'goalId', 'periodId', 'flexibilityRule', 'limitValue'];
+      const taskFields = ['name', 'pillarId', 'completionType', 'target', 'unit', 'basePoints', 'goalId', 'periodId', 'flexibilityRule', 'limitValue', 'description'];
       for (const field of taskFields) {
         if (body[field] !== undefined) updateData[field] = body[field];
       }
@@ -146,7 +146,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       // Also update the schedule if it exists
       if (taskInstance.scheduleId) {
         const scheduleUpdate: Record<string, unknown> = {};
-        const scheduleFields = ['name', 'pillarId', 'completionType', 'target', 'unit', 'flexibilityRule', 'frequency', 'customDays', 'repeatInterval', 'basePoints', 'limitValue', 'goalId', 'periodId'];
+        const scheduleFields = ['name', 'pillarId', 'completionType', 'target', 'unit', 'flexibilityRule', 'frequency', 'customDays', 'repeatInterval', 'basePoints', 'limitValue', 'goalId', 'periodId', 'description'];
         for (const field of scheduleFields) {
           if (body[field] !== undefined) scheduleUpdate[field] = body[field];
         }
@@ -161,7 +161,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     }
 
     const updateData: Record<string, unknown> = {};
-    const fields = ['name', 'pillarId', 'completionType', 'target', 'unit', 'flexibilityRule', 'frequency', 'customDays', 'repeatInterval', 'basePoints', 'limitValue', 'goalId', 'periodId', 'startDate'];
+    const fields = ['name', 'pillarId', 'completionType', 'target', 'unit', 'flexibilityRule', 'frequency', 'customDays', 'repeatInterval', 'basePoints', 'limitValue', 'goalId', 'periodId', 'startDate', 'description'];
 
     for (const field of fields) {
       if (body[field] !== undefined) {

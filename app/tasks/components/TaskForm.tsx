@@ -80,6 +80,7 @@ export default function TaskForm({
         pillarId: editingTask.pillarId,
         goalId: editingTask.goalId || 0,
         name: editingTask.name,
+        description: editingTask.description || "",
         completionType: editingTask.completionType,
         target: editingTask.target?.toString() || "",
         unit: editingTask.unit || "",
@@ -98,6 +99,7 @@ export default function TaskForm({
       pillarId: 0,
       goalId: 0,
       name: "",
+      description: "",
       completionType: "checkbox",
       target: "",
       unit: "",
@@ -170,6 +172,7 @@ export default function TaskForm({
       pillarId: form.pillarId || null,
       goalId: form.goalId || null,
       name: form.name,
+      description: form.description || null,
       completionType: form.completionType,
       frequency: dbFrequency,
       customDays: dbCustomDays,
@@ -205,6 +208,20 @@ export default function TaskForm({
           className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
           placeholder="e.g., Gym session"
           autoFocus
+        />
+      </div>
+
+      {/* Description */}
+      <div>
+        <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+          Description <span className="text-zinc-400 font-normal">(optional)</span>
+        </label>
+        <textarea
+          value={form.description}
+          onChange={(e) => setForm({ ...form, description: e.target.value })}
+          className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white resize-none"
+          placeholder="Add a description..."
+          rows={2}
         />
       </div>
 

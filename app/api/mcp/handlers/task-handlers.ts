@@ -58,6 +58,7 @@ export async function handleCreateTask(args: any, userId: string): Promise<strin
       pillarId,
       userId,
       name: taskName,
+      description: args.description || null,
       completionType,
       target,
       unit: args.unit || null,
@@ -82,6 +83,7 @@ export async function handleCreateTask(args: any, userId: string): Promise<strin
       pillarId,
       userId,
       name: taskName,
+      description: args.description || null,
       completionType,
       target,
       unit: args.unit || null,
@@ -124,6 +126,7 @@ export async function handleEditTask(args: any, userId: string): Promise<string>
   if (args.flexibilityRule !== undefined) updateData.flexibilityRule = args.flexibilityRule;
   if (args.limitValue !== undefined) updateData.limitValue = args.limitValue ?? null;
   if (args.periodId !== undefined) updateData.periodId = args.periodId === 0 ? null : args.periodId;
+  if (args.description !== undefined) updateData.description = args.description || null;
 
   if (Object.keys(updateData).length === 0) return "Error: No fields to update.";
 
@@ -143,6 +146,7 @@ export async function handleEditTask(args: any, userId: string): Promise<string>
     if (args.periodId !== undefined) scheduleUpdate.periodId = args.periodId === 0 ? null : args.periodId;
     if (args.flexibilityRule !== undefined) scheduleUpdate.flexibilityRule = args.flexibilityRule;
     if (args.limitValue !== undefined) scheduleUpdate.limitValue = args.limitValue ?? null;
+    if (args.description !== undefined) scheduleUpdate.description = args.description || null;
     if (Object.keys(scheduleUpdate).length > 0) {
       await db.update(taskSchedules).set(scheduleUpdate).where(eq(taskSchedules.id, task.scheduleId));
     }
