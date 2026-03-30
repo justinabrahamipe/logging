@@ -201,11 +201,11 @@ export default function GoalForm({
     <div className="space-y-3">
       {/* Row 1: Goal Type + Name */}
       <div className={`grid gap-3 ${!editingOutcome ? "grid-cols-1 md:grid-cols-[200px_1fr]" : ""}`}>
-        {!editingOutcome && (
-          <div>
+        <div>
             <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Goal Type</label>
             <select
               value={form.goalType}
+              disabled={!!editingOutcome}
               onChange={(e) => {
                 const type = e.target.value as "habitual" | "target" | "outcome";
                 setForm((prev) => ({
@@ -214,14 +214,13 @@ export default function GoalForm({
                   completionType: type === "target" ? "count" : type === "outcome" ? "numeric" : prev.completionType,
                 }));
               }}
-              className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
+              className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <option value="habitual">Habitual</option>
               <option value="target">Target</option>
               <option value="outcome">Outcome</option>
             </select>
           </div>
-        )}
         <div>
           <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Name</label>
           <input

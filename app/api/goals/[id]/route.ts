@@ -150,6 +150,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (body.unit !== undefined) { propagateToTasks.unit = body.unit || null; propagateToSchedules.unit = body.unit || null; }
     if (body.flexibilityRule !== undefined) { propagateToTasks.flexibilityRule = body.flexibilityRule; propagateToSchedules.flexibilityRule = body.flexibilityRule; }
     if (body.limitValue !== undefined) { propagateToTasks.limitValue = body.limitValue ?? null; propagateToSchedules.limitValue = body.limitValue ?? null; }
+    if (body.dailyTarget !== undefined) { propagateToTasks.target = body.dailyTarget; propagateToSchedules.target = body.dailyTarget; }
     if (body.periodId !== undefined) { propagateToTasks.periodId = body.periodId || null; propagateToSchedules.periodId = body.periodId || null; }
 
     if (Object.keys(propagateToTasks).length > 0) {
