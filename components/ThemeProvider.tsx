@@ -73,24 +73,25 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       if (localDateFmt) setDateFormatState(localDateFmt);
       if (localTimeFmt) setTimeFormatState(localTimeFmt);
 
-      // 2. If localStorage had theme, we're done — no API call needed
+      // 2. If localStorage had theme, apply it immediately (no flash)
+      // But still fetch API for colors/streak/other settings
       if (localTheme) {
         setIsLoading(false);
-        return;
       }
 
-      // 3. No localStorage — try API
+      // 3. Fetch API for full settings (colors, streak threshold, etc.)
       try {
         const response = await fetch("/api/settings");
         if (response.ok) {
           const data = await response.json();
-          if (data.theme) {
-            setThemeState(data.theme);
-            applyTheme(data.theme);
-            localStorage.setItem("theme", data.theme);
-          } else {
-            // API has no theme saved — use system
-            applyTheme("system");
+          if (!localTheme) {
+            if (data.theme) {
+              setThemeState(data.theme);
+              applyTheme(data.theme);
+              localStorage.setItem("theme", data.theme);
+            } else {
+              applyTheme("system");
+            }
           }
           if (data.dateFormat) { setDateFormatState(data.dateFormat); localStorage.setItem("dateFormat", data.dateFormat); }
           if (data.timeFormat) { setTimeFormatState(data.timeFormat); localStorage.setItem("timeFormat", data.timeFormat); }
@@ -98,13 +99,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           if (data.habitualColor) setHabitualColor(data.habitualColor);
           if (data.targetColor) setTargetColor(data.targetColor);
           if (data.outcomeColor) setOutcomeColor(data.outcomeColor);
-        } else {
-          // API failed — use system
+        } else if (!localTheme) {
           applyTheme("system");
         }
       } catch {
-        // Network error — use system
-        applyTheme("system");
+        if (!localTheme) applyTheme("system");
       } finally {
         setIsLoading(false);
       }
