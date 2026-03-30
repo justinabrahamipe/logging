@@ -408,6 +408,8 @@ export function useTasksPage() {
   const fetchTasks = async () => {
     try {
       if (!loading) setRefreshing(true);
+      setGroups([]);
+      setNoDateTasks([]);
       const url = `/api/tasks?date=${today}&all=true`;
       const res = await fetch(url);
       if (res.ok) {
@@ -458,6 +460,8 @@ export function useTasksPage() {
   const fetchDateTasks = async (date: string) => {
     try {
       if (!loading) setRefreshing(true);
+      setGroups([]);
+      setNoDateTasks([]);
       const res = await fetch(`/api/tasks?date=${date}`);
       if (res.ok) {
         const data = await res.json();
