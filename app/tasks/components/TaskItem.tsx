@@ -509,6 +509,42 @@ export default function TaskItem({
                 )}
               </div>
             )}
+
+            {/* Frozen: show logged value read-only */}
+            {isFrozen && (() => {
+              if (isDiscarded) return <span className="text-[11px] text-zinc-400 italic">skipped</span>;
+              if (task.completionType === 'checkbox') {
+                return isCompleted
+                  ? <span className="w-5 h-5 rounded-md bg-green-500 text-white flex items-center justify-center"><FaCheck className="text-[8px]" /></span>
+                  : <span className="text-[11px] text-zinc-400">--</span>;
+              }
+              if (task.completionType === 'count') {
+                return (
+                  <span className="text-[11px] font-bold" style={{ color: currentValue > 0 ? (isLimitTask ? (currentValue > limitVal ? '#EF4444' : '#22C55E') : (task.target && task.target > 0 ? getProgressColor((currentValue / task.target) * 100) : undefined)) : undefined }}>
+                    {currentValue}/{isLimitTask ? limitVal : (task.target || '?')}
+                  </span>
+                );
+              }
+              if (task.completionType === 'duration') {
+                const elapsed = currentValue * 60;
+                const targetSec = (task.target || 0) * 60;
+                const limitSec = isLimitTask ? (limitVal * 60) : 0;
+                return (
+                  <span className="text-[11px] font-mono font-bold" style={{ color: elapsed > 0 ? (isLimitTask && limitSec > 0 && elapsed > limitSec ? '#EF4444' : (targetSec > 0 ? getProgressColor((elapsed / targetSec) * 100) : undefined)) : undefined }}>
+                    {formatTime(elapsed)}
+                    {task.target ? <span className="text-zinc-400 dark:text-zinc-500 font-normal">/{task.target}:00</span> : null}
+                  </span>
+                );
+              }
+              if (task.completionType === 'numeric') {
+                return (
+                  <span className="text-[11px] font-bold" style={{ color: currentValue > 0 ? (task.target && task.target > 0 ? getProgressColor((currentValue / task.target) * 100) : undefined) : undefined }}>
+                    {currentValue || '--'}{task.target ? <span className="text-zinc-400 dark:text-zinc-500 font-normal">/{task.target}</span> : null}
+                  </span>
+                );
+              }
+              return null;
+            })()}
           </>
 
         </div>
