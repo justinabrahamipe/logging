@@ -42,7 +42,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         status: goals.status,
         flexibilityRule: goals.flexibilityRule,
         limitValue: goals.limitValue,
-        minimumTarget: goals.minimumTarget,
         autoCreateTasks: goals.autoCreateTasks,
         createdAt: goals.createdAt,
         updatedAt: goals.updatedAt,

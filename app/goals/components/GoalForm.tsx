@@ -19,7 +19,6 @@ const DEFAULT_FORM: GoalFormState = {
   goalType: "outcome",
   completionType: "checkbox",
   dailyTarget: "",
-  minimumTarget: "",
   autoCreateTasks: true,
   flexibilityRule: "must_today",
   frequencyPreset: "daily",
@@ -64,7 +63,7 @@ export default function GoalForm({
         name: editingOutcome.name,
         startValue: String(editingOutcome.startValue),
         targetValue: String(editingOutcome.targetValue),
-        unit: editingOutcome.unit,
+        unit: editingOutcome.unit || "",
         pillarId: editingOutcome.pillarId ? String(editingOutcome.pillarId) : "",
         startDate: editingOutcome.startDate || "",
         targetDate: editingOutcome.targetDate || "",
@@ -72,7 +71,6 @@ export default function GoalForm({
         goalType: (editingOutcome.goalType === "effort" ? "target" : editingOutcome.goalType as "habitual" | "target" | "outcome") || "outcome",
         completionType: (editingOutcome.completionType as "checkbox" | "count" | "numeric" | "duration") || "checkbox",
         dailyTarget: editingOutcome.dailyTarget ? String(editingOutcome.dailyTarget) : "",
-        minimumTarget: editingOutcome.minimumTarget ? String(editingOutcome.minimumTarget) : "",
         autoCreateTasks: editingOutcome.autoCreateTasks || false,
         flexibilityRule: editingOutcome.flexibilityRule || "must_today",
         frequencyPreset,
@@ -127,15 +125,6 @@ export default function GoalForm({
     setForm(prev => ({ ...prev, targetDate: d.toISOString().split('T')[0] }));
   };
 
-  const computeMinPerDay = (targetDate: string) => {
-    const total = parseFloat(form.targetValue) || 0;
-    const sched = getScheduleDays();
-    if (total <= 0 || !form.startDate || !targetDate || sched.length === 0) return;
-    const days = countScheduledDaysInRange(form.startDate, targetDate, sched);
-    if (days > 0) {
-      setForm(prev => ({ ...prev, minimumTarget: String(Math.ceil(total / days)) }));
-    }
-  };
 
   const handleSubmit = async () => {
     if (!form.name.trim()) return;
@@ -145,9 +134,9 @@ export default function GoalForm({
 
     if ((isTarget || isOutcome) && form.targetValue === "") return;
     if (isOutcome && form.startValue === "") return;
-    if (!isHabitual && !form.unit.trim()) return;
+    if (!isHabitual && !(form.unit || '').trim()) return;
 
-    const start = isOutcome ? parseFloat(form.startValue) : 0;
+    const start = (isTarget || isOutcome) ? (parseFloat(form.startValue) || 0) : 0;
     const target = isHabitual ? 0 : parseFloat(form.targetValue);
 
     const payload: Record<string, unknown> = {
@@ -162,7 +151,6 @@ export default function GoalForm({
       goalType: form.goalType,
       completionType: form.completionType,
       dailyTarget: form.dailyTarget ? parseFloat(form.dailyTarget) : null,
-      minimumTarget: form.minimumTarget ? parseFloat(form.minimumTarget) : null,
       flexibilityRule: form.flexibilityRule,
       limitValue: form.flexibilityRule === 'limit_avoid' && form.dailyTarget ? parseFloat(form.dailyTarget) : null,
     };
@@ -335,7 +323,7 @@ export default function GoalForm({
       )}
 
       {/* Row 2: Pillar + Values/Unit — varies by goal type */}
-      {form.goalType === "outcome" && (
+      {(form.goalType === "outcome" || form.goalType === "target") && (
         <div className="grid grid-cols-3 gap-3">
           <div>
             <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Start Value</label>
@@ -372,52 +360,6 @@ export default function GoalForm({
         </div>
       )}
 
-      {form.goalType === "target" && (
-        <div className={`grid gap-3 ${form.completionType !== "checkbox" && form.flexibilityRule !== "limit_avoid" ? "grid-cols-3" : "grid-cols-2"}`}>
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-              {form.flexibilityRule === "limit_avoid" ? "Limit Value" : "Target Value"}
-            </label>
-            <input
-              type="number"
-              step="any"
-              value={form.targetValue}
-              onChange={(e) => setForm({ ...form, targetValue: e.target.value })}
-              className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
-              placeholder={form.completionType === "duration" ? "e.g., 600" : "e.g., 120"}
-            />
-          </div>
-          {form.completionType !== "checkbox" && form.flexibilityRule !== "limit_avoid" && (
-            <div>
-              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Min per day</label>
-              <input
-                type="number"
-                step="any"
-                value={form.minimumTarget}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setForm(prev => ({ ...prev, minimumTarget: val }));
-                  const perDay = parseFloat(val);
-                  if (perDay > 0 && !form.targetDate) computeTargetDate(perDay);
-                }}
-                className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
-                placeholder="e.g., 7"
-              />
-            </div>
-          )}
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Unit</label>
-            <input
-              type="text"
-              value={form.unit}
-              onChange={(e) => setForm({ ...form, unit: e.target.value })}
-              disabled={form.completionType === "duration"}
-              className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white disabled:opacity-50"
-              placeholder="e.g., chapters"
-            />
-          </div>
-        </div>
-      )}
 
       {/* Row 3: Pillar + Repeat */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -552,7 +494,8 @@ export default function GoalForm({
             value={form.targetDate}
             onChange={(e) => {
               setForm(prev => ({ ...prev, targetDate: e.target.value }));
-              if (form.goalType === "target" && e.target.value) computeMinPerDay(e.target.value);
+
+
             }}
             className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
           />

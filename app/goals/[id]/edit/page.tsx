@@ -25,7 +25,7 @@ export default function EditGoalPage() {
     }
     if (session?.user?.id) {
       Promise.all([
-        fetch("/api/outcomes").then((r) => r.ok ? r.json() : []),
+        fetch("/api/goals").then((r) => r.ok ? r.json() : []),
         fetch("/api/pillars").then((r) => r.ok ? r.json() : []),
         fetch("/api/cycles").then((r) => r.ok ? r.json() : []),
       ]).then(([goalsData, p, c]) => {
@@ -39,7 +39,7 @@ export default function EditGoalPage() {
   }, [session, status, router, id]);
 
   const handleSave = async (payload: Record<string, unknown>) => {
-    const res = await fetch(`/api/outcomes/${id}`, {
+    const res = await fetch(`/api/goals/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),

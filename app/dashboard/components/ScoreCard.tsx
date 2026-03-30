@@ -52,7 +52,7 @@ export default function ScoreCard({ score, momentumData }: ScoreCardProps) {
       </div>
 
       {/* Momentum */}
-      <div title="Momentum: Are you keeping pace with your habitual and target goals? 1.0x = on pace, above = ahead, below = behind." className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4 flex flex-col items-center justify-center text-center cursor-help">
+      <div title="Momentum: Are your target goals on pace? 1.0x = on pace, above = ahead, below = behind." className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4 flex flex-col items-center justify-center text-center cursor-help">
         <div className="relative w-20 h-20 md:w-24 md:h-24">
           <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
             <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" strokeWidth="8" className="text-zinc-200 dark:text-zinc-700" />
@@ -67,14 +67,16 @@ export default function ScoreCard({ score, momentumData }: ScoreCardProps) {
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-lg md:text-xl font-bold leading-none" style={{ color: mColor }}>
-              {momentumData ? `${mVal.toFixed(1)}x` : "\u2014"}
+            <span className="text-lg md:text-xl font-bold leading-none" style={{ color: momentumData && momentumData.goals.length > 0 ? mColor : '#9CA3AF' }}>
+              {momentumData && momentumData.goals.length > 0 ? `${mVal.toFixed(1)}x` : "\u2014"}
             </span>
           </div>
         </div>
         <div className="text-[10px] md:text-xs font-medium text-zinc-500 dark:text-zinc-400 mt-2">Momentum</div>
-        {momentumData && (
+        {momentumData && momentumData.goals.length > 0 ? (
           <div className="text-[10px] text-zinc-400 dark:text-zinc-500">{mLabel}</div>
+        ) : (
+          <div className="text-[10px] text-zinc-400 dark:text-zinc-500">No target goals</div>
         )}
       </div>
 
@@ -94,14 +96,16 @@ export default function ScoreCard({ score, momentumData }: ScoreCardProps) {
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-lg md:text-xl font-bold leading-none" style={{ color: tColor }}>
-              {momentumData?.trajectory ? `${tVal.toFixed(1)}x` : "\u2014"}
+            <span className="text-lg md:text-xl font-bold leading-none" style={{ color: momentumData?.trajectory && momentumData.trajectory.goals.length > 0 ? tColor : '#9CA3AF' }}>
+              {momentumData?.trajectory && momentumData.trajectory.goals.length > 0 ? `${tVal.toFixed(1)}x` : "\u2014"}
             </span>
           </div>
         </div>
         <div className="text-[10px] md:text-xs font-medium text-zinc-500 dark:text-zinc-400 mt-2">Trajectory</div>
-        {momentumData?.trajectory && (
+        {momentumData?.trajectory && momentumData.trajectory.goals.length > 0 ? (
           <div className="text-[10px] text-zinc-400 dark:text-zinc-500">{tLabel}</div>
+        ) : (
+          <div className="text-[10px] text-zinc-400 dark:text-zinc-500">No outcome goals</div>
         )}
       </div>
     </div>

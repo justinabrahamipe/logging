@@ -79,7 +79,7 @@ export default function PillarDetailPage() {
 
     Promise.all([
       fetch(`/api/pillars/${id}`).then(r => r.ok ? r.json() : null),
-      fetch("/api/outcomes").then(r => r.ok ? r.json() : []),
+      fetch("/api/goals").then(r => r.ok ? r.json() : []),
       fetch("/api/cycles").then(r => r.ok ? r.json() : []),
       fetch("/api/daily-score/history?days=365").then(r => r.ok ? r.json() : { scores: [] }),
     ]).then(([pillarData, goalsData, cyclesData, historyData]) => {

@@ -212,7 +212,6 @@ export async function generateGoalTasks(userId: string, goalId: number) {
           unit: taskCompletionType === 'checkbox' ? null : (outcome.unit || null),
           flexibilityRule: outcome.flexibilityRule || 'must_today',
           limitValue: goalLimitValue,
-          minimumTarget: outcome.minimumTarget ?? null,
           basePoints: 10,
           goalId: outcome.id,
           periodId: outcome.periodId || null,
@@ -296,36 +295,21 @@ export async function recalcTargetGoalTasks(userId: string) {
     tasksByGoal.set(ft.goalId, list);
   }
 
-  // Calculate tomorrow's date for consistent "from tomorrow" counting
-  const tomorrow = new Date(todayStr + 'T12:00:00');
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowStr = tomorrow.toISOString().split('T')[0];
-
   for (const outcome of targetGoals) {
     const scheduleDays: number[] = JSON.parse(outcome.scheduleDays!);
     const remainingValue = (outcome.targetValue ?? 1) - (outcome.currentValue ?? 0);
-    // Count remaining scheduled days from tomorrow (matches calculateEffortMetrics)
-    // Today's work is already reflected in currentValue
-    const isFuture = todayStr < (outcome.startDate || todayStr);
-    const remainingDays = isFuture
-      ? (countScheduledDaysInRange(outcome.startDate!, outcome.targetDate!, scheduleDays) || 1)
-      : (outcome.targetDate
-        ? (countScheduledDaysInRange(tomorrowStr, outcome.targetDate, scheduleDays) || 1)
-        : 1);
+    // Use actual uncompleted task count — we're distributing remaining work
+    // evenly across all uncompleted tasks (including today's)
     const goalTasks = tasksByGoal.get(outcome.id) || [];
+    const remainingDays = goalTasks.length || 1;
     const newTarget = Math.ceil(Math.max(0, remainingValue) / remainingDays);
-
-    // Recalculate minimumTarget proportionally
-    const newMinimumTarget = outcome.minimumTarget && outcome.dailyTarget && outcome.dailyTarget > 0
-      ? Math.round((outcome.minimumTarget / outcome.dailyTarget) * newTarget)
-      : (outcome.minimumTarget ?? null);
 
     // Only update tasks whose target actually differs
     const toUpdate = goalTasks.filter(ft => ft.target !== newTarget);
     if (toUpdate.length === 0) continue;
 
     const ids = toUpdate.map(ft => ft.id);
-    await db.update(tasks).set({ target: newTarget, minimumTarget: newMinimumTarget }).where(inArray(tasks.id, ids));
+    await db.update(tasks).set({ target: newTarget }).where(inArray(tasks.id, ids));
   }
 }
 

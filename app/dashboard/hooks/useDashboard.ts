@@ -67,10 +67,10 @@ export function useDashboard() {
       const [scoreRes, historyRes, outcomesRes, tasksRes, momentumRes, completionsRes, cyclesRes] = await Promise.all([
         fetch(`/api/daily-score?date=${today}`),
         fetch("/api/daily-score/history?days=90"),
-        fetch("/api/outcomes"),
+        fetch("/api/goals"),
         fetch(`/api/tasks?date=${today}`),
         fetch("/api/momentum"),
-        fetch("/api/outcomes/completions"),
+        fetch("/api/goals/completions"),
         fetch("/api/cycles"),
       ]);
 

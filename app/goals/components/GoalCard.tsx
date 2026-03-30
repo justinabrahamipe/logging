@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -60,6 +60,31 @@ export default function GoalCard({
   const isActivityGoal = outcome.goalType === "target" || outcome.goalType === "habitual";
   const scheduleDays: number[] = outcome.scheduleDays ? JSON.parse(outcome.scheduleDays) : [];
   const [showCyclePicker, setShowCyclePicker] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [dropUp, setDropUp] = useState(false);
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (menuOpen !== outcome.id) return;
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [menuOpen, outcome.id, setMenuOpen]);
+
+  // Determine if menu should drop up
+  useEffect(() => {
+    if (menuOpen === outcome.id && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      const bottomBarHeight = window.innerWidth < 768 ? 60 : 0;
+      const spaceBelow = window.innerHeight - rect.bottom - bottomBarHeight;
+      setDropUp(spaceBelow < 280);
+    }
+  }, [menuOpen, outcome.id]);
 
   const effortMetrics = useMemo(() => {
     if (!isActivityGoal || isHabitual || !outcome.startDate || !outcome.targetDate || scheduleDays.length === 0) return null;
@@ -245,8 +270,9 @@ export default function GoalCard({
           </div>
         </div>
         <div className="flex items-center shrink-0" onClick={e => e.stopPropagation()}>
-          <div className="relative">
+          <div className="relative" ref={menuRef}>
             <button
+              ref={buttonRef}
               onClick={() => { setMenuOpen(menuOpen === outcome.id ? null : outcome.id); setShowCyclePicker(false); }}
               className="p-2 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
             >
@@ -258,7 +284,7 @@ export default function GoalCard({
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  className="absolute right-0 top-8 w-52 bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-700 z-20 overflow-hidden"
+                  className={`absolute right-0 w-52 bg-white dark:bg-zinc-800 rounded-lg shadow-lg border border-zinc-200 dark:border-zinc-700 z-50 overflow-hidden ${dropUp ? 'bottom-10' : 'top-8'}`}
                 >
                   <button
                     onClick={() => openLogModal(outcome)}

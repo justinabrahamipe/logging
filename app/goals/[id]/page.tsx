@@ -117,10 +117,10 @@ export default function GoalDetailPage() {
     }
     if (session?.user?.id) {
       Promise.all([
-        fetch("/api/outcomes").then((r) => r.ok ? r.json() : []),
-        fetch(`/api/outcomes/${id}/log`).then((r) => r.ok ? r.json() : []),
-        fetch("/api/outcomes/tasks").then((r) => r.ok ? r.json() : []),
-        fetch("/api/outcomes/completions").then((r) => r.ok ? r.json() : {}),
+        fetch("/api/goals").then((r) => r.ok ? r.json() : []),
+        fetch(`/api/goals/${id}/log`).then((r) => r.ok ? r.json() : []),
+        fetch("/api/goals/tasks").then((r) => r.ok ? r.json() : []),
+        fetch("/api/goals/completions").then((r) => r.ok ? r.json() : {}),
       ]).then(([goalsData, logData, goalTasks, completions]: [Outcome[], LogEntry[], { id: number; name: string; goalId: number; completionType: string; basePoints: number; target: number | null; unit: string | null; date: string; completed: boolean; value: number | null }[], Record<number, { date: string; value: number; completed: boolean }[]>]) => {
         const found = goalsData.find((o: Outcome) => String(o.id) === id);
         setOutcome(found || null);
@@ -274,7 +274,7 @@ export default function GoalDetailPage() {
       onConfirm: async () => {
         setConfirmDialog(null);
         setArchiving(true);
-        await fetch(`/api/outcomes/${outcome.id}`, {
+        await fetch(`/api/goals/${outcome.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ status: newStatus }),
@@ -292,7 +292,7 @@ export default function GoalDetailPage() {
       onConfirm: async () => {
         setConfirmDialog(null);
         setArchiving(true);
-        await fetch(`/api/outcomes/${outcome.id}`, { method: "DELETE" });
+        await fetch(`/api/goals/${outcome.id}`, { method: "DELETE" });
         router.push("/goals");
       },
     });
@@ -302,15 +302,15 @@ export default function GoalDetailPage() {
     if (!outcome) return;
     setGenerating(true);
     try {
-      const res = await fetch(`/api/outcomes/${outcome.id}/generate-tasks`, { method: "POST" });
+      const res = await fetch(`/api/goals/${outcome.id}/generate-tasks`, { method: "POST" });
       if (res.ok) {
         setSnackbar({ open: true, message: "Tasks generated successfully", severity: "success" });
         // Refresh everything — same as initial load
         const [goalsData, logData, goalTasks, completions] = await Promise.all([
-          fetch("/api/outcomes").then(r => r.ok ? r.json() : []),
-          fetch(`/api/outcomes/${outcome.id}/log`).then(r => r.ok ? r.json() : []),
-          fetch("/api/outcomes/tasks").then(r => r.ok ? r.json() : []),
-          fetch("/api/outcomes/completions").then(r => r.ok ? r.json() : {}),
+          fetch("/api/goals").then(r => r.ok ? r.json() : []),
+          fetch(`/api/goals/${outcome.id}/log`).then(r => r.ok ? r.json() : []),
+          fetch("/api/goals/tasks").then(r => r.ok ? r.json() : []),
+          fetch("/api/goals/completions").then(r => r.ok ? r.json() : {}),
         ]);
         const found = goalsData.find((o: Outcome) => String(o.id) === String(outcome.id));
         if (found) setOutcome(found);

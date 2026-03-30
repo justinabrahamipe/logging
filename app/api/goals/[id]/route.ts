@@ -25,6 +25,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const updateData: Record<string, unknown> = {};
     if (body.name !== undefined) updateData.name = body.name;
     if (body.pillarId !== undefined) updateData.pillarId = body.pillarId || null;
+    if (body.startValue !== undefined) updateData.startValue = body.startValue;
     if (body.targetValue !== undefined) updateData.targetValue = body.targetValue;
     if (body.unit !== undefined) updateData.unit = body.unit;
     if (body.startDate !== undefined) updateData.startDate = body.startDate || null;
@@ -37,7 +38,6 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (body.dailyTarget !== undefined) updateData.dailyTarget = body.dailyTarget ?? null;
     if (body.flexibilityRule !== undefined) updateData.flexibilityRule = body.flexibilityRule;
     if (body.limitValue !== undefined) updateData.limitValue = body.limitValue ?? null;
-    if (body.minimumTarget !== undefined) updateData.minimumTarget = body.minimumTarget ?? null;
     if (body.status !== undefined) updateData.status = body.status;
 
     // When marking a target/outcome goal as complete, set currentValue = targetValue
@@ -150,7 +150,6 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (body.unit !== undefined) { propagateToTasks.unit = body.unit || null; propagateToSchedules.unit = body.unit || null; }
     if (body.flexibilityRule !== undefined) { propagateToTasks.flexibilityRule = body.flexibilityRule; propagateToSchedules.flexibilityRule = body.flexibilityRule; }
     if (body.limitValue !== undefined) { propagateToTasks.limitValue = body.limitValue ?? null; propagateToSchedules.limitValue = body.limitValue ?? null; }
-    if (body.minimumTarget !== undefined) { propagateToTasks.minimumTarget = body.minimumTarget ?? null; }
     if (body.periodId !== undefined) { propagateToTasks.periodId = body.periodId || null; propagateToSchedules.periodId = body.periodId || null; }
 
     if (Object.keys(propagateToTasks).length > 0) {

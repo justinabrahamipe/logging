@@ -60,11 +60,11 @@ export function useGoals() {
   const fetchAll = async () => {
     try {
       const [outcomesRes, logsRes, pillarsRes, goalTasksRes, completionsRes, cyclesRes] = await Promise.all([
-        fetch("/api/outcomes"),
-        fetch("/api/outcomes/logs"),
+        fetch("/api/goals"),
+        fetch("/api/goals/logs"),
         fetch("/api/pillars"),
-        fetch("/api/outcomes/tasks"),
-        fetch("/api/outcomes/completions"),
+        fetch("/api/goals/tasks"),
+        fetch("/api/goals/completions"),
         fetch("/api/cycles"),
       ]);
 
@@ -102,8 +102,8 @@ export function useGoals() {
   const fetchGoals = async () => {
     try {
       const [outcomesRes, logsRes] = await Promise.all([
-        fetch("/api/outcomes"),
-        fetch("/api/outcomes/logs"),
+        fetch("/api/goals"),
+        fetch("/api/goals/logs"),
       ]);
       if (outcomesRes.ok) {
         setAllGoals(await outcomesRes.json());
@@ -122,8 +122,8 @@ export function useGoals() {
   const fetchLinkedTasks = async () => {
     try {
       const [goalTasksRes, completionsRes] = await Promise.all([
-        fetch('/api/outcomes/tasks'),
-        fetch('/api/outcomes/completions'),
+        fetch('/api/goals/tasks'),
+        fetch('/api/goals/completions'),
       ]);
       if (goalTasksRes.ok) {
         const goalTasks = await goalTasksRes.json();
@@ -148,7 +148,7 @@ export function useGoals() {
       onConfirm: async () => {
         setConfirmDialog(null);
         try {
-          await fetch(`/api/outcomes/${id}`, { method: "DELETE" });
+          await fetch(`/api/goals/${id}`, { method: "DELETE" });
           await fetchGoals();
         } catch (error) {
           console.error("Failed to delete outcome:", error);
@@ -165,7 +165,7 @@ export function useGoals() {
       onConfirm: async () => {
         setConfirmDialog(null);
         try {
-          await fetch(`/api/outcomes/${id}`, {
+          await fetch(`/api/goals/${id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ status: newStatus }),

@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     );
 
     const pointsEarned = calculateTaskScore(
-      { id: task.id, pillarId: task.pillarId, completionType: task.completionType, target: task.target, basePoints: task.basePoints, flexibilityRule: task.flexibilityRule, limitValue: task.limitValue, minimumTarget: task.minimumTarget },
+      { id: task.id, pillarId: task.pillarId, completionType: task.completionType, target: task.target, basePoints: task.basePoints, flexibilityRule: task.flexibilityRule, limitValue: task.limitValue },
       { taskId: task.id, completed: isCompleted, value: completionValue }
     );
 
@@ -149,6 +149,26 @@ export async function POST(request: Request) {
             .update(goals)
             .set({ currentValue: newTotal })
             .where(eq(goals.id, linkedGoal.id));
+
+          // Auto-complete target goals when target is reached
+          if (linkedGoal.goalType === 'target' && linkedGoal.status === 'active') {
+            const isDecrease = linkedGoal.targetValue < linkedGoal.startValue;
+            const reached = isDecrease ? newTotal <= linkedGoal.targetValue : newTotal >= linkedGoal.targetValue;
+            if (reached) {
+              await db.update(goals)
+                .set({ status: 'completed', currentValue: linkedGoal.targetValue })
+                .where(eq(goals.id, linkedGoal.id));
+
+              // Delete remaining uncompleted tasks for this goal
+              const remaining = await db.select({ id: tasks.id }).from(tasks)
+                .where(and(eq(tasks.goalId, linkedGoal.id), eq(tasks.userId, userId), eq(tasks.completed, false)));
+              for (const r of remaining) {
+                await db.delete(tasks).where(eq(tasks.id, r.id));
+              }
+
+              await createAutoLog(userId, `🏆 Goal auto-completed: ${linkedGoal.name}`);
+            }
+          }
         }
       } catch (err) {
         console.error("Failed to update linked goal:", err);

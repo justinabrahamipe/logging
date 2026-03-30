@@ -32,7 +32,7 @@ export default function NewGoalPage() {
   }, [session, status, router]);
 
   const handleSave = async (payload: Record<string, unknown>) => {
-    const res = await fetch("/api/outcomes", {
+    const res = await fetch("/api/goals", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),

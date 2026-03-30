@@ -47,7 +47,7 @@ export default function CycleDetailPage() {
         setSelectedCycle(data);
         const daysDiff = Math.ceil((Date.now() - new Date(data.startDate).getTime()) / 86400000) + 1;
         fetch(`/api/daily-score/history?days=${Math.min(daysDiff, 365)}`).then(r => r.ok ? r.json() : { scores: [] }).then(s => setCycleScores(s.scores || []));
-        fetch("/api/outcomes/completions").then(r => r.ok ? r.json() : {}).then(c => setCompletionDates(c));
+        fetch("/api/goals/completions").then(r => r.ok ? r.json() : {}).then(c => setCompletionDates(c));
       }
       setLoading(false);
     });

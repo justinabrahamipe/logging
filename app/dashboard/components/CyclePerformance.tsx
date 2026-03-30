@@ -44,7 +44,7 @@ export default function CyclePerformance() {
     Promise.all([
       fetch("/api/cycles").then(r => r.ok ? r.json() : []),
       fetch("/api/daily-score/history?days=365").then(r => r.ok ? r.json() : { scores: [] }),
-      fetch("/api/outcomes").then(r => r.ok ? r.json() : []),
+      fetch("/api/goals").then(r => r.ok ? r.json() : []),
     ]).then(([cycles, historyData, goalsData]: [CycleData[], { scores: ScoreEntry[] }, { id: number; periodId: number | null; goalType: string; startValue: number; targetValue: number; currentValue: number; startDate: string | null; targetDate: string | null }[]]) => {
       const scores = historyData.scores || [];
       // Show only active cycles (currently running)

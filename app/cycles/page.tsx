@@ -32,7 +32,7 @@ export default function CyclesPage() {
     if (session?.user?.id) {
       Promise.all([
         fetch("/api/cycles").then(r => r.ok ? r.json() : []),
-        fetch("/api/outcomes").then(r => r.ok ? r.json() : []),
+        fetch("/api/goals").then(r => r.ok ? r.json() : []),
         fetch("/api/daily-score/history?days=365").then(r => r.ok ? r.json() : { scores: [] }),
       ]).then(([cyclesData, goalsData, historyData]) => {
         setCycles(cyclesData);

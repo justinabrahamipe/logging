@@ -27,7 +27,7 @@ export default function EditTaskPage() {
       Promise.all([
         fetch(`/api/tasks/${id}`).then((r) => (r.ok ? r.json() : null)),
         fetch("/api/pillars").then((r) => (r.ok ? r.json() : [])),
-        fetch("/api/outcomes").then((r) => (r.ok ? r.json() : [])),
+        fetch("/api/goals").then((r) => (r.ok ? r.json() : [])),
       ]).then(async ([t, p, o]) => {
         // Map task instance `date` to `startDate` for the form
         if (t && t.date && !t.startDate) {

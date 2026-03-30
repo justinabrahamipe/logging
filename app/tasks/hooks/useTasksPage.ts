@@ -372,7 +372,7 @@ export function useTasksPage() {
 
   const fetchOutcomes = async () => {
     try {
-      const res = await fetch('/api/outcomes');
+      const res = await fetch('/api/goals');
       if (res.ok) {
         const data = await res.json();
         setGoalsList(data.map((o: Outcome) => ({ id: o.id, pillarId: o.pillarId, name: o.name, goalType: o.goalType || 'outcome', startValue: o.startValue, targetValue: o.targetValue, startDate: o.startDate, targetDate: o.targetDate, scheduleDays: o.scheduleDays, unit: o.unit })));

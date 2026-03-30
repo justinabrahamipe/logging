@@ -29,7 +29,6 @@ export async function GET() {
         dailyTarget: goals.dailyTarget,
         flexibilityRule: goals.flexibilityRule,
         limitValue: goals.limitValue,
-        minimumTarget: goals.minimumTarget,
         status: goals.status,
         createdAt: goals.createdAt,
         updatedAt: goals.updatedAt,
@@ -52,7 +51,7 @@ export async function POST(request: Request) {
     const userId = await getAuthenticatedUserId();
 
     const body = await request.json();
-    const { name, targetValue, unit, pillarId, periodId, goalType, completionType, dailyTarget, scheduleDays, autoCreateTasks, flexibilityRule, limitValue, minimumTarget } = body;
+    const { name, targetValue, unit, pillarId, periodId, goalType, completionType, dailyTarget, scheduleDays, autoCreateTasks, flexibilityRule, limitValue } = body;
 
     const isActivityGoal = goalType === 'habitual' || goalType === 'target';
 
@@ -75,7 +74,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const effectiveStartValue = isActivityGoal ? 0 : (body.startValue ?? 0);
+    const effectiveStartValue = body.startValue ?? 0;
 
     const [outcome] = await db.insert(goals).values({
       userId,
@@ -95,7 +94,6 @@ export async function POST(request: Request) {
       autoCreateTasks: autoCreateTasks || false,
       flexibilityRule: flexibilityRule || 'must_today',
       limitValue: limitValue ?? null,
-      minimumTarget: minimumTarget ?? null,
     }).returning();
 
     // Generate all tasks upfront for the full goal date range

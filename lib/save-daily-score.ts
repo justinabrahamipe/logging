@@ -34,7 +34,6 @@ export async function saveDailyScore(userId: string, date: string) {
     basePoints: t.basePoints,
     flexibilityRule: t.flexibilityRule,
     limitValue: t.limitValue,
-    minimumTarget: t.minimumTarget,
   }));
 
   const completionsForScoring = tasksForDay.map(t => ({
@@ -101,7 +100,7 @@ export async function saveDailyScore(userId: string, date: string) {
       completionType: g.completionType,
     }));
 
-    const goalsForMomentum = goalsForCalc.filter(g => g.goalType !== 'outcome');
+    const goalsForMomentum = goalsForCalc.filter(g => g.goalType === 'target');
     const momentum = calculateMomentum(goalsForMomentum, logsForMomentum, pillarWeights, date);
     momentumScore = Math.round(momentum.overall * 100);
     pillarMomentumJson = JSON.stringify(momentum.pillarMomentum);

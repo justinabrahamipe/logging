@@ -109,7 +109,6 @@ const TOOLS = [
         periodId: { type: "number", description: "Cycle/period ID to link to (optional)." },
         flexibilityRule: { type: "string", description: "One of: must_today, at_least, limit_avoid. Defaults to must_today." },
         limitValue: { type: "number", description: "Limit value for limit_avoid tasks (max allowed)." },
-        minimumTarget: { type: "number", description: "Minimum target for partial credit." },
         date: { type: "string", description: "Date for adhoc tasks (YYYY-MM-DD). Omit for a no-date task that appears on today's view until completed." },
       },
       required: ["name"],
@@ -144,7 +143,6 @@ const TOOLS = [
         periodId: { type: "number", description: "Cycle/period ID. Pass 0 to unlink." },
         flexibilityRule: { type: "string", description: "One of: must_today, at_least, limit_avoid." },
         limitValue: { type: "number", description: "Limit value for limit_avoid rule." },
-        minimumTarget: { type: "number", description: "Minimum target for partial credit." },
       },
       required: ["taskId"],
     },
@@ -170,7 +168,6 @@ const TOOLS = [
         scheduleDays: { type: "array", items: { type: "number" }, description: "Days of week to schedule (0=Sun, 1=Mon, ..., 6=Sat)." },
         flexibilityRule: { type: "string", description: "One of: must_today, at_least, limit_avoid. Defaults to must_today." },
         limitValue: { type: "number", description: "Limit value for limit_avoid goals." },
-        minimumTarget: { type: "number", description: "Minimum target for partial credit." },
       },
       required: ["name"],
     },
@@ -184,6 +181,7 @@ const TOOLS = [
         goalId: { type: "number", description: "The goal ID to edit." },
         name: { type: "string", description: "New goal name." },
         pillarId: { type: "number", description: "New pillar ID." },
+        startValue: { type: "number", description: "New start value." },
         targetValue: { type: "number", description: "New target value." },
         unit: { type: "string", description: "New unit." },
         startDate: { type: "string", description: "New start date (YYYY-MM-DD)." },
@@ -197,7 +195,6 @@ const TOOLS = [
         autoCreateTasks: { type: "boolean", description: "Auto-create daily tasks." },
         flexibilityRule: { type: "string", description: "One of: must_today, at_least, limit_avoid." },
         limitValue: { type: "number", description: "Limit value for limit_avoid." },
-        minimumTarget: { type: "number", description: "Minimum target for partial credit." },
       },
       required: ["goalId"],
     },
@@ -341,7 +338,7 @@ async function executeTool(userId: string, name: string, args: Record<string, an
         periodId: goals.periodId, pillarId: goals.pillarId,
         completionType: goals.completionType, dailyTarget: goals.dailyTarget,
         scheduleDays: goals.scheduleDays, autoCreateTasks: goals.autoCreateTasks,
-        flexibilityRule: goals.flexibilityRule, limitValue: goals.limitValue, minimumTarget: goals.minimumTarget,
+        flexibilityRule: goals.flexibilityRule, limitValue: goals.limitValue,
         pillarName: pillars.name,
       }).from(goals).leftJoin(pillars, eq(goals.pillarId, pillars.id)).where(eq(goals.userId, userId));
       const lines = result.map(g => {
@@ -363,7 +360,6 @@ async function executeTool(userId: string, name: string, args: Record<string, an
         if (g.autoCreateTasks) parts.push('auto-tasks');
         if (g.flexibilityRule !== 'must_today') parts.push(`rule: ${g.flexibilityRule}`);
         if (g.limitValue != null) parts.push(`limit: ${g.limitValue}`);
-        if (g.minimumTarget != null) parts.push(`min: ${g.minimumTarget}`);
         return parts.join(' | ');
       });
       return lines.join("\n") || "No goals found.";
@@ -416,7 +412,7 @@ async function executeTool(userId: string, name: string, args: Record<string, an
       );
 
       const pointsEarned = calculateTaskScore(
-        { id: task.id, pillarId: task.pillarId, completionType: task.completionType, target: task.target, basePoints: task.basePoints, flexibilityRule: task.flexibilityRule, limitValue: task.limitValue, minimumTarget: task.minimumTarget },
+        { id: task.id, pillarId: task.pillarId, completionType: task.completionType, target: task.target, basePoints: task.basePoints, flexibilityRule: task.flexibilityRule, limitValue: task.limitValue },
         { taskId: task.id, completed: isCompleted, value: completionValue }
       );
 
@@ -467,6 +463,21 @@ async function executeTool(userId: string, name: string, args: Record<string, an
             newTotal = allWithProgress.reduce((sum, t) => sum + (t.value ?? 0), 0);
           }
           await db.update(goals).set({ currentValue: newTotal }).where(eq(goals.id, linkedGoal.id));
+
+          // Auto-complete target goals when target is reached
+          if (linkedGoal.goalType === 'target' && linkedGoal.status === 'active') {
+            const isDecrease = linkedGoal.targetValue < linkedGoal.startValue;
+            const reached = isDecrease ? newTotal <= linkedGoal.targetValue : newTotal >= linkedGoal.targetValue;
+            if (reached) {
+              await db.update(goals).set({ status: 'completed', currentValue: linkedGoal.targetValue }).where(eq(goals.id, linkedGoal.id));
+              const remaining = await db.select({ id: tasks.id }).from(tasks)
+                .where(and(eq(tasks.goalId, linkedGoal.id), eq(tasks.userId, userId), eq(tasks.completed, false)));
+              for (const r of remaining) {
+                await db.delete(tasks).where(eq(tasks.id, r.id));
+              }
+              await createAutoLog(userId, `🏆 Goal auto-completed: ${linkedGoal.name}`);
+            }
+          }
         }
       }
 
@@ -553,7 +564,6 @@ async function executeTool(userId: string, name: string, args: Record<string, an
           unit: args.unit || null,
           flexibilityRule: args.flexibilityRule || 'must_today',
           limitValue: args.limitValue ?? null,
-          minimumTarget: args.minimumTarget ?? null,
           basePoints,
           goalId: args.goalId ? parseInt(args.goalId) : null,
           periodId: args.periodId ? parseInt(args.periodId) : null,
@@ -607,7 +617,6 @@ async function executeTool(userId: string, name: string, args: Record<string, an
         `Schedule: ${task.scheduleId ? `id:${task.scheduleId}` : 'none'}${customDays ? ` | Days: ${customDays}` : ''}`,
         `Highlighted: ${task.isHighlighted} | Dismissed: ${task.dismissed}`,
         task.limitValue != null ? `Limit: ${task.limitValue}` : null,
-        task.minimumTarget != null ? `Minimum: ${task.minimumTarget}` : null,
         task.completedAt ? `Completed at: ${task.completedAt.toISOString()}` : null,
       ].filter(Boolean);
 
@@ -638,7 +647,6 @@ async function executeTool(userId: string, name: string, args: Record<string, an
       if (args.goalId !== undefined) updateData.goalId = args.goalId === 0 ? null : args.goalId;
       if (args.flexibilityRule !== undefined) updateData.flexibilityRule = args.flexibilityRule;
       if (args.limitValue !== undefined) updateData.limitValue = args.limitValue ?? null;
-      if (args.minimumTarget !== undefined) updateData.minimumTarget = args.minimumTarget ?? null;
       if (args.periodId !== undefined) updateData.periodId = args.periodId === 0 ? null : args.periodId;
 
       if (Object.keys(updateData).length === 0) return "Error: No fields to update.";
@@ -703,7 +711,7 @@ async function executeTool(userId: string, name: string, args: Record<string, an
         }
       }
 
-      const startValue = isActivityGoal ? 0 : (args.startValue ?? 0);
+      const startValue = args.startValue ?? 0;
       const scheduleDays = args.scheduleDays || null;
 
       const [goal] = await db.insert(goals).values({
@@ -724,7 +732,6 @@ async function executeTool(userId: string, name: string, args: Record<string, an
         autoCreateTasks: args.autoCreateTasks || false,
         flexibilityRule: args.flexibilityRule || 'must_today',
         limitValue: args.limitValue ?? null,
-        minimumTarget: args.minimumTarget ?? null,
       }).returning();
 
       // Generate all tasks upfront for the full goal date range
@@ -746,6 +753,7 @@ async function executeTool(userId: string, name: string, args: Record<string, an
       const updateData: Record<string, unknown> = {};
       if (args.name !== undefined) updateData.name = args.name;
       if (args.pillarId !== undefined) updateData.pillarId = args.pillarId || null;
+      if (args.startValue !== undefined) updateData.startValue = args.startValue;
       if (args.targetValue !== undefined) updateData.targetValue = args.targetValue;
       if (args.unit !== undefined) updateData.unit = args.unit;
       if (args.startDate !== undefined) updateData.startDate = args.startDate || null;
@@ -759,7 +767,6 @@ async function executeTool(userId: string, name: string, args: Record<string, an
       if (args.autoCreateTasks !== undefined) updateData.autoCreateTasks = args.autoCreateTasks;
       if (args.flexibilityRule !== undefined) updateData.flexibilityRule = args.flexibilityRule;
       if (args.limitValue !== undefined) updateData.limitValue = args.limitValue ?? null;
-      if (args.minimumTarget !== undefined) updateData.minimumTarget = args.minimumTarget ?? null;
 
       if (Object.keys(updateData).length === 0) return "Error: No fields to update.";
 

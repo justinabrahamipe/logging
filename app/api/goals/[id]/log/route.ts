@@ -123,6 +123,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       .set({ currentValue: newCurrentValue })
       .where(eq(goals.id, outcomeId));
 
+    // Auto-complete target goals when target is reached
+    if (outcome.goalType === 'target' && outcome.status === 'active') {
+      const isDecrease2 = outcome.targetValue < outcome.startValue;
+      const reached = isDecrease2 ? newCurrentValue <= outcome.targetValue : newCurrentValue >= outcome.targetValue;
+      if (reached) {
+        await db.update(goals).set({ status: 'completed', currentValue: outcome.targetValue }).where(eq(goals.id, outcomeId));
+        const remaining = await db.select({ id: tasks.id }).from(tasks)
+          .where(and(eq(tasks.goalId, outcomeId), eq(tasks.userId, userId), eq(tasks.completed, false)));
+        for (const r of remaining) {
+          await db.delete(tasks).where(eq(tasks.id, r.id));
+        }
+      }
+    }
+
     // Create activity log entry
     try {
       await db.insert(activityLog).values({

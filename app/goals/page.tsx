@@ -58,7 +58,7 @@ export default function GoalsPage() {
     const cycle = cycles.find(c => c.id === cycleId);
     if (!cycle) return;
     try {
-      const res = await fetch("/api/outcomes", {
+      const res = await fetch("/api/goals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -97,7 +97,7 @@ export default function GoalsPage() {
   const handleLogSave = async (value: number, logDate: string | null) => {
     if (!logTarget) return;
     try {
-      const res = await fetch(`/api/outcomes/${logTarget.id}/log`, {
+      const res = await fetch(`/api/goals/${logTarget.id}/log`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ value, loggedAt: logDate }),

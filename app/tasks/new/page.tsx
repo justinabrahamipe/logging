@@ -22,7 +22,7 @@ export default function NewTaskPage() {
     if (session?.user?.id) {
       Promise.all([
         fetch("/api/pillars").then((r) => (r.ok ? r.json() : [])),
-        fetch("/api/outcomes").then((r) => (r.ok ? r.json() : [])),
+        fetch("/api/goals").then((r) => (r.ok ? r.json() : [])),
       ]).then(([p, o]) => {
         setPillars(p);
         setGoals(o.map((g: Goal & { pillarEmoji?: string; pillarName?: string }) => ({

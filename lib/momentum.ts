@@ -242,8 +242,8 @@ export function calculateMomentum(
   const goalResults: GoalMomentum[] = [];
 
   for (const goal of goals) {
-    // Skip outcome goals — they have trajectory, not momentum
-    if (goal.goalType === 'outcome') continue;
+    // Only target goals use momentum — habitual uses action score, outcome uses trajectory
+    if (goal.goalType !== 'target') continue;
 
     let result: GoalMomentum | null;
 
