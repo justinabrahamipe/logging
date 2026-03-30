@@ -13,7 +13,7 @@ export async function saveDailyScore(userId: string, date: string) {
   if (date < yesterdayStr) return null;
 
   // Get task instances for this date (completion data is on the task row)
-  const tasksForDay = await db
+  const allTasksForDay = await db
     .select()
     .from(tasks)
     .where(and(eq(tasks.userId, userId), eq(tasks.date, date), eq(tasks.dismissed, false)));
@@ -25,6 +25,15 @@ export async function saveDailyScore(userId: string, date: string) {
     .where(eq(pillars.userId, userId));
 
   const pillarWeights = userPillars.map(p => ({ pillarId: p.id, weight: p.weight }));
+
+  // Exclude target goal tasks from action score — they only affect momentum
+  const userGoals = await db
+    .select()
+    .from(goals)
+    .where(eq(goals.userId, userId));
+
+  const targetGoalIds = new Set(userGoals.filter(g => g.goalType === 'target').map(g => g.id));
+  const tasksForDay = allTasksForDay.filter(t => !t.goalId || !targetGoalIds.has(t.goalId));
 
   const tasksForScoring = tasksForDay.map(t => ({
     id: t.id,
@@ -46,12 +55,7 @@ export async function saveDailyScore(userId: string, date: string) {
 
   const { actionScore, pillarScores } = calculateDailyScore(completionsForScoring, tasksForScoring, pillarWeights);
 
-  // Calculate momentum from goals
-  const userGoals = await db
-    .select()
-    .from(goals)
-    .where(eq(goals.userId, userId));
-
+  // Calculate momentum from goals (userGoals already fetched above)
   let momentumScore: number | null = null;
   let trajectoryScore: number | null = null;
   let pillarMomentumJson: string | null = null;

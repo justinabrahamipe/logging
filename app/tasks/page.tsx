@@ -102,7 +102,10 @@ export default function TasksPage() {
     return true;
   });
 
-  const totalBasePoints = filteredTasks.reduce((sum, t) => sum + (t.basePoints || 0), 0);
+  const targetGoalIds = new Set(goalsList.filter(g => g.goalType === 'target').map(g => g.id));
+  const totalBasePoints = filteredTasks
+    .filter(t => !t.goalId || !targetGoalIds.has(t.goalId))
+    .reduce((sum, t) => sum + (t.basePoints || 0), 0);
 
   const scheduledTasks = isScheduledView ? allEnrichedTasks.filter(task => {
     if (task.frequency === 'adhoc') return false;

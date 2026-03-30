@@ -342,11 +342,19 @@ export default function TaskItem({
             <h3 className={`text-sm font-semibold leading-snug truncate ${isDiscarded ? 'line-through text-amber-500 dark:text-amber-400 italic' : isFullyDone ? 'line-through text-zinc-400 dark:text-zinc-500' : 'text-zinc-900 dark:text-white'}`}>
               {task.name}
             </h3>
-            {totalBasePoints != null && totalBasePoints > 0 && (
-              <span className={`text-[10px] font-medium shrink-0 ${isFullyDone ? 'text-green-500 dark:text-green-400' : isDiscarded ? 'text-amber-400' : 'text-zinc-400 dark:text-zinc-500'}`}>
-                {Math.round(((task.completion?.pointsEarned ?? 0) / totalBasePoints) * 1000) / 10}%
-              </span>
-            )}
+            {totalBasePoints != null && totalBasePoints > 0 && task.startDate && (() => {
+              const isTargetGoalTask = task.goalId && goalsList.some(g => g.id === task.goalId && g.goalType === 'target');
+              if (isTargetGoalTask) return null;
+              const earned = task.completion?.pointsEarned ?? 0;
+              const pct = earned > 0
+                ? Math.round((earned / totalBasePoints) * 1000) / 10
+                : Math.round((task.basePoints / totalBasePoints) * 1000) / 10;
+              return (
+                <span className={`text-[10px] font-medium shrink-0 ${isFullyDone ? 'text-green-500 dark:text-green-400' : isDiscarded ? 'text-amber-400' : 'text-zinc-400 dark:text-zinc-500'}`}>
+                  {earned > 0 ? `${pct}%` : `(${pct}%)`}
+                </span>
+              );
+            })()}
           </div>
           <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
             {!hidePillar && <span className="text-[11px] text-zinc-500 dark:text-zinc-400 shrink-0">{task._pillarEmoji} {task._pillarName}</span>}
