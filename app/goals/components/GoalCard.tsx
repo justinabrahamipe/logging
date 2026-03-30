@@ -271,7 +271,6 @@ export default function GoalCard({
             )}
           </div>
         </div>
-        </div>
       </div>
     </motion.div>
   );
