@@ -292,7 +292,7 @@ export default function TaskItem({
           <div className="w-4 h-4 border-2 border-zinc-300 dark:border-zinc-600 border-t-zinc-600 dark:border-t-zinc-300 rounded-full animate-spin" />
         </div>
       )}
-      <div className="relative flex items-center gap-2 min-w-0">
+      <div className="relative flex items-center gap-1.5 w-full overflow-hidden">
         {/* Left: star + name, pillar, badges */}
         {!isFrozen && handleHighlightToggle && (isHighlighted || !maxStarsReached) && (
           <button
@@ -489,7 +489,7 @@ export default function TaskItem({
             })()}
 
             {task.completionType === 'numeric' && !isFrozen && (
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-0.5">
                 <input
                   type="number"
                   value={pendingValues[task.id] ?? (currentValue || '')}
@@ -497,14 +497,14 @@ export default function TaskItem({
                   onChange={(e) => setPendingValues(prev => ({ ...prev, [task.id]: e.target.value }))}
                   onKeyDown={(e) => e.key === 'Enter' && handleNumericSubmit(task)}
                   placeholder={task.target ? String(task.target) : '0'}
-                  className="w-12 px-1 py-1 text-xs text-right border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
+                  className="w-10 px-0.5 py-0.5 text-[11px] text-right border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
                 />
                 {pendingValues[task.id] !== undefined && (
                   <button
                     onClick={(e) => { e.stopPropagation(); handleNumericSubmit(task); }}
-                    className="w-6 h-6 rounded bg-green-500 text-white flex items-center justify-center hover:bg-green-600"
+                    className="w-5 h-5 rounded bg-green-500 text-white flex items-center justify-center"
                   >
-                    <FaCheck className="text-[9px]" />
+                    <FaCheck className="text-[8px]" />
                   </button>
                 )}
               </div>
