@@ -22,7 +22,7 @@ import HabitHeatmap from "../components/HabitHeatmap";
 import ProgressChart from "../components/ProgressChart";
 import TaskItem from "@/app/tasks/components/TaskItem";
 import type { EnrichedTask } from "@/app/tasks/components/TaskItem";
-import { formatDate } from "@/lib/format";
+import { formatDate, getTodayString } from "@/lib/format";
 import { useTheme } from "@/components/ThemeProvider";
 
 export default function GoalDetailPage() {
@@ -45,7 +45,7 @@ export default function GoalDetailPage() {
   const [generating, setGenerating] = useState(false);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: "success" | "error" }>({ open: false, message: "", severity: "success" });
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = getTodayString();
 
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
   const [actionLoading] = useState<Record<number, boolean>>({});
@@ -85,17 +85,11 @@ export default function GoalDetailPage() {
     setPendingValues(prev => { const next = { ...prev }; delete next[task.id]; return next; });
   };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleHighlightToggle = (_taskId: number) => {}; // Not used in goal view
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleCopy = (_task: any) => {};
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleDiscard = async (task: any) => {
     const skipped = !(task.completion?.skipped);
     setLinkedTasks(prev => prev.map(t => t.id === task.id ? { ...t, completion: { ...t.completion!, skipped } } : t));
     await fetch('/api/tasks/skip', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ taskId: task.id, skipped }) });
   };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleMoveDate = (_task: any, _dir: -1 | 1) => {};
   const handleTimerToggle = handleCheckboxToggle;
   const handleDurationManualSubmit = handleNumericSubmit;
   const formatTime = (s: number) => { const m = Math.floor(s / 60); const sec = s % 60; return `${m}:${String(sec).padStart(2, '0')}`; };
@@ -597,11 +591,8 @@ export default function GoalDetailPage() {
                   handleNumericSubmit={handleNumericSubmit}
                   handleTimerToggle={handleTimerToggle}
                   handleDurationManualSubmit={handleDurationManualSubmit}
-                  handleHighlightToggle={handleHighlightToggle}
-                  handleCopy={handleCopy}
                   handleDelete={handleTaskDelete}
                   handleDiscard={handleDiscard}
-                  handleMoveDate={handleMoveDate}
                   formatTime={formatTime}
                 />
               ))}

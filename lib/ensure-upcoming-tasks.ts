@@ -2,6 +2,7 @@ import { db, taskSchedules, tasks, goals } from "@/lib/db";
 import { eq, and, inArray, lt, sql } from "drizzle-orm";
 import { isScheduleForExactDate } from "@/lib/task-schedule";
 import { countScheduledDaysInRange } from "@/lib/effort-calculations";
+import { getTodayString } from "@/lib/format";
 
 // In-memory cache: userId -> last date we ran
 const lastRunCache = new Map<string, string>();
@@ -24,7 +25,7 @@ export function invalidateTaskCache(userId: string) {
  * Runs at most once per day per user.
  */
 export async function ensureUpcomingTasks(userId: string) {
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getTodayString();
 
   // Skip if already ran today for this user
   if (lastRunCache.get(userId) === todayStr) return;
@@ -137,7 +138,7 @@ export async function generateGoalTasks(userId: string, goalId: number) {
   const scheduleDays: number[] = outcome.scheduleDays ? JSON.parse(outcome.scheduleDays) : [];
   if (scheduleDays.length === 0) return;
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getTodayString();
 
   // Get existing tasks to avoid duplicates
   const existingGoalTasks = await db
@@ -251,7 +252,7 @@ export async function recalcTargetGoalTasks(userId: string) {
   const lastRun = recalcCache.get(userId);
   if (lastRun && now - lastRun < RECALC_TTL) return;
   recalcCache.set(userId, now);
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getTodayString();
 
   const activeGoals = await db
     .select()

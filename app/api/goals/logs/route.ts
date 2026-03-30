@@ -2,8 +2,10 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db, tasks } from "@/lib/db";
 import { eq, and, desc, isNotNull } from "drizzle-orm";
+import { errorResponse } from "@/lib/api-utils";
 
 export async function GET() {
+  try {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -35,4 +37,7 @@ export async function GET() {
   }
 
   return NextResponse.json(grouped);
+  } catch (error) {
+    return errorResponse(error);
+  }
 }

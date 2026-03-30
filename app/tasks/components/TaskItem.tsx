@@ -7,6 +7,7 @@ import { formatScheduleLabel } from "@/lib/constants";
 import { getProgressColor } from "@/lib/scoring";
 import { countScheduledDaysInRange } from "@/lib/effort-calculations";
 import { useTheme } from "@/components/ThemeProvider";
+import { getTodayString, getYesterdayString } from "@/lib/format";
 import type { Task, Outcome, Cycle } from "@/lib/types";
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 
@@ -38,11 +39,11 @@ interface TaskItemProps {
   handleNumericSubmit: (task: Task) => void;
   handleTimerToggle: (task: Task) => void;
   handleDurationManualSubmit: (task: Task) => void;
-  handleHighlightToggle: (taskId: number) => void;
-  handleCopy: (task: Task) => void;
+  handleHighlightToggle?: (taskId: number) => void;
+  handleCopy?: (task: Task) => void;
   handleDelete: (id: number) => void;
   handleDiscard: (task: Task) => void;
-  handleMoveDate: (task: Task, direction: -1 | 1) => void;
+  handleMoveDate?: (task: Task, direction: -1 | 1) => void;
   handleMarkDone?: (task: Task) => void;
   formatTime: (seconds: number) => string;
 }
@@ -93,8 +94,8 @@ export default function TaskItem({
   const currentValue = task.completion?.value || 0;
   const isDiscarded = task.completion?.skipped || false;
   const isLimitTask = task.flexibilityRule === 'limit_avoid';
-  const yesterdayD = new Date(); yesterdayD.setDate(yesterdayD.getDate() - 1);
-  const isFrozen = task.startDate ? task.startDate < yesterdayD.toISOString().split('T')[0] : (task.date ? task.date < yesterdayD.toISOString().split('T')[0] : false);
+  const yesterdayStr = getYesterdayString();
+  const isFrozen = task.startDate ? task.startDate < yesterdayStr : (task.date ? task.date < yesterdayStr : false);
   const limitVal = task.limitValue ?? task.target ?? 0;
   const buttonRef = useRef<HTMLButtonElement>(null);
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
@@ -339,7 +340,7 @@ export default function TaskItem({
       )}
       <div className="relative flex items-center gap-2">
         {/* Left: star + name, pillar, badges */}
-        {!isFrozen && (isHighlighted || !maxStarsReached) && (
+        {!isFrozen && handleHighlightToggle && (isHighlighted || !maxStarsReached) && (
           <button
             onClick={() => handleHighlightToggle(task.id)}
             className={`shrink-0 transition-colors ${
@@ -406,7 +407,7 @@ export default function TaskItem({
               if (!task.goalId) return null;
               const goal = goalsList.find(g => g.id === task.goalId);
               if (!goal || goal.goalType !== 'outcome' || !goal.startDate || !goal.targetDate) return null;
-              const taskDate = task.startDate || new Date().toISOString().split('T')[0];
+              const taskDate = task.startDate || getTodayString();
               if (taskDate < goal.startDate || taskDate > goal.targetDate) return null;
               const sched: number[] = goal.scheduleDays ? JSON.parse(goal.scheduleDays) : [];
               const total = sched.length > 0
@@ -602,7 +603,7 @@ export default function TaskItem({
                 <FaEdit className="text-xs" /> Edit
               </button>
             )}
-            {!isFrozen && task.startDate && (
+            {!isFrozen && handleMoveDate && task.startDate && (
               <>
                 <button
                   onTouchEnd={(e) => { e.preventDefault(); handleMoveDate(task, -1); }}
@@ -620,7 +621,7 @@ export default function TaskItem({
                 </button>
               </>
             )}
-            {!isFrozen && (
+            {!isFrozen && handleCopy && (
               <button
                 onTouchEnd={(e) => { e.preventDefault(); handleCopy(task); }}
                 onClick={() => handleCopy(task)}

@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { formatDate } from "@/lib/format";
+import { formatDate, getTodayString } from "@/lib/format";
 import { useDashboard } from "./hooks/useDashboard";
 import ScoreCard from "./components/ScoreCard";
 import MorningBriefing from "./components/MorningBriefing";
@@ -50,7 +50,7 @@ export default function DashboardPage() {
               Dashboard
             </h1>
             <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              {formatDate(new Date().toISOString().split('T')[0], dateFormat)}
+              {formatDate(getTodayString(), dateFormat)}
             </p>
           </div>
           <Link href="/tasks">

@@ -3,6 +3,7 @@ import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
 import { db, tasks, taskSchedules, pillars } from "@/lib/db";
 import { eq, and, asc, isNull, sql } from "drizzle-orm";
 import { ensureUpcomingTasks, ensureTasksForDate, invalidateTaskCache, recalcTargetGoalTasks } from "@/lib/ensure-upcoming-tasks";
+import { getTodayString } from "@/lib/format";
 import { createAutoLog } from "@/lib/auto-log";
 
 export async function GET(request: NextRequest) {
@@ -38,7 +39,7 @@ export async function GET(request: NextRequest) {
         .orderBy(asc(taskSchedules.pillarId));
 
       // For the all view, fetch today's completions to attach
-      const todayStr = date || new Date().toISOString().split('T')[0];
+      const todayStr = date || getTodayString();
       const todayTasks = await db
         .select()
         .from(tasks)
@@ -111,8 +112,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Date-specific view: return concrete task instances for the date
-    const dateStr = date || new Date().toISOString().split('T')[0];
-    const todayStr = new Date().toISOString().split('T')[0];
+    const dateStr = date || getTodayString();
+    const todayStr = getTodayString();
     const isToday = dateStr === todayStr;
 
     const tasksForDate = await db

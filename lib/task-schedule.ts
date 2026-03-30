@@ -1,4 +1,5 @@
 import { taskSchedules } from '@/lib/db';
+import { getTodayString } from '@/lib/format';
 
 /**
  * Determines if a schedule should generate a task for the given date.
@@ -89,7 +90,7 @@ export function isOverdueAdhocSchedule(schedule: typeof taskSchedules.$inferSele
 export function isScheduleForDate(schedule: typeof taskSchedules.$inferSelect, dateStr: string): boolean {
   if (isScheduleForExactDate(schedule, dateStr)) return true;
   // Include overdue adhoc schedules on today only
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getTodayString();
   if (dateStr === todayStr && schedule.frequency === 'adhoc' && !schedule.goalId && schedule.startDate && schedule.startDate < todayStr) return true;
   return false;
 }

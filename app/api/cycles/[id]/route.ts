@@ -3,6 +3,7 @@ import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
 import { db, cycles, goals, taskSchedules, pillars } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
 import { calculateEndDate } from "@/lib/cycle-scoring";
+import { getTodayString } from "@/lib/format";
 import { createAutoLog } from "@/lib/auto-log";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -58,7 +59,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       .from(taskSchedules)
       .where(eq(taskSchedules.periodId, periodId));
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getTodayString();
     return NextResponse.json({
       ...cycle,
       isActive: todayStr >= cycle.startDate && todayStr <= cycle.endDate,
@@ -104,7 +105,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       .returning();
 
     await createAutoLog(userId, `✏️ Cycle updated: ${existing[0].name}`);
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getTodayString();
     return NextResponse.json({
       ...updated,
       isActive: todayStr >= updated.startDate && todayStr <= updated.endDate,

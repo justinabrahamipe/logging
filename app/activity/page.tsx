@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { FaSearch, FaFilter, FaChevronDown, FaChevronUp, FaUndo, FaCheck, FaPlus, FaMinus, FaSlidersH, FaBullseye } from "react-icons/fa";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { formatDate } from "@/lib/format";
+import { formatDate, getTodayString } from "@/lib/format";
 import { useTheme } from "@/components/ThemeProvider";
 import ActivityLoading from "./loading";
 import type { ActivityEntry, Pillar } from "@/lib/types";
@@ -53,7 +53,7 @@ export default function ActivityPage() {
   const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [search, setSearch] = useState('');
-  const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
+  const [dateFilter, setDateFilter] = useState(getTodayString());
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [pillarFilter, setPillarFilter] = useState('');

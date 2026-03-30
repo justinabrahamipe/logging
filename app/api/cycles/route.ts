@@ -3,6 +3,7 @@ import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
 import { db, cycles } from "@/lib/db";
 import { eq, desc } from "drizzle-orm";
 import { calculateEndDate } from "@/lib/cycle-scoring";
+import { getTodayString } from "@/lib/format";
 import { createAutoLog } from "@/lib/auto-log";
 
 export async function GET() {
@@ -15,7 +16,7 @@ export async function GET() {
       .where(eq(cycles.userId, userId))
       .orderBy(desc(cycles.startDate));
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getTodayString();
     const withActive = result.map(c => ({
       ...c,
       isActive: todayStr >= c.startDate && todayStr <= c.endDate,
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
     }).returning();
 
     await createAutoLog(userId, `📅 Cycle created: ${name}`);
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getTodayString();
     return NextResponse.json({
       ...cycle,
       isActive: todayStr >= cycle.startDate && todayStr <= cycle.endDate,

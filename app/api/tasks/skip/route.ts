@@ -3,6 +3,7 @@ import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
 import { db, tasks } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
 import { saveDailyScore } from "@/lib/save-daily-score";
+import { getYesterdayString } from "@/lib/format";
 
 export async function POST(request: Request) {
   try {
@@ -22,9 +23,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
 
-    const now = new Date();
-    const yest = new Date(now); yest.setDate(yest.getDate() - 1);
-    if (task.date < yest.toISOString().split('T')[0]) {
+    if (task.date < getYesterdayString()) {
       return NextResponse.json({ error: "Cannot modify tasks older than yesterday" }, { status: 403 });
     }
 

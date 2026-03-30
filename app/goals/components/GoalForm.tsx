@@ -6,6 +6,7 @@ import { countScheduledDaysInRange } from "@/lib/effort-calculations";
 import { Outcome, Pillar, CycleOption, GoalFormState } from "../types";
 import { DAY_NAMES, FREQUENCY_PRESETS, REPEAT_UNITS } from "../constants";
 import PerSessionLabel from "./PerSessionLabel";
+import { getTodayString } from "@/lib/format";
 
 const DEFAULT_FORM: GoalFormState = {
   name: "",
@@ -81,7 +82,7 @@ export default function GoalForm({
       };
     }
     const goalType = defaultGoalType || "outcome";
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getTodayString();
     const activeCycle = cycles.find(c => c.startDate <= todayStr && c.endDate >= todayStr);
     return {
       ...DEFAULT_FORM,

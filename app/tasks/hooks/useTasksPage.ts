@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { DEMO_TASK_GROUPS, DEMO_PILLARS } from "@/lib/demo-data";
 import { useTheme } from "@/components/ThemeProvider";
-import { formatDate } from "@/lib/format";
+import { formatDate, getTodayString, getYesterdayString } from "@/lib/format";
 import { formatScheduleLabel } from "@/lib/constants";
 import type { Pillar, Task, TaskCompletion, TaskGroup, Outcome, Cycle } from "@/lib/types";
 
@@ -159,7 +159,7 @@ export function useTasksPage() {
         const cached = localStorage.getItem('tasks-cache');
         if (cached) {
           const parsed = JSON.parse(cached);
-          if (parsed.date === new Date().toISOString().split('T')[0]) return parsed.groups || [];
+          if (parsed.date === getTodayString()) return parsed.groups || [];
         }
       } catch { /* ignore */ }
     }
@@ -173,7 +173,7 @@ export function useTasksPage() {
       const cached = localStorage.getItem('tasks-cache');
       if (cached) {
         const parsed = JSON.parse(cached);
-        return parsed.date === new Date().toISOString().split('T')[0] && (parsed.groups?.length > 0);
+        return parsed.date === getTodayString() && (parsed.groups?.length > 0);
       }
     } catch { /* ignore */ }
     return false;
@@ -186,7 +186,7 @@ export function useTasksPage() {
         const cached = localStorage.getItem('tasks-cache');
         if (cached) {
           const parsed = JSON.parse(cached);
-          if (parsed.date === new Date().toISOString().split('T')[0]) return parsed.noDateTasks || [];
+          if (parsed.date === getTodayString()) return parsed.noDateTasks || [];
         }
       } catch { /* ignore */ }
     }
@@ -219,7 +219,7 @@ export function useTasksPage() {
         const cached = localStorage.getItem('tasks-cache');
         if (cached) {
           const parsed = JSON.parse(cached);
-          if (parsed.date === new Date().toISOString().split('T')[0] && parsed.scoreSummary) return parsed.scoreSummary;
+          if (parsed.date === getTodayString() && parsed.scoreSummary) return parsed.scoreSummary;
         }
       } catch { /* ignore */ }
     }
@@ -257,8 +257,8 @@ export function useTasksPage() {
   const [authSnackbar, setAuthSnackbar] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const today = new Date().toISOString().split('T')[0];
-  const yesterday = (() => { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().split('T')[0]; })();
+  const today = getTodayString();
+  const yesterday = getYesterdayString();
   const tomorrow = (() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0]; })();
   const viewDate = filters.date.type === 'yesterday' ? yesterday : filters.date.type === 'tomorrow' ? tomorrow : (filters.date.type === 'single' && filters.date.value) ? filters.date.value : today;
 

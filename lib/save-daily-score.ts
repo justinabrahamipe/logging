@@ -2,14 +2,12 @@ import { db, tasks, pillars, dailyScores, goals } from "@/lib/db";
 import { eq, and, isNotNull, or, gt } from "drizzle-orm";
 import { calculateDailyScore } from "@/lib/scoring";
 import { calculateMomentum, calculateTrajectory } from "@/lib/momentum";
+import { getTodayString, getYesterdayString } from "@/lib/format";
 
 export async function saveDailyScore(userId: string, date: string) {
   // Only recalculate scores for today and yesterday — older scores are frozen
-  const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const todayStr = today.toISOString().split('T')[0];
-  const yesterdayStr = yesterday.toISOString().split('T')[0];
+  const todayStr = getTodayString();
+  const yesterdayStr = getYesterdayString();
   if (date < yesterdayStr) return null;
 
   // Get task instances for this date (completion data is on the task row)

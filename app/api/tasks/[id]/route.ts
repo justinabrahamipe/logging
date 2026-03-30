@@ -5,6 +5,7 @@ import { invalidateTaskCache } from "@/lib/ensure-upcoming-tasks";
 import { eq, and, or, gt } from "drizzle-orm";
 import { createAutoLog } from "@/lib/auto-log";
 import { saveDailyScore } from "@/lib/save-daily-score";
+import { getYesterdayString, getTodayString } from "@/lib/format";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -83,9 +84,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       }
 
       // Only allow edits for today, yesterday, and future — older tasks are frozen
-      const now = new Date();
-      const yest = new Date(now); yest.setDate(yest.getDate() - 1);
-      if (existing.date < yest.toISOString().split('T')[0]) {
+      if (existing.date < getYesterdayString()) {
         return NextResponse.json({ error: "Cannot modify tasks older than yesterday" }, { status: 403 });
       }
 
@@ -177,7 +176,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       .returning();
 
     // Propagate name/pillar/completionType changes to uncompleted future task instances
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getTodayString();
     const propagateFields: Record<string, unknown> = {};
     for (const field of ['name', 'pillarId', 'completionType', 'target', 'unit', 'basePoints', 'flexibilityRule', 'limitValue']) {
       if (body[field] !== undefined) propagateFields[field] = body[field];

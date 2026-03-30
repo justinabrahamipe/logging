@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
+import { getTodayString, getYesterdayString } from "@/lib/format";
 
 interface ScoreData {
   actionScore: number;
@@ -41,10 +42,8 @@ export default function HighlightsBanner() {
   useEffect(() => {
     if (!session?.user?.id || isHidden) return;
 
-    const todayStr = new Date().toISOString().split("T")[0];
-    const yDate = new Date();
-    yDate.setDate(yDate.getDate() - 1);
-    const yesterdayStr = yDate.toISOString().split("T")[0];
+    const todayStr = getTodayString();
+    const yesterdayStr = getYesterdayString();
 
     fetch(`/api/daily-score?date=${todayStr}`)
       .then((res) => (res.ok ? res.json() : null))

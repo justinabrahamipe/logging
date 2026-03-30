@@ -1,6 +1,16 @@
 type DateFormat = "DD/MM/YYYY" | "MM/DD/YYYY" | "YYYY-MM-DD" | "DD-MM-YYYY" | "MM-DD-YYYY";
 type TimeFormat = "12h" | "24h";
 
+export function getTodayString(): string {
+  return new Date().toISOString().split('T')[0];
+}
+
+export function getYesterdayString(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().split('T')[0];
+}
+
 export function formatDate(dateStr: string, format: DateFormat = "DD/MM/YYYY"): string {
   const d = new Date(dateStr + (dateStr.includes("T") ? "" : "T12:00:00"));
   const day = String(d.getDate()).padStart(2, "0");

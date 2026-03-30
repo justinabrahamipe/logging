@@ -2,8 +2,10 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db, cycles, dailyScores, goals, pillars, tasks } from "@/lib/db";
 import { eq, and, gte, lte, asc, isNotNull } from "drizzle-orm";
+import { errorResponse } from "@/lib/api-utils";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -119,4 +121,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     outcomes: outcomeTimelines,
     pillars: userPillars,
   });
+  } catch (error) {
+    return errorResponse(error);
+  }
 }

@@ -2,6 +2,7 @@
 
 import { FaSun } from "react-icons/fa";
 import type { HistoryData } from "@/lib/types";
+import { getYesterdayString } from "@/lib/format";
 
 interface MorningBriefingProps {
   history: HistoryData;
@@ -19,9 +20,7 @@ function getStreakMessage(streak: number) {
 }
 
 export default function MorningBriefing({ history, currentStreak, todayTaskCount }: MorningBriefingProps) {
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = yesterday.toISOString().split("T")[0];
+  const yesterdayStr = getYesterdayString();
   const yesterdayScore = history.scores.find(s => s.date === yesterdayStr);
 
   return (
