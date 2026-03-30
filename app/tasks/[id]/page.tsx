@@ -553,21 +553,21 @@ export default function TaskDetailPage() {
           )}
 
           {task.completionType === "numeric" && (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 max-w-full overflow-hidden">
               <input
                 type="number"
                 value={pendingNumeric || (currentValue || "")}
                 onChange={(e) => setPendingNumeric(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleNumericSubmit()}
                 placeholder={task.target ? String(task.target) : "0"}
-                className="flex-1 px-4 py-3 text-lg text-center border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
+                className="min-w-0 flex-1 px-3 py-2.5 text-lg text-center border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
               />
               {task.unit && (
-                <span className="text-sm text-zinc-500 dark:text-zinc-400">{task.unit}</span>
+                <span className="text-sm text-zinc-500 dark:text-zinc-400 shrink-0">{task.unit}</span>
               )}
               <button
                 onClick={handleNumericSubmit}
-                className="px-4 py-3 rounded-lg bg-green-500 text-white hover:bg-green-600 font-medium"
+                className="px-3 py-2.5 rounded-lg bg-green-500 text-white hover:bg-green-600 font-medium shrink-0"
               >
                 <FaCheck />
               </button>

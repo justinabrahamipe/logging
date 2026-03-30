@@ -391,7 +391,7 @@ export default function TaskItem({
         </div>
 
         {/* Right: completion controls */}
-        <div className="flex items-center gap-1 shrink-0 max-w-[45%]">
+        <div className="flex items-center gap-1 shrink-0 max-w-[45%] mr-1">
           <>
             {task.completionType === 'checkbox' && !isFrozen && (
               <button
@@ -497,7 +497,7 @@ export default function TaskItem({
                   onChange={(e) => setPendingValues(prev => ({ ...prev, [task.id]: e.target.value }))}
                   onKeyDown={(e) => e.key === 'Enter' && handleNumericSubmit(task)}
                   placeholder={task.target ? String(task.target) : '0'}
-                  className="w-10 px-0.5 py-0.5 text-[11px] text-right border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
+                  className="w-8 px-0.5 py-0.5 text-[11px] text-right border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
                 {pendingValues[task.id] !== undefined && (
                   <button
