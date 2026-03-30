@@ -52,6 +52,7 @@ export default function TasksPage() {
     getDateBucket,
     isTaskInDateRange,
     getScheduleLabel,
+    handleDelete,
   } = hook;
 
   if (loading) return <TasksLoading />;
