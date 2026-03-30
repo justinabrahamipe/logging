@@ -47,6 +47,19 @@ export interface PastDay {
 function getDateBucket(task: { frequency: string; customDays?: string | null; createdAt?: unknown; repeatInterval?: number | null; startDate?: string | null; goalId?: number | null }, todayStr: string): string {
   if (task.frequency === 'daily' && (!task.startDate || task.startDate <= todayStr)) return 'Today';
 
+  // Adhoc tasks: bucket by their exact date without looping
+  if (task.frequency === 'adhoc') {
+    if (!task.startDate) return 'No Date';
+    if (!task.goalId && task.startDate < todayStr) return 'Today'; // overdue
+    if (task.startDate === todayStr) return 'Today';
+    const today = new Date(todayStr + 'T12:00:00');
+    const taskDate = new Date(task.startDate + 'T12:00:00');
+    const diffDays = Math.round((taskDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays === 1) return 'Tomorrow';
+    if (diffDays <= 6) return task.startDate;
+    return 'Later';
+  }
+
   const today = new Date(todayStr + 'T12:00:00');
 
   for (let i = 0; i <= 60; i++) {
@@ -58,13 +71,7 @@ function getDateBucket(task: { frequency: string; customDays?: string | null; cr
 
     let matches = false;
     const dow = d.getDay();
-    if (task.frequency === 'adhoc') {
-      if (!task.startDate) return 'No Date';
-      // Only manual adhoc tasks (no goal) show as overdue today
-      if (!task.goalId && task.startDate < todayStr && i === 0) return 'Today';
-      if (task.startDate === todayStr && i === 0) return 'Today';
-      matches = dStr === task.startDate;
-    } else if (task.frequency === 'custom' && task.customDays) {
+    if (task.frequency === 'custom' && task.customDays) {
       try {
         const days: number[] = JSON.parse(task.customDays);
         matches = days.includes(dow);
