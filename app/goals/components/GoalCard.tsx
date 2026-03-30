@@ -24,7 +24,6 @@ import { Outcome, LogEntry, LinkedTask, Cycle } from "../types";
 export default function GoalCard({
   outcome,
   logsMap,
-  linkedTasks,
   menuOpen,
   setMenuOpen,
   openLogModal,
@@ -33,7 +32,6 @@ export default function GoalCard({
   getProgress,
   today,
   taskCompletionDates,
-  onAddTask,
   cycles,
   onCopyToCycle,
 }: {
@@ -58,7 +56,7 @@ export default function GoalCard({
   const color = outcome.pillarColor || "#3B82F6";
   const isHabitual = outcome.goalType === "habitual";
   const isActivityGoal = outcome.goalType === "target" || outcome.goalType === "habitual";
-  const scheduleDays: number[] = outcome.scheduleDays ? JSON.parse(outcome.scheduleDays) : [];
+  const scheduleDays = useMemo(() => outcome.scheduleDays ? JSON.parse(outcome.scheduleDays) : [], [outcome.scheduleDays]);
   const [showCyclePicker, setShowCyclePicker] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -92,8 +90,7 @@ export default function GoalCard({
       outcome.startDate, outcome.targetDate, scheduleDays,
       outcome.targetValue, outcome.currentValue, today, outcome.startValue
     );
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isActivityGoal, isHabitual, outcome.startDate, outcome.targetDate, outcome.targetValue, outcome.currentValue, today, outcome.scheduleDays]);
+  }, [isActivityGoal, isHabitual, outcome.startDate, outcome.targetDate, outcome.targetValue, outcome.currentValue, outcome.startValue, today, scheduleDays]);
 
   const allDoneDates = useMemo(() => {
     const dates = new Set<string>();

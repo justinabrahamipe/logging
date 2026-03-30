@@ -105,28 +105,6 @@ export default function GoalForm({
     }));
   };
 
-  const getScheduleDays = (): number[] => {
-    if (form.frequencyPreset === 'daily') return [0,1,2,3,4,5,6];
-    if (form.frequencyPreset === 'weekdays') return [1,2,3,4,5];
-    if (form.frequencyPreset === 'custom') return form.repeatUnit === 'weeks' ? form.customDays : [form.monthDay];
-    return [];
-  };
-
-  const computeTargetDate = (perDay: number) => {
-    const total = parseFloat(form.targetValue) || 0;
-    const sched = getScheduleDays();
-    if (perDay <= 0 || total <= 0 || !form.startDate || sched.length === 0) return;
-    const sessionsNeeded = Math.ceil(total / perDay);
-    let count = 0;
-    const d = new Date(form.startDate + 'T12:00:00');
-    for (let i = 0; i < 1825 && count < sessionsNeeded; i++) {
-      if (sched.includes(d.getDay())) count++;
-      if (count < sessionsNeeded) d.setDate(d.getDate() + 1);
-    }
-    setForm(prev => ({ ...prev, targetDate: d.toISOString().split('T')[0] }));
-  };
-
-
   const handleSubmit = async () => {
     if (!form.name.trim()) return;
     const isHabitual = form.goalType === "habitual";

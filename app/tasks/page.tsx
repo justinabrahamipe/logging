@@ -6,7 +6,6 @@ import { FaPlus, FaChevronDown, FaChevronRight } from "react-icons/fa";
 import { Snackbar, Alert as MuiAlert } from "@mui/material";
 import { formatDate } from "@/lib/format";
 import { useTasksPage } from "./hooks/useTasksPage";
-import { useIsMobile } from "./hooks/useIsMobile";
 import DateNavigation from "./components/DateNavigation";
 import TaskItem from "./components/TaskItem";
 import type { EnrichedTask } from "./components/TaskItem";
@@ -15,8 +14,6 @@ import TasksLoading from "./loading";
 
 export default function TasksPage() {
   const hook = useTasksPage();
-  const isMobile = useIsMobile();
-
   const {
     router,
     dateFormat,
@@ -45,7 +42,6 @@ export default function TasksPage() {
     authSnackbar,
     setAuthSnackbar,
     menuRef,
-    today,
     getDateLabel,
     closePopover,
     handleCheckboxToggle,
@@ -62,7 +58,6 @@ export default function TasksPage() {
     formatTime,
     getDateBucket,
     isTaskInDateRange,
-    passesStatusFilter,
     getScheduleLabel,
   } = hook;
 

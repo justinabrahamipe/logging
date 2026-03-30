@@ -14,7 +14,7 @@ import { useSession, signOut } from "next-auth/react";
 import { useTheme } from "@/components/ThemeProvider";
 
 export default function Header() {
-  const { theme, setTheme, streakThreshold } = useTheme();
+  const { setTheme, streakThreshold } = useTheme();
   const [isDark, setIsDark] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);

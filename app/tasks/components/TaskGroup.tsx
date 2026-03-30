@@ -16,7 +16,6 @@ interface TaskGroupProps {
 
 export default function TaskGroup({
   tasks,
-  goalsList,
   router,
   handleDelete,
   getScheduleLabel,

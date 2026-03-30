@@ -1,12 +1,11 @@
-import { db, tasks, pillars, dailyScores, goals } from "@/lib/db";
+import { db, tasks, dailyScores, goals } from "@/lib/db";
 import { eq, and, isNotNull, or, gt } from "drizzle-orm";
 import { calculateDailyScore } from "@/lib/scoring";
 import { calculateMomentum, calculateTrajectory } from "@/lib/momentum";
-import { getTodayString, getYesterdayString } from "@/lib/format";
+import { getYesterdayString } from "@/lib/format";
 
 export async function saveDailyScore(userId: string, date: string) {
   // Only recalculate scores for today and yesterday — older scores are frozen
-  const todayStr = getTodayString();
   const yesterdayStr = getYesterdayString();
   if (date < yesterdayStr) return null;
 
@@ -15,12 +14,6 @@ export async function saveDailyScore(userId: string, date: string) {
     .select()
     .from(tasks)
     .where(and(eq(tasks.userId, userId), eq(tasks.date, date), eq(tasks.dismissed, false)));
-
-  // Get pillars
-  const userPillars = await db
-    .select()
-    .from(pillars)
-    .where(eq(pillars.userId, userId));
 
   // Exclude target and outcome goal tasks from action score — they only affect momentum/trajectory
   const userGoals = await db

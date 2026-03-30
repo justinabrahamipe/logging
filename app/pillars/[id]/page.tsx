@@ -89,7 +89,6 @@ export default function PillarDetailPage() {
       setScores(historyData.scores || []);
       setLoading(false);
     }).catch(() => setLoading(false));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, status, id]);
 
   // Goals not in any cycle
@@ -134,7 +133,7 @@ export default function PillarDetailPage() {
 
         return { cycle, goals: cycleGoals, avgPillarScore, avgActionScore, topStreak: maxStreak, totalDays: inRange.length };
       });
-  }, [pillar, allGoals, cycles, scores, id]);
+  }, [pillar, allGoals, cycles, scores, id, streakThreshold]);
 
   if (loading) return (
     <div className="px-3 py-4 md:px-6 md:py-6 animate-pulse">

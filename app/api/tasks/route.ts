@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
 import { db, tasks, taskSchedules, pillars } from "@/lib/db";
-import { eq, and, asc, isNull, sql } from "drizzle-orm";
+import { eq, and, asc, isNull } from "drizzle-orm";
 import { ensureUpcomingTasks, ensureTasksForDate, invalidateTaskCache, recalcTargetGoalTasks } from "@/lib/ensure-upcoming-tasks";
 import { getTodayString } from "@/lib/format";
 import { createAutoLog } from "@/lib/auto-log";

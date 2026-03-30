@@ -100,7 +100,7 @@ export default function CycleDetailPage() {
     if (cur > 0) streaks.push(cur);
     const topStreaks = streaks.sort((a, b) => b - a).slice(0, 3);
     return { avgScore, avgTrajectory, topStreaks, totalDays: inRange.length };
-  }, [selectedCycle, cycleScores]);
+  }, [selectedCycle, cycleScores, streakThreshold]);
 
   const handleSaveCycleField = async (updates: Record<string, string | boolean>) => {
     if (!selectedCycle) return;

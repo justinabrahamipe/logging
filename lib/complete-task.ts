@@ -4,7 +4,7 @@ import { createAutoLog } from "@/lib/auto-log";
 import { calculateTaskScore } from "@/lib/scoring";
 import { saveDailyScore } from "@/lib/save-daily-score";
 import { invalidateRecalcCache } from "@/lib/ensure-upcoming-tasks";
-import { getTodayString } from "@/lib/format";
+
 import { deleteTasksByIds } from "@/lib/db-utils";
 
 export async function completeTask(params: {

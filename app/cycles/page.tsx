@@ -41,7 +41,6 @@ export default function CyclesPage() {
         setLoading(false);
       }).catch(() => setLoading(false));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, status]);
 
   if (loading) return <CyclesLoading />;

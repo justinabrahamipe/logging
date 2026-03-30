@@ -2,13 +2,11 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import { Outcome, Pillar, LinkedTask, LogEntry, CycleOption } from "../types";
 import { DEMO_OUTCOMES, DEMO_PILLARS } from "@/lib/demo-data";
 
 export function useGoals() {
   const { data: session, status } = useSession();
-  const router = useRouter();
   const [allGoals, setAllGoals] = useState<Outcome[]>([]);
   const [pillars, setPillars] = useState<Pillar[]>([]);
   const [loading, setLoading] = useState(true);

@@ -7,14 +7,6 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { DEMO_PILLARS } from "@/lib/demo-data";
 import PillarsLoading from "./loading";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip as RechartsTooltip,
-  ResponsiveContainer,
-} from "recharts";
 import type { Pillar, CycleInfo, CyclePerformance } from "@/lib/types";
 
 export default function PillarsPage() {
@@ -24,7 +16,7 @@ export default function PillarsPage() {
   const [cyclesData, setCyclesData] = useState<CycleInfo[]>([]);
   const [selectedCycleId, setSelectedCycleId] = useState<number>(0);
   const [perfData, setPerfData] = useState<CyclePerformance | null>(null);
-  const [perfLoading, setPerfLoading] = useState(false);
+  const [, setPerfLoading] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,7 +29,6 @@ export default function PillarsPage() {
       fetchPillars();
       fetch('/api/cycles').then(r => r.ok ? r.json() : []).then(setCyclesData).catch(() => {});
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, status]);
 
   useEffect(() => {
@@ -159,7 +150,7 @@ export default function PillarsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {pillars.map((pillar) => {
             const chartData = pillarChartMap.get(pillar.id) || [];
-            const hasChartData = chartData.some(d => d.score !== null);
+            chartData.some(d => d.score !== null);
             const latestAvg = chartData.filter(d => d.avg !== null).pop()?.avg;
 
             return (

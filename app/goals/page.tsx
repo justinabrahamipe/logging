@@ -18,7 +18,6 @@ export default function GoalsPage() {
   const [authSnackbar, setAuthSnackbar] = useState(false);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: "success" | "error" | "info" }>({ open: false, message: "", severity: "info" });
   const {
-    allGoals,
     loading,
     menuOpen,
     setMenuOpen,

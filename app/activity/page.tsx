@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { FaSearch, FaFilter, FaChevronDown, FaChevronUp, FaUndo, FaCheck, FaPlus, FaMinus, FaSlidersH, FaBullseye } from "react-icons/fa";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import { formatDate, getTodayString } from "@/lib/format";
 import { useTheme } from "@/components/ThemeProvider";
 import ActivityLoading from "./loading";
@@ -46,7 +45,6 @@ function formatDateLabel(ts: string, dateFormat: "DD/MM/YYYY" | "MM/DD/YYYY" | "
 
 export default function ActivityPage() {
   const { data: session, status } = useSession();
-  const router = useRouter();
   const { dateFormat } = useTheme();
   const [entries, setEntries] = useState<ActivityEntry[]>([]);
   const [pillars, setPillars] = useState<Pillar[]>([]);

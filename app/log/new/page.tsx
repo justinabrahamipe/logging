@@ -6,7 +6,7 @@ import { useSession } from "next-auth/react";
 import { FaArrowLeft, FaMapMarkerAlt, FaMicrophone, FaStop } from "react-icons/fa";
 
 export default function NewLogEntry() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const router = useRouter();
   const [formData, setFormData] = useState({ latitude: "", longitude: "", date: new Date().toISOString().split("T")[0], time: new Date().toTimeString().slice(0, 5), notes: "" });
   const [detecting, setDetecting] = useState(false);

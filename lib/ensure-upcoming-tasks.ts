@@ -1,5 +1,5 @@
 import { db, taskSchedules, tasks, goals } from "@/lib/db";
-import { eq, and, inArray, lt, sql } from "drizzle-orm";
+import { eq, and, inArray, sql } from "drizzle-orm";
 import { isScheduleForExactDate } from "@/lib/task-schedule";
 import { countScheduledDaysInRange } from "@/lib/effort-calculations";
 import { getTodayString } from "@/lib/format";
@@ -297,7 +297,6 @@ export async function recalcTargetGoalTasks(userId: string) {
   }
 
   for (const outcome of targetGoals) {
-    const scheduleDays: number[] = JSON.parse(outcome.scheduleDays!);
     const remainingValue = (outcome.targetValue ?? 1) - (outcome.currentValue ?? 0);
     // Use actual uncompleted task count — we're distributing remaining work
     // evenly across all uncompleted tasks (including today's)

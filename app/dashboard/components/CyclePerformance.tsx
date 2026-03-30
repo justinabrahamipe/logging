@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { FaFire } from "react-icons/fa";
@@ -98,7 +98,7 @@ export default function CyclePerformance() {
       setCycleStats(stats);
       setLoading(false);
     }).catch(() => setLoading(false));
-  }, [session]);
+  }, [session, streakThreshold]);
 
   if (loading) {
     return (

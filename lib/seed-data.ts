@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { pillars, taskSchedules, tasks, cycles, goals, activityLog } from '@/lib/db';
+import { pillars, taskSchedules, tasks, cycles, goals } from '@/lib/db';
 import { eq, sql } from 'drizzle-orm';
 import { isScheduleForExactDate } from '@/lib/task-schedule';
 import { calculateTaskScore } from '@/lib/scoring';

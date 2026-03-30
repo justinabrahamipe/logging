@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, locationLogs, userPreferences, tasks, goals, pillars, dailyScores } from "@/lib/db";
-import { eq, and, desc, asc, like, gte, lte } from "drizzle-orm";
+import { eq, and, desc, like, gte, lte } from "drizzle-orm";
 
 async function authenticateApiKey(request: NextRequest): Promise<string | null> {
   const key = request.nextUrl.searchParams.get("key") || request.headers.get("x-api-key");

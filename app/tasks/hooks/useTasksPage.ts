@@ -7,7 +7,7 @@ import { DEMO_TASK_GROUPS, DEMO_PILLARS } from "@/lib/demo-data";
 import { useTheme } from "@/components/ThemeProvider";
 import { formatDate, getTodayString, getYesterdayString } from "@/lib/format";
 import { formatScheduleLabel } from "@/lib/constants";
-import type { Pillar, Task, TaskCompletion, TaskGroup, Outcome, Cycle } from "@/lib/types";
+import type { Pillar, Task, TaskGroup, Outcome, Cycle } from "@/lib/types";
 
 export interface ScoreSummary {
   actionScore: number;

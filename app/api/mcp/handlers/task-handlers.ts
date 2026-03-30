@@ -1,5 +1,5 @@
-import { db, tasks, locationLogs, taskSchedules, pillars, goals } from "@/lib/db";
-import { eq, and, desc, gt, or } from "drizzle-orm";
+import { db, tasks, taskSchedules, pillars, goals } from "@/lib/db";
+import { eq, and, gt, or } from "drizzle-orm";
 import { getTodayString, getYesterdayString } from "@/lib/format";
 import { createAutoLog } from "@/lib/auto-log";
 import { saveDailyScore } from "@/lib/save-daily-score";

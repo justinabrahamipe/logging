@@ -2,7 +2,7 @@
 
 import { useRef, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaPlus, FaEdit, FaTrash, FaCheck, FaMinus, FaPlay, FaPause, FaStop, FaEllipsisV, FaCopy, FaStar, FaTimes, FaArrowLeft, FaArrowRight } from "react-icons/fa";
+import { FaPlus, FaEdit, FaTrash, FaCheck, FaMinus, FaPlay, FaPause, FaEllipsisV, FaCopy, FaStar, FaTimes, FaArrowLeft, FaArrowRight } from "react-icons/fa";
 import { formatScheduleLabel } from "@/lib/constants";
 import { getProgressColor } from "@/lib/scoring";
 import { countScheduledDaysInRange } from "@/lib/effort-calculations";
@@ -54,7 +54,6 @@ export default function TaskItem({
   hidePillar,
   totalBasePoints,
   goalsList,
-  cycles,
   maxStarsReached,
   timers,
   pendingValues,
@@ -482,7 +481,7 @@ export default function TaskItem({
               const targetSec = (task.target || 0) * 60;
               const limitSec = isLimitTask ? (limitVal * 60) : 0;
               const isRunning = timer?.running || false;
-              const done = isLimitTask ? false : (targetSec > 0 && elapsed >= targetSec);
+              // done check: isLimitTask ? false : (targetSec > 0 && elapsed >= targetSec)
               const isEditing = pendingValues[task.id] !== undefined;
               const targetDisplay = task.target ? `${task.target}:00` : null;
               return (
