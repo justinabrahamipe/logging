@@ -379,25 +379,44 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="space-y-4">
                 {[
-                  { label: 'Habitual', value: habitualColor, setter: setHabitualColor },
-                  { label: 'Target', value: targetColor, setter: setTargetColor },
-                  { label: 'Outcome', value: outcomeColor, setter: setOutcomeColor },
-                ].map(({ label, value, setter }) => (
-                  <div key={label} className="flex items-center gap-3">
-                    <input
-                      type="color"
-                      value={value}
-                      onChange={(e) => setter(e.target.value)}
-                      className="w-10 h-10 rounded-lg border border-zinc-300 dark:border-zinc-600 cursor-pointer bg-transparent p-0.5"
-                    />
-                    <div>
-                      <div className="text-sm font-semibold text-zinc-900 dark:text-white">{label}</div>
-                      <div className="text-xs text-zinc-500 dark:text-zinc-400 font-mono">{value}</div>
+                  { label: 'Habitual', desc: 'Daily habits & routines', value: habitualColor, setter: setHabitualColor },
+                  { label: 'Target', desc: 'Goals with a target to reach', value: targetColor, setter: setTargetColor },
+                  { label: 'Outcome', desc: 'Outcomes not fully in your control', value: outcomeColor, setter: setOutcomeColor },
+                ].map(({ label, desc, value, setter }) => {
+                  const palette = [
+                    '#EF4444', '#F97316', '#F59E0B', '#EAB308',
+                    '#84CC16', '#22C55E', '#10B981', '#14B8A6',
+                    '#06B6D4', '#0EA5E9', '#3B82F6', '#6366F1',
+                    '#8B5CF6', '#A855F7', '#D946EF', '#EC4899',
+                    '#F43F5E', '#78716C', '#64748B', '#1E293B',
+                  ];
+                  return (
+                    <div key={label}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-4 h-4 rounded-full shrink-0" style={{ backgroundColor: value }} />
+                        <span className="text-sm font-semibold text-zinc-900 dark:text-white">{label}</span>
+                        <span className="text-xs text-zinc-400 dark:text-zinc-500">{desc}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {palette.map(c => (
+                          <button
+                            key={c}
+                            onClick={() => setter(c)}
+                            className={`w-7 h-7 rounded-lg transition-all ${value === c ? 'ring-2 ring-offset-2 ring-zinc-900 dark:ring-white dark:ring-offset-zinc-800 scale-110' : 'hover:scale-110'}`}
+                            style={{ backgroundColor: c }}
+                            title={c}
+                          />
+                        ))}
+                        <label className="w-7 h-7 rounded-lg border-2 border-dashed border-zinc-300 dark:border-zinc-600 cursor-pointer flex items-center justify-center hover:scale-110 transition-all" title="Custom color">
+                          <span className="text-[10px] text-zinc-400">+</span>
+                          <input type="color" value={value} onChange={e => setter(e.target.value)} className="sr-only" />
+                        </label>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
