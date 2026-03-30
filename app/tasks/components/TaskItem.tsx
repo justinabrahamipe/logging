@@ -343,16 +343,31 @@ export default function TaskItem({
               {task.name}
             </h3>
             {totalBasePoints && totalBasePoints > 0 && task.startDate && (() => {
-              const isTargetGoalTask = task.goalId && goalsList.some(g => g.id === task.goalId && (g.goalType === 'target' || g.goalType === 'outcome'));
-              if (isTargetGoalTask) return null;
+              const isExcludedGoalTask = task.goalId && goalsList.some(g => g.id === task.goalId && (g.goalType === 'target' || g.goalType === 'outcome'));
+              if (isExcludedGoalTask) return null;
               const mult = task.completion?.isHighlighted ? 2 : 1;
               const earned = (task.completion?.pointsEarned ?? 0) * mult;
               const potential = task.basePoints * mult;
               const earnedPct = Math.round((earned / totalBasePoints) * 1000) / 10;
               const potentialPct = Math.round((potential / totalBasePoints) * 1000) / 10;
+              const hasPartialProgress = earned > 0 && !isFullyDone && task.completionType !== 'checkbox';
+
+              if (earned === 0 && currentValue === 0) {
+                // Not started — show potential in parens
+                return (
+                  <span className="text-[10px] font-medium shrink-0 text-zinc-400 dark:text-zinc-500">
+                    ({potentialPct}%)
+                  </span>
+                );
+              }
+
               return (
-                <span className={`text-[10px] font-medium shrink-0 ${isFullyDone ? 'text-green-500 dark:text-green-400' : isDiscarded ? 'text-amber-400' : 'text-zinc-400 dark:text-zinc-500'}`}>
-                  {earned > 0 ? `${earnedPct}%` : `(${potentialPct}%)`}
+                <span className={`text-[10px] font-medium shrink-0 ${isFullyDone ? 'text-green-500 dark:text-green-400' : isDiscarded ? 'text-amber-400' : hasPartialProgress ? 'text-amber-500 dark:text-amber-400' : 'text-zinc-400 dark:text-zinc-500'}`}>
+                  {hasPartialProgress
+                    ? `${earnedPct}/${potentialPct}%`
+                    : isFullyDone
+                    ? `${earnedPct}%`
+                    : `(${potentialPct}%)`}
                 </span>
               );
             })()}
