@@ -11,7 +11,7 @@ interface ScoreCardProps {
 }
 
 export default function ScoreCard({ score, momentumData }: ScoreCardProps) {
-  const { targetColor, outcomeColor } = useTheme();
+  const { habitualColor, targetColor, outcomeColor } = useTheme();
 
   const mVal = momentumData?.overall ?? 0;
   const mPct = Math.min(mVal / 2, 1);
