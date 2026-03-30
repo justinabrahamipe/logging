@@ -17,6 +17,9 @@ interface ThemeContextType {
   habitualColor: string;
   targetColor: string;
   outcomeColor: string;
+  setHabitualColor: (c: string) => void;
+  setTargetColor: (c: string) => void;
+  setOutcomeColor: (c: string) => void;
   isLoading: boolean;
 }
 
@@ -145,7 +148,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, dateFormat, timeFormat, setDateFormat, setTimeFormat, streakThreshold, habitualColor, targetColor, outcomeColor, isLoading }}>
+    <ThemeContext.Provider value={{ theme, setTheme, dateFormat, timeFormat, setDateFormat, setTimeFormat, streakThreshold, habitualColor, targetColor, outcomeColor, setHabitualColor, setTargetColor, setOutcomeColor, isLoading }}>
       {children}
     </ThemeContext.Provider>
   );

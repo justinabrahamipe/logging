@@ -13,7 +13,7 @@ type DateFormat = "DD/MM/YYYY" | "MM/DD/YYYY" | "YYYY-MM-DD" | "DD-MM-YYYY" | "M
 
 export default function SettingsPage() {
   const { data: session } = useSession();
-  const { dateFormat: globalDateFormat, timeFormat: globalTimeFormat, setDateFormat: setGlobalDateFormat, setTimeFormat: setGlobalTimeFormat } = useTheme();
+  const { dateFormat: globalDateFormat, timeFormat: globalTimeFormat, setDateFormat: setGlobalDateFormat, setTimeFormat: setGlobalTimeFormat, setHabitualColor: setGlobalHabitualColor, setTargetColor: setGlobalTargetColor, setOutcomeColor: setGlobalOutcomeColor } = useTheme();
   const [timeFormat, setTimeFormat] = useState<TimeFormat>(globalTimeFormat);
   const [dateFormat, setDateFormat] = useState<DateFormat>(globalDateFormat);
 
@@ -115,6 +115,9 @@ export default function SettingsPage() {
         if (response.ok) {
           setGlobalDateFormat(dateFormat);
           setGlobalTimeFormat(timeFormat);
+          setGlobalHabitualColor(habitualColor);
+          setGlobalTargetColor(targetColor);
+          setGlobalOutcomeColor(outcomeColor);
           setSaved(true);
 
           const settingsData = {
