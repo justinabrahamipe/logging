@@ -55,7 +55,7 @@ const TOOLS = [
   },
   {
     name: "get_pillars",
-    description: "Get life pillars (categories) with their weights and descriptions.",
+    description: "Get life pillars (categories) with their default base points and descriptions.",
     inputSchema: { type: "object", properties: {} },
   },
   {
@@ -234,7 +234,7 @@ const TOOLS = [
         name: { type: "string", description: "Pillar name (e.g. 'Health', 'Career')." },
         emoji: { type: "string", description: "Emoji icon. Defaults to '📌'." },
         color: { type: "string", description: "Hex color (e.g. '#3B82F6'). Defaults to blue." },
-        weight: { type: "number", description: "Importance weight (0-10). Defaults to 0." },
+        defaultBasePoints: { type: "number", description: "Default base points for tasks in this pillar (default 10)." },
         description: { type: "string", description: "Description of this pillar (optional)." },
       },
       required: ["name"],
@@ -250,7 +250,7 @@ const TOOLS = [
         name: { type: "string", description: "New name." },
         emoji: { type: "string", description: "New emoji." },
         color: { type: "string", description: "New hex color." },
-        weight: { type: "number", description: "New weight." },
+        defaultBasePoints: { type: "number", description: "Default base points for tasks in this pillar." },
         description: { type: "string", description: "New description." },
       },
       required: ["pillarId"],
@@ -380,7 +380,7 @@ async function executeTool(userId: string, name: string, args: Record<string, an
     }
     case "get_pillars": {
       const result = await db.select().from(pillars).where(eq(pillars.userId, userId));
-      const lines = result.map(p => `(id:${p.id}) ${p.emoji} ${p.name} (weight: ${p.weight})${p.description ? ` — ${p.description}` : ""}`);
+      const lines = result.map(p => `(id:${p.id}) ${p.emoji} ${p.name} (${p.defaultBasePoints}pts)${p.description ? ` — ${p.description}` : ""}`);
       return lines.join("\n") || "No pillars found.";
     }
     case "get_summary": {
@@ -893,7 +893,7 @@ async function executeTool(userId: string, name: string, args: Record<string, an
         name: pillarName,
         emoji: args.emoji || '📌',
         color: args.color || '#3B82F6',
-        weight: args.weight ?? 0,
+        defaultBasePoints: args.defaultBasePoints ?? 10,
         description: args.description || null,
       }).returning();
 
@@ -912,7 +912,7 @@ async function executeTool(userId: string, name: string, args: Record<string, an
       if (args.name !== undefined) updateData.name = args.name;
       if (args.emoji !== undefined) updateData.emoji = args.emoji;
       if (args.color !== undefined) updateData.color = args.color;
-      if (args.weight !== undefined) updateData.weight = args.weight;
+      if (args.defaultBasePoints !== undefined) updateData.defaultBasePoints = args.defaultBasePoints;
       if (args.description !== undefined) updateData.description = args.description || null;
 
       if (Object.keys(updateData).length === 0) return "Error: No fields to update.";

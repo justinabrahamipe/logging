@@ -36,21 +36,20 @@ export function calculateTaskScore(task: TaskForScoring, completion: CompletionF
   return completion.value && completion.value > 0 ? task.basePoints : 0;
 }
 
-interface PillarWeight {
-  pillarId: number;
-  weight: number;
-}
-
 export function calculateDailyScore(
   completions: CompletionForScoring[],
   tasksForDay: TaskForScoring[],
-  pillarWeights: PillarWeight[]
 ): { actionScore: number; pillarScores: Record<number, number> } {
-  if (tasksForDay.length === 0) {
-    return { actionScore: 0, pillarScores: {} };
-  }
+  if (tasksForDay.length === 0) return { actionScore: 0, pillarScores: {} };
 
-  // Group tasks by pillar
+  const HIGHLIGHT_MULTIPLIER = 2;
+  const completionMap = new Map<number, CompletionForScoring>();
+  for (const c of completions) completionMap.set(c.taskId, c);
+
+  let totalMax = 0;
+  let totalEarned = 0;
+
+  // Per-pillar breakdown
   const pillarTasks: Record<number, TaskForScoring[]> = {};
   for (const task of tasksForDay) {
     const pid = task.pillarId ?? 0;
@@ -58,62 +57,26 @@ export function calculateDailyScore(
     pillarTasks[pid].push(task);
   }
 
-  const completionMap = new Map<number, CompletionForScoring>();
-  for (const c of completions) {
-    completionMap.set(c.taskId, c);
-  }
-
   const pillarScores: Record<number, number> = {};
-  const weightMap = new Map<number, number>();
 
-  // Distribute remaining weight evenly among pillars with 0 weight
-  const assignedWeight = pillarWeights.reduce((sum, pw) => sum + (pw.weight || 0), 0);
-  const unweighted = pillarWeights.filter(pw => !pw.weight || pw.weight === 0);
-  const remainingWeight = Math.max(0, 100 - assignedWeight);
-  const autoWeight = unweighted.length > 0 ? remainingWeight / unweighted.length : 0;
-
-  for (const pw of pillarWeights) {
-    weightMap.set(pw.pillarId, pw.weight || autoWeight);
-  }
-
-  // Calculate score per pillar (highlighted tasks get 1.5x weight)
-  const HIGHLIGHT_MULTIPLIER = 2;
-  for (const [pillarIdStr, tasks] of Object.entries(pillarTasks)) {
-    const pillarId = Number(pillarIdStr);
-    let maxPossible = 0;
-    let earned = 0;
-
+  for (const [pidStr, tasks] of Object.entries(pillarTasks)) {
+    let pillarMax = 0;
+    let pillarEarned = 0;
     for (const task of tasks) {
       const completion = completionMap.get(task.id);
-      const multiplier = completion?.isHighlighted ? HIGHLIGHT_MULTIPLIER : 1;
-      maxPossible += task.basePoints * multiplier;
-
+      const mult = completion?.isHighlighted ? HIGHLIGHT_MULTIPLIER : 1;
+      pillarMax += task.basePoints * mult;
+      totalMax += task.basePoints * mult;
       if (completion) {
-        earned += calculateTaskScore(task, completion) * multiplier;
+        const score = calculateTaskScore(task, completion) * mult;
+        pillarEarned += score;
+        totalEarned += score;
       }
     }
-
-    pillarScores[pillarId] = maxPossible > 0 ? Math.round((earned / maxPossible) * 100) : 0;
+    pillarScores[Number(pidStr)] = pillarMax > 0 ? Math.round((pillarEarned / pillarMax) * 100) : 0;
   }
 
-  // Weighted average across pillars
-  let totalWeightedScore = 0;
-  let totalWeight = 0;
-
-  // Default weight for tasks with no pillar (pillarId=0): use average of assigned weights
-  const defaultWeight = pillarWeights.length > 0
-    ? pillarWeights.reduce((s, pw) => s + (pw.weight || autoWeight), 0) / pillarWeights.length
-    : 100;
-
-  for (const [pillarIdStr, score] of Object.entries(pillarScores)) {
-    const pillarId = Number(pillarIdStr);
-    const weight = weightMap.get(pillarId) || defaultWeight;
-    totalWeightedScore += score * weight;
-    totalWeight += weight;
-  }
-
-  const actionScore = totalWeight > 0 ? Math.round(totalWeightedScore / totalWeight) : 0;
-
+  const actionScore = totalMax > 0 ? Math.round((totalEarned / totalMax) * 100) : 0;
   return { actionScore, pillarScores };
 }
 

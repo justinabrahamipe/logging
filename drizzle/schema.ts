@@ -73,7 +73,7 @@ export const pillars = sqliteTable('Pillar', {
   name: text('name').notNull(),
   emoji: text('emoji').notNull().default('📌'),
   color: text('color').notNull().default('#3B82F6'),
-  weight: real('weight').notNull().default(0),
+  defaultBasePoints: real('defaultBasePoints').notNull().default(10),
   description: text('description'),
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),

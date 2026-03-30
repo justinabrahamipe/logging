@@ -13,7 +13,7 @@ const DEFAULT_PILLARS: PillarSeed[] = [
     name: 'Health & Fitness',
     emoji: '💪',
     color: '#EF4444',
-    weight: 25,
+    defaultBasePoints: 10,
     description: 'Physical health, exercise, nutrition',
     tasks: [
       { name: 'Gym session', completionType: 'checkbox', frequency: 'custom', customDays: JSON.stringify([1, 2, 4, 5]), basePoints: 10 },
@@ -29,7 +29,7 @@ const DEFAULT_PILLARS: PillarSeed[] = [
     name: 'Career',
     emoji: '💼',
     color: '#3B82F6',
-    weight: 25,
+    defaultBasePoints: 10,
     description: 'Job search, skills, professional development',
     tasks: [
       { name: 'LeetCode problem', completionType: 'count', target: 1, unit: 'problems', frequency: 'daily', basePoints: 10 },
@@ -43,7 +43,7 @@ const DEFAULT_PILLARS: PillarSeed[] = [
     name: 'Side Hustle',
     emoji: '🚀',
     color: '#8B5CF6',
-    weight: 15,
+    defaultBasePoints: 15,
     description: 'Product development, content creation',
     tasks: [
       { name: 'Product work', completionType: 'duration', target: 60, unit: 'min', frequency: 'daily', basePoints: 10 },
@@ -54,7 +54,7 @@ const DEFAULT_PILLARS: PillarSeed[] = [
     name: 'Home',
     emoji: '🏠',
     color: '#F59E0B',
-    weight: 10,
+    defaultBasePoints: 5,
     description: 'Household chores and maintenance',
     tasks: [
       { name: 'Kitchen clean', completionType: 'checkbox', frequency: 'daily', basePoints: 10 },
@@ -66,7 +66,7 @@ const DEFAULT_PILLARS: PillarSeed[] = [
     name: 'Growth',
     emoji: '📖',
     color: '#10B981',
-    weight: 15,
+    defaultBasePoints: 10,
     description: 'Personal development, reading, learning',
     tasks: [
       { name: 'Bible writing', completionType: 'checkbox', frequency: 'daily', basePoints: 10 },
@@ -78,7 +78,7 @@ const DEFAULT_PILLARS: PillarSeed[] = [
     name: 'Family & Faith',
     emoji: '👨‍👩‍👧',
     color: '#EC4899',
-    weight: 10,
+    defaultBasePoints: 10,
     description: 'Family time, church, community',
     tasks: [
       { name: 'Family time', completionType: 'checkbox', frequency: 'daily', basePoints: 10 },
@@ -205,7 +205,7 @@ export async function seedDefaultData(userId: string, skipCheck = false) {
       name: pillarData.name,
       emoji: pillarData.emoji,
       color: pillarData.color,
-      weight: pillarData.weight,
+      defaultBasePoints: pillarData.defaultBasePoints,
       description: pillarData.description,
     }).returning();
     pillarIds.push(pillar.id);

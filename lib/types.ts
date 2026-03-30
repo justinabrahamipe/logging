@@ -9,7 +9,7 @@ export interface Pillar {
   name: string;
   emoji: string;
   color: string;
-  weight?: number;
+  defaultBasePoints?: number;
   description?: string | null;
 }
 
@@ -154,7 +154,7 @@ export interface PillarScore {
   name: string;
   emoji: string;
   color: string;
-  weight: number;
+  defaultBasePoints: number;
   score: number;
 }
 
@@ -173,7 +173,7 @@ export interface PillarMeta {
   name: string;
   emoji: string;
   color: string;
-  weight: number;
+  defaultBasePoints: number;
 }
 
 export interface HistoryScore {
@@ -227,7 +227,6 @@ export interface MomentumPillar {
   name: string;
   emoji: string;
   color: string;
-  weight: number;
   momentum: number | null;
 }
 
@@ -369,7 +368,7 @@ export interface PillarSeed {
   name: string;
   emoji: string;
   color: string;
-  weight: number;
+  defaultBasePoints: number;
   description: string;
   tasks: TaskSeed[];
 }

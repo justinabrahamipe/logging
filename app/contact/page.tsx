@@ -17,7 +17,7 @@ const PAGES: Record<string, string[]> = {
   "Tasks": ["Task List", "Task Creation", "Task Completion", "Swipe Actions", "Filters", "Skip / Discard"],
   "Goals": ["Outcome Goals", "Habitual Goals", "Target Goals", "Momentum", "Trajectory"],
   "Cycles": ["Cycle Planning", "Weekly Review"],
-  "Pillars": ["Pillar Management", "Weights"],
+  "Pillars": ["Pillar Management", "Default Points"],
   "Activity Log": [],
   "Settings": ["Theme", "Preferences", "Data Export"],
 };

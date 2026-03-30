@@ -24,26 +24,18 @@ export async function POST(request: Request) {
     const userId = await getAuthenticatedUserId();
 
     const body = await request.json();
-    const { name, emoji, color, weight, description } = body;
+    const { name, emoji, color, defaultBasePoints, description } = body;
 
     if (!name) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
-
-    // Auto-calculate weight if not provided
-    const existing = await db
-      .select()
-      .from(pillars)
-      .where(eq(pillars.userId, userId));
-
-    const calculatedWeight = weight ?? (existing.length > 0 ? Math.round(100 / (existing.length + 1)) : 100);
 
     const [pillar] = await db.insert(pillars).values({
       userId,
       name,
       emoji: emoji || '📌',
       color: color || '#3B82F6',
-      weight: calculatedWeight,
+      defaultBasePoints: defaultBasePoints ?? 10,
       description: description || null,
     }).returning();
 

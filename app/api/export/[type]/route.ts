@@ -18,9 +18,9 @@ export async function GET(
     switch (type) {
       case "pillars": {
         const data = await db.select().from(pillars).where(eq(pillars.userId, userId));
-        csvData = "Name,Emoji,Color,Weight,Description\n";
+        csvData = "Name,Emoji,Color,DefaultBasePoints,Description\n";
         data.forEach((p) => {
-          csvData += `"${p.name}","${p.emoji}","${p.color}",${p.weight},"${p.description || ""}"\n`;
+          csvData += `"${p.name}","${p.emoji}","${p.color}",${p.defaultBasePoints},"${p.description || ""}"\n`;
         });
         break;
       }

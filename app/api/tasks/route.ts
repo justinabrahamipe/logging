@@ -102,7 +102,7 @@ export async function GET(request: NextRequest) {
 
       if (ungrouped.length > 0) {
         grouped.push({
-          pillar: { id: 0, userId, name: 'No Pillar', emoji: '📋', color: '#6B7280', weight: 0, description: null, createdAt: new Date(), updatedAt: new Date() } as typeof userPillars[number],
+          pillar: { id: 0, userId, name: 'No Pillar', emoji: '📋', color: '#6B7280', defaultBasePoints: 10, description: null, createdAt: new Date(), updatedAt: new Date() } as typeof userPillars[number],
           tasks: ungrouped as typeof grouped[number]['tasks'],
         });
       }
@@ -150,7 +150,7 @@ export async function GET(request: NextRequest) {
     const ungrouped = tasksWithCompletion.filter(t => !t.pillarId);
     if (ungrouped.length > 0) {
       grouped.push({
-        pillar: { id: 0, userId, name: 'No Pillar', emoji: '📋', color: '#6B7280', weight: 0, description: null, createdAt: new Date(), updatedAt: new Date() } as typeof userPillars[number],
+        pillar: { id: 0, userId, name: 'No Pillar', emoji: '📋', color: '#6B7280', defaultBasePoints: 10, description: null, createdAt: new Date(), updatedAt: new Date() } as typeof userPillars[number],
         tasks: ungrouped as typeof grouped[number]['tasks'],
       });
     }

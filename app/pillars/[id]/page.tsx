@@ -13,7 +13,7 @@ interface Pillar {
   name: string;
   emoji: string;
   color: string;
-  weight: number;
+  defaultBasePoints: number;
   description: string | null;
 }
 
@@ -165,7 +165,7 @@ export default function PillarDetailPage() {
             <h1 className="text-2xl md:text-3xl font-bold text-zinc-900 dark:text-white">{pillar.name}</h1>
             {pillar.description && <p className="text-sm text-zinc-500 dark:text-zinc-400">{pillar.description}</p>}
           </div>
-          <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Weight: {pillar.weight}%</span>
+          <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Default Points: {pillar.defaultBasePoints}</span>
           <button onClick={() => router.push(`/pillars/${pillar.id}/edit`)} className="p-2 rounded-lg text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700">
             <FaEdit />
           </button>

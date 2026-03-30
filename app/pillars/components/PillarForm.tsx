@@ -29,7 +29,7 @@ export default function PillarForm({
     name: editingPillar?.name || "",
     emoji: editingPillar?.emoji || "\u{1F4CC}",
     color: editingPillar?.color || "#3B82F6",
-    weight: editingPillar?.weight || 0,
+    defaultBasePoints: editingPillar?.defaultBasePoints ?? 10,
     description: editingPillar?.description || "",
   });
   const [saving, setSaving] = useState(false);
@@ -99,13 +99,12 @@ export default function PillarForm({
       {/* Weight + Description */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div>
-          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Weight (%)</label>
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Default Base Points</label>
           <input
             type="number"
             min="0"
-            max="100"
-            value={form.weight}
-            onChange={(e) => setForm({ ...form, weight: parseInt(e.target.value) || 0 })}
+            value={form.defaultBasePoints}
+            onChange={(e) => setForm({ ...form, defaultBasePoints: parseInt(e.target.value) || 0 })}
             className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
           />
         </div>

@@ -31,7 +31,7 @@ export default function TermsOfService() {
                 Grind Console is a life gamification and productivity application that allows you to:
               </p>
               <ul className="list-disc list-inside space-y-2 ml-4 mt-2">
-                <li>Define life pillars and set weighted priorities</li>
+                <li>Define life pillars and set task importance</li>
                 <li>Create and track daily tasks with various completion types</li>
                 <li>Earn points, XP, and level up based on daily performance</li>
                 <li>Track streaks and monitor progress over time</li>

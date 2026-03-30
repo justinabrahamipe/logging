@@ -47,7 +47,7 @@ export default function PillarBreakdown({ scores, pillarsMeta }: PillarBreakdown
         name: p.name,
         emoji: p.emoji,
         color: p.color,
-        weight: p.weight,
+        defaultBasePoints: p.defaultBasePoints,
         avg: Math.round(totals[p.id].sum / totals[p.id].count),
       }));
   }, [filtered, pillarsMeta]);
@@ -79,7 +79,7 @@ export default function PillarBreakdown({ scores, pillarsMeta }: PillarBreakdown
                   <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                     {pillar.name}
                   </span>
-                  <span className="text-[10px] text-zinc-400">({pillar.weight}%)</span>
+                  <span className="text-[10px] text-zinc-400">({pillar.defaultBasePoints}pts)</span>
                 </div>
                 <span className="text-sm font-bold text-zinc-900 dark:text-white">
                   {pillar.avg}%

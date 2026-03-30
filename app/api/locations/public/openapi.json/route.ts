@@ -37,7 +37,7 @@ export async function GET() {
                       tasks: { type: "array", description: "Task instances with completion status" },
                       goals: { type: "array", description: "Goals with progress, type, and status" },
                       scores: { type: "array", description: "Daily action scores and momentum" },
-                      pillars: { type: "array", description: "Life pillars with weights" },
+                      pillars: { type: "array", description: "Life pillars with default base points" },
                     },
                   },
                 },

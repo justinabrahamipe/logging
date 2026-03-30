@@ -9,7 +9,7 @@ export default function Home() {
   const { status } = useSession();
 
   const features = [
-    { title: "Daily Scoring", desc: "Weighted action scores across life pillars", icon: FaBolt },
+    { title: "Daily Scoring", desc: "Points-based action scores across life pillars", icon: FaBolt },
     { title: "Streaks & XP", desc: "Build momentum and level up over time", icon: FaFire },
     { title: "Goals & Timers", desc: "Track habits, targets, and outcomes", icon: FaTrophy },
     { title: "Smart Tasks", desc: "Recurring schedules, highlights, and more", icon: FaTasks },

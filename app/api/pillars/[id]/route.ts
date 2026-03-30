@@ -47,7 +47,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (body.name !== undefined) updateData.name = body.name;
     if (body.emoji !== undefined) updateData.emoji = body.emoji;
     if (body.color !== undefined) updateData.color = body.color;
-    if (body.weight !== undefined) updateData.weight = body.weight;
+    if (body.defaultBasePoints !== undefined) updateData.defaultBasePoints = body.defaultBasePoints;
     if (body.description !== undefined) updateData.description = body.description;
     const [updated] = await db
       .update(pillars)

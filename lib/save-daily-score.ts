@@ -18,22 +18,20 @@ export async function saveDailyScore(userId: string, date: string) {
     .from(tasks)
     .where(and(eq(tasks.userId, userId), eq(tasks.date, date), eq(tasks.dismissed, false)));
 
-  // Get pillars for weights
+  // Get pillars
   const userPillars = await db
     .select()
     .from(pillars)
     .where(eq(pillars.userId, userId));
 
-  const pillarWeights = userPillars.map(p => ({ pillarId: p.id, weight: p.weight }));
-
-  // Exclude target goal tasks from action score — they only affect momentum
+  // Exclude target and outcome goal tasks from action score — they only affect momentum/trajectory
   const userGoals = await db
     .select()
     .from(goals)
     .where(eq(goals.userId, userId));
 
-  const targetGoalIds = new Set(userGoals.filter(g => g.goalType === 'target').map(g => g.id));
-  const tasksForDay = allTasksForDay.filter(t => !t.goalId || !targetGoalIds.has(t.goalId));
+  const excludedGoalIds = new Set(userGoals.filter(g => g.goalType === 'target' || g.goalType === 'outcome').map(g => g.id));
+  const tasksForDay = allTasksForDay.filter(t => !t.goalId || !excludedGoalIds.has(t.goalId));
 
   const tasksForScoring = tasksForDay.map(t => ({
     id: t.id,
@@ -53,7 +51,7 @@ export async function saveDailyScore(userId: string, date: string) {
     skipped: t.skipped,
   }));
 
-  const { actionScore, pillarScores } = calculateDailyScore(completionsForScoring, tasksForScoring, pillarWeights);
+  const { actionScore, pillarScores } = calculateDailyScore(completionsForScoring, tasksForScoring);
 
   // Calculate momentum from goals (userGoals already fetched above)
   let momentumScore: number | null = null;
@@ -105,6 +103,7 @@ export async function saveDailyScore(userId: string, date: string) {
     }));
 
     const goalsForMomentum = goalsForCalc.filter(g => g.goalType === 'target');
+    const pillarWeights = userPillars.map(p => ({ pillarId: p.id, weight: 1 }));
     const momentum = calculateMomentum(goalsForMomentum, logsForMomentum, pillarWeights, date);
     momentumScore = Math.round(momentum.overall * 100);
     pillarMomentumJson = JSON.stringify(momentum.pillarMomentum);

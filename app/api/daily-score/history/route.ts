@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
       name: p.name,
       emoji: p.emoji,
       color: p.color,
-      weight: p.weight,
+      defaultBasePoints: p.defaultBasePoints,
     }));
 
     const formattedScores = scores.map((s) => ({

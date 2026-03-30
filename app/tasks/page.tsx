@@ -102,21 +102,10 @@ export default function TasksPage() {
     return true;
   });
 
-  const targetGoalIds = new Set(goalsList.filter(g => g.goalType === 'target').map(g => g.id));
-  // Build per-pillar max points (excluding target goal tasks) for score contribution calc
-  const scorableTasks = filteredTasks.filter(t => t.startDate && (!t.goalId || !targetGoalIds.has(t.goalId)));
-  const pillarMaxPoints: Record<number, number> = {};
-  for (const t of scorableTasks) {
-    const pid = t.pillarId ?? 0;
-    const mult = t.completion?.isHighlighted ? 2 : 1;
-    pillarMaxPoints[pid] = (pillarMaxPoints[pid] || 0) + (t.basePoints || 0) * mult;
-  }
-  const pillarWeightMap: Record<number, number> = {};
-  const assignedWeight = pillars.reduce((s, p) => s + (p.weight || 0), 0);
-  const unweightedCount = pillars.filter(p => !p.weight).length;
-  const autoWeight = unweightedCount > 0 ? Math.max(0, 100 - assignedWeight) / unweightedCount : 0;
-  for (const p of pillars) pillarWeightMap[p.id] = p.weight || autoWeight;
-  const totalWeight = Object.keys(pillarMaxPoints).reduce((s, pid) => s + (pillarWeightMap[Number(pid)] || (pillars.length > 0 ? pillars.reduce((s2, p) => s2 + (p.weight || autoWeight), 0) / pillars.length : 100)), 0);
+  const excludedGoalIds = new Set(goalsList.filter(g => g.goalType === 'target' || g.goalType === 'outcome').map(g => g.id));
+  // Build total base points (excluding target/outcome goal tasks) for score contribution calc
+  const scorableTasks = filteredTasks.filter(t => t.startDate && (!t.goalId || !excludedGoalIds.has(t.goalId)));
+  const totalBasePoints = scorableTasks.reduce((sum, t) => sum + (t.basePoints || 0) * (t.completion?.isHighlighted ? 2 : 1), 0);
 
   const scheduledTasks = isScheduledView ? allEnrichedTasks.filter(task => {
     if (task.frequency === 'adhoc') return false;
@@ -129,9 +118,7 @@ export default function TasksPage() {
     goalsList,
     cycles,
     maxStarsReached,
-    pillarMaxPoints,
-    pillarWeightMap,
-    totalWeight,
+    totalBasePoints,
     timers,
     pendingValues,
     setPendingValues,

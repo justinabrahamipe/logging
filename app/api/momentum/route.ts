@@ -53,7 +53,7 @@ export async function GET() {
       }));
     }
 
-    const pillarWeights = userPillars.map(p => ({ pillarId: p.id, weight: p.weight }));
+    const pillarWeights = userPillars.map(p => ({ pillarId: p.id, weight: 1 }));
 
     const mappedGoals = userGoals.map(g => ({
       id: g.id,
@@ -80,7 +80,7 @@ export async function GET() {
       name: p.name,
       emoji: p.emoji,
       color: p.color,
-      weight: p.weight,
+      defaultBasePoints: p.defaultBasePoints,
       momentum: summary.pillarMomentum[p.id] ?? null,
     }));
 

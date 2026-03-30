@@ -119,14 +119,6 @@ export default function PillarsPage() {
     }
   };
 
-  const totalWeight = pillars.reduce((sum, p) => sum + (p.weight ?? 0), 0);
-
-  // Compute effective weights: unweighted pillars share remaining weight equally
-  const assignedWeight = pillars.reduce((sum, p) => sum + (p.weight || 0), 0);
-  const unweightedCount = pillars.filter(p => !p.weight || p.weight === 0).length;
-  const remainingWeight = Math.max(0, 100 - assignedWeight);
-  const autoWeight = unweightedCount > 0 ? Math.round(remainingWeight / unweightedCount) : 0;
-  const getEffectiveWeight = (p: { weight?: number }) => p.weight || autoWeight;
 
   if (loading) return <PillarsLoading />;
 
@@ -145,46 +137,20 @@ export default function PillarsPage() {
           </div>
         </div>
 
-        {/* Weight Distribution + Cycle Selector */}
-        {pillars.length > 0 && (
+        {/* Cycle Selector */}
+        {pillars.length > 0 && cyclesData.length > 0 && (
           <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4 mb-6">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-medium text-zinc-600 dark:text-zinc-400">Weight Distribution</h3>
-              <div className="flex items-center gap-3">
-                <span className={`text-sm font-bold ${Math.abs(totalWeight - 100) < 1 ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'}`}>
-                  {totalWeight}%
-                </span>
-                {cyclesData.length > 0 && (
-                  <select
-                    value={selectedCycleId}
-                    onChange={e => setSelectedCycleId(parseInt(e.target.value))}
-                    className="px-2 py-1 text-xs border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
-                  >
-                    {cyclesData.map(c => (
-                      <option key={c.id} value={c.id}>{c.name}{c.isActive ? ' (Active)' : ''}</option>
-                    ))}
-                  </select>
-                )}
-              </div>
-            </div>
-            <div className="flex h-6 rounded-full overflow-hidden bg-zinc-200 dark:bg-zinc-700">
-              {pillars.map((p) => {
-                const ew = getEffectiveWeight(p);
-                return (
-                  <div
-                    key={p.id}
-                    style={{ width: `${ew}%`, backgroundColor: p.color }}
-                    className="transition-all flex items-center justify-center overflow-hidden"
-                    title={`${p.name}: ${ew}%`}
-                  >
-                    {ew >= 15 && (
-                      <span className="text-[10px] font-medium text-white truncate px-1">
-                        {p.name} {ew}%
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-medium text-zinc-600 dark:text-zinc-400">Cycle</h3>
+              <select
+                value={selectedCycleId}
+                onChange={e => setSelectedCycleId(parseInt(e.target.value))}
+                className="px-2 py-1 text-xs border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
+              >
+                {cyclesData.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}{c.isActive ? ' (Active)' : ''}</option>
+                ))}
+              </select>
             </div>
           </div>
         )}
@@ -220,7 +186,7 @@ export default function PillarsPage() {
                     {latestAvg != null && (
                       <span className="text-sm font-bold" style={{ color: pillar.color }}>{latestAvg}%</span>
                     )}
-                    <span className="text-xs text-zinc-500 dark:text-zinc-400">{getEffectiveWeight(pillar)}%</span>
+                    <span className="text-xs text-zinc-500 dark:text-zinc-400">{pillar.defaultBasePoints ?? 10} pts</span>
                     <button
                       onClick={() => router.push(`/pillars/${pillar.id}/edit`)}
                       className="p-1.5 rounded text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-400"

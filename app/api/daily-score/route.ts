@@ -25,8 +25,6 @@ export async function GET(request: NextRequest) {
       db.select().from(pillars).where(eq(pillars.userId, userId)),
     ]);
 
-    const pillarWeights = userPillars.map(p => ({ pillarId: p.id, weight: p.weight }));
-
     const tasksForScoring = tasksForDay.map(t => ({
       id: t.id,
       pillarId: t.pillarId,
@@ -44,14 +42,8 @@ export async function GET(request: NextRequest) {
       isHighlighted: t.isHighlighted,
     }));
 
-    const { actionScore, pillarScores } = calculateDailyScore(completionsForScoring, tasksForScoring, pillarWeights);
+    const { actionScore, pillarScores } = calculateDailyScore(completionsForScoring, tasksForScoring);
     const tier = getScoreTier(actionScore);
-
-    // Compute effective weights for display
-    const assignedWeight = userPillars.reduce((sum, p) => sum + (p.weight || 0), 0);
-    const unweightedPillars = userPillars.filter(p => !p.weight || p.weight === 0);
-    const remainingWeight = Math.max(0, 100 - assignedWeight);
-    const autoWeight = unweightedPillars.length > 0 ? Math.round(remainingWeight / unweightedPillars.length) : 0;
 
     // Build pillar score breakdown with names
     const pillarBreakdown = userPillars
@@ -61,7 +53,7 @@ export async function GET(request: NextRequest) {
         name: p.name,
         emoji: p.emoji,
         color: p.color,
-        weight: p.weight || autoWeight,
+        defaultBasePoints: p.defaultBasePoints,
         score: pillarScores[p.id],
       }));
 
