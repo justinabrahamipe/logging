@@ -230,15 +230,16 @@ export default function GoalCard({
                 {streak}🔥
               </span>
             )}
-            {!isHabitual && isActivityGoal && effortMetrics && (
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${
-                effortMetrics.status === 'ahead' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                effortMetrics.status === 'on_track' ? 'bg-zinc-100 text-zinc-700 dark:bg-zinc-900/30 dark:text-zinc-400' :
-                'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-              }`}>
-                {effortMetrics.status === 'ahead' ? 'Ahead' : effortMetrics.status === 'on_track' ? 'On track' : 'Behind'}
-              </span>
-            )}
+            {!isHabitual && isActivityGoal && effortMetrics && (() => {
+              const momentum = effortMetrics.requiredRate > 0 ? effortMetrics.currentRate / effortMetrics.requiredRate : (effortMetrics.currentRate > 0 ? 2.0 : 1.0);
+              const mRound = Math.round(momentum * 10) / 10;
+              const mColor = mRound >= 1.0 ? targetColor : '#EF4444';
+              return (
+                <span className="text-xs px-2 py-0.5 rounded-full font-medium shrink-0" style={{ backgroundColor: mColor + '18', color: mColor }}>
+                  {mRound.toFixed(1)}x
+                </span>
+              );
+            })()}
           </div>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
             {isHabitual ? (

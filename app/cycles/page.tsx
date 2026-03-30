@@ -14,14 +14,14 @@ import { useTheme } from "@/components/ThemeProvider";
 
 export default function CyclesPage() {
   const { data: session, status } = useSession();
-  const { streakThreshold } = useTheme();
+  const { streakThreshold, targetColor, outcomeColor } = useTheme();
   const router = useRouter();
   const [cycles, setCycles] = useState<Cycle[]>([]);
   const [loading, setLoading] = useState(true);
   const [futureAccordionOpen, setFutureAccordionOpen] = useState(false);
   const [pastAccordionOpen, setPastAccordionOpen] = useState(false);
   const [goals, setGoals] = useState<{ id: number; periodId: number | null; name: string; goalType: string; status?: string }[]>([]);
-  const [scores, setScores] = useState<{ date: string; actionScore: number }[]>([]);
+  const [scores, setScores] = useState<{ date: string; actionScore: number; momentumScore: number | null; trajectoryScore: number | null }[]>([]);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -68,6 +68,10 @@ export default function CyclesPage() {
     const completedGoals = cycleGoals.filter(g => g.status === "completed").length;
     const inRange = scores.filter(s => s.date >= cycle.startDate && s.date <= cycle.endDate);
     const avgScore = inRange.length > 0 ? Math.round(inRange.reduce((s, d) => s + d.actionScore, 0) / inRange.length) : null;
+    const momentumEntries = inRange.filter(s => s.momentumScore !== null);
+    const avgMomentum = momentumEntries.length > 0 ? Math.round(momentumEntries.reduce((s, d) => s + (d.momentumScore || 0), 0) / momentumEntries.length) / 100 : null;
+    const trajectoryEntries = inRange.filter(s => s.trajectoryScore !== null);
+    const avgTrajectory = trajectoryEntries.length > 0 ? Math.round(trajectoryEntries.reduce((s, d) => s + (d.trajectoryScore || 0), 0) / trajectoryEntries.length) / 100 : null;
     let topStreak = 0;
     if (inRange.length > 0) {
       const sorted = [...inRange].sort((a, b) => a.date.localeCompare(b.date));
@@ -140,7 +144,13 @@ export default function CyclesPage() {
               </span>
             )}
             {avgScore !== null && (
-              <span className="font-semibold text-zinc-900 dark:text-white">{avgScore}% avg</span>
+              <span className="font-semibold text-zinc-900 dark:text-white">{avgScore}%</span>
+            )}
+            {avgMomentum !== null && (
+              <span className="font-medium" style={{ color: avgMomentum >= 1.0 ? targetColor : '#EF4444' }}>{avgMomentum.toFixed(1)}x</span>
+            )}
+            {avgTrajectory !== null && (
+              <span className="font-medium" style={{ color: avgTrajectory >= 1.0 ? outcomeColor : '#EF4444' }}>{avgTrajectory.toFixed(1)}x</span>
             )}
             {topStreak > 0 && (
               <span className="flex items-center gap-0.5 text-amber-600 dark:text-amber-400 font-medium">
