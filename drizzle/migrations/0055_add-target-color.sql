@@ -1,0 +1,1 @@
+ALTER TABLE UserPreferences ADD COLUMN targetColor TEXT NOT NULL DEFAULT '#F59E0B';

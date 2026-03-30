@@ -1,0 +1,1 @@
+ALTER TABLE UserPreferences ADD COLUMN habitualColor TEXT NOT NULL DEFAULT '#3B82F6';

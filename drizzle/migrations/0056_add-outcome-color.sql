@@ -1,0 +1,1 @@
+ALTER TABLE UserPreferences ADD COLUMN outcomeColor TEXT NOT NULL DEFAULT '#A855F7';

@@ -60,6 +60,9 @@ export const userPreferences = sqliteTable('UserPreferences', {
   dateFormat: text('dateFormat').notNull().default('DD/MM/YYYY'),
   apiKey: text('apiKey'), // null = disabled, value = active key
   streakThreshold: integer('streakThreshold').notNull().default(95), // minimum action score % to count as a streak day
+  habitualColor: text('habitualColor').notNull().default('#3B82F6'), // blue
+  targetColor: text('targetColor').notNull().default('#F59E0B'), // amber
+  outcomeColor: text('outcomeColor').notNull().default('#A855F7'), // purple
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({

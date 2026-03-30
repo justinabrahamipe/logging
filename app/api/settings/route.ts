@@ -45,8 +45,9 @@ export async function PUT(request: Request) {
     const userId = await getAuthenticatedUserId();
 
     body = await request.json() as Record<string, unknown>;
-    const { theme, timeFormat, dateFormat, streakThreshold } = body as {
+    const { theme, timeFormat, dateFormat, streakThreshold, habitualColor, targetColor, outcomeColor } = body as {
       theme?: string; timeFormat?: string; dateFormat?: string; streakThreshold?: number;
+      habitualColor?: string; targetColor?: string; outcomeColor?: string;
     };
 
     const validThemes = ["light", "dark", "system"];
@@ -77,6 +78,9 @@ export async function PUT(request: Request) {
         const val = Math.round(streakThreshold);
         if (val >= 1 && val <= 100) updateData.streakThreshold = val;
       }
+      if (habitualColor) updateData.habitualColor = habitualColor;
+      if (targetColor) updateData.targetColor = targetColor;
+      if (outcomeColor) updateData.outcomeColor = outcomeColor;
       const [updated] = await db.update(userPreferences)
         .set(updateData)
         .where(eq(userPreferences.userId, userId))

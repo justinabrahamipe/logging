@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import type { DailyScoreData, MomentumData } from "@/lib/types";
 import { getTierColor } from "./utils";
+import { useTheme } from "@/components/ThemeProvider";
 
 interface ScoreCardProps {
   score: DailyScoreData | null;
@@ -10,14 +11,16 @@ interface ScoreCardProps {
 }
 
 export default function ScoreCard({ score, momentumData }: ScoreCardProps) {
+  const { targetColor, outcomeColor } = useTheme();
+
   const mVal = momentumData?.overall ?? 0;
   const mPct = Math.min(mVal / 2, 1);
-  const mColor = mVal >= 1.0 ? "#22C55E" : "#EF4444";
+  const mColor = mVal >= 1.0 ? targetColor : "#EF4444";
   const mLabel = mVal >= 1.05 ? "Ahead" : mVal >= 0.95 ? "On track" : "Behind";
 
   const tVal = momentumData?.trajectory?.overall ?? 0;
   const tPct = Math.max(0, Math.min(tVal / 2, 1));
-  const tColor = tVal >= 1.0 ? "#A855F7" : "#EF4444";
+  const tColor = tVal >= 1.0 ? outcomeColor : "#EF4444";
   const tLabel = tVal >= 1.05 ? "Ahead" : tVal >= 0.95 ? "On track" : "Behind";
 
   return (

@@ -53,7 +53,7 @@ export default function GoalCard({
   onCopyToCycle: (outcome: Outcome, cycleId: number) => void;
 }) {
   const router = useRouter();
-  const { dateFormat } = useTheme();
+  const { dateFormat, habitualColor, targetColor, outcomeColor } = useTheme();
   const progress = getProgress(outcome);
   const color = outcome.pillarColor || "#3B82F6";
   const isHabitual = outcome.goalType === "habitual";
@@ -172,7 +172,12 @@ export default function GoalCard({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4 cursor-pointer hover:shadow transition-shadow"
-      style={{ borderLeftWidth: 4, borderLeftColor: color }}
+      style={{
+        borderLeftWidth: 4,
+        borderLeftColor: color,
+        borderRightWidth: 3,
+        borderRightColor: outcome.goalType === 'habitual' ? habitualColor : outcome.goalType === 'target' ? targetColor : outcomeColor,
+      }}
       onClick={() => router.push(`/goals/${outcome.id}`)}
     >
       <div className="flex items-center justify-between">

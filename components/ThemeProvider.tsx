@@ -14,6 +14,9 @@ interface ThemeContextType {
   setDateFormat: (f: DateFormat) => void;
   setTimeFormat: (f: TimeFormat) => void;
   streakThreshold: number;
+  habitualColor: string;
+  targetColor: string;
+  outcomeColor: string;
   isLoading: boolean;
 }
 
@@ -47,6 +50,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [dateFormat, setDateFormatState] = useState<DateFormat>("DD/MM/YYYY");
   const [timeFormat, setTimeFormatState] = useState<TimeFormat>("12h");
   const [streakThreshold, setStreakThreshold] = useState(95);
+  const [habitualColor, setHabitualColor] = useState('#3B82F6');
+  const [targetColor, setTargetColor] = useState('#F59E0B');
+  const [outcomeColor, setOutcomeColor] = useState('#A855F7');
   const [isLoading, setIsLoading] = useState(true);
 
   // Load preferences: localStorage first, then API as fallback, then system default
@@ -86,6 +92,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           if (data.dateFormat) { setDateFormatState(data.dateFormat); localStorage.setItem("dateFormat", data.dateFormat); }
           if (data.timeFormat) { setTimeFormatState(data.timeFormat); localStorage.setItem("timeFormat", data.timeFormat); }
           if (data.streakThreshold !== undefined) setStreakThreshold(data.streakThreshold);
+          if (data.habitualColor) setHabitualColor(data.habitualColor);
+          if (data.targetColor) setTargetColor(data.targetColor);
+          if (data.outcomeColor) setOutcomeColor(data.outcomeColor);
         } else {
           // API failed — use system
           applyTheme("system");
@@ -136,7 +145,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, dateFormat, timeFormat, setDateFormat, setTimeFormat, streakThreshold, isLoading }}>
+    <ThemeContext.Provider value={{ theme, setTheme, dateFormat, timeFormat, setDateFormat, setTimeFormat, streakThreshold, habitualColor, targetColor, outcomeColor, isLoading }}>
       {children}
     </ThemeContext.Provider>
   );

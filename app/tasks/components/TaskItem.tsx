@@ -6,6 +6,7 @@ import { FaPlus, FaEdit, FaTrash, FaCheck, FaMinus, FaPlay, FaPause, FaStop, FaE
 import { formatScheduleLabel } from "@/lib/constants";
 import { getProgressColor } from "@/lib/scoring";
 import { countScheduledDaysInRange } from "@/lib/effort-calculations";
+import { useTheme } from "@/components/ThemeProvider";
 import type { Task, Outcome, Cycle } from "@/lib/types";
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 
@@ -75,6 +76,19 @@ export default function TaskItem({
   handleMarkDone,
   formatTime,
 }: TaskItemProps) {
+  const { habitualColor, targetColor, outcomeColor } = useTheme();
+
+  // Determine goal type color for right border
+  const goalTypeColor = (() => {
+    if (!task.goalId) return undefined;
+    const goal = goalsList.find(g => g.id === task.goalId);
+    if (!goal) return undefined;
+    if (goal.goalType === 'habitual') return habitualColor;
+    if (goal.goalType === 'target') return targetColor;
+    if (goal.goalType === 'outcome') return outcomeColor;
+    return undefined;
+  })();
+
   const isCompleted = task.completion?.completed || false;
   const currentValue = task.completion?.value || 0;
   const isDiscarded = task.completion?.skipped || false;
@@ -307,6 +321,7 @@ export default function TaskItem({
         style={{
           borderLeftWidth: 3,
           borderLeftColor: isDiscarded ? '#F59E0B' : isOverLimit ? '#ef4444' : isFullyDone ? '#4ade80' : isHighlighted ? '#F59E0B' : task._pillarColor,
+          ...(goalTypeColor ? { borderRightWidth: 3, borderRightColor: goalTypeColor } : {}),
           transform: swiping ? `translateX(${swipeX * 0.3}px)` : undefined,
           transition: swiping ? 'none' : 'transform 0.2s ease-out',
         }}

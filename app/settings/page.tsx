@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { FaClock, FaCalendar, FaCheck, FaCog, FaDatabase, FaTrash, FaDownload, FaExclamationTriangle, FaTasks, FaColumns, FaKey, FaCopy, FaFire } from "react-icons/fa";
+import { FaClock, FaCalendar, FaCheck, FaCog, FaDatabase, FaTrash, FaDownload, FaExclamationTriangle, FaTasks, FaColumns, FaKey, FaCopy, FaFire, FaPalette } from "react-icons/fa";
 import { useSession } from "next-auth/react";
 import { useTheme } from "@/components/ThemeProvider";
 import { Snackbar, Alert as MuiAlert } from "@mui/material";
@@ -23,6 +23,9 @@ export default function SettingsPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [streakThreshold, setStreakThreshold] = useState(95);
+  const [habitualColor, setHabitualColor] = useState('#3B82F6');
+  const [targetColor, setTargetColor] = useState('#F59E0B');
+  const [outcomeColor, setOutcomeColor] = useState('#A855F7');
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [apiKeyCopied, setApiKeyCopied] = useState(false);
   const [apiLinkCopied, setApiLinkCopied] = useState(false);
@@ -57,6 +60,9 @@ export default function SettingsPage() {
         setTimeFormat(data.timeFormat || "12h");
         setDateFormat(data.dateFormat || "DD/MM/YYYY");
         if (data.streakThreshold !== undefined) setStreakThreshold(data.streakThreshold);
+        if (data.habitualColor) setHabitualColor(data.habitualColor);
+        if (data.targetColor) setTargetColor(data.targetColor);
+        if (data.outcomeColor) setOutcomeColor(data.outcomeColor);
       } catch {}
     }
 
@@ -67,6 +73,9 @@ export default function SettingsPage() {
         setTimeFormat(data.timeFormat || "12h");
         setDateFormat(data.dateFormat || "DD/MM/YYYY");
         if (data.streakThreshold !== undefined) setStreakThreshold(data.streakThreshold);
+        if (data.habitualColor) setHabitualColor(data.habitualColor);
+        if (data.targetColor) setTargetColor(data.targetColor);
+        if (data.outcomeColor) setOutcomeColor(data.outcomeColor);
         setApiKey(data.apiKey || null);
         sessionStorage.setItem('userSettings', JSON.stringify(data));
       }
@@ -97,6 +106,9 @@ export default function SettingsPage() {
             timeFormat,
             dateFormat,
             streakThreshold,
+            habitualColor,
+            targetColor,
+            outcomeColor,
           }),
         });
 
@@ -109,6 +121,9 @@ export default function SettingsPage() {
             timeFormat,
             dateFormat,
             streakThreshold,
+            habitualColor,
+            targetColor,
+            outcomeColor,
           };
           sessionStorage.setItem('userSettings', JSON.stringify(settingsData));
 
@@ -346,6 +361,40 @@ export default function SettingsPage() {
                 <p className="text-xs text-zinc-500 dark:text-zinc-400">
                   Days with an action score at or above {streakThreshold}% will count toward your streak.
                 </p>
+              </div>
+            </div>
+
+            {/* Goal Type Colors */}
+            <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4 md:p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-3 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
+                  <FaPalette className="text-2xl text-zinc-600 dark:text-zinc-400" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white">Goal Type Colors</h2>
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400">Customize colors for each goal type</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {[
+                  { label: 'Habitual', value: habitualColor, setter: setHabitualColor },
+                  { label: 'Target', value: targetColor, setter: setTargetColor },
+                  { label: 'Outcome', value: outcomeColor, setter: setOutcomeColor },
+                ].map(({ label, value, setter }) => (
+                  <div key={label} className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={value}
+                      onChange={(e) => setter(e.target.value)}
+                      className="w-10 h-10 rounded-lg border border-zinc-300 dark:border-zinc-600 cursor-pointer bg-transparent p-0.5"
+                    />
+                    <div>
+                      <div className="text-sm font-semibold text-zinc-900 dark:text-white">{label}</div>
+                      <div className="text-xs text-zinc-500 dark:text-zinc-400 font-mono">{value}</div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
