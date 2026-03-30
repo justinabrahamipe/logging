@@ -19,6 +19,7 @@ interface TaskItemProps {
   task: EnrichedTask;
   showDate?: string;
   hidePillar?: boolean;
+  totalBasePoints?: number;
   goalsList: Outcome[];
   cycles: Cycle[];
   maxStarsReached: boolean;
@@ -49,6 +50,7 @@ export default function TaskItem({
   task,
   showDate,
   hidePillar,
+  totalBasePoints,
   goalsList,
   cycles,
   maxStarsReached,
@@ -336,9 +338,16 @@ export default function TaskItem({
           </button>
         )}
         <div className="flex-1 min-w-0">
-          <h3 className={`text-sm font-semibold leading-snug truncate ${isDiscarded ? 'line-through text-amber-500 dark:text-amber-400 italic' : isFullyDone ? 'line-through text-zinc-400 dark:text-zinc-500' : 'text-zinc-900 dark:text-white'}`}>
-            {task.name}
-          </h3>
+          <div className="flex items-center gap-1.5">
+            <h3 className={`text-sm font-semibold leading-snug truncate ${isDiscarded ? 'line-through text-amber-500 dark:text-amber-400 italic' : isFullyDone ? 'line-through text-zinc-400 dark:text-zinc-500' : 'text-zinc-900 dark:text-white'}`}>
+              {task.name}
+            </h3>
+            {totalBasePoints != null && totalBasePoints > 0 && (
+              <span className={`text-[10px] font-medium shrink-0 ${isFullyDone ? 'text-green-500 dark:text-green-400' : isDiscarded ? 'text-amber-400' : 'text-zinc-400 dark:text-zinc-500'}`}>
+                {Math.round(((task.completion?.pointsEarned ?? 0) / totalBasePoints) * 1000) / 10}%
+              </span>
+            )}
+          </div>
           <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
             {!hidePillar && <span className="text-[11px] text-zinc-500 dark:text-zinc-400 shrink-0">{task._pillarEmoji} {task._pillarName}</span>}
             {isLimitTask && task.completionType !== 'checkbox' && (

@@ -102,6 +102,8 @@ export default function TasksPage() {
     return true;
   });
 
+  const totalBasePoints = filteredTasks.reduce((sum, t) => sum + (t.basePoints || 0), 0);
+
   const scheduledTasks = isScheduledView ? allEnrichedTasks.filter(task => {
     if (task.frequency === 'adhoc') return false;
     if (filters.pillars.length > 0 && !filters.pillars.includes(task.pillarId)) return false;
@@ -113,6 +115,7 @@ export default function TasksPage() {
     goalsList,
     cycles,
     maxStarsReached,
+    totalBasePoints,
     timers,
     pendingValues,
     setPendingValues,

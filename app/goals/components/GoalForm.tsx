@@ -538,7 +538,12 @@ export default function GoalForm({
             disabled={saving || disabled}
             className="px-6 py-2 bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed text-white dark:text-zinc-900 rounded-lg font-medium flex items-center gap-2"
           >
-            <FaCheck /> {editingOutcome ? "Update" : "Create"}
+            {saving ? (
+              <div className="w-4 h-4 border-2 border-white/30 dark:border-zinc-900/30 border-t-white dark:border-t-zinc-900 rounded-full animate-spin" />
+            ) : (
+              <FaCheck />
+            )}
+            {saving ? "Saving..." : editingOutcome ? "Update" : "Create"}
           </button>
         </div>
       </div>
