@@ -390,8 +390,8 @@ export default function TaskItem({
           )}
         </div>
 
-        {/* Right: completion controls + menu */}
-        <div className="flex items-center gap-1.5 shrink-0">
+        {/* Right: completion controls */}
+        <div className="flex items-center gap-1 shrink-0 max-w-[45%]">
           <>
             {task.completionType === 'checkbox' && !isFrozen && (
               <button

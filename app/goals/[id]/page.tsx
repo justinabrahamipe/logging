@@ -15,11 +15,14 @@ import {
   FaSyncAlt,
 } from "react-icons/fa";
 import { Snackbar, Alert as MuiAlert } from "@mui/material";
+import { AnimatePresence } from "framer-motion";
+import { FaClipboardList, FaCopy } from "react-icons/fa";
 import { calculateEffortMetrics } from "@/lib/effort-calculations";
-import { Outcome, LogEntry } from "../types";
+import { Outcome, LogEntry, Cycle } from "../types";
 import { formatScheduleLabel } from "@/lib/constants";
 import HabitHeatmap from "../components/HabitHeatmap";
 import ProgressChart from "../components/ProgressChart";
+import LogModal from "../components/LogModal";
 import TaskItem from "@/app/tasks/components/TaskItem";
 import type { EnrichedTask } from "@/app/tasks/components/TaskItem";
 import { formatDate, getTodayString } from "@/lib/format";
@@ -38,6 +41,9 @@ export default function GoalDetailPage() {
   const [taskCompletionDates, setTaskCompletionDates] = useState<{ date: string; value: number; completed: boolean }[]>([]);
   const [loading, setLoading] = useState(true);
   const [archiving, setArchiving] = useState(false);
+  const [logTarget, setLogTarget] = useState(false);
+  const [cycles, setCycles] = useState<Cycle[]>([]);
+  const [showCyclePicker, setShowCyclePicker] = useState(false);
   const [sortCol, setSortCol] = useState<"date" | "points" | "status">("date");
   const [sortAsc, setSortAsc] = useState(false);
   const [pendingValues, setPendingValues] = useState<Record<number, string>>({});
@@ -110,6 +116,7 @@ export default function GoalDetailPage() {
       return;
     }
     if (session?.user?.id) {
+      fetch("/api/cycles").then(r => r.ok ? r.json() : []).then(setCycles);
       Promise.all([
         fetch("/api/goals").then((r) => r.ok ? r.json() : []),
         fetch(`/api/goals/${id}/log`).then((r) => r.ok ? r.json() : []),
@@ -261,6 +268,57 @@ export default function GoalDetailPage() {
 
 
 
+  const handleLogSave = async (value: number, logDate: string | null) => {
+    if (!outcome) return;
+    try {
+      const res = await fetch(`/api/goals/${outcome.id}/log`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ value, loggedAt: logDate }),
+      });
+      if (res.ok) {
+        // Refresh data
+        const [goalsData, logData] = await Promise.all([
+          fetch("/api/goals").then(r => r.ok ? r.json() : []),
+          fetch(`/api/goals/${outcome.id}/log`).then(r => r.ok ? r.json() : []),
+        ]);
+        const found = goalsData.find((o: Outcome) => String(o.id) === id);
+        if (found) setOutcome(found);
+        setLogs(logData);
+        setSnackbar({ open: true, message: "Progress logged", severity: "success" });
+      }
+    } catch {
+      setSnackbar({ open: true, message: "Failed to log progress", severity: "error" });
+    }
+    setLogTarget(false);
+  };
+
+  const handleCopyToCycle = async (cycleId: number) => {
+    if (!outcome) return;
+    const cycle = cycles.find(c => c.id === cycleId);
+    if (!cycle) return;
+    try {
+      const res = await fetch("/api/goals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: outcome.name, targetValue: outcome.targetValue, unit: outcome.unit,
+          pillarId: outcome.pillarId, periodId: cycleId, goalType: outcome.goalType,
+          completionType: outcome.completionType, dailyTarget: outcome.dailyTarget,
+          scheduleDays: outcome.scheduleDays ? JSON.parse(outcome.scheduleDays) : null,
+          autoCreateTasks: outcome.autoCreateTasks, startValue: outcome.startValue,
+          startDate: cycle.startDate, targetDate: cycle.endDate,
+        }),
+      });
+      if (res.ok) {
+        setSnackbar({ open: true, message: `Goal copied to ${cycle.name}`, severity: "success" });
+        setShowCyclePicker(false);
+      }
+    } catch {
+      setSnackbar({ open: true, message: "Failed to copy goal", severity: "error" });
+    }
+  };
+
   const handleStatusChange = (newStatus: 'active' | 'completed' | 'abandoned') => {
     if (!outcome) return;
     const label = newStatus === 'completed' ? 'complete' : newStatus === 'abandoned' ? 'abandon' : 'reactivate';
@@ -381,6 +439,33 @@ export default function GoalDetailPage() {
         <div className="flex items-center gap-1 shrink-0">
           {outcome.status === 'active' ? (
             <>
+              <button
+                onClick={() => setLogTarget(true)}
+                className="p-2 rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                title="Log Progress"
+              >
+                <FaClipboardList />
+              </button>
+              <div className="relative">
+                <button
+                  onClick={() => setShowCyclePicker(!showCyclePicker)}
+                  className="p-2 rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                  title="Copy to Cycle"
+                >
+                  <FaCopy />
+                </button>
+                {showCyclePicker && (
+                  <div className="absolute right-0 top-10 w-48 bg-white dark:bg-zinc-800 rounded-lg shadow-lg border border-zinc-200 dark:border-zinc-700 z-50 overflow-hidden">
+                    {cycles.length === 0 ? (
+                      <p className="px-4 py-2 text-xs text-zinc-400">No cycles</p>
+                    ) : cycles.map(c => (
+                      <button key={c.id} onClick={() => handleCopyToCycle(c.id)} className="w-full px-4 py-2 text-left text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700">
+                        {c.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <button
                 onClick={() => handleStatusChange('completed')}
                 disabled={archiving}
@@ -625,6 +710,17 @@ export default function GoalDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Log Modal */}
+      <AnimatePresence>
+        {logTarget && outcome && (
+          <LogModal
+            logTarget={outcome}
+            onClose={() => setLogTarget(false)}
+            onSave={handleLogSave}
+          />
+        )}
+      </AnimatePresence>
 
       <Snackbar
         open={snackbar.open}
