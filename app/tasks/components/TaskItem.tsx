@@ -19,7 +19,9 @@ interface TaskItemProps {
   task: EnrichedTask;
   showDate?: string;
   hidePillar?: boolean;
-  totalBasePoints?: number;
+  pillarMaxPoints?: Record<number, number>;
+  pillarWeightMap?: Record<number, number>;
+  totalWeight?: number;
   goalsList: Outcome[];
   cycles: Cycle[];
   maxStarsReached: boolean;
@@ -50,7 +52,9 @@ export default function TaskItem({
   task,
   showDate,
   hidePillar,
-  totalBasePoints,
+  pillarMaxPoints,
+  pillarWeightMap,
+  totalWeight,
   goalsList,
   cycles,
   maxStarsReached,
@@ -342,16 +346,22 @@ export default function TaskItem({
             <h3 className={`text-sm font-semibold leading-snug truncate ${isDiscarded ? 'line-through text-amber-500 dark:text-amber-400 italic' : isFullyDone ? 'line-through text-zinc-400 dark:text-zinc-500' : 'text-zinc-900 dark:text-white'}`}>
               {task.name}
             </h3>
-            {totalBasePoints != null && totalBasePoints > 0 && task.startDate && (() => {
+            {pillarMaxPoints && pillarWeightMap && totalWeight && totalWeight > 0 && task.startDate && (() => {
               const isTargetGoalTask = task.goalId && goalsList.some(g => g.id === task.goalId && g.goalType === 'target');
               if (isTargetGoalTask) return null;
-              const earned = task.completion?.pointsEarned ?? 0;
-              const pct = earned > 0
-                ? Math.round((earned / totalBasePoints) * 1000) / 10
-                : Math.round((task.basePoints / totalBasePoints) * 1000) / 10;
+              const pid = task.pillarId ?? 0;
+              const pMax = pillarMaxPoints[pid];
+              if (!pMax || pMax <= 0) return null;
+              const pWeight = pillarWeightMap[pid] ?? 0;
+              if (pWeight <= 0) return null;
+              const mult = task.completion?.isHighlighted ? 2 : 1;
+              const earned = (task.completion?.pointsEarned ?? 0) * mult;
+              const potential = task.basePoints * mult;
+              const earnedPct = Math.round((earned / pMax) * (pWeight / totalWeight) * 1000) / 10;
+              const potentialPct = Math.round((potential / pMax) * (pWeight / totalWeight) * 1000) / 10;
               return (
                 <span className={`text-[10px] font-medium shrink-0 ${isFullyDone ? 'text-green-500 dark:text-green-400' : isDiscarded ? 'text-amber-400' : 'text-zinc-400 dark:text-zinc-500'}`}>
-                  {earned > 0 ? `${pct}%` : `(${pct}%)`}
+                  {earned > 0 ? `${earnedPct}%` : `(${potentialPct}%)`}
                 </span>
               );
             })()}
