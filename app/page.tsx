@@ -1,12 +1,25 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { FaArrowRight, FaBolt, FaFire, FaTrophy, FaTasks, FaColumns, FaChartLine, FaCrown } from "react-icons/fa";
 import { useSession } from "next-auth/react";
 
 export default function Home() {
-  const { status } = useSession();
+  const { data: session, status } = useSession();
+  const [isPremium, setIsPremium] = useState(false);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    try {
+      const cached = sessionStorage.getItem("userSettings");
+      if (cached && JSON.parse(cached).isPremium) { setIsPremium(true); return; }
+    } catch {}
+    fetch("/api/settings").then(r => r.ok ? r.json() : null).then(data => {
+      if (data?.isPremium) setIsPremium(true);
+    }).catch(() => {});
+  }, [status]);
 
   const features = [
     { title: "Daily Scoring", desc: "Points-based action scores across life pillars", icon: FaBolt },
@@ -155,7 +168,7 @@ export default function Home() {
       </div>
 
       {/* Premium CTA */}
-      <div className="py-20 px-4 bg-zinc-950 border-t border-zinc-900">
+      {!isPremium && <div className="py-20 px-4 bg-zinc-950 border-t border-zinc-900">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -183,7 +196,7 @@ export default function Home() {
             </motion.button>
           </Link>
         </motion.div>
-      </div>
+      </div>}
 
       {/* Quick Access */}
       <div className="py-20 px-4 bg-zinc-950 border-t border-zinc-900">

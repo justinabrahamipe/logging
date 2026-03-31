@@ -184,7 +184,14 @@ export default function Header() {
           {/* Logo */}
           <Link href="/">
             <div className="flex items-center gap-2 cursor-pointer">
-              <img src="/icons/icon-96x96.png" alt="Grind Console" className="w-11 h-11 rounded-lg" />
+              <div className="relative">
+                <img src="/icons/icon-96x96.png" alt="Grind Console" className="w-11 h-11 rounded-lg" />
+                {isPremium && (
+                  <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center shadow-sm border-2 border-white dark:border-zinc-950">
+                    <FaCrown className="text-[8px] text-white" />
+                  </div>
+                )}
+              </div>
               <span className="text-lg font-semibold text-zinc-900 dark:text-white">
                 Grind Console
               </span>
