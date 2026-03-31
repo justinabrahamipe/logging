@@ -45,9 +45,9 @@ export async function PUT(request: Request) {
     const userId = await getAuthenticatedUserId();
 
     body = await request.json() as Record<string, unknown>;
-    const { theme, timeFormat, dateFormat, streakThreshold, habitualColor, targetColor, outcomeColor } = body as {
+    const { theme, timeFormat, dateFormat, streakThreshold, habitualColor, targetColor, outcomeColor, promoCode } = body as {
       theme?: string; timeFormat?: string; dateFormat?: string; streakThreshold?: number;
-      habitualColor?: string; targetColor?: string; outcomeColor?: string;
+      habitualColor?: string; targetColor?: string; outcomeColor?: string; promoCode?: string;
     };
 
     const validThemes = ["light", "dark", "system"];
@@ -81,6 +81,16 @@ export async function PUT(request: Request) {
       if (habitualColor) updateData.habitualColor = habitualColor;
       if (targetColor) updateData.targetColor = targetColor;
       if (outcomeColor) updateData.outcomeColor = outcomeColor;
+      if (promoCode !== undefined) {
+        const VALID_CODES = ['FREE123'];
+        if (VALID_CODES.includes(promoCode.toUpperCase())) {
+          updateData.isPremium = true;
+          updateData.premiumActivatedAt = new Date();
+          updateData.promoCode = promoCode.toUpperCase();
+        } else {
+          return NextResponse.json({ error: "Invalid promo code" }, { status: 400 });
+        }
+      }
       const [updated] = await db.update(userPreferences)
         .set(updateData)
         .where(eq(userPreferences.userId, userId))

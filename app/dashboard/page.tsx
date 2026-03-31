@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
+import AdBanner from "@/app/(common)/AdBanner";
 import { formatDate, getTodayString } from "@/lib/format";
 import { useDashboard } from "./hooks/useDashboard";
 import ScoreCard from "./components/ScoreCard";
@@ -75,6 +76,8 @@ export default function DashboardPage() {
             <ScoreCard score={score} momentumData={momentumData} />
 
             <GoalProgress outcomesData={activeOutcomes} completionDates={completionDates} today={today} />
+
+            <AdBanner slot="dashboard-mid" />
 
             <CyclePerformance />
 

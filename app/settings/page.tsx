@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { FaClock, FaCalendar, FaCheck, FaCog, FaDatabase, FaTrash, FaDownload, FaExclamationTriangle, FaTasks, FaColumns, FaKey, FaCopy, FaFire, FaPalette } from "react-icons/fa";
+import { FaClock, FaCalendar, FaCheck, FaCog, FaDatabase, FaTrash, FaDownload, FaExclamationTriangle, FaTasks, FaColumns, FaKey, FaCopy, FaFire, FaPalette, FaCrown } from "react-icons/fa";
 import { useSession } from "next-auth/react";
 import { useTheme } from "@/components/ThemeProvider";
 import { Snackbar, Alert as MuiAlert } from "@mui/material";
@@ -26,6 +26,9 @@ export default function SettingsPage() {
   const [habitualColor, setHabitualColor] = useState('#3B82F6');
   const [targetColor, setTargetColor] = useState('#F59E0B');
   const [outcomeColor, setOutcomeColor] = useState('#A855F7');
+  const [isPremium, setIsPremium] = useState(false);
+  const [promoInput, setPromoInput] = useState("");
+  const [promoLoading, setPromoLoading] = useState(false);
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [apiKeyCopied, setApiKeyCopied] = useState(false);
   const [apiLinkCopied, setApiLinkCopied] = useState(false);
@@ -63,6 +66,7 @@ export default function SettingsPage() {
         if (data.habitualColor) setHabitualColor(data.habitualColor);
         if (data.targetColor) setTargetColor(data.targetColor);
         if (data.outcomeColor) setOutcomeColor(data.outcomeColor);
+        if (data.isPremium) setIsPremium(true);
       } catch {}
     }
 
@@ -77,6 +81,7 @@ export default function SettingsPage() {
         if (data.targetColor) setTargetColor(data.targetColor);
         if (data.outcomeColor) setOutcomeColor(data.outcomeColor);
         setApiKey(data.apiKey || null);
+        setIsPremium(!!data.isPremium);
         sessionStorage.setItem('userSettings', JSON.stringify(data));
       }
     } catch (error) {
@@ -265,6 +270,101 @@ export default function SettingsPage() {
         </div>
 
         <div className="space-y-4 md:space-y-6">
+
+            {/* Premium */}
+            <div className={`bg-white dark:bg-zinc-800 rounded-xl shadow-sm border ${isPremium ? 'border-amber-300 dark:border-amber-600' : 'border-zinc-200 dark:border-zinc-700'} p-4 md:p-6`}>
+              <div className="flex items-center gap-3 mb-4">
+                <div className={`p-3 rounded-lg ${isPremium ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-zinc-100 dark:bg-zinc-800'}`}>
+                  <FaCrown className={`text-2xl ${isPremium ? 'text-amber-500' : 'text-zinc-600 dark:text-zinc-400'}`} />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white">Premium</h2>
+                    {isPremium && (
+                      <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-600">
+                        ACTIVE
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                    {isPremium ? 'You have premium access — no ads!' : 'Remove ads and support development'}
+                  </p>
+                </div>
+              </div>
+
+              {isPremium ? (
+                <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/30 rounded-lg p-4">
+                  <p className="text-sm text-amber-800 dark:text-amber-300">
+                    Thank you for being a premium member! You enjoy an ad-free experience across the app.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="bg-zinc-50 dark:bg-zinc-900 rounded-lg p-4">
+                    <div className="flex items-baseline gap-1 mb-1">
+                      <span className="text-3xl font-bold text-zinc-900 dark:text-white">£3</span>
+                      <span className="text-sm text-zinc-500 dark:text-zinc-400">/month</span>
+                    </div>
+                    <ul className="text-sm text-zinc-600 dark:text-zinc-400 space-y-1 mt-2">
+                      <li className="flex items-center gap-2"><FaCheck className="text-green-500 text-xs" /> Ad-free experience</li>
+                      <li className="flex items-center gap-2"><FaCheck className="text-green-500 text-xs" /> Support ongoing development</li>
+                      <li className="flex items-center gap-2"><FaCheck className="text-green-500 text-xs" /> Early access to new features</li>
+                    </ul>
+                    <a
+                      href="https://buy.stripe.com/test_9B67sMfBvbPG0dZ6oEds400"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-3 w-full block text-center px-4 py-2.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 font-semibold text-sm rounded-lg transition-colors"
+                    >
+                      Subscribe — £3/month
+                    </a>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Have a promo code?</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={promoInput}
+                        onChange={(e) => setPromoInput(e.target.value)}
+                        placeholder="Enter code"
+                        className="flex-1 px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white text-sm"
+                      />
+                      <button
+                        onClick={async () => {
+                          if (!promoInput.trim()) return;
+                          setPromoLoading(true);
+                          try {
+                            const res = await fetch("/api/settings", {
+                              method: "PUT",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ promoCode: promoInput.trim() }),
+                            });
+                            if (res.ok) {
+                              const data = await res.json();
+                              setIsPremium(true);
+                              setPromoInput("");
+                              sessionStorage.setItem('userSettings', JSON.stringify(data));
+                              setSnackbar({ open: true, message: "Premium activated! Enjoy your ad-free experience.", severity: "success" });
+                            } else {
+                              const err = await res.json();
+                              setSnackbar({ open: true, message: err.error || "Invalid promo code", severity: "error" });
+                            }
+                          } catch {
+                            setSnackbar({ open: true, message: "Failed to activate code", severity: "error" });
+                          } finally {
+                            setPromoLoading(false);
+                          }
+                        }}
+                        disabled={promoLoading || !promoInput.trim()}
+                        className="px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200 font-medium text-sm rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {promoLoading ? "..." : "Activate"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Time Format */}
             <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-4 md:p-6">

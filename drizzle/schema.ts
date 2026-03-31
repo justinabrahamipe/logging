@@ -63,6 +63,9 @@ export const userPreferences = sqliteTable('UserPreferences', {
   habitualColor: text('habitualColor').notNull().default('#3B82F6'), // blue
   targetColor: text('targetColor').notNull().default('#F59E0B'), // amber
   outcomeColor: text('outcomeColor').notNull().default('#A855F7'), // purple
+  isPremium: integer('isPremium', { mode: 'boolean' }).notNull().default(false),
+  premiumActivatedAt: integer('premiumActivatedAt', { mode: 'timestamp' }),
+  promoCode: text('promoCode'),
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({

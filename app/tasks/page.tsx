@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { FaPlus, FaChevronDown, FaChevronRight } from "react-icons/fa";
+import AdBanner from "@/app/(common)/AdBanner";
 import { Snackbar, Alert as MuiAlert } from "@mui/material";
 import { formatDate } from "@/lib/format";
 import { useTasksPage } from "./hooks/useTasksPage";
@@ -159,6 +160,7 @@ export default function TasksPage() {
             <div style={gridStyle}>{todoTasks.map(renderItem)}</div>
           </TaskSectionAccordion>
         )}
+        <AdBanner slot="tasks-mid" />
         {skippedTasks.length > 0 && (
           <TaskSectionAccordion storageKey="skippedAccordionOpen" label="Skipped" count={skippedTasks.length} color="text-amber-500 dark:text-amber-400">
             <div style={gridStyle}>{skippedTasks.map(renderItem)}</div>

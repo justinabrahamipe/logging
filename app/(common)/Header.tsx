@@ -20,6 +20,7 @@ export default function Header() {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstallable, setIsInstallable] = useState(false);
+  const [isPremium, setIsPremium] = useState(false);
   const pathname = usePathname();
   const { data: session, status } = useSession();
   const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -114,6 +115,21 @@ export default function Header() {
       // silently fail
     }
   };
+
+  // Load premium status
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    try {
+      const cached = sessionStorage.getItem('userSettings');
+      if (cached) {
+        const data = JSON.parse(cached);
+        if (data.isPremium) { setIsPremium(true); return; }
+      }
+    } catch {}
+    fetch("/api/settings").then(r => r.ok ? r.json() : null).then(data => {
+      if (data?.isPremium) setIsPremium(true);
+    }).catch(() => {});
+  }, [status]);
 
   // Load cached stats from sessionStorage on mount
   useEffect(() => {
@@ -257,7 +273,12 @@ export default function Header() {
                       className="absolute right-0 mt-2 w-52 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden z-50 shadow-sm"
                     >
                       <div className="px-3 py-2.5 border-b border-zinc-100 dark:border-zinc-800">
-                        <p className="text-sm font-medium text-zinc-900 dark:text-white truncate">{session?.user?.name || "User"}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-medium text-zinc-900 dark:text-white truncate">{session?.user?.name || "User"}</p>
+                          {isPremium && (
+                            <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300">PRO</span>
+                          )}
+                        </div>
                         <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{session?.user?.email || ""}</p>
                       </div>
 
