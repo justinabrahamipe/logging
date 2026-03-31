@@ -9,6 +9,8 @@ import { Snackbar, Alert as MuiAlert } from "@mui/material";
 export default function PremiumPage() {
   const { data: session } = useSession();
   const [isPremium, setIsPremium] = useState<boolean | null>(null);
+  const [nextBillingDate, setNextBillingDate] = useState<string | null>(null);
+  const [cancelAtPeriodEnd, setCancelAtPeriodEnd] = useState(false);
   const [promoInput, setPromoInput] = useState("");
   const [promoLoading, setPromoLoading] = useState(false);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: "success" | "error" }>({ open: false, message: "", severity: "success" });
@@ -17,10 +19,16 @@ export default function PremiumPage() {
     if (!session?.user) { setIsPremium(false); return; }
     const cached = sessionStorage.getItem("userSettings");
     if (cached) {
-      try { const data = JSON.parse(cached); setIsPremium(!!data.isPremium); return; } catch {}
+      try { const data = JSON.parse(cached); setIsPremium(!!data.isPremium); } catch {}
     }
     fetch("/api/settings").then(r => r.ok ? r.json() : null).then(data => {
       setIsPremium(data ? !!data.isPremium : false);
+      if (data?.isPremium) {
+        fetch("/api/stripe/subscription").then(r => r.ok ? r.json() : null).then(sub => {
+          if (sub?.nextBillingDate) setNextBillingDate(sub.nextBillingDate);
+          if (sub?.cancelAtPeriodEnd) setCancelAtPeriodEnd(true);
+        }).catch(() => {});
+      }
     }).catch(() => setIsPremium(false));
   }, [session]);
 
@@ -90,7 +98,11 @@ export default function PremiumPage() {
                 You have full premium access. Enjoy your ad-free experience across the entire app.
               </p>
               <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-2">
-                £2.99/month — renews automatically each month
+                £2.99/month
+                {cancelAtPeriodEnd
+                  ? nextBillingDate ? ` — cancels on ${new Date(nextBillingDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}` : ''
+                  : nextBillingDate ? ` — next payment on ${new Date(nextBillingDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}` : ' — renews automatically each month'
+                }
               </p>
             </div>
             <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-6">
