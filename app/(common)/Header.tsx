@@ -8,7 +8,7 @@ interface BeforeInstallPromptEvent extends Event {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaBolt, FaColumns, FaTasks, FaBars, FaTimes, FaSignOutAlt, FaCog, FaDownload, FaHistory, FaChartLine, FaCalendarAlt, FaSun, FaMoon, FaEnvelope, FaMapMarkerAlt } from "react-icons/fa";
+import { FaBolt, FaColumns, FaTasks, FaBars, FaTimes, FaSignOutAlt, FaCog, FaDownload, FaHistory, FaChartLine, FaCalendarAlt, FaSun, FaMoon, FaEnvelope, FaMapMarkerAlt, FaCrown } from "react-icons/fa";
 import { useState, useEffect, useRef } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useTheme } from "@/components/ThemeProvider";
@@ -283,6 +283,16 @@ export default function Header() {
                       </div>
 
                       <div className="py-1">
+                        <Link href="/premium">
+                          <button
+                            onClick={() => setIsProfileMenuOpen(false)}
+                            className={`w-full px-3 py-2 text-left flex items-center gap-2.5 text-sm transition-colors ${isPremium ? 'text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20' : 'text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800'}`}
+                          >
+                            <FaCrown className="text-xs" />
+                            {isPremium ? 'Premium' : 'Upgrade to Pro'}
+                          </button>
+                        </Link>
+
                         <Link href="/activity">
                           <button
                             onClick={() => setIsProfileMenuOpen(false)}
@@ -432,6 +442,13 @@ export default function Header() {
                           <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{session?.user?.email || ""}</p>
                         </div>
                       </div>
+
+                      <Link href="/premium">
+                        <div onClick={() => setIsMobileMenuOpen(false)} className={`flex items-center gap-2.5 px-3 py-2.5 rounded-md text-sm ${isPremium ? 'text-amber-600 dark:text-amber-400' : 'text-zinc-600 dark:text-zinc-300'}`}>
+                          <FaCrown className="text-sm" />
+                          {isPremium ? 'Premium' : 'Upgrade to Pro'}
+                        </div>
+                      </Link>
 
                       <Link href="/activity">
                         <div onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2.5 px-3 py-2.5 rounded-md text-sm text-zinc-600 dark:text-zinc-300">

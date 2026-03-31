@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { FaArrowRight, FaBolt, FaFire, FaTrophy, FaTasks, FaColumns, FaChartLine } from "react-icons/fa";
+import { FaArrowRight, FaBolt, FaFire, FaTrophy, FaTasks, FaColumns, FaChartLine, FaCrown } from "react-icons/fa";
 import { useSession } from "next-auth/react";
 
 export default function Home() {
@@ -152,6 +152,37 @@ export default function Home() {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Premium CTA */}
+      <div className="py-20 px-4 bg-zinc-950 border-t border-zinc-900">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="max-w-2xl mx-auto text-center"
+        >
+          <div className="inline-flex p-3 rounded-xl bg-amber-500/10 mb-4">
+            <FaCrown className="text-2xl text-amber-500" />
+          </div>
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-3">Go Premium</h2>
+          <p className="text-zinc-500 mb-6 max-w-md mx-auto">
+            Remove ads, get early access to features, and support ongoing development.
+          </p>
+          <div className="flex items-baseline justify-center gap-1 mb-6">
+            <span className="text-4xl font-bold text-white">£2.99</span>
+            <span className="text-zinc-500">/month</span>
+          </div>
+          <Link href="/premium">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="px-8 py-3 bg-amber-500 hover:bg-amber-400 text-zinc-900 font-semibold rounded-xl transition-colors"
+            >
+              Learn More
+            </motion.button>
+          </Link>
+        </motion.div>
       </div>
 
       {/* Quick Access */}
