@@ -5,13 +5,27 @@ import { FaCheck, FaPlus, FaMinus } from "react-icons/fa";
 import type { Pillar } from "@/lib/types";
 
 const EMOJI_OPTIONS = [
-  "\u{1F4AA}", "\u{1F4BC}", "\u{1F680}", "\u{1F3E0}", "\u{1F4D6}",
-  "\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467}", "\u{1F3AF}", "\u{1F4B0}", "\u{1F9E0}", "\u{1F3A8}",
-  "\u{1F3CB}\u{FE0F}", "\u{1F4CC}", "\u{2B50}", "\u{2764}\u{FE0F}", "\u{1F525}",
+  "\u{1F4AA}", "\u{1F3CB}\u{FE0F}", "\u{1F3C3}", "\u{1F6B4}", "\u{1F9D8}",
+  "\u{1F4BC}", "\u{1F4BB}", "\u{1F680}", "\u{1F4C8}", "\u{1F3AF}",
+  "\u{1F3E0}", "\u{1F373}", "\u{1F6CF}\u{FE0F}", "\u{1F9F9}", "\u{1F6BF}",
+  "\u{1F4D6}", "\u{1F9E0}", "\u{1F393}", "\u{270D}\u{FE0F}", "\u{1F4DD}",
+  "\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467}", "\u{2764}\u{FE0F}", "\u{1F64F}", "\u{1F91D}", "\u{1F46A}",
+  "\u{1F4B0}", "\u{1F4B3}", "\u{1F3E6}", "\u{1F4CA}", "\u{1F4B8}",
+  "\u{1F3A8}", "\u{1F3B5}", "\u{1F3AE}", "\u{1F4F7}", "\u{1F3AC}",
+  "\u{2B50}", "\u{1F525}", "\u{1F48E}", "\u{1F30D}", "\u{26A1}",
+  "\u{1F4CC}", "\u{1F6E0}\u{FE0F}", "\u{2699}\u{FE0F}", "\u{1F512}", "\u{1F4E6}",
 ];
 const COLOR_OPTIONS = [
-  "#EF4444", "#F59E0B", "#10B981", "#3B82F6", "#8B5CF6",
-  "#EC4899", "#14B8A6", "#F97316", "#6366F1", "#84CC16",
+  "#EF4444", "#F87171", "#DC2626",
+  "#F59E0B", "#FBBF24", "#D97706",
+  "#F97316", "#FB923C", "#EA580C",
+  "#10B981", "#34D399", "#059669",
+  "#14B8A6", "#2DD4BF", "#0D9488",
+  "#3B82F6", "#60A5FA", "#2563EB",
+  "#6366F1", "#818CF8", "#4F46E5",
+  "#8B5CF6", "#A78BFA", "#7C3AED",
+  "#EC4899", "#F472B6", "#DB2777",
+  "#84CC16", "#A3E635", "#65A30D",
 ];
 
 export default function PillarForm({
