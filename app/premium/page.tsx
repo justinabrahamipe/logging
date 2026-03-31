@@ -8,20 +8,20 @@ import { Snackbar, Alert as MuiAlert } from "@mui/material";
 
 export default function PremiumPage() {
   const { data: session } = useSession();
-  const [isPremium, setIsPremium] = useState(false);
+  const [isPremium, setIsPremium] = useState<boolean | null>(null);
   const [promoInput, setPromoInput] = useState("");
   const [promoLoading, setPromoLoading] = useState(false);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: "success" | "error" }>({ open: false, message: "", severity: "success" });
 
   useEffect(() => {
-    if (!session?.user) return;
+    if (!session?.user) { setIsPremium(false); return; }
     const cached = sessionStorage.getItem("userSettings");
     if (cached) {
-      try { if (JSON.parse(cached).isPremium) { setIsPremium(true); return; } } catch {}
+      try { const data = JSON.parse(cached); setIsPremium(!!data.isPremium); return; } catch {}
     }
     fetch("/api/settings").then(r => r.ok ? r.json() : null).then(data => {
-      if (data?.isPremium) setIsPremium(true);
-    }).catch(() => {});
+      setIsPremium(data ? !!data.isPremium : false);
+    }).catch(() => setIsPremium(false));
   }, [session]);
 
   const handlePromoActivate = async () => {
@@ -59,6 +59,11 @@ export default function PremiumPage() {
 
   return (
     <div className="container mx-auto px-4 py-6 md:py-12 max-w-2xl">
+      {isPremium === null ? (
+        <div className="flex justify-center py-20">
+          <div className="w-8 h-8 border-2 border-zinc-300 dark:border-zinc-600 border-t-zinc-900 dark:border-t-zinc-100 rounded-full animate-spin" />
+        </div>
+      ) : (
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
 
         {/* Header */}
@@ -76,13 +81,42 @@ export default function PremiumPage() {
 
         {/* Premium Active State */}
         {isPremium ? (
-          <div className="bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-900/20 dark:to-amber-800/10 border border-amber-200 dark:border-amber-800/40 rounded-2xl p-6 text-center">
-            <span className="inline-block px-3 py-1 text-sm font-bold rounded-full bg-amber-200 dark:bg-amber-800/40 text-amber-800 dark:text-amber-300 mb-3">
-              ACTIVE
-            </span>
-            <p className="text-zinc-700 dark:text-zinc-300">
-              You have full premium access. Enjoy your ad-free experience across the entire app.
-            </p>
+          <div className="space-y-4">
+            <div className="bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-900/20 dark:to-amber-800/10 border border-amber-200 dark:border-amber-800/40 rounded-2xl p-6 text-center">
+              <span className="inline-block px-3 py-1 text-sm font-bold rounded-full bg-amber-200 dark:bg-amber-800/40 text-amber-800 dark:text-amber-300 mb-3">
+                ACTIVE
+              </span>
+              <p className="text-zinc-700 dark:text-zinc-300">
+                You have full premium access. Enjoy your ad-free experience across the entire app.
+              </p>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-2">
+                £2.99/month — renews automatically each month
+              </p>
+            </div>
+            <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-700 p-6">
+              <h3 className="text-sm font-medium text-zinc-900 dark:text-white mb-3">Manage Subscription</h3>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
+                Update payment method, view invoices, or cancel your subscription.
+              </p>
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await fetch("/api/stripe/portal", { method: "POST" });
+                    if (res.ok) {
+                      const { url } = await res.json();
+                      window.location.href = url;
+                    } else {
+                      setSnackbar({ open: true, message: "Could not open subscription management", severity: "error" });
+                    }
+                  } catch {
+                    setSnackbar({ open: true, message: "Something went wrong", severity: "error" });
+                  }
+                }}
+                className="px-5 py-2.5 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200 font-medium text-sm rounded-lg transition-colors"
+              >
+                Manage Subscription
+              </button>
+            </div>
           </div>
         ) : (
           <>
@@ -160,6 +194,7 @@ export default function PremiumPage() {
           </div>
         )}
       </motion.div>
+      )}
 
       <Snackbar
         open={snackbar.open}
