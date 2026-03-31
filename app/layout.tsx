@@ -62,6 +62,7 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <meta name="google-adsense-account" content="ca-pub-1966982727823037" />
         {process.env.NEXT_PUBLIC_ADSENSE_ID && (
           <script
             async
