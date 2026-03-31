@@ -68,6 +68,7 @@ export interface Outcome {
   autoCreateTasks: boolean;
   flexibilityRule?: string;
   limitValue?: number | null;
+  basePoints?: number;
 
   status?: string;
   pillarName: string | null;
@@ -339,6 +340,7 @@ export interface TaskFormState {
   repeatUnit: "days" | "weeks" | "months";
   monthDay: number;
   basePoints: string;
+  pointsMode: 'pillar' | 'manual';
   startDate: string;
 }
 
@@ -355,6 +357,8 @@ export interface GoalFormState {
   completionType: "checkbox" | "count" | "numeric" | "duration";
   dailyTarget: string;
 
+  basePoints: string;
+  pointsMode: 'pillar' | 'manual';
   autoCreateTasks: boolean;
   flexibilityRule: string;
   frequencyPreset: string;

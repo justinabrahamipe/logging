@@ -56,6 +56,7 @@ export async function handleCreateGoal(args: any, userId: string): Promise<strin
     autoCreateTasks: args.autoCreateTasks || false,
     flexibilityRule: args.flexibilityRule || 'must_today',
     limitValue: args.limitValue ?? null,
+    basePoints: args.basePoints ?? 10,
   }).returning();
 
   // Generate all tasks upfront for the full goal date range

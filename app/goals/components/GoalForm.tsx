@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { FaCheck } from "react-icons/fa";
+import { FaCheck, FaPlus, FaMinus } from "react-icons/fa";
 import { countScheduledDaysInRange } from "@/lib/effort-calculations";
-import { Outcome, Pillar, CycleOption, GoalFormState } from "../types";
+import { Outcome, Pillar, CycleOption } from "../types";
+import type { GoalFormState } from "@/lib/types";
 import { DAY_NAMES, FREQUENCY_PRESETS, REPEAT_UNITS } from "../constants";
 import PerSessionLabel from "./PerSessionLabel";
 import { getTodayString } from "@/lib/format";
@@ -20,6 +21,8 @@ const DEFAULT_FORM: GoalFormState = {
   goalType: "outcome",
   completionType: "checkbox",
   dailyTarget: "",
+  basePoints: "10",
+  pointsMode: 'pillar' as const,
   autoCreateTasks: true,
   flexibilityRule: "must_today",
   frequencyPreset: "daily",
@@ -72,6 +75,11 @@ export default function GoalForm({
         goalType: (editingOutcome.goalType === "effort" ? "target" : editingOutcome.goalType as "habitual" | "target" | "outcome") || "outcome",
         completionType: (editingOutcome.completionType as "checkbox" | "count" | "numeric" | "duration") || "checkbox",
         dailyTarget: editingOutcome.dailyTarget ? String(editingOutcome.dailyTarget) : "",
+        basePoints: String(editingOutcome.basePoints ?? 10),
+        pointsMode: (() => {
+          const pillar = pillars.find(p => p.id === (editingOutcome.pillarId ?? 0));
+          return pillar && (editingOutcome.basePoints ?? 10) === pillar.defaultBasePoints ? 'pillar' as const : 'manual' as const;
+        })(),
         autoCreateTasks: editingOutcome.autoCreateTasks || false,
         flexibilityRule: editingOutcome.flexibilityRule || "must_today",
         frequencyPreset,
@@ -132,6 +140,7 @@ export default function GoalForm({
       dailyTarget: form.dailyTarget ? parseFloat(form.dailyTarget) : null,
       flexibilityRule: form.flexibilityRule,
       limitValue: form.flexibilityRule === 'limit_avoid' && form.dailyTarget ? parseFloat(form.dailyTarget) : null,
+      basePoints: parseFloat(form.basePoints) || 10,
     };
 
     {
@@ -212,90 +221,138 @@ export default function GoalForm({
         </div>
       </div>
 
-      {/* Tracking Type + Per-session target */}
+      {/* Tracking Type + Mode + Per-session */}
       {form.goalType !== "outcome" && (
         <div>
-          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Tracking Type</label>
-          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-            {(form.goalType === "habitual"
-              ? (["checkbox", "count", "numeric", "duration"] as const)
-              : (["count", "numeric", "duration"] as const)
-            ).map((ct) => (
-              <button
-                key={ct}
-                type="button"
-                onClick={() => setForm({ ...form, completionType: ct, unit: ct === "duration" ? "min" : (form.completionType === "duration" ? "" : form.unit) })}
-                className={`px-2 py-2 text-sm rounded-lg border transition-colors whitespace-nowrap ${
-                  form.completionType === ct
-                    ? "border-zinc-900 dark:border-zinc-100 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white"
-                    : "border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300"
-                }`}
-              >
-                {ct === "checkbox" ? "Checkbox" : ct === "count" ? "Count" : ct === "duration" ? "Timer" : "Numeric"}
-              </button>
-            ))}
-          </div>
-          {form.completionType !== "checkbox" && (form.goalType === "habitual" || form.goalType === "target") && (
-            <div className="mt-2">
-              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Mode</label>
-              <div className="grid grid-cols-2 gap-1 max-w-xs">
-                <button
-                  type="button"
-                  onClick={() => setForm({ ...form, flexibilityRule: "must_today" })}
-                  className={`px-3 py-2 text-xs rounded-lg border transition-colors ${
-                    form.flexibilityRule !== "limit_avoid"
-                      ? "border-zinc-900 dark:border-zinc-100 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white"
-                      : "border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300"
-                  }`}
-                >
-                  Target
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setForm({ ...form, flexibilityRule: "limit_avoid" })}
-                  className={`px-3 py-2 text-xs rounded-lg border transition-colors ${
-                    form.flexibilityRule === "limit_avoid"
-                      ? "border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300"
-                      : "border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300"
-                  }`}
-                >
-                  Limit
-                </button>
+          {form.goalType === "target" ? (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Tracking Type</label>
+                  <div className="flex gap-1">
+                    {(["count", "numeric", "duration"] as const).map((ct) => (
+                      <button
+                        key={ct}
+                        type="button"
+                        onClick={() => setForm({ ...form, completionType: ct, unit: ct === "duration" ? "min" : (form.completionType === "duration" ? "" : form.unit) })}
+                        className={`flex-1 px-2 py-2 text-sm rounded-lg border transition-colors whitespace-nowrap ${
+                          form.completionType === ct
+                            ? "border-zinc-900 dark:border-zinc-100 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white"
+                            : "border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300"
+                        }`}
+                      >
+                        {ct === "count" ? "Count" : ct === "duration" ? "Timer" : "Numeric"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Mode</label>
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, flexibilityRule: "must_today" })}
+                      className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-colors ${
+                        form.flexibilityRule !== "limit_avoid"
+                          ? "border-zinc-900 dark:border-zinc-100 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white"
+                          : "border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300"
+                      }`}
+                    >
+                      Target
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, flexibilityRule: "limit_avoid" })}
+                      className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-colors ${
+                        form.flexibilityRule === "limit_avoid"
+                          ? "border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300"
+                          : "border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300"
+                      }`}
+                    >
+                      Limit
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-          )}
-          {form.completionType !== "checkbox" && form.goalType === "habitual" && (
-            <div className="mt-2 grid grid-cols-2 gap-2 max-w-sm">
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                  {form.flexibilityRule === "limit_avoid" ? "Per-session limit" : "Per-session target"}
-                </label>
-                <input
-                  type="number"
-                  step="any"
-                  value={form.dailyTarget}
-                  onChange={(e) => setForm({ ...form, dailyTarget: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
-                  placeholder="e.g., 30"
-                />
+              <div className="mt-2">
+                <PerSessionLabel form={form} />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Unit</label>
-                <input
-                  type="text"
-                  value={form.unit}
-                  onChange={(e) => setForm({ ...form, unit: e.target.value })}
-                  disabled={form.completionType === "duration"}
-                  className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white disabled:opacity-50"
-                  placeholder="e.g., reps, pages"
-                />
+            </>
+          ) : (
+            <>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Tracking Type</label>
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                {(["checkbox", "count", "numeric", "duration"] as const).map((ct) => (
+                  <button
+                    key={ct}
+                    type="button"
+                    onClick={() => setForm({ ...form, completionType: ct, unit: ct === "duration" ? "min" : (form.completionType === "duration" ? "" : form.unit) })}
+                    className={`px-2 py-2 text-sm rounded-lg border transition-colors whitespace-nowrap ${
+                      form.completionType === ct
+                        ? "border-zinc-900 dark:border-zinc-100 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white"
+                        : "border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300"
+                    }`}
+                  >
+                    {ct === "checkbox" ? "Checkbox" : ct === "count" ? "Count" : ct === "duration" ? "Timer" : "Numeric"}
+                  </button>
+                ))}
               </div>
-            </div>
-          )}
-          {form.completionType !== "checkbox" && form.goalType === "target" && (
-            <div className="mt-2">
-              <PerSessionLabel form={form} />
-            </div>
+              {form.completionType !== "checkbox" && (
+                <div className="mt-2 grid grid-cols-2 md:grid-cols-3 gap-2">
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Mode</label>
+                    <div className="flex gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setForm({ ...form, flexibilityRule: "must_today" })}
+                        className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-colors ${
+                          form.flexibilityRule !== "limit_avoid"
+                            ? "border-zinc-900 dark:border-zinc-100 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white"
+                            : "border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300"
+                        }`}
+                      >
+                        Target
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setForm({ ...form, flexibilityRule: "limit_avoid" })}
+                        className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-colors ${
+                          form.flexibilityRule === "limit_avoid"
+                            ? "border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300"
+                            : "border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300"
+                        }`}
+                      >
+                        Limit
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                      {form.flexibilityRule === "limit_avoid" ? "Per-session limit" : "Per-session target"}
+                    </label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={form.dailyTarget}
+                      onChange={(e) => setForm({ ...form, dailyTarget: e.target.value })}
+                      className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
+                      placeholder="e.g., 30"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Unit</label>
+                    <input
+                      type="text"
+                      value={form.unit}
+                      onChange={(e) => setForm({ ...form, unit: e.target.value })}
+                      disabled={form.completionType === "duration"}
+                      className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white disabled:opacity-50"
+                      placeholder="e.g., reps, pages"
+                    />
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
@@ -339,13 +396,21 @@ export default function GoalForm({
       )}
 
 
-      {/* Row 3: Pillar + Repeat */}
+      {/* Row 3: Pillar + Cycle */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div>
           <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Pillar (optional)</label>
           <select
             value={form.pillarId}
-            onChange={(e) => setForm({ ...form, pillarId: e.target.value })}
+            onChange={(e) => {
+              const pid = e.target.value;
+              const pillar = pillars.find(p => String(p.id) === pid);
+              const updates: Partial<GoalFormState> = { pillarId: pid };
+              if (form.pointsMode === 'pillar') {
+                updates.basePoints = String(pillar?.defaultBasePoints ?? 10);
+              }
+              setForm(prev => ({ ...prev, ...updates }));
+            }}
             className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
           >
             <option value="">No Pillar</option>
@@ -353,6 +418,52 @@ export default function GoalForm({
               <option key={p.id} value={p.id}>{p.emoji} {p.name}</option>
             ))}
           </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Goal Cycle</label>
+          <select
+            value={form.periodId}
+            onChange={(e) => {
+              const pid = e.target.value;
+              const cycle = cycles.find((c) => String(c.id) === pid);
+              setForm({
+                ...form,
+                periodId: pid,
+                startDate: cycle ? cycle.startDate : form.startDate,
+                targetDate: cycle ? cycle.endDate : form.targetDate,
+              });
+            }}
+            className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
+          >
+            <option value="">None</option>
+            {cycles.map((c) => (
+              <option key={c.id} value={c.id}>{c.name} ({c.startDate} → {c.endDate})</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Start Date + Target Date + Repeat */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div>
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Start Date</label>
+          <input
+            type="date"
+            value={form.startDate}
+            onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+            className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Target Date</label>
+          <input
+            type="date"
+            value={form.targetDate}
+            onChange={(e) => {
+              setForm(prev => ({ ...prev, targetDate: e.target.value }));
+            }}
+            className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
+          />
         </div>
         <div>
           <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Repeat</label>
@@ -432,55 +543,72 @@ export default function GoalForm({
         </div>
       )}
 
-      {/* Row 4: Cycle + Start Date + Target Date */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      {/* Task Points */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-end">
         <div>
-          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Goal Cycle</label>
-          <select
-            value={form.periodId}
-            onChange={(e) => {
-              const pid = e.target.value;
-              const cycle = cycles.find((c) => String(c.id) === pid);
-              setForm({
-                ...form,
-                periodId: pid,
-                startDate: cycle ? cycle.startDate : form.startDate,
-                targetDate: cycle ? cycle.endDate : form.targetDate,
-              });
-            }}
-            className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
-          >
-            <option value="">None</option>
-            {cycles.map((c) => (
-              <option key={c.id} value={c.id}>{c.name} ({c.startDate} → {c.endDate})</option>
-            ))}
-          </select>
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Task Points</label>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => {
+                const pillar = pillars.find(p => String(p.id) === form.pillarId);
+                setForm({ ...form, pointsMode: 'pillar', basePoints: String(pillar?.defaultBasePoints ?? 10) });
+              }}
+              className={`flex-1 px-4 py-2.5 text-sm font-medium rounded-lg border transition-colors whitespace-nowrap ${
+                form.pointsMode === 'pillar'
+                  ? "border-zinc-900 dark:border-zinc-100 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white"
+                  : "border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300"
+              }`}
+            >
+              Default
+            </button>
+            <button
+              type="button"
+              onClick={() => setForm({ ...form, pointsMode: 'manual' })}
+              className={`flex-1 px-4 py-2.5 text-sm font-medium rounded-lg border transition-colors ${
+                form.pointsMode === 'manual'
+                  ? "border-zinc-900 dark:border-zinc-100 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white"
+                  : "border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300"
+              }`}
+            >
+              Manual
+            </button>
+          </div>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Start Date</label>
-          <input
-            type="date"
-            value={form.startDate}
-            onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-            className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Target Date</label>
-          <input
-            type="date"
-            value={form.targetDate}
-            onChange={(e) => {
-              setForm(prev => ({ ...prev, targetDate: e.target.value }));
-
-
-            }}
-            className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
-          />
+        <div className="min-w-0 overflow-hidden">
+          {form.pointsMode === 'manual' ? (
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, basePoints: String(Math.max(0, (parseFloat(form.basePoints) || 0) - 5)) })}
+                className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-600"
+              >
+                <FaMinus className="text-[10px]" />
+              </button>
+              <input
+                type="number"
+                value={form.basePoints}
+                onChange={(e) => setForm({ ...form, basePoints: e.target.value })}
+                className="flex-1 min-w-0 px-1 py-2 text-center border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
+                min="0"
+              />
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, basePoints: String((parseFloat(form.basePoints) || 0) + 5) })}
+                className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-600"
+              >
+                <FaPlus className="text-[10px]" />
+              </button>
+            </div>
+          ) : (
+            <div className="px-3 py-2.5 text-center text-sm font-medium border border-zinc-200 dark:border-zinc-700 rounded-lg bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
+              {form.basePoints} pts
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Row 5: Auto-create toggle + action buttons */}
+      {/* Auto-create toggle + action buttons */}
       <div className="flex flex-wrap items-center gap-3 pt-2">
         {!editingOutcome && (
           <label className="flex items-center gap-2 cursor-pointer mr-auto">

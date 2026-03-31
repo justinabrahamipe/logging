@@ -302,6 +302,7 @@ export const goals = sqliteTable('Goal', {
   autoCreateTasks: integer('autoCreateTasks', { mode: 'boolean' }).notNull().default(false),
   flexibilityRule: text('flexibilityRule').notNull().default('must_today'), // must_today|at_least|limit_avoid
   limitValue: real('limitValue'),
+  basePoints: real('basePoints').notNull().default(10),
 
   status: text('status').notNull().default('active'), // active | completed | abandoned
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),

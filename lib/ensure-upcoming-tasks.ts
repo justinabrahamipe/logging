@@ -213,7 +213,7 @@ export async function generateGoalTasks(userId: string, goalId: number) {
           unit: taskCompletionType === 'checkbox' ? null : (outcome.unit || null),
           flexibilityRule: outcome.flexibilityRule || 'must_today',
           limitValue: goalLimitValue,
-          basePoints: 10,
+          basePoints: outcome.basePoints ?? 10,
           goalId: outcome.id,
           periodId: outcome.periodId || null,
           date: dateStr,

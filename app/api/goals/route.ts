@@ -29,6 +29,7 @@ export async function GET() {
         dailyTarget: goals.dailyTarget,
         flexibilityRule: goals.flexibilityRule,
         limitValue: goals.limitValue,
+        basePoints: goals.basePoints,
         status: goals.status,
         createdAt: goals.createdAt,
         updatedAt: goals.updatedAt,
@@ -51,7 +52,7 @@ export async function POST(request: Request) {
     const userId = await getAuthenticatedUserId();
 
     const body = await request.json();
-    const { name, targetValue, unit, pillarId, periodId, goalType, completionType, dailyTarget, scheduleDays, autoCreateTasks, flexibilityRule, limitValue } = body;
+    const { name, targetValue, unit, pillarId, periodId, goalType, completionType, dailyTarget, scheduleDays, autoCreateTasks, flexibilityRule, limitValue, basePoints } = body;
 
     const isActivityGoal = goalType === 'habitual' || goalType === 'target';
 
@@ -94,6 +95,7 @@ export async function POST(request: Request) {
       autoCreateTasks: autoCreateTasks || false,
       flexibilityRule: flexibilityRule || 'must_today',
       limitValue: limitValue ?? null,
+      basePoints: basePoints ?? 10,
     }).returning();
 
     // Generate all tasks upfront for the full goal date range

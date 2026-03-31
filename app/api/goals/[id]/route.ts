@@ -39,6 +39,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (body.dailyTarget !== undefined) updateData.dailyTarget = body.dailyTarget ?? null;
     if (body.flexibilityRule !== undefined) updateData.flexibilityRule = body.flexibilityRule;
     if (body.limitValue !== undefined) updateData.limitValue = body.limitValue ?? null;
+    if (body.basePoints !== undefined) updateData.basePoints = body.basePoints ?? 10;
     if (body.status !== undefined) updateData.status = body.status;
 
     // When marking a target/outcome goal as complete, set currentValue = targetValue
@@ -92,6 +93,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (body.flexibilityRule !== undefined) { propagateToTasks.flexibilityRule = body.flexibilityRule; propagateToSchedules.flexibilityRule = body.flexibilityRule; }
     if (body.limitValue !== undefined) { propagateToTasks.limitValue = body.limitValue ?? null; propagateToSchedules.limitValue = body.limitValue ?? null; }
     if (body.dailyTarget !== undefined) { propagateToTasks.target = body.dailyTarget; propagateToSchedules.target = body.dailyTarget; }
+    if (body.basePoints !== undefined) { propagateToTasks.basePoints = body.basePoints ?? 10; propagateToSchedules.basePoints = body.basePoints ?? 10; }
     if (body.periodId !== undefined) { propagateToTasks.periodId = body.periodId || null; propagateToSchedules.periodId = body.periodId || null; }
 
     if (Object.keys(propagateToTasks).length > 0) {

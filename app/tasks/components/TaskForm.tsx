@@ -76,6 +76,8 @@ export default function TaskForm({
   const [form, setForm] = useState<TaskFormState>(() => {
     if (editingTask) {
       const freq = taskToPreset(editingTask);
+      const pillar = pillars.find(p => p.id === editingTask.pillarId);
+      const isPillarDefault = pillar && editingTask.basePoints === pillar.defaultBasePoints;
       return {
         pillarId: editingTask.pillarId,
         goalId: editingTask.goalId || 0,
@@ -92,6 +94,7 @@ export default function TaskForm({
         repeatUnit: freq.repeatUnit,
         monthDay: freq.monthDay,
         basePoints: editingTask.basePoints.toString(),
+        pointsMode: isPillarDefault ? 'pillar' as const : 'manual' as const,
         startDate: editingTask.startDate || "",
       };
     }
@@ -111,6 +114,7 @@ export default function TaskForm({
       repeatUnit: "days",
       monthDay: 1,
       basePoints: "10",
+      pointsMode: 'pillar' as const,
       startDate: (() => {
         try {
           const saved = localStorage.getItem('tasks-filters');
@@ -225,13 +229,21 @@ export default function TaskForm({
         />
       </div>
 
-      {/* Pillar + Points */}
+      {/* Pillar + Linked Goal */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div>
           <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Pillar</label>
           <select
             value={form.pillarId}
-            onChange={(e) => setForm({ ...form, pillarId: parseInt(e.target.value) || 0 })}
+            onChange={(e) => {
+              const pid = parseInt(e.target.value) || 0;
+              const pillar = pillars.find(p => p.id === pid);
+              const updates: Partial<TaskFormState> = { pillarId: pid };
+              if (form.pointsMode === 'pillar') {
+                updates.basePoints = (pillar?.defaultBasePoints ?? 10).toString();
+              }
+              setForm(prev => ({ ...prev, ...updates }));
+            }}
             className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
           >
             <option value={0}>None</option>
@@ -242,38 +254,6 @@ export default function TaskForm({
             ))}
           </select>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Points</label>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() =>
-                setForm({ ...form, basePoints: Math.max(0, (parseFloat(form.basePoints) || 0) - 5).toString() })
-              }
-              className="w-8 h-9 flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-600"
-            >
-              <FaMinus className="text-[10px]" />
-            </button>
-            <input
-              type="number"
-              value={form.basePoints}
-              onChange={(e) => setForm({ ...form, basePoints: e.target.value })}
-              className="flex-1 px-2 py-2 text-center border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
-              min="0"
-            />
-            <button
-              onClick={() =>
-                setForm({ ...form, basePoints: ((parseFloat(form.basePoints) || 0) + 5).toString() })
-              }
-              className="w-8 h-9 flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-600"
-            >
-              <FaPlus className="text-[10px]" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Goal + Task Date */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div>
           <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
             Linked Goal <span className="text-zinc-400 font-normal">(optional)</span>
@@ -291,6 +271,70 @@ export default function TaskForm({
               </option>
             ))}
           </select>
+        </div>
+      </div>
+
+      {/* Points + Task Date */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-end">
+        <div className="min-w-0 overflow-hidden">
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Points</label>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => {
+                const pillar = pillars.find(p => p.id === form.pillarId);
+                setForm({ ...form, pointsMode: 'pillar', basePoints: (pillar?.defaultBasePoints ?? 10).toString() });
+              }}
+              className={`flex-shrink-0 px-4 py-2.5 text-sm font-medium rounded-lg border transition-colors whitespace-nowrap ${
+                form.pointsMode === 'pillar'
+                  ? "border-zinc-900 dark:border-zinc-100 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white"
+                  : "border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300"
+              }`}
+            >
+              Default
+            </button>
+            <button
+              onClick={() => setForm({ ...form, pointsMode: 'manual' })}
+              className={`flex-shrink-0 px-4 py-2.5 text-sm font-medium rounded-lg border transition-colors ${
+                form.pointsMode === 'manual'
+                  ? "border-zinc-900 dark:border-zinc-100 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white"
+                  : "border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300"
+              }`}
+            >
+              Manual
+            </button>
+            <div className="w-px h-6 bg-zinc-300 dark:bg-zinc-600 flex-shrink-0" />
+            {form.pointsMode === 'manual' ? (
+              <>
+                <button
+                  onClick={() =>
+                    setForm({ ...form, basePoints: Math.max(0, (parseFloat(form.basePoints) || 0) - 5).toString() })
+                  }
+                  className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-600"
+                >
+                  <FaMinus className="text-[10px]" />
+                </button>
+                <input
+                  type="number"
+                  value={form.basePoints}
+                  onChange={(e) => setForm({ ...form, basePoints: e.target.value })}
+                  className="flex-1 min-w-0 px-1 py-2 text-center border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white"
+                  min="0"
+                />
+                <button
+                  onClick={() =>
+                    setForm({ ...form, basePoints: ((parseFloat(form.basePoints) || 0) + 5).toString() })
+                  }
+                  className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-600"
+                >
+                  <FaPlus className="text-[10px]" />
+                </button>
+              </>
+            ) : (
+              <div className="flex-1 min-w-0 px-3 py-2 text-center text-sm font-medium border border-zinc-200 dark:border-zinc-700 rounded-lg bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
+                {form.basePoints} pts
+              </div>
+            )}
+          </div>
         </div>
         <div>
           <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">

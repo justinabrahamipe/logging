@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
     } else {
       // First view of the day — save score with momentum
       const saved = await saveDailyScore(userId, date);
-      momentumScore = saved.momentumScore ?? null;
+      momentumScore = saved?.momentumScore ?? null;
     }
 
     const completedTasks = allTasksForDay.filter(t => t.completed).length;
