@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
-import { db, tasks, pillars, dailyScores } from "@/lib/db";
+import { db, tasks, pillars, dailyScores, goals } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
 import { calculateDailyScore, getScoreTier } from "@/lib/scoring";
 import { saveDailyScore } from "@/lib/save-daily-score";
@@ -19,11 +19,16 @@ export async function GET(request: NextRequest) {
     await ensureUpcomingTasks(userId);
     await ensureTasksForDate(userId, date);
 
-    // Get task instances and pillars in parallel
-    const [tasksForDay, userPillars] = await Promise.all([
+    // Get task instances, pillars, and goals in parallel
+    const [allTasksForDay, userPillars, userGoals] = await Promise.all([
       db.select().from(tasks).where(and(eq(tasks.userId, userId), eq(tasks.date, date), eq(tasks.dismissed, false))),
       db.select().from(pillars).where(eq(pillars.userId, userId)),
+      db.select().from(goals).where(eq(goals.userId, userId)),
     ]);
+
+    // Exclude target and outcome goal tasks from action score (same as saveDailyScore)
+    const excludedGoalIds = new Set(userGoals.filter(g => g.goalType === 'target' || g.goalType === 'outcome').map(g => g.id));
+    const tasksForDay = allTasksForDay.filter(t => !t.goalId || !excludedGoalIds.has(t.goalId));
 
     const tasksForScoring = tasksForDay.map(t => ({
       id: t.id,
@@ -40,6 +45,7 @@ export async function GET(request: NextRequest) {
       completed: t.completed,
       value: t.value,
       isHighlighted: t.isHighlighted,
+      skipped: t.skipped,
     }));
 
     const { actionScore, pillarScores } = calculateDailyScore(completionsForScoring, tasksForScoring);
@@ -73,7 +79,7 @@ export async function GET(request: NextRequest) {
       momentumScore = saved.momentumScore ?? null;
     }
 
-    const completedTasks = tasksForDay.filter(t => t.completed).length;
+    const completedTasks = allTasksForDay.filter(t => t.completed).length;
 
     return NextResponse.json({
       date,
@@ -81,7 +87,7 @@ export async function GET(request: NextRequest) {
       momentumScore,
       scoreTier: tier,
       pillarScores: pillarBreakdown,
-      totalTasks: tasksForDay.length,
+      totalTasks: allTasksForDay.length,
       completedTasks,
     });
   } catch (error) {
