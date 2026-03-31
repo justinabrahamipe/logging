@@ -83,8 +83,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         return NextResponse.json({ error: "Not found" }, { status: 404 });
       }
 
-      // Only allow edits for today, yesterday, and future — older tasks are frozen
-      if (existing.date < getYesterdayString()) {
+      // Only allow edits for today, yesterday, and future — older tasks are frozen (no-date tasks are always editable)
+      if (existing.date !== '' && existing.date < getYesterdayString()) {
         return NextResponse.json({ error: "Cannot modify tasks older than yesterday" }, { status: 403 });
       }
 
