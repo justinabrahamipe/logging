@@ -1,14 +1,19 @@
-import { DarkTheme, DefaultTheme, NavigationContainer } from "@react-navigation/native";
+import { DefaultTheme, NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StatusBar } from "expo-status-bar";
-import React from "react";
-import { ActivityIndicator, Text, View } from "react-native";
+import { useFonts } from "expo-font";
+import React, { useEffect } from "react";
+import { ActivityIndicator, AppState, Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
 import { AppThemeProvider } from "./src/context/ThemeContext";
+import { fontAssets, fonts } from "./src/fonts";
 import { useAppTheme } from "./src/hooks/useAppTheme";
+import * as network from "./src/offline/network";
+import * as syncEngine from "./src/offline/syncEngine";
+import { Theme } from "./src/theme";
 import { CyclesStackParamList, GoalsStackParamList, MoreStackParamList, PillarsStackParamList, TasksStackParamList } from "./src/navigation/types";
 import CycleDetailScreen from "./src/screens/cycles/CycleDetailScreen";
 import CycleFormScreen from "./src/screens/cycles/CycleFormScreen";
@@ -99,7 +104,7 @@ function AppTabs() {
         tabBarActiveTintColor: theme.accent,
         tabBarInactiveTintColor: theme.subtext,
         tabBarStyle: { backgroundColor: theme.card, borderTopColor: theme.border },
-        tabBarIcon: () => <TabIcon label={TAB_ICONS[route.name]} />,
+        tabBarIcon: ({ color }) => <TabIcon label={TAB_ICONS[route.name]} color={color} />,
       })}
     >
       <Tab.Screen name="Tasks" component={TasksStackNavigator} />
@@ -109,8 +114,8 @@ function AppTabs() {
   );
 }
 
-function TabIcon({ label }: { label: string }) {
-  return <Text style={{ fontSize: 20 }}>{label}</Text>;
+function TabIcon({ label, color }: { label: string; color: string }) {
+  return <Text style={{ fontSize: 20, color }}>{label}</Text>;
 }
 
 function Root() {
@@ -128,11 +133,46 @@ function Root() {
   return isSignedIn ? <AppTabs /> : <LoginScreen />;
 }
 
+function toNavigationTheme(theme: Theme): typeof DefaultTheme {
+  return {
+    dark: theme.dark,
+    colors: {
+      primary: theme.accent,
+      background: theme.bg,
+      card: theme.card,
+      text: theme.text,
+      border: theme.border,
+      notification: theme.danger,
+    },
+    fonts: {
+      regular: { fontFamily: fonts.body, fontWeight: "400" },
+      medium: { fontFamily: fonts.bodyMedium, fontWeight: "500" },
+      bold: { fontFamily: fonts.display, fontWeight: "700" },
+      heavy: { fontFamily: fonts.display, fontWeight: "700" },
+    },
+  };
+}
+
 function AppRoot() {
   const theme = useAppTheme();
 
+  useEffect(() => {
+    network.init();
+    const unsubscribeNetwork = network.subscribe((online) => {
+      if (online) syncEngine.kick();
+    });
+    const appStateSub = AppState.addEventListener("change", (state) => {
+      if (state === "active") syncEngine.kick();
+    });
+    syncEngine.kick();
+    return () => {
+      unsubscribeNetwork();
+      appStateSub.remove();
+    };
+  }, []);
+
   return (
-    <NavigationContainer theme={theme.dark ? DarkTheme : DefaultTheme}>
+    <NavigationContainer theme={toNavigationTheme(theme)}>
       <Root />
       <StatusBar style={theme.dark ? "light" : "dark"} />
     </NavigationContainer>
@@ -140,6 +180,16 @@ function AppRoot() {
 }
 
 export default function App() {
+  const [fontsLoaded] = useFonts(fontAssets);
+
+  if (!fontsLoaded) {
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#131110" }}>
+        <ActivityIndicator color="#F0A03C" />
+      </View>
+    );
+  }
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>

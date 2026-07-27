@@ -5,8 +5,20 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { api, ApiRequestError } from "../api/client";
 import { DailyScore, Momentum, ScoreHistoryResponse } from "../api/types";
 import FlameGauge from "../components/FlameGauge";
+import { fonts } from "../fonts";
 import { useAppTheme } from "../hooks/useAppTheme";
 import { todayString } from "../utils/date";
+
+function RivetCorners({ color }: { color: string }) {
+  return (
+    <>
+      <View style={[styles.rivet, styles.rivetTL, { backgroundColor: color }]} />
+      <View style={[styles.rivet, styles.rivetTR, { backgroundColor: color }]} />
+      <View style={[styles.rivet, styles.rivetBL, { backgroundColor: color }]} />
+      <View style={[styles.rivet, styles.rivetBR, { backgroundColor: color }]} />
+    </>
+  );
+}
 
 export default function DashboardScreen() {
   const theme = useAppTheme();
@@ -56,27 +68,32 @@ export default function DashboardScreen() {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={theme.accent} />}
       >
-        <Text style={[styles.title, { color: theme.text }]}>Dashboard</Text>
+        <Text style={[styles.title, { color: theme.text, fontFamily: fonts.display }]}>Dashboard</Text>
         {error && <Text style={[styles.error, { color: theme.danger }]}>{error}</Text>}
 
         {score && (
-          <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <View style={[styles.card, styles.heroCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <RivetCorners color={theme.border} />
             <FlameGauge theme={theme} pct={score.actionScore} />
           </View>
         )}
 
         {score && (
           <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Text style={[styles.sectionTitle, { color: theme.subtext }]}>Today</Text>
+            <Text style={[styles.sectionTitle, { color: theme.subtext, fontFamily: fonts.bodySemiBold }]}>Today</Text>
             <View style={styles.scoreRow}>
               <View>
-                <Text style={[styles.scoreValue, { color: theme.accent }]}>{score.actionScore}</Text>
-                <Text style={[styles.scoreLabel, { color: theme.subtext }]}>{score.scoreTier}</Text>
+                <Text style={[styles.scoreValue, { color: theme.accent, fontFamily: fonts.monoBold }]}>{score.actionScore}</Text>
+                <Text style={[styles.scoreLabel, { color: theme.subtext, fontFamily: fonts.bodyMedium }]}>{score.scoreTier}</Text>
               </View>
               <View style={styles.scoreStats}>
-                <Text style={{ color: theme.subtext, fontSize: 13 }}>{score.completedTasks}/{score.totalTasks} tasks done</Text>
+                <Text style={{ color: theme.subtext, fontSize: 13, fontFamily: fonts.body }}>
+                  <Text style={{ fontFamily: fonts.mono }}>{score.completedTasks}/{score.totalTasks}</Text> tasks done
+                </Text>
                 {score.momentumScore != null && (
-                  <Text style={{ color: theme.subtext, fontSize: 13 }}>Momentum {score.momentumScore.toFixed(2)}×</Text>
+                  <Text style={{ color: theme.subtext, fontSize: 13, fontFamily: fonts.body }}>
+                    Momentum <Text style={{ fontFamily: fonts.mono }}>{score.momentumScore.toFixed(2)}×</Text>
+                  </Text>
                 )}
               </View>
             </View>
@@ -85,11 +102,11 @@ export default function DashboardScreen() {
 
         {score && score.pillarScores.length > 0 && (
           <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Text style={[styles.sectionTitle, { color: theme.subtext }]}>Pillar breakdown</Text>
+            <Text style={[styles.sectionTitle, { color: theme.subtext, fontFamily: fonts.bodySemiBold }]}>Pillar breakdown</Text>
             {score.pillarScores.map((p) => (
               <View key={p.id} style={styles.pillarRow}>
-                <Text style={{ color: theme.text, fontSize: 14 }}>{p.emoji ? `${p.emoji} ` : ""}{p.name}</Text>
-                <Text style={{ color: theme.accent, fontSize: 14, fontWeight: "600" }}>{p.score}</Text>
+                <Text style={{ color: theme.text, fontSize: 14, fontFamily: fonts.body }}>{p.emoji ? `${p.emoji} ` : ""}{p.name}</Text>
+                <Text style={{ color: theme.accent, fontSize: 14, fontFamily: fonts.monoSemiBold }}>{p.score}</Text>
               </View>
             ))}
           </View>
@@ -97,17 +114,17 @@ export default function DashboardScreen() {
 
         {momentum && (momentum.overall != null || momentum.trajectory.overall != null) && (
           <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Text style={[styles.sectionTitle, { color: theme.subtext }]}>Goals</Text>
+            <Text style={[styles.sectionTitle, { color: theme.subtext, fontFamily: fonts.bodySemiBold }]}>Goals</Text>
             {momentum.overall != null && (
               <View style={styles.pillarRow}>
-                <Text style={{ color: theme.text, fontSize: 14 }}>Momentum (target goals)</Text>
-                <Text style={{ color: theme.accent, fontSize: 14, fontWeight: "600" }}>{momentum.overall.toFixed(2)}×</Text>
+                <Text style={{ color: theme.text, fontSize: 14, fontFamily: fonts.body }}>Momentum (target goals)</Text>
+                <Text style={{ color: theme.accent, fontSize: 14, fontFamily: fonts.monoSemiBold }}>{momentum.overall.toFixed(2)}×</Text>
               </View>
             )}
             {momentum.trajectory.overall != null && (
               <View style={styles.pillarRow}>
-                <Text style={{ color: theme.text, fontSize: 14 }}>Trajectory (outcome goals)</Text>
-                <Text style={{ color: theme.accent, fontSize: 14, fontWeight: "600" }}>{momentum.trajectory.overall.toFixed(2)}×</Text>
+                <Text style={{ color: theme.text, fontSize: 14, fontFamily: fonts.body }}>Trajectory (outcome goals)</Text>
+                <Text style={{ color: theme.accent, fontSize: 14, fontFamily: fonts.monoSemiBold }}>{momentum.trajectory.overall.toFixed(2)}×</Text>
               </View>
             )}
           </View>
@@ -115,12 +132,12 @@ export default function DashboardScreen() {
 
         {history && history.scores.length > 0 && (
           <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Text style={[styles.sectionTitle, { color: theme.subtext }]}>Last 7 days</Text>
+            <Text style={[styles.sectionTitle, { color: theme.subtext, fontFamily: fonts.bodySemiBold }]}>Last 7 days</Text>
             <View style={styles.trendRow}>
               {[...history.scores].reverse().slice(-7).map((s) => (
                 <View key={s.date} style={styles.trendBarWrap}>
                   <View style={[styles.trendBar, { height: Math.max(4, (s.actionScore / maxScore) * 60), backgroundColor: theme.accent }]} />
-                  <Text style={[styles.trendLabel, { color: theme.subtext }]}>{s.date.slice(5)}</Text>
+                  <Text style={[styles.trendLabel, { color: theme.subtext, fontFamily: fonts.mono }]}>{s.date.slice(5)}</Text>
                 </View>
               ))}
             </View>
@@ -131,21 +148,30 @@ export default function DashboardScreen() {
   );
 }
 
+const RIVET_SIZE = 5;
+const RIVET_INSET = 10;
+
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   content: { padding: 16, paddingBottom: 40 },
-  title: { fontSize: 28, fontWeight: "700", marginBottom: 12 },
+  title: { fontSize: 26, marginBottom: 12 },
   error: { marginBottom: 12, fontSize: 13 },
-  card: { borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: 14, marginBottom: 16 },
-  sectionTitle: { fontSize: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 10 },
+  card: { borderRadius: 6, borderWidth: 1, padding: 14, marginBottom: 16 },
+  heroCard: { paddingVertical: 20, alignItems: "center", position: "relative" },
+  rivet: { position: "absolute", width: RIVET_SIZE, height: RIVET_SIZE, borderRadius: RIVET_SIZE / 2 },
+  rivetTL: { top: RIVET_INSET, left: RIVET_INSET },
+  rivetTR: { top: RIVET_INSET, right: RIVET_INSET },
+  rivetBL: { bottom: RIVET_INSET, left: RIVET_INSET },
+  rivetBR: { bottom: RIVET_INSET, right: RIVET_INSET },
+  sectionTitle: { fontSize: 12, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 10 },
   scoreRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  scoreValue: { fontSize: 36, fontWeight: "800" },
+  scoreValue: { fontSize: 34 },
   scoreLabel: { fontSize: 12, textTransform: "capitalize" },
   scoreStats: { alignItems: "flex-end", gap: 4 },
   pillarRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 6 },
   trendRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", height: 90 },
   trendBarWrap: { alignItems: "center", flex: 1 },
-  trendBar: { width: 18, borderRadius: 4 },
+  trendBar: { width: 18, borderRadius: 3 },
   trendLabel: { fontSize: 10, marginTop: 6 },
 });

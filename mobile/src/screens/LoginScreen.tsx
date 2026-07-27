@@ -5,6 +5,7 @@ import React, { useState } from "react";
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import { normalizeBaseUrl } from "../api/client";
+import { fonts } from "../fonts";
 import { useAppTheme } from "../hooks/useAppTheme";
 
 const DEFAULT_BASE_URL = "https://www.grindconsole.com";
@@ -43,9 +44,9 @@ export default function LoginScreen() {
   return (
     <View style={[styles.flex, { backgroundColor: theme.bg }]}>
       <View style={styles.container}>
-        <Image source={require("../../assets/logo.png")} style={styles.logo} />
-        <Text style={[styles.title, { color: theme.text }]}>Grind Console</Text>
-        <Text style={[styles.subtitle, { color: theme.subtext }]}>Sign in to continue.</Text>
+        <Image source={require("../../assets/logo.png")} style={[styles.logo, { borderColor: theme.border }]} />
+        <Text style={[styles.title, { color: theme.text, fontFamily: fonts.display }]}>Grind Console</Text>
+        <Text style={[styles.subtitle, { color: theme.subtext, fontFamily: fonts.body }]}>Sign in to continue.</Text>
 
         <Pressable
           style={[styles.googleButton, { borderColor: theme.border, backgroundColor: theme.card, opacity: googleLoading ? 0.6 : 1 }]}
@@ -57,12 +58,12 @@ export default function LoginScreen() {
           ) : (
             <>
               <Ionicons name="logo-google" size={18} color={theme.text} />
-              <Text style={[styles.googleButtonText, { color: theme.text }]}>Continue with Google</Text>
+              <Text style={[styles.googleButtonText, { color: theme.text, fontFamily: fonts.bodySemiBold }]}>Continue with Google</Text>
             </>
           )}
         </Pressable>
 
-        {error && <Text style={[styles.error, { color: theme.danger }]}>{error}</Text>}
+        {error && <Text style={[styles.error, { color: theme.danger, fontFamily: fonts.body }]}>{error}</Text>}
       </View>
     </View>
   );
@@ -71,18 +72,18 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   container: { flex: 1, justifyContent: "center", padding: 24 },
-  logo: { width: 72, height: 72, borderRadius: 16, alignSelf: "center", marginBottom: 16 },
-  title: { fontSize: 28, fontWeight: "700", marginBottom: 8, textAlign: "center" },
+  logo: { width: 72, height: 72, borderRadius: 8, borderWidth: 1, alignSelf: "center", marginBottom: 16 },
+  title: { fontSize: 26, marginBottom: 8, textAlign: "center" },
   subtitle: { fontSize: 14, marginBottom: 32, textAlign: "center" },
   googleButton: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 10,
+    borderWidth: 1,
+    borderRadius: 6,
     paddingVertical: 14,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
   },
-  googleButtonText: { fontSize: 15, fontWeight: "600" },
+  googleButtonText: { fontSize: 15 },
   error: { marginTop: 16, fontSize: 13, textAlign: "center" },
 });

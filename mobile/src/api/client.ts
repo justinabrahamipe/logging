@@ -16,6 +16,11 @@ export class ApiRequestError extends Error {
   }
 }
 
+/** True for a genuine network/offline failure (fetch never reached the server) rather than a real API rejection. */
+export function isOfflineError(err: unknown): boolean {
+  return !(err instanceof ApiRequestError);
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   if (!baseUrl || !apiKey) {
     throw new ApiRequestError("Not signed in", 401);

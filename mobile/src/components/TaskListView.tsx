@@ -1,10 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
-import { api, ApiRequestError } from "../api/client";
+import { api, ApiRequestError, isOfflineError } from "../api/client";
 import { ScoreHistoryResponse, Task, TodayResponse } from "../api/types";
 import { useAppTheme } from "../hooks/useAppTheme";
 import { useTaskActions } from "../hooks/useTaskActions";
+import * as mutationQueue from "../offline/mutationQueue";
+import * as syncEngine from "../offline/syncEngine";
+import * as taskCache from "../offline/taskCache";
 import TaskRow from "./TaskRow";
 import WeekFlames from "./WeekFlames";
 
@@ -22,6 +26,7 @@ export default function TaskListView({ date, onEditTask }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [expandedTaskId, setExpandedTaskId] = useState<number | null>(null);
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+  const [pendingIds, setPendingIds] = useState<Set<number>>(new Set());
 
   const toggleSection = (key: string) => {
     setCollapsedSections((prev) => {
@@ -32,28 +37,52 @@ export default function TaskListView({ date, onEditTask }: Props) {
     });
   };
 
+  const refreshPendingIds = useCallback(async () => {
+    setPendingIds(await mutationQueue.getPendingTaskIds());
+  }, []);
+
+  useEffect(() => {
+    refreshPendingIds();
+    return mutationQueue.subscribeChanges(refreshPendingIds);
+  }, [refreshPendingIds]);
+
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     setError(null);
+
+    await syncEngine.drainQueue();
+
+    api.get<ScoreHistoryResponse>("/api/daily-score/history?days=7").then(setHistory).catch(() => {});
+
     try {
-      const [res, historyRes] = await Promise.all([
-        api.get<TodayResponse>(`/api/tasks?date=${date}`),
-        api.get<ScoreHistoryResponse>("/api/daily-score/history?days=7"),
-      ]);
-      setData(res);
-      setHistory(historyRes);
+      const res = await api.get<TodayResponse>(`/api/tasks?date=${date}`);
+      if (!(await mutationQueue.hasPendingForDate(date))) {
+        setData(res);
+        await taskCache.setForDate(date, res);
+      }
     } catch (err) {
-      setError(err instanceof ApiRequestError ? err.message : "Couldn't load tasks.");
+      if (isOfflineError(err)) {
+        const cached = await taskCache.getForDate(date);
+        if (cached) {
+          setData(cached);
+        } else {
+          setError("No cached tasks for this day yet — connect once to load them.");
+        }
+      } else {
+        setError(err instanceof ApiRequestError ? err.message : "Couldn't load tasks.");
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, [date]);
 
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+
   useEffect(() => {
-    load();
-  }, [load]);
+    return syncEngine.onDropped((message) => setError(message));
+  }, []);
 
   const applyLocalUpdate = (taskId: number, patch: Partial<Task>) => {
     setData((prev) => {
@@ -65,6 +94,7 @@ export default function TaskListView({ date, onEditTask }: Props) {
         overdueTasks: prev.overdueTasks.map(apply),
       };
     });
+    taskCache.patchTask(date, taskId, patch).catch(() => {});
   };
 
   const removeLocalTask = (taskId: number) => {
@@ -77,9 +107,16 @@ export default function TaskListView({ date, onEditTask }: Props) {
         overdueTasks: strip(prev.overdueTasks),
       };
     });
+    taskCache.removeTask(date, taskId).catch(() => {});
   };
 
-  const { busyIds, checkboxToggle, countChange, toggleSkip, reschedule, scheduleToday, remove } = useTaskActions(applyLocalUpdate, setError, removeLocalTask);
+  const { busyIds, checkboxToggle, countChange, toggleSkip, reschedule, scheduleToday, duplicate, remove } = useTaskActions(
+    applyLocalUpdate,
+    setError,
+    removeLocalTask,
+    () => load(true),
+    { date },
+  );
 
   const confirmDelete = (task: Task) => {
     Alert.alert("Delete task", `Delete "${task.name}"? This can't be undone.`, [
@@ -97,14 +134,31 @@ export default function TaskListView({ date, onEditTask }: Props) {
   }
 
   const todayTasks = data?.groups.flatMap((g) => g.tasks) ?? [];
-  const todoTasks = todayTasks.filter((t) => !t.completed);
-  const doneTasks = todayTasks.filter((t) => t.completed);
+  const overdueList = data?.overdueTasks ?? [];
+  const noDateList = data?.noDateTasks ?? [];
+
+  const todoTasks = todayTasks.filter((t) => !t.completed && !t.skipped);
+  const overdueActive = overdueList.filter((t) => !t.completed && !t.skipped);
+  const noDateActive = noDateList.filter((t) => !t.completed && !t.skipped);
+
+  const doneTasks = [
+    ...todayTasks.filter((t) => t.completed && !t.skipped),
+    ...overdueList.filter((t) => t.completed && !t.skipped),
+    ...noDateList.filter((t) => t.completed && !t.skipped),
+  ];
+
+  const skippedTasks = [
+    ...todayTasks.filter((t) => t.skipped),
+    ...overdueList.filter((t) => t.skipped),
+    ...noDateList.filter((t) => t.skipped),
+  ];
 
   const sections = [
-    ...(data?.overdueTasks.length ? [{ key: "overdue", title: "Overdue", tasks: data.overdueTasks }] : []),
+    ...(overdueActive.length ? [{ key: "overdue", title: "Overdue", tasks: overdueActive }] : []),
     ...(todoTasks.length ? [{ key: "todo", title: "To do", tasks: todoTasks }] : []),
     ...(doneTasks.length ? [{ key: "done", title: "Done", tasks: doneTasks }] : []),
-    ...(data?.noDateTasks.length ? [{ key: "nodate", title: "No date", tasks: data.noDateTasks }] : []),
+    ...(skippedTasks.length ? [{ key: "skipped", title: "Skipped", tasks: skippedTasks }] : []),
+    ...(noDateActive.length ? [{ key: "nodate", title: "No date", tasks: noDateActive }] : []),
   ];
 
   return (
@@ -141,9 +195,11 @@ export default function TaskListView({ date, onEditTask }: Props) {
                 onCountChange={countChange}
                 onToggleSkip={toggleSkip}
                 busy={busyIds.has(task.id)}
+                pendingSync={pendingIds.has(task.id)}
                 onLongPress={onEditTask}
                 onEdit={onEditTask}
                 onDelete={confirmDelete}
+                onDuplicate={duplicate}
                 onReschedule={reschedule}
                 onScheduleToday={scheduleToday}
                 expanded={expandedTaskId === task.id}

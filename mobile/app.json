@@ -27,7 +27,21 @@
     "plugins": [
       "expo-secure-store",
       "@react-native-community/datetimepicker",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-font",
+      ["react-native-android-widget", {
+        "widgets": [{
+          "name": "TaskWidget",
+          "label": "Grind Console Tasks",
+          "description": "Today's to-do and overdue tasks",
+          "minWidth": "250dp",
+          "minHeight": "180dp",
+          "targetCellWidth": 4,
+          "targetCellHeight": 3,
+          "resizeMode": "vertical",
+          "updatePeriodMillis": 1800000
+        }]
+      }]
     ],
     "extra": {
       "eas": {

@@ -11,28 +11,31 @@ export type Theme = {
   warning: string;
 };
 
+// "Daylight Panel" — brushed aluminum chassis under daylight.
+// accent is steel blue (matches the chrome lion mark); warning stays amber for flame/heat readouts only.
 export const lightTheme: Theme = {
   dark: false,
-  bg: "#F5F5F7",
-  card: "#FFFFFF",
-  border: "#E2E2E6",
-  text: "#1C1C1E",
-  subtext: "#6B6B73",
-  accent: "#3B82F6",
-  success: "#22C55E",
-  danger: "#EF4444",
-  warning: "#F59E0B",
+  bg: "#EDEAE3",
+  card: "#F8F6F1",
+  border: "#D8D3C7",
+  text: "#201D17",
+  subtext: "#6E6759",
+  accent: "#2C6E9E",
+  success: "#2F8F4E",
+  danger: "#C23B2E",
+  warning: "#D99A2B",
 };
 
+// "Night Flight" — cockpit-at-night instrument glow, not an inverted daylight panel.
 export const darkTheme: Theme = {
   dark: true,
-  bg: "#0E0E10",
-  card: "#1C1C1E",
-  border: "#2C2C2E",
-  text: "#F2F2F3",
-  subtext: "#9A9AA0",
-  accent: "#5B9CF6",
-  success: "#34D058",
-  danger: "#FF6B6B",
+  bg: "#131110",
+  card: "#1E1B17",
+  border: "#332C22",
+  text: "#F1EADC",
+  subtext: "#948A78",
+  accent: "#4FA8E8",
+  success: "#4ADE80",
+  danger: "#FF6B5A",
   warning: "#FBBF24",
 };

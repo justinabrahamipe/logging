@@ -1,9 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useRef, useState } from "react";
-import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
 import { Task } from "../api/types";
 import { Theme } from "../theme";
+import { addDays, formatDateLabel } from "../utils/date";
 
 const FREQUENCY_LABELS: Record<string, string> = {
   adhoc: "Does not repeat",
@@ -28,11 +29,19 @@ function withAlpha(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-function Chip({ theme, icon, label }: { theme: Theme; icon: keyof typeof Ionicons.glyphMap; label: string }) {
+function Chip({
+  theme, icon, label, tint,
+}: {
+  theme: Theme;
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  tint?: string;
+}) {
+  const color = tint ?? theme.subtext;
   return (
-    <View style={[styles.chip, { backgroundColor: theme.bg, borderColor: theme.border }]}>
-      <Ionicons name={icon} size={12} color={theme.subtext} />
-      <Text style={[styles.chipText, { color: theme.subtext }]}>{label}</Text>
+    <View style={[styles.chip, { backgroundColor: theme.bg, borderColor: tint ?? theme.border }]}>
+      <Ionicons name={icon} size={12} color={color} />
+      <Text style={[styles.chipText, { color }]}>{label}</Text>
     </View>
   );
 }
@@ -43,18 +52,25 @@ function ActionButton({
   label,
   onPress,
   color,
+  iconOnly,
 }: {
   theme: Theme;
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   onPress: () => void;
   color?: string;
+  iconOnly?: boolean;
 }) {
   const tint = color ?? theme.accent;
   return (
-    <Pressable style={[styles.actionButton, { borderColor: tint }]} onPress={onPress} hitSlop={4}>
+    <Pressable
+      style={[styles.actionButton, iconOnly && styles.actionButtonIconOnly, { borderColor: tint }]}
+      onPress={onPress}
+      hitSlop={4}
+      accessibilityLabel={label}
+    >
       <Ionicons name={icon} size={14} color={tint} />
-      <Text style={[styles.actionButtonText, { color: tint }]}>{label}</Text>
+      {!iconOnly && <Text style={[styles.actionButtonText, { color: tint }]}>{label}</Text>}
     </Pressable>
   );
 }
@@ -66,9 +82,11 @@ type Props = {
   onCountChange: (task: Task, delta: number) => void;
   onToggleSkip: (task: Task) => void;
   busy: boolean;
+  pendingSync?: boolean;
   onLongPress?: (task: Task) => void;
   onEdit?: (task: Task) => void;
   onDelete?: (task: Task) => void;
+  onDuplicate?: (task: Task) => void;
   onReschedule?: (task: Task, deltaDays: number) => void;
   onScheduleToday?: (task: Task) => void;
   expanded?: boolean;
@@ -87,13 +105,27 @@ const ACTION_ICON: Record<ActionKind, keyof typeof Ionicons.glyphMap> = {
 };
 
 export default function TaskRow({
-  task, theme, onCheckboxToggle, onCountChange, onToggleSkip, busy, onLongPress, onEdit, onDelete, onReschedule, onScheduleToday,
+  task, theme, onCheckboxToggle, onCountChange, onToggleSkip, busy, pendingSync, onLongPress, onEdit, onDelete, onDuplicate, onReschedule, onScheduleToday,
   expanded: controlledExpanded, onToggleExpand,
 }: Props) {
   const swipeableRef = useRef<Swipeable>(null);
   const [internalExpanded, setInternalExpanded] = useState(false);
   const expanded = onToggleExpand ? !!controlledExpanded : internalExpanded;
   const toggleExpanded = onToggleExpand ?? (() => setInternalExpanded((e) => !e));
+
+  const [pendingDays, setPendingDays] = useState(0);
+  const wasExpanded = useRef(expanded);
+
+  useEffect(() => {
+    if (wasExpanded.current && !expanded && pendingDays !== 0 && task.date && onReschedule) {
+      onReschedule(task, pendingDays);
+      setPendingDays(0);
+    }
+    wasExpanded.current = expanded;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expanded]);
+
+  const pendingDate = task.date && pendingDays !== 0 ? addDays(task.date, pendingDays) : null;
 
   const isCompleted = task.completed;
   const currentValue = task.value;
@@ -204,12 +236,15 @@ export default function TaskRow({
             onLongPress={onLongPress ? () => onLongPress(task) : undefined}
           >
             <View style={styles.info}>
-              <Text
-                style={[styles.name, { color: theme.text, textDecorationLine: isFullyDone ? "line-through" : "none" }]}
-                numberOfLines={2}
-              >
-                {task.name}
-              </Text>
+              <View style={styles.nameRow}>
+                <Text
+                  style={[styles.name, { color: theme.text, textDecorationLine: isFullyDone ? "line-through" : "none" }]}
+                  numberOfLines={2}
+                >
+                  {task.name}
+                </Text>
+                {pendingSync && <Ionicons name="cloud-offline-outline" size={13} color={theme.warning} />}
+              </View>
               {hasProgress && (
                 <Text style={[styles.progress, { color: theme.subtext }]}>
                   {task.value} / {task.target}
@@ -233,7 +268,10 @@ export default function TaskRow({
             <View style={[styles.details, { borderColor: theme.border }]}>
               <View style={styles.chipRow}>
                 <Chip theme={theme} icon="star-outline" label={`${task.basePoints} pts`} />
-                {!!task.date && <Chip theme={theme} icon="calendar-outline" label={task.date} />}
+                {!!task.date && <Chip theme={theme} icon="calendar-outline" label={formatDateLabel(task.date)} />}
+                {!!pendingDate && (
+                  <Chip theme={theme} icon="arrow-forward" label={formatDateLabel(pendingDate)} tint={theme.accent} />
+                )}
                 <Chip theme={theme} icon="repeat" label={frequencyLabel(task.frequency)} />
                 {isLimitTask && task.limitValue != null && (
                   <Chip theme={theme} icon="warning-outline" label={`Limit ${task.limitValue}${task.unit ? ` ${task.unit}` : ""}`} />
@@ -244,23 +282,26 @@ export default function TaskRow({
                 <Text style={[styles.description, { color: theme.subtext }]}>{task.description}</Text>
               )}
 
-              <View style={styles.actionsRow}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.actionsRow}>
                 {onEdit && (
-                  <ActionButton theme={theme} icon="create-outline" label="Edit" onPress={() => onEdit(task)} />
+                  <ActionButton theme={theme} icon="create-outline" label="Edit" onPress={() => onEdit(task)} iconOnly />
                 )}
                 {onReschedule && !!task.date && (
                   <>
-                    <ActionButton theme={theme} icon="arrow-back-outline" label="Prepone" onPress={() => onReschedule(task, -1)} />
-                    <ActionButton theme={theme} icon="arrow-forward-outline" label="Postpone" onPress={() => onReschedule(task, 1)} />
+                    <ActionButton theme={theme} icon="arrow-back-outline" label="Prepone" onPress={() => setPendingDays((d) => d - 1)} />
+                    <ActionButton theme={theme} icon="arrow-forward-outline" label="Postpone" onPress={() => setPendingDays((d) => d + 1)} />
                   </>
                 )}
                 {onScheduleToday && !task.date && (
                   <ActionButton theme={theme} icon="today-outline" label="Do it today" onPress={() => onScheduleToday(task)} />
                 )}
-                {onDelete && (
-                  <ActionButton theme={theme} icon="trash-outline" label="Delete" color={theme.danger} onPress={() => onDelete(task)} />
+                {onDuplicate && (
+                  <ActionButton theme={theme} icon="copy-outline" label="Duplicate" onPress={() => onDuplicate(task)} iconOnly />
                 )}
-              </View>
+                {onDelete && (
+                  <ActionButton theme={theme} icon="trash-outline" label="Delete" color={theme.danger} onPress={() => onDelete(task)} iconOnly />
+                )}
+              </ScrollView>
             </View>
           )}
         </View>
@@ -287,7 +328,8 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   info: { flex: 1 },
-  name: { fontSize: 15, fontWeight: "500" },
+  nameRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  name: { fontSize: 15, fontWeight: "500", flexShrink: 1 },
   progress: { fontSize: 12, marginTop: 2 },
   details: {
     borderTopWidth: StyleSheet.hairlineWidth,
@@ -308,7 +350,7 @@ const styles = StyleSheet.create({
   },
   chipText: { fontSize: 11, fontWeight: "600" },
   description: { fontSize: 13, lineHeight: 18 },
-  actionsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  actionsRow: { flexDirection: "row", gap: 8 },
   actionButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -317,6 +359,9 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
+  },
+  actionButtonIconOnly: {
+    paddingHorizontal: 8,
   },
   actionButtonText: { fontSize: 12, fontWeight: "600" },
   checkbox: {

@@ -120,6 +120,10 @@ export default function GoalDetailScreen({ route, navigation }: Props) {
     );
   }
 
+  const todoTasks = tasks.filter((t) => !t.completed && !t.skipped);
+  const doneTasks = tasks.filter((t) => t.completed && !t.skipped);
+  const skippedTasks = tasks.filter((t) => t.skipped);
+
   const progressText = goal.goalType === "project"
     ? `${goal.currentValue} of ${goal.targetValue} steps`
     : goal.completionType === "checkbox"
@@ -170,10 +174,17 @@ export default function GoalDetailScreen({ route, navigation }: Props) {
           </Pressable>
         </View>
 
-        {tasks.length > 0 && (
-          <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Text style={[styles.sectionTitle, { color: theme.subtext }]}>Linked tasks</Text>
-            {tasks.map((task) => (
+        {tasks.length > 0 && [
+          { key: "todo", title: "To do", list: todoTasks },
+          { key: "done", title: "Done", list: doneTasks },
+          { key: "skipped", title: "Skipped", list: skippedTasks },
+        ].map(({ key, title, list }) => list.length > 0 && (
+          <View key={key} style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: theme.subtext }]}>{title} ({list.length})</Text>
+              <View style={[styles.sectionRule, { backgroundColor: theme.border }]} />
+            </View>
+            {list.map((task) => (
               <TaskRow
                 key={task.id}
                 task={task}
@@ -185,7 +196,7 @@ export default function GoalDetailScreen({ route, navigation }: Props) {
               />
             ))}
           </View>
-        )}
+        ))}
       </ScrollView>
 
       <Modal visible={logModalOpen} transparent animationType="slide" onRequestClose={() => setLogModalOpen(false)}>
@@ -229,8 +240,10 @@ const styles = StyleSheet.create({
   actions: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 16 },
   actionBtn: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8 },
   actionText: { fontSize: 13, fontWeight: "600" },
-  card: { marginTop: 20, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: 12 },
-  sectionTitle: { fontSize: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 },
+  section: { marginTop: 20 },
+  sectionHeader: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 4, marginBottom: 8 },
+  sectionTitle: { fontSize: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 },
+  sectionRule: { flex: 1, height: StyleSheet.hairlineWidth, marginLeft: 4 },
   modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
   modalCard: { width: "100%", borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20 },
   sheetHandle: { width: 36, height: 4, borderRadius: 2, alignSelf: "center", marginBottom: 16 },
