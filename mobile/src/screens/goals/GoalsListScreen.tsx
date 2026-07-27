@@ -4,11 +4,26 @@ import { ActivityIndicator, Pressable, RefreshControl, SectionList, StyleSheet, 
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api, ApiRequestError } from "../../api/client";
 import { Goal, GoalType } from "../../api/types";
+import GoalHeatmap from "../../components/GoalHeatmap";
 import FAB from "../../components/FAB";
 import SegmentedControl from "../../components/SegmentedControl";
 import { useAppTheme } from "../../hooks/useAppTheme";
 import { GoalsStackParamList } from "../../navigation/types";
+import { todayString } from "../../utils/date";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+
+// Habitual goals are recurring routines with no real deadline — they usually inherit
+// their linked cycle's endDate as targetDate, which would otherwise dump every daily
+// habit into "past" the moment the cycle lapses even though the routine is still
+// ongoing. Only an explicit status change should retire them. Kept in sync with the
+// equivalent fix in the web app's app/goals/hooks/useGoals.ts.
+function getTimeCategory(goal: Goal, today: string): "current" | "future" | "past" {
+  if (goal.status === "completed" || goal.status === "abandoned") return "past";
+  if (goal.startDate && goal.startDate > today) return "future";
+  if (goal.goalType === "habitual") return "current";
+  if (goal.targetDate && goal.targetDate < today) return "past";
+  return "current";
+}
 
 const TYPE_OPTIONS: { value: GoalType | "all"; label: string }[] = [
   { value: "all", label: "All" },
@@ -27,6 +42,7 @@ function progressLabel(goal: Goal): string {
 export default function GoalsListScreen({ navigation }: { navigation: NativeStackNavigationProp<GoalsStackParamList, "GoalsList"> }) {
   const theme = useAppTheme();
   const [goals, setGoals] = useState<Goal[]>([]);
+  const [completions, setCompletions] = useState<Record<number, { date: string; value: number; completed: boolean }[]>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,8 +54,12 @@ export default function GoalsListScreen({ navigation }: { navigation: NativeStac
     else setLoading(true);
     setError(null);
     try {
-      const res = await api.get<Goal[]>("/api/goals");
+      const [res, completionsRes] = await Promise.all([
+        api.get<Goal[]>("/api/goals"),
+        api.get<Record<number, { date: string; value: number; completed: boolean }[]>>("/api/goals/completions"),
+      ]);
       setGoals(res);
+      setCompletions(completionsRes);
     } catch (err) {
       setError(err instanceof ApiRequestError ? err.message : "Couldn't load goals.");
     } finally {
@@ -56,9 +76,11 @@ export default function GoalsListScreen({ navigation }: { navigation: NativeStac
     return true;
   });
 
+  const today = todayString();
   const sections = [
-    { key: "current", title: "Current", data: filtered.filter((g) => g.status === "active") },
-    { key: "past", title: "Past", data: filtered.filter((g) => g.status !== "active") },
+    { key: "current", title: "Current", data: filtered.filter((g) => getTimeCategory(g, today) === "current") },
+    { key: "future", title: "Future", data: filtered.filter((g) => getTimeCategory(g, today) === "future") },
+    { key: "past", title: "Past", data: filtered.filter((g) => getTimeCategory(g, today) === "past") },
   ].filter((s) => s.data.length > 0);
 
   return (
@@ -108,6 +130,9 @@ export default function GoalsListScreen({ navigation }: { navigation: NativeStac
                 {item.pillarEmoji ? `${item.pillarEmoji} ` : ""}{item.pillarName ?? "No pillar"} · {item.goalType}
               </Text>
               <Text style={[styles.cardProgress, { color: theme.accent }]}>{progressLabel(item)}</Text>
+              {item.goalType === "habitual" && (
+                <GoalHeatmap theme={theme} goal={item} completions={completions[item.id] ?? []} today={today} />
+              )}
             </Pressable>
           )}
         />

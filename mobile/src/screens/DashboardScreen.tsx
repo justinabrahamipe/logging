@@ -4,6 +4,7 @@ import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View }
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api, ApiRequestError } from "../api/client";
 import { DailyScore, Momentum, ScoreHistoryResponse } from "../api/types";
+import FlameGauge from "../components/FlameGauge";
 import { useAppTheme } from "../hooks/useAppTheme";
 import { todayString } from "../utils/date";
 
@@ -57,6 +58,12 @@ export default function DashboardScreen() {
       >
         <Text style={[styles.title, { color: theme.text }]}>Dashboard</Text>
         {error && <Text style={[styles.error, { color: theme.danger }]}>{error}</Text>}
+
+        {score && (
+          <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <FlameGauge theme={theme} pct={score.actionScore} />
+          </View>
+        )}
 
         {score && (
           <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>

@@ -273,15 +273,17 @@ const styles = StyleSheet.create({
   wrapper: {
     borderRadius: 10,
     overflow: "hidden",
+    marginBottom: 10,
   },
   container: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 10,
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 12,
-    paddingHorizontal: 4,
+    paddingHorizontal: 12,
     gap: 10,
   },
   info: { flex: 1 },
@@ -289,7 +291,7 @@ const styles = StyleSheet.create({
   progress: { fontSize: 12, marginTop: 2 },
   details: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 4,
+    paddingHorizontal: 12,
     paddingTop: 10,
     paddingBottom: 12,
     gap: 10,

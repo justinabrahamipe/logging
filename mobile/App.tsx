@@ -3,12 +3,13 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StatusBar } from "expo-status-bar";
 import React from "react";
-import { ActivityIndicator, Text, useColorScheme, View } from "react-native";
+import { ActivityIndicator, Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
+import { AppThemeProvider } from "./src/context/ThemeContext";
 import { useAppTheme } from "./src/hooks/useAppTheme";
-import { CyclesStackParamList, GoalsStackParamList, MoreStackParamList, TasksStackParamList } from "./src/navigation/types";
+import { CyclesStackParamList, GoalsStackParamList, MoreStackParamList, PillarsStackParamList, TasksStackParamList } from "./src/navigation/types";
 import CycleDetailScreen from "./src/screens/cycles/CycleDetailScreen";
 import CycleFormScreen from "./src/screens/cycles/CycleFormScreen";
 import CyclesListScreen from "./src/screens/cycles/CyclesListScreen";
@@ -19,14 +20,18 @@ import GoalsListScreen from "./src/screens/goals/GoalsListScreen";
 import LoginScreen from "./src/screens/LoginScreen";
 import LogScreen from "./src/screens/LogScreen";
 import MoreScreen from "./src/screens/MoreScreen";
+import PillarDetailScreen from "./src/screens/pillars/PillarDetailScreen";
+import PillarFormScreen from "./src/screens/pillars/PillarFormScreen";
+import PillarsListScreen from "./src/screens/pillars/PillarsListScreen";
 import TaskFormScreen from "./src/screens/TaskFormScreen";
 import TasksScreen from "./src/screens/TasksScreen";
 
 const Tab = createBottomTabNavigator();
 const GoalsStack = createNativeStackNavigator<GoalsStackParamList>();
 const CyclesStack = createNativeStackNavigator<CyclesStackParamList>();
+const PillarsStack = createNativeStackNavigator<PillarsStackParamList>();
 const TasksStack = createNativeStackNavigator<TasksStackParamList>();
-const MoreStack = createNativeStackNavigator<MoreStackParamList & { GoalsStack: undefined; CyclesStack: undefined }>();
+const MoreStack = createNativeStackNavigator<MoreStackParamList & { GoalsStack: undefined; CyclesStack: undefined; PillarsStack: undefined }>();
 
 const TAB_ICONS: Record<string, string> = {
   Tasks: "📋",
@@ -54,6 +59,16 @@ function CyclesStackNavigator() {
   );
 }
 
+function PillarsStackNavigator() {
+  return (
+    <PillarsStack.Navigator screenOptions={{ headerShown: true }}>
+      <PillarsStack.Screen name="PillarsList" component={PillarsListScreen} options={{ headerShown: false }} />
+      <PillarsStack.Screen name="PillarDetail" component={PillarDetailScreen} options={{ title: "Pillar" }} />
+      <PillarsStack.Screen name="PillarForm" component={PillarFormScreen} options={{ title: "" }} />
+    </PillarsStack.Navigator>
+  );
+}
+
 function TasksStackNavigator() {
   return (
     <TasksStack.Navigator screenOptions={{ headerShown: false }}>
@@ -69,6 +84,7 @@ function MoreStackNavigator() {
       <MoreStack.Screen name="MoreMenu" component={MoreScreen} options={{ headerShown: false }} />
       <MoreStack.Screen name="GoalsStack" component={GoalsStackNavigator} options={{ headerShown: false, title: "Goals" }} />
       <MoreStack.Screen name="CyclesStack" component={CyclesStackNavigator} options={{ headerShown: false, title: "Cycles" }} />
+      <MoreStack.Screen name="PillarsStack" component={PillarsStackNavigator} options={{ headerShown: false, title: "Pillars" }} />
       <MoreStack.Screen name="Dashboard" component={DashboardScreen} options={{ headerShown: true, title: "Dashboard" }} />
     </MoreStack.Navigator>
   );
@@ -112,18 +128,26 @@ function Root() {
   return isSignedIn ? <AppTabs /> : <LoginScreen />;
 }
 
-export default function App() {
-  const scheme = useColorScheme();
+function AppRoot() {
+  const theme = useAppTheme();
 
+  return (
+    <NavigationContainer theme={theme.dark ? DarkTheme : DefaultTheme}>
+      <Root />
+      <StatusBar style={theme.dark ? "light" : "dark"} />
+    </NavigationContainer>
+  );
+}
+
+export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <AuthProvider>
-          <NavigationContainer theme={scheme === "dark" ? DarkTheme : DefaultTheme}>
-            <Root />
-            <StatusBar style={scheme === "dark" ? "light" : "dark"} />
-          </NavigationContainer>
-        </AuthProvider>
+        <AppThemeProvider>
+          <AuthProvider>
+            <AppRoot />
+          </AuthProvider>
+        </AppThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

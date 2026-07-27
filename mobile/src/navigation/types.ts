@@ -10,6 +10,12 @@ export type CyclesStackParamList = {
   CycleForm: { cycleId?: number };
 };
 
+export type PillarsStackParamList = {
+  PillarsList: undefined;
+  PillarDetail: { pillarId: number };
+  PillarForm: { pillarId?: number };
+};
+
 export type TasksStackParamList = {
   TasksList: undefined;
   TaskForm: { date: string; taskId?: number };

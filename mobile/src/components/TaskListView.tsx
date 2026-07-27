@@ -124,12 +124,13 @@ export default function TaskListView({ date, onEditTask }: Props) {
       {sections.map((section) => {
         const isCollapsed = collapsedSections.has(section.key);
         return (
-          <View key={section.key} style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <View key={section.key} style={styles.section}>
             <Pressable style={styles.sectionHeader} onPress={() => toggleSection(section.key)}>
+              <Ionicons name={isCollapsed ? "chevron-down" : "chevron-up"} size={14} color={theme.subtext} />
               <Text style={[styles.sectionTitle, { color: theme.subtext }]}>
                 {section.title} ({section.tasks.length})
               </Text>
-              <Ionicons name={isCollapsed ? "chevron-down" : "chevron-up"} size={16} color={theme.subtext} />
+              <View style={[styles.sectionRule, { backgroundColor: theme.border }]} />
             </Pressable>
             {!isCollapsed && section.tasks.map((task) => (
               <TaskRow
@@ -159,9 +160,10 @@ export default function TaskListView({ date, onEditTask }: Props) {
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   scrollContent: { padding: 16, paddingBottom: 100 },
-  card: { borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: 12, marginBottom: 16 },
-  sectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 4 },
+  section: { marginBottom: 16 },
+  sectionHeader: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 4, marginBottom: 8 },
   sectionTitle: { fontSize: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 },
+  sectionRule: { flex: 1, height: StyleSheet.hairlineWidth, marginLeft: 4 },
   error: { marginBottom: 12, fontSize: 13 },
   empty: { textAlign: "center", marginTop: 40, fontSize: 14 },
 });
