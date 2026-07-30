@@ -110,13 +110,23 @@ export default function TaskListView({ date, onEditTask }: Props) {
     taskCache.removeTask(date, taskId).catch(() => {});
   };
 
-  const { busyIds, checkboxToggle, countChange, toggleSkip, reschedule, scheduleToday, duplicate, remove } = useTaskActions(
+  const {
+    busyIds, checkboxToggle, countChange, toggleSkip, reschedule, scheduleToday, duplicate, remove,
+    timers, numericSubmit, timerToggle, durationManualSubmit, restoreTimers, formatTime,
+  } = useTaskActions(
     applyLocalUpdate,
     setError,
     removeLocalTask,
     () => load(true),
     { date },
   );
+
+  useEffect(() => {
+    if (!data) return;
+    const allTasks = [...data.groups.flatMap((g) => g.tasks), ...data.noDateTasks, ...data.overdueTasks];
+    restoreTimers(allTasks);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
 
   const confirmDelete = (task: Task) => {
     Alert.alert("Delete task", `Delete "${task.name}"? This can't be undone.`, [
@@ -194,6 +204,11 @@ export default function TaskListView({ date, onEditTask }: Props) {
                 onCheckboxToggle={checkboxToggle}
                 onCountChange={countChange}
                 onToggleSkip={toggleSkip}
+                onNumericSubmit={numericSubmit}
+                onTimerToggle={timerToggle}
+                onDurationManualSubmit={durationManualSubmit}
+                timer={timers[task.id]}
+                formatTime={formatTime}
                 busy={busyIds.has(task.id)}
                 pendingSync={pendingIds.has(task.id)}
                 onLongPress={onEditTask}

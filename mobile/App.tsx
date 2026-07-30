@@ -1,4 +1,4 @@
-import { DefaultTheme, NavigationContainer } from "@react-navigation/native";
+import { DefaultTheme, LinkingOptions, NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StatusBar } from "expo-status-bar";
@@ -30,6 +30,23 @@ import PillarFormScreen from "./src/screens/pillars/PillarFormScreen";
 import PillarsListScreen from "./src/screens/pillars/PillarsListScreen";
 import TaskFormScreen from "./src/screens/TaskFormScreen";
 import TasksScreen from "./src/screens/TasksScreen";
+
+// Lets the home-screen widget's "add task" button (OPEN_URI clickAction) deep-link
+// straight into the add-task form instead of just opening the app to its last screen.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const linking: LinkingOptions<any> = {
+  prefixes: ["grindconsole://"],
+  config: {
+    screens: {
+      Tasks: {
+        screens: {
+          TasksList: "tasks",
+          TaskForm: "tasks/new",
+        },
+      },
+    },
+  },
+};
 
 const Tab = createBottomTabNavigator();
 const GoalsStack = createNativeStackNavigator<GoalsStackParamList>();
@@ -172,7 +189,7 @@ function AppRoot() {
   }, []);
 
   return (
-    <NavigationContainer theme={toNavigationTheme(theme)}>
+    <NavigationContainer theme={toNavigationTheme(theme)} linking={linking}>
       <Root />
       <StatusBar style={theme.dark ? "light" : "dark"} />
     </NavigationContainer>

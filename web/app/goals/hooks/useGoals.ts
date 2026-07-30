@@ -226,11 +226,11 @@ export function useGoals() {
   const getTimeCategory = (o: Outcome): "current" | "future" | "past" => {
     if (o.status === 'completed' || o.status === 'abandoned') return "past";
     if (o.startDate && o.startDate > today) return "future";
-    // Habitual goals are recurring routines with no real deadline — they usually
-    // inherit their linked cycle's endDate as targetDate, which would otherwise
-    // dump every daily habit into "past" the moment the cycle lapses, even though
-    // the routine is still ongoing. Only an explicit status change should retire them.
-    if (o.goalType === 'habitual') return "current";
+    // Habitual goals with no linked cycle are indefinite recurring routines —
+    // only an explicit status change should retire them. But once a habitual
+    // goal IS attached to a cycle, its targetDate tracks that cycle's endDate,
+    // so it should fall into "past" like any other goal once the cycle ends.
+    if (o.goalType === 'habitual' && !o.periodId) return "current";
     if (o.targetDate && o.targetDate < today) return "past";
     return "current";
   };

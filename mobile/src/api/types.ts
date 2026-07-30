@@ -19,7 +19,7 @@ export type TaskCompletion = {
   pointsEarned: number;
   isHighlighted: boolean;
   skipped: boolean;
-  timerStartedAt: string | null;
+  timerStartedAt: number | null;
 };
 
 export type Task = {
@@ -41,7 +41,7 @@ export type Task = {
   pointsEarned: number;
   isHighlighted: boolean;
   skipped: boolean;
-  timerStartedAt: string | null;
+  timerStartedAt: number | null;
   dismissed: boolean;
   frequency: string;
   description?: string | null;

@@ -12,15 +12,15 @@ import { GoalsStackParamList } from "../../navigation/types";
 import { todayString } from "../../utils/date";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
-// Habitual goals are recurring routines with no real deadline — they usually inherit
-// their linked cycle's endDate as targetDate, which would otherwise dump every daily
-// habit into "past" the moment the cycle lapses even though the routine is still
-// ongoing. Only an explicit status change should retire them. Kept in sync with the
-// equivalent fix in the web app's app/goals/hooks/useGoals.ts.
+// Habitual goals with no linked cycle are indefinite recurring routines — only an
+// explicit status change should retire them. But once a habitual goal IS attached
+// to a cycle, its targetDate tracks that cycle's endDate, so it should fall into
+// "past" like any other goal once the cycle ends. Kept in sync with the equivalent
+// fix in the web app's app/goals/hooks/useGoals.ts.
 function getTimeCategory(goal: Goal, today: string): "current" | "future" | "past" {
   if (goal.status === "completed" || goal.status === "abandoned") return "past";
   if (goal.startDate && goal.startDate > today) return "future";
-  if (goal.goalType === "habitual") return "current";
+  if (goal.goalType === "habitual" && !goal.periodId) return "current";
   if (goal.targetDate && goal.targetDate < today) return "past";
   return "current";
 }

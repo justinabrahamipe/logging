@@ -1,6 +1,6 @@
 import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api, ApiRequestError } from "../../api/client";
@@ -58,7 +58,12 @@ export default function GoalDetailScreen({ route, navigation }: Props) {
   const applyPatch = (taskId: number, patch: Partial<Task>) => {
     setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, ...patch } : t)));
   };
-  const { busyIds, checkboxToggle, countChange, toggleSkip } = useTaskActions(applyPatch, setError);
+  const { busyIds, checkboxToggle, countChange, toggleSkip, numericSubmit, timerToggle, durationManualSubmit, timers, restoreTimers, formatTime } = useTaskActions(applyPatch, setError);
+
+  useEffect(() => {
+    restoreTimers(tasks);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tasks]);
 
   const changeStatus = async (status: Goal["status"]) => {
     if (!goal) return;
@@ -192,6 +197,11 @@ export default function GoalDetailScreen({ route, navigation }: Props) {
                 onCheckboxToggle={checkboxToggle}
                 onCountChange={countChange}
                 onToggleSkip={toggleSkip}
+                onNumericSubmit={numericSubmit}
+                onTimerToggle={timerToggle}
+                onDurationManualSubmit={durationManualSubmit}
+                timer={timers[task.id]}
+                formatTime={formatTime}
                 busy={busyIds.has(task.id)}
               />
             ))}

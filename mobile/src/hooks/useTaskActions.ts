@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, ApiRequestError, isOfflineError } from "../api/client";
 import { Task } from "../api/types";
 import * as offlineTaskOps from "../offline/offlineTaskOps";
@@ -58,6 +58,99 @@ export function useTaskActions(
     const completed = isLimit ? task.completed : task.target ? newValue >= task.target : newValue > 0;
     complete(task, completed, newValue);
   };
+
+  const numericSubmit = (task: Task, value: number) => {
+    const isLimit = task.flexibilityRule === "limit_avoid";
+    const completed = isLimit ? task.completed : task.target && task.target > 0 ? value >= task.target : value > 0;
+    complete(task, completed, value);
+  };
+
+  // Timer state for duration tasks. Kept as refs (not just state) so restore/cleanup
+  // logic always sees the current interval, never a stale closure from a re-render.
+  const [timers, setTimers] = useState<Record<number, { running: boolean; elapsed: number }>>({});
+  const intervalsRef = useRef<Record<number, ReturnType<typeof setInterval>>>({});
+  const timerRestoredRef = useRef<Set<number>>(new Set());
+
+  const saveTimerToDb = (taskId: number, action: "start" | "stop") => {
+    api.post("/api/tasks/timer", { taskId, action }).catch(() => {});
+  };
+
+  const clearTimerInterval = (taskId: number) => {
+    const interval = intervalsRef.current[taskId];
+    if (interval) {
+      clearInterval(interval);
+      delete intervalsRef.current[taskId];
+    }
+  };
+
+  const startTimerInternal = (taskId: number, startElapsed: number) => {
+    clearTimerInterval(taskId);
+    intervalsRef.current[taskId] = setInterval(() => {
+      setTimers((prev) => {
+        const current = prev[taskId];
+        if (!current?.running) return prev;
+        return { ...prev, [taskId]: { ...current, elapsed: current.elapsed + 1 } };
+      });
+    }, 1000);
+    setTimers((prev) => ({ ...prev, [taskId]: { running: true, elapsed: startElapsed } }));
+  };
+
+  const startTimer = (taskId: number, startElapsed: number) => {
+    startTimerInternal(taskId, startElapsed);
+    saveTimerToDb(taskId, "start");
+  };
+
+  const timerToggle = (task: Task) => {
+    const timer = timers[task.id];
+    if (timer?.running) {
+      clearTimerInterval(task.id);
+      const minutes = Math.round(timer.elapsed / 60);
+      const isLimit = task.flexibilityRule === "limit_avoid";
+      const targetReached = isLimit ? task.completed : task.target ? timer.elapsed >= task.target * 60 : minutes > 0;
+      complete(task, targetReached, minutes);
+      setTimers((prev) => ({ ...prev, [task.id]: { running: false, elapsed: timer.elapsed } }));
+      saveTimerToDb(task.id, "stop");
+    } else {
+      const elapsed = timer?.elapsed ?? (task.value || 0) * 60;
+      startTimer(task.id, elapsed);
+    }
+  };
+
+  const durationManualSubmit = (task: Task, minutes: number) => {
+    const elapsedSec = minutes * 60;
+    clearTimerInterval(task.id);
+    setTimers((prev) => ({ ...prev, [task.id]: { running: false, elapsed: elapsedSec } }));
+    saveTimerToDb(task.id, "stop");
+    const isLimit = task.flexibilityRule === "limit_avoid";
+    const targetReached = isLimit ? task.completed : task.target ? elapsedSec >= task.target * 60 : minutes > 0;
+    complete(task, targetReached, minutes);
+  };
+
+  // Resume timers left running from a previous session (e.g. app was backgrounded
+  // or the row was unmounted): task.timerStartedAt is the epoch-ms the server has
+  // on file, so elapsed = time already logged + wall-clock time since that start.
+  const restoreTimers = (tasks: Task[]) => {
+    for (const task of tasks) {
+      if (task.timerStartedAt != null && !timerRestoredRef.current.has(task.id) && !intervalsRef.current[task.id]) {
+        timerRestoredRef.current.add(task.id);
+        const elapsedAtStart = (task.value || 0) * 60;
+        const elapsedSinceStart = Math.floor((Date.now() - task.timerStartedAt) / 1000);
+        startTimerInternal(task.id, elapsedAtStart + Math.max(0, elapsedSinceStart));
+      }
+    }
+  };
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${String(s).padStart(2, "0")}`;
+  };
+
+  useEffect(() => {
+    return () => {
+      Object.values(intervalsRef.current).forEach(clearInterval);
+    };
+  }, []);
 
   const toggleSkip = async (task: Task) => {
     const nextSkipped = !task.skipped;
@@ -186,5 +279,8 @@ export function useTaskActions(
     }
   };
 
-  return { busyIds, checkboxToggle, countChange, toggleSkip, reschedule, scheduleToday, duplicate, remove };
+  return {
+    busyIds, checkboxToggle, countChange, toggleSkip, reschedule, scheduleToday, duplicate, remove,
+    timers, numericSubmit, timerToggle, durationManualSubmit, restoreTimers, formatTime,
+  };
 }

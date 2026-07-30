@@ -9,19 +9,19 @@ import { TaskWidget } from "./TaskWidget";
 
 const WIDGET_NAME = "TaskWidget";
 
-function pendingTasks(data: TodayResponse | null): Task[] {
-  if (!data) return [];
+function pendingTasks(data: TodayResponse | null): { overdue: Task[]; today: Task[] } {
+  if (!data) return { overdue: [], today: [] };
   const today = data.groups.flatMap((g) => g.tasks).filter((t) => !t.completed && !t.skipped);
   const overdue = data.overdueTasks.filter((t) => !t.completed && !t.skipped);
-  return [...overdue, ...today];
+  return { overdue, today };
 }
 
 async function render(): Promise<{ light: React.JSX.Element; dark: React.JSX.Element }> {
   const data = await taskCache.getForDate(todayString());
-  const tasks = pendingTasks(data);
+  const { overdue, today } = pendingTasks(data);
   return {
-    light: React.createElement(TaskWidget, { theme: lightTheme, tasks }),
-    dark: React.createElement(TaskWidget, { theme: darkTheme, tasks }),
+    light: React.createElement(TaskWidget, { theme: lightTheme, overdue, today }),
+    dark: React.createElement(TaskWidget, { theme: darkTheme, overdue, today }),
   };
 }
 

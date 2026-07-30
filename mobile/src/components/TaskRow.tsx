@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useRef, useState } from "react";
-import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Animated, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
 import { Task } from "../api/types";
 import { Theme } from "../theme";
@@ -81,6 +81,11 @@ type Props = {
   onCheckboxToggle: (task: Task) => void;
   onCountChange: (task: Task, delta: number) => void;
   onToggleSkip: (task: Task) => void;
+  onNumericSubmit?: (task: Task, value: number) => void;
+  onTimerToggle?: (task: Task) => void;
+  onDurationManualSubmit?: (task: Task, minutes: number) => void;
+  timer?: { running: boolean; elapsed: number };
+  formatTime?: (seconds: number) => string;
   busy: boolean;
   pendingSync?: boolean;
   onLongPress?: (task: Task) => void;
@@ -104,8 +109,15 @@ const ACTION_ICON: Record<ActionKind, keyof typeof Ionicons.glyphMap> = {
   unskip: "arrow-undo",
 };
 
+function defaultFormatTime(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
 export default function TaskRow({
-  task, theme, onCheckboxToggle, onCountChange, onToggleSkip, busy, pendingSync, onLongPress, onEdit, onDelete, onDuplicate, onReschedule, onScheduleToday,
+  task, theme, onCheckboxToggle, onCountChange, onToggleSkip, onNumericSubmit, onTimerToggle, onDurationManualSubmit, timer, formatTime = defaultFormatTime,
+  busy, pendingSync, onLongPress, onEdit, onDelete, onDuplicate, onReschedule, onScheduleToday,
   expanded: controlledExpanded, onToggleExpand,
 }: Props) {
   const swipeableRef = useRef<Swipeable>(null);
@@ -115,6 +127,9 @@ export default function TaskRow({
 
   const [pendingDays, setPendingDays] = useState(0);
   const wasExpanded = useRef(expanded);
+
+  const [numericInput, setNumericInput] = useState<string | null>(null);
+  const [durationEditInput, setDurationEditInput] = useState<string | null>(null);
 
   useEffect(() => {
     if (wasExpanded.current && !expanded && pendingDays !== 0 && task.date && onReschedule) {
@@ -252,16 +267,120 @@ export default function TaskRow({
                 </Text>
               )}
             </View>
-            <Pressable
-              style={[
-                styles.checkbox,
-                { borderColor: isFullyDone ? theme.success : theme.border, backgroundColor: isFullyDone ? theme.success : "transparent" },
-              ]}
-              onPress={handleCheckboxTap}
-              hitSlop={8}
-            >
-              {isFullyDone && <Text style={styles.check}>✓</Text>}
-            </Pressable>
+            {task.completionType === "checkbox" && (
+              <Pressable
+                style={[
+                  styles.checkbox,
+                  { borderColor: isFullyDone ? theme.success : theme.border, backgroundColor: isFullyDone ? theme.success : "transparent" },
+                ]}
+                onPress={handleCheckboxTap}
+                hitSlop={8}
+              >
+                {isFullyDone && <Text style={styles.check}>✓</Text>}
+              </Pressable>
+            )}
+
+            {task.completionType === "count" && (
+              <View style={styles.countControl}>
+                <Pressable
+                  style={[styles.stepButton, { backgroundColor: theme.border }]}
+                  onPress={() => !busy && onCountChange(task, -1)}
+                  hitSlop={6}
+                >
+                  <Ionicons name="remove" size={12} color={theme.text} />
+                </Pressable>
+                <Text style={[styles.countLabel, { color: isFullyDone ? theme.success : theme.text }]}>
+                  {currentValue}/{isLimitTask ? limitVal : (task.target ?? "?")}
+                </Text>
+                <Pressable
+                  style={[styles.stepButton, { backgroundColor: theme.accent }]}
+                  onPress={() => !busy && onCountChange(task, 1)}
+                  hitSlop={6}
+                >
+                  <Ionicons name="add" size={12} color="#fff" />
+                </Pressable>
+              </View>
+            )}
+
+            {task.completionType === "numeric" && (
+              <View style={styles.numericControl}>
+                <TextInput
+                  style={[styles.numericInput, { color: theme.text, borderColor: theme.border }]}
+                  value={numericInput ?? (currentValue ? String(currentValue) : "")}
+                  onChangeText={setNumericInput}
+                  onFocus={() => setNumericInput((v) => v ?? (currentValue ? String(currentValue) : ""))}
+                  keyboardType="numeric"
+                  placeholder={task.target ? String(task.target) : "0"}
+                  placeholderTextColor={theme.subtext}
+                />
+                {numericInput !== null && (
+                  <Pressable
+                    style={[styles.submitButton, { backgroundColor: theme.success }]}
+                    onPress={() => {
+                      const val = parseFloat(numericInput) || 0;
+                      onNumericSubmit?.(task, val);
+                      setNumericInput(null);
+                    }}
+                    hitSlop={6}
+                  >
+                    <Ionicons name="checkmark" size={12} color="#fff" />
+                  </Pressable>
+                )}
+              </View>
+            )}
+
+            {task.completionType === "duration" && (() => {
+              const isRunning = timer?.running ?? false;
+              const elapsed = timer ? timer.elapsed : currentValue * 60;
+              const isEditing = durationEditInput !== null;
+              return (
+                <View style={styles.durationControl}>
+                  {isEditing && !isRunning ? (
+                    <TextInput
+                      style={[styles.numericInput, { color: theme.text, borderColor: theme.border }]}
+                      value={durationEditInput ?? ""}
+                      onChangeText={setDurationEditInput}
+                      keyboardType="numeric"
+                      autoFocus
+                      onSubmitEditing={() => {
+                        const minutes = parseFloat(durationEditInput ?? "0") || 0;
+                        onDurationManualSubmit?.(task, minutes);
+                        setDurationEditInput(null);
+                      }}
+                    />
+                  ) : (
+                    <Pressable
+                      onPress={() => { if (!isRunning) setDurationEditInput(String(Math.round(elapsed / 60))); }}
+                      hitSlop={6}
+                      disabled={isRunning}
+                    >
+                      <Text style={[styles.durationText, { color: isFullyDone ? theme.success : theme.text }]}>
+                        {formatTime(elapsed)}
+                        {task.target ? <Text style={{ color: theme.subtext }}>{`/${task.target}:00`}</Text> : null}
+                      </Text>
+                    </Pressable>
+                  )}
+                  <Pressable
+                    style={[
+                      styles.submitButton,
+                      { backgroundColor: isEditing ? theme.success : isRunning ? theme.warning : theme.accent },
+                    ]}
+                    onPress={() => {
+                      if (isEditing) {
+                        const minutes = parseFloat(durationEditInput ?? "0") || 0;
+                        onDurationManualSubmit?.(task, minutes);
+                        setDurationEditInput(null);
+                      } else {
+                        onTimerToggle?.(task);
+                      }
+                    }}
+                    hitSlop={6}
+                  >
+                    <Ionicons name={isEditing ? "checkmark" : isRunning ? "pause" : "play"} size={12} color="#fff" />
+                  </Pressable>
+                </View>
+              );
+            })()}
           </Pressable>
 
           {expanded && (
@@ -373,6 +492,34 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   check: { color: "#fff", fontSize: 14, fontWeight: "700" },
+  countControl: { flexDirection: "row", alignItems: "center", gap: 6 },
+  stepButton: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  countLabel: { fontSize: 12, fontWeight: "700", minWidth: 32, textAlign: "center" },
+  numericControl: { flexDirection: "row", alignItems: "center", gap: 4 },
+  numericInput: {
+    width: 56,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 6,
+    fontSize: 13,
+    textAlign: "right",
+  },
+  submitButton: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  durationControl: { flexDirection: "row", alignItems: "center", gap: 6 },
+  durationText: { fontSize: 12, fontWeight: "700", fontVariant: ["tabular-nums"] },
   actionPane: { flex: 1, justifyContent: "center", paddingLeft: 20 },
   actionPaneRight: { alignItems: "flex-end", paddingRight: 20, paddingLeft: 0 },
   actionContent: { flexDirection: "row", alignItems: "center" },

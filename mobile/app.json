@@ -38,7 +38,7 @@
           "minHeight": "180dp",
           "targetCellWidth": 4,
           "targetCellHeight": 3,
-          "resizeMode": "vertical",
+          "resizeMode": "horizontal|vertical",
           "updatePeriodMillis": 1800000
         }]
       }]
