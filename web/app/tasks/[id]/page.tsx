@@ -21,7 +21,7 @@ import {
   FaChevronRight,
 } from "react-icons/fa";
 import { useTheme } from "@/components/ThemeProvider";
-import { formatDate, getTodayString, getYesterdayString } from "@/lib/format";
+import { formatDate, getTodayString } from "@/lib/format";
 import type { Task, Pillar, Outcome } from "@/lib/types";
 
 interface TaskDetail extends Task {
@@ -55,7 +55,6 @@ export default function TaskDetailPage() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const today = getTodayString();
-  const yesterday = getYesterdayString();
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -129,7 +128,7 @@ export default function TaskDetailPage() {
   const isSkipped = task.skipped || false;
   const isHighlighted = task.isHighlighted || false;
   const isLimitTask = task.flexibilityRule === "limit_avoid";
-  const isFrozen = task.date ? task.date < yesterday : false;
+  const isFrozen = task.frozen ?? false;
   const taskDate = task.startDate || task.date || "";
   const limitVal = task.limitValue ?? task.target ?? 0;
   const progressTarget = isLimitTask ? limitVal : (task.target || 0);

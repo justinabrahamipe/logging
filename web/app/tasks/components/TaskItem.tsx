@@ -7,7 +7,7 @@ import { formatScheduleLabel } from "@/lib/constants";
 import { getProgressColor } from "@/lib/scoring";
 import { countScheduledDaysInRange } from "@/lib/effort-calculations";
 import { useTheme } from "@/components/ThemeProvider";
-import { getTodayString, getYesterdayString, parseScheduleDays, parseCustomDays } from "@/lib/format";
+import { getTodayString, parseScheduleDays, parseCustomDays } from "@/lib/format";
 import type { Task, Outcome, Cycle } from "@/lib/types";
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 
@@ -80,8 +80,7 @@ const TaskItem = memo(function TaskItem({
   const currentValue = task.completion?.value || 0;
   const isDiscarded = task.completion?.skipped || false;
   const isLimitTask = task.flexibilityRule === 'limit_avoid';
-  const yesterdayStr = getYesterdayString();
-  const isFrozen = task.startDate ? task.startDate < yesterdayStr : (task.date ? task.date < yesterdayStr : false);
+  const isFrozen = task.frozen ?? false;
   const limitVal = task.limitValue ?? task.target ?? 0;
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 

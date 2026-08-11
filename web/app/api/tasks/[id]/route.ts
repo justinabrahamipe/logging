@@ -8,7 +8,7 @@ import { recalculateDateScores } from "@/lib/save-daily-score";
 import { getTodayString } from "@/lib/format";
 import { getOwnedTask, getOwnedSchedule } from "@/lib/db-utils";
 import { mapTaskUpdateFields, mapScheduleUpdateFields, buildTaskPropagationFields } from "@/lib/task-utils";
-import { isTaskTooOldToEdit, dismissOrDeleteTask } from "@/lib/task-mutations";
+import { isTaskFrozen, dismissOrDeleteTask, buildFrozenContext, computeTaskFrozen } from "@/lib/task-mutations";
 import { recalculateGoalCurrentValue } from "@/lib/goal-mutations";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -40,6 +40,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       .where(and(eq(tasks.id, taskId), eq(tasks.userId, userId)));
 
     if (task) {
+      const frozenCtx = await buildFrozenContext(userId, [task], getTodayString());
+      const frozen = computeTaskFrozen(task, frozenCtx);
+
       // Merge schedule data (frequency, customDays, repeatInterval) if available
       if (task.scheduleId) {
         const [schedule] = await db
@@ -47,10 +50,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
           .from(taskSchedules)
           .where(eq(taskSchedules.id, task.scheduleId));
         if (schedule) {
-          return NextResponse.json({ ...task, ...schedule });
+          return NextResponse.json({ ...task, ...schedule, frozen });
         }
       }
-      return NextResponse.json({ ...task, frequency: 'adhoc', customDays: null, repeatInterval: null });
+      return NextResponse.json({ ...task, frequency: 'adhoc', customDays: null, repeatInterval: null, frozen });
     }
 
     // Fall back to schedule lookup
@@ -87,10 +90,10 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         return NextResponse.json({ error: "Not found" }, { status: 404 });
       }
 
-      // Only allow edits for today, yesterday, and future — older tasks are frozen (no-date tasks are always editable)
-      // Use client-provided date to derive yesterday (avoids server timezone mismatch)
+      // Freeze window depends on the linked goal's type — see lib/task-mutations.ts
+      // Use client-provided date to derive "today" (avoids server timezone mismatch)
       const refDate = body.date || body.startDate || existing.date;
-      if (isTaskTooOldToEdit(existing.date, refDate)) {
+      if (await isTaskFrozen(userId, existing, refDate)) {
         return NextResponse.json({ error: "Cannot modify tasks older than yesterday" }, { status: 403 });
       }
 

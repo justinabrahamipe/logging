@@ -6,6 +6,7 @@ import { ensureUpcomingTasks, ensureTasksForDate, invalidateTaskCache, recalcTar
 import { getTodayString } from "@/lib/format";
 import { createAutoLog } from "@/lib/auto-log";
 import { taskCreateSchema } from "@/lib/schemas/task";
+import { buildFrozenContext, computeTaskFrozen } from "@/lib/task-mutations";
 
 export async function GET(request: NextRequest) {
   try {
@@ -125,6 +126,11 @@ export async function GET(request: NextRequest) {
         .orderBy(asc(tasks.pillarId)),
     ]);
 
+    // Frozen state depends on the linked goal's type — see lib/task-mutations.ts.
+    // Computed once per request (goal-type lookup + habitual max-date query) rather
+    // than per task.
+    const frozenCtx = await buildFrozenContext(userId, tasksForDate, todayStr);
+
     // Map tasks to include a completion field for backward compat
     const tasksWithCompletion = tasksForDate.map(t => ({
       ...t,
@@ -132,6 +138,7 @@ export async function GET(request: NextRequest) {
       customDays: null,
       repeatInterval: null,
       startDate: t.date,
+      frozen: computeTaskFrozen(t, frozenCtx),
       completion: {
         id: t.id,
         taskId: t.id,
@@ -187,6 +194,7 @@ export async function GET(request: NextRequest) {
         customDays: null,
         repeatInterval: null,
         startDate: t.date,
+        frozen: false,
         completion: {
           id: t.id,
           taskId: t.id,
@@ -199,18 +207,24 @@ export async function GET(request: NextRequest) {
         },
       }));
 
-      // Fetch project goal IDs so we can surface their overdue subtasks
-      const projectGoalRows = await db
-        .select({ id: goals.id })
+      // Fetch project/habitual goal IDs so we can surface their overdue tasks
+      const projectAndHabitualGoalRows = await db
+        .select({ id: goals.id, goalType: goals.goalType })
         .from(goals)
-        .where(and(eq(goals.userId, userId), eq(goals.goalType, 'project')));
-      const projectGoalIds = projectGoalRows.map(g => g.id);
+        .where(and(eq(goals.userId, userId), or(eq(goals.goalType, 'project'), eq(goals.goalType, 'habitual'))));
+      const projectGoalIds = projectAndHabitualGoalRows.filter(g => g.goalType === 'project').map(g => g.id);
+      const habitualGoalIds = projectAndHabitualGoalRows.filter(g => g.goalType === 'habitual').map(g => g.id);
 
-      // Overdue = past-dated, not completed/skipped/dismissed, and either
-      // a pure ad-hoc task or a project subtask
+      // Overdue = past-dated, not completed/skipped/dismissed, and one of:
+      // - a task with no goal (pure ad-hoc, or a plain repeating task not tied to
+      //   a goal that imposes a freeze window) — always allowed to linger here
+      // - a project-goal subtask — same, always allowed
+      // - a habitual-goal task — collapsed below to only its single latest missed
+      //   instance per schedule; older misses are frozen instead (see isTaskFrozen)
       const overdueCondition = or(
-        and(isNull(tasks.scheduleId), isNull(tasks.goalId)),
+        isNull(tasks.goalId),
         projectGoalIds.length > 0 ? inArray(tasks.goalId, projectGoalIds) : sql`false`,
+        habitualGoalIds.length > 0 ? inArray(tasks.goalId, habitualGoalIds) : sql`false`,
       );
       const overdueRaw = await db
         .select()
@@ -225,12 +239,26 @@ export async function GET(request: NextRequest) {
         ))
         .orderBy(asc(tasks.date), asc(tasks.pillarId));
 
-      overdueTasks = overdueRaw.map(t => ({
+      // Collapse habitual-goal rows down to each schedule's single latest missed date
+      const latestHabitualByScheduleId = new Map<number, string>();
+      for (const t of overdueRaw) {
+        if (t.goalId != null && t.scheduleId != null && habitualGoalIds.includes(t.goalId)) {
+          const cur = latestHabitualByScheduleId.get(t.scheduleId);
+          if (!cur || t.date > cur) latestHabitualByScheduleId.set(t.scheduleId, t.date);
+        }
+      }
+      const overdueFiltered = overdueRaw.filter(t => {
+        if (t.goalId == null || !habitualGoalIds.includes(t.goalId) || t.scheduleId == null) return true;
+        return t.date === latestHabitualByScheduleId.get(t.scheduleId);
+      });
+
+      overdueTasks = overdueFiltered.map(t => ({
         ...t,
         frequency: 'adhoc' as const,
         customDays: null,
         repeatInterval: null,
         startDate: t.date,
+        frozen: false,
         completion: {
           id: t.id,
           taskId: t.id,

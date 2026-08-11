@@ -2,8 +2,10 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from "
 import * as SecureStore from "expo-secure-store";
 import { api, setSession } from "../api/client";
 
-const BASE_URL_KEY = "grindconsole.baseUrl";
-const API_KEY_KEY = "grindconsole.apiKey";
+// Exported so the widget's headless JS task (widget/widgetTaskHandler.ts) can hydrate
+// the same session — it never mounts AuthProvider, since that would boot the full app.
+export const BASE_URL_KEY = "grindconsole.baseUrl";
+export const API_KEY_KEY = "grindconsole.apiKey";
 
 type AuthContextValue = {
   isLoading: boolean;

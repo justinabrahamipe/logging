@@ -26,6 +26,14 @@ export async function setForDate(date: string, data: TodayResponse): Promise<voi
   dateChangeListeners.forEach((cb) => cb(date));
 }
 
+// Same as setForDate but skips the change notification. For callers that are about to
+// render with this exact data themselves (the widget's own background refresh) — going
+// through setForDate there would re-trigger their own "cache changed" subscription and
+// refresh forever.
+export async function setForDateSilent(date: string, data: TodayResponse): Promise<void> {
+  await setJSON(cacheKey(date), data);
+}
+
 export function patchTaskIn(data: TodayResponse, taskId: number, patch: Partial<Task>): TodayResponse {
   const apply = (t: Task) => (t.id === taskId ? { ...t, ...patch } : t);
   return {
@@ -60,6 +68,12 @@ export function addTaskIn(data: TodayResponse, task: Task): TodayResponse {
 export async function patchTask(date: string, taskId: number, patch: Partial<Task>): Promise<void> {
   const data = (await getForDate(date)) ?? emptyResponse();
   await setForDate(date, patchTaskIn(data, taskId, patch));
+}
+
+// Same as patchTask but skips the change notification — see setForDateSilent.
+export async function patchTaskSilent(date: string, taskId: number, patch: Partial<Task>): Promise<void> {
+  const data = (await getForDate(date)) ?? emptyResponse();
+  await setForDateSilent(date, patchTaskIn(data, taskId, patch));
 }
 
 export async function removeTask(date: string, taskId: number): Promise<void> {

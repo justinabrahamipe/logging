@@ -1,6 +1,6 @@
-import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
+import Svg, { Circle } from "react-native-svg";
 import { Theme } from "../theme";
 import { addDays, todayString } from "../utils/date";
 
@@ -15,28 +15,48 @@ function lastSevenDays(entries: Entry[]): Entry[] {
   });
 }
 
-const FLAME_SIZE = 22;
-
 function dayLabel(dateStr: string): string {
   const [y, m, d] = dateStr.split("-").map(Number);
   return new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: "short" }).slice(0, 1);
 }
 
-function Flame({ pct, theme }: { pct: number; theme: Theme }) {
-  const fillHeight = pct > 0 ? Math.max(3, Math.round(pct * FLAME_SIZE)) : 0;
+const RING_SIZE = 32;
+const STROKE = 4;
+const RADIUS = (RING_SIZE - STROKE) / 2;
+const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+
+function Ring({ pct, theme }: { pct: number; theme: Theme }) {
+  const clamped = Math.max(0, Math.min(100, pct));
+  const offset = CIRCUMFERENCE * (1 - clamped / 100);
   return (
-    <View style={styles.flameBox}>
-      <Ionicons name="flame-outline" size={FLAME_SIZE} color={theme.border} style={StyleSheet.absoluteFill} />
-      <View style={[styles.flameClip, { height: fillHeight }]}>
-        <Ionicons name="flame" size={FLAME_SIZE} color={theme.warning} style={styles.flameIcon} />
+    <View style={styles.ringBox}>
+      <Svg width={RING_SIZE} height={RING_SIZE}>
+        <Circle cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RADIUS} stroke={theme.border} strokeWidth={STROKE} fill="none" />
+        {clamped > 0 && (
+          <Circle
+            cx={RING_SIZE / 2}
+            cy={RING_SIZE / 2}
+            r={RADIUS}
+            stroke={theme.warning}
+            strokeWidth={STROKE}
+            fill="none"
+            strokeLinecap="round"
+            strokeDasharray={`${CIRCUMFERENCE} ${CIRCUMFERENCE}`}
+            strokeDashoffset={offset}
+            rotation={-90}
+            origin={`${RING_SIZE / 2}, ${RING_SIZE / 2}`}
+          />
+        )}
+      </Svg>
+      <View style={styles.ringLabel} pointerEvents="none">
+        <Text style={[styles.ringLabelText, { color: theme.text }]}>{Math.round(clamped)}</Text>
       </View>
     </View>
   );
 }
 
-export default function WeekFlames({ theme, entries }: { theme: Theme; entries: Entry[] }) {
+export default function WeekRings({ theme, entries }: { theme: Theme; entries: Entry[] }) {
   const week = lastSevenDays(entries);
-  const maxScore = Math.max(1, ...week.map((e) => e.actionScore));
 
   return (
     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
@@ -44,7 +64,7 @@ export default function WeekFlames({ theme, entries }: { theme: Theme; entries: 
       <View style={styles.row}>
         {week.map((e) => (
           <View key={e.date} style={styles.col}>
-            <Flame pct={e.actionScore / maxScore} theme={theme} />
+            <Ring pct={e.actionScore} theme={theme} />
             <Text style={[styles.label, { color: theme.subtext }]}>{dayLabel(e.date)}</Text>
           </View>
         ))}
@@ -58,8 +78,8 @@ const styles = StyleSheet.create({
   title: { fontSize: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 10 },
   row: { flexDirection: "row", justifyContent: "space-between" },
   col: { alignItems: "center", gap: 6 },
-  flameBox: { width: FLAME_SIZE, height: FLAME_SIZE },
-  flameClip: { position: "absolute", bottom: 0, left: 0, right: 0, overflow: "hidden" },
-  flameIcon: { position: "absolute", bottom: 0 },
+  ringBox: { width: RING_SIZE, height: RING_SIZE, alignItems: "center", justifyContent: "center" },
+  ringLabel: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
+  ringLabelText: { fontSize: 8, fontWeight: "700" },
   label: { fontSize: 11, fontWeight: "600" },
 });

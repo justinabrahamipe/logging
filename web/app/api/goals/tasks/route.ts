@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
 import { db, tasks } from "@/lib/db";
 import { eq, and, isNotNull } from "drizzle-orm";
+import { buildFrozenContext, computeTaskFrozen } from "@/lib/task-mutations";
+import { getTodayString } from "@/lib/format";
 
 export async function GET() {
   try {
@@ -12,6 +14,7 @@ export async function GET() {
         id: tasks.id,
         name: tasks.name,
         goalId: tasks.goalId,
+        scheduleId: tasks.scheduleId,
         completionType: tasks.completionType,
         basePoints: tasks.basePoints,
         target: tasks.target,
@@ -27,7 +30,10 @@ export async function GET() {
         eq(tasks.dismissed, false),
       ));
 
-    return NextResponse.json(goalTasks);
+    const frozenCtx = await buildFrozenContext(userId, goalTasks, getTodayString());
+    const result = goalTasks.map(t => ({ ...t, frozen: computeTaskFrozen(t, frozenCtx) }));
+
+    return NextResponse.json(result);
   } catch (error) {
     return errorResponse(error);
   }

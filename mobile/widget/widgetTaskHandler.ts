@@ -1,13 +1,34 @@
 import React from "react";
+import * as SecureStore from "expo-secure-store";
 import { registerWidgetTaskHandler, requestWidgetUpdate, WidgetTaskHandler } from "react-native-android-widget";
 import { Task, TodayResponse } from "../src/api/types";
+import { api, setSession } from "../src/api/client";
+import { API_KEY_KEY, BASE_URL_KEY } from "../src/context/AuthContext";
 import * as offlineTaskOps from "../src/offline/offlineTaskOps";
 import * as taskCache from "../src/offline/taskCache";
 import { darkTheme, lightTheme } from "../src/theme";
 import { todayString } from "../src/utils/date";
+import { LogWidget } from "./LogWidget";
 import { TaskWidget } from "./TaskWidget";
 
-const WIDGET_NAME = "TaskWidget";
+const TASK_WIDGET_NAME = "TaskWidget";
+
+// This handler can run as a headless JS task Android spins up just to redraw the
+// widget (periodic update, resize, new-day rollover) — that path never mounts
+// AuthProvider, so the in-memory session in api/client.ts starts out empty. Hydrate
+// it from SecureStore directly, same keys AuthProvider uses. Cheap and idempotent,
+// safe to call on every invocation.
+async function ensureSession(): Promise<boolean> {
+  const [storedUrl, storedKey] = await Promise.all([
+    SecureStore.getItemAsync(BASE_URL_KEY),
+    SecureStore.getItemAsync(API_KEY_KEY),
+  ]);
+  if (storedUrl && storedKey) {
+    setSession(storedUrl, storedKey);
+    return true;
+  }
+  return false;
+}
 
 function pendingTasks(data: TodayResponse | null): { overdue: Task[]; today: Task[] } {
   if (!data) return { overdue: [], today: [] };
@@ -16,29 +37,106 @@ function pendingTasks(data: TodayResponse | null): { overdue: Task[]; today: Tas
   return { overdue, today };
 }
 
-async function render(): Promise<{ light: React.JSX.Element; dark: React.JSX.Element }> {
-  const data = await taskCache.getForDate(todayString());
+// Simple done/total across today's scheduled tasks (skipped tasks don't count against
+// you). Not the same weighted metric as the app's Action Score — the widget only has
+// the cached task list, not score history — but a fair proxy for "how's today going".
+function todayCompletionPct(data: TodayResponse | null): number {
+  if (!data) return 0;
+  const all = data.groups.flatMap((g) => g.tasks).filter((t) => !t.skipped);
+  if (all.length === 0) return 0;
+  const done = all.filter((t) => t.completed).length;
+  return (done / all.length) * 100;
+}
+
+function findTask(data: TodayResponse | null, taskId: number): Task | undefined {
+  if (!data) return undefined;
+  return (
+    data.groups.flatMap((g) => g.tasks).find((t) => t.id === taskId) ??
+    data.overdueTasks.find((t) => t.id === taskId) ??
+    data.noDateTasks.find((t) => t.id === taskId)
+  );
+}
+
+// Pulls fresh data for today straight from the API instead of trusting whatever's
+// cached — the cache is only ever written when the main app is opened, so without
+// this, a widget nobody has opened the app for since midnight would keep showing
+// yesterday's (now stale/empty) task list. Falls back to cache if offline/signed out.
+// Writes through setForDateSilent (not setForDate) since this function IS the thing
+// that would react to setForDate's "cache changed" notification — using the notifying
+// version here would refresh itself forever.
+async function refreshTodayData(): Promise<TodayResponse | null> {
+  const date = todayString();
+  const signedIn = await ensureSession();
+  if (signedIn) {
+    try {
+      const fresh = await api.get<TodayResponse>(`/api/tasks?date=${date}`);
+      await taskCache.setForDateSilent(date, fresh);
+      return fresh;
+    } catch {
+      // offline, signed-out-server-side, etc. — fall through to whatever's cached
+    }
+  }
+  return taskCache.getForDate(date);
+}
+
+async function renderTaskWidget(): Promise<{ light: React.JSX.Element; dark: React.JSX.Element }> {
+  const data = await refreshTodayData();
   const { overdue, today } = pendingTasks(data);
+  const todayPct = todayCompletionPct(data);
   return {
-    light: React.createElement(TaskWidget, { theme: lightTheme, overdue, today }),
-    dark: React.createElement(TaskWidget, { theme: darkTheme, overdue, today }),
+    light: React.createElement(TaskWidget, { theme: lightTheme, overdue, today, todayPct }),
+    dark: React.createElement(TaskWidget, { theme: darkTheme, overdue, today, todayPct }),
   };
 }
 
-export const widgetTaskHandler: WidgetTaskHandler = async ({ widgetAction, clickAction, clickActionData, renderWidget }) => {
-  if (widgetAction === "WIDGET_CLICK" && clickAction === "COMPLETE_TASK") {
+// Static — both buttons are OPEN_URI deep links handled natively (see LogWidget.tsx),
+// there's no data to fetch and nothing to react to on click.
+function renderLogWidget(): { light: React.JSX.Element; dark: React.JSX.Element } {
+  return {
+    light: React.createElement(LogWidget, { theme: lightTheme }),
+    dark: React.createElement(LogWidget, { theme: darkTheme }),
+  };
+}
+
+export const widgetTaskHandler: WidgetTaskHandler = async ({ widgetInfo, widgetAction, clickAction, clickActionData, renderWidget }) => {
+  if (widgetInfo.widgetName === "LogWidget") {
+    renderWidget(renderLogWidget());
+    return;
+  }
+
+  if (widgetAction === "WIDGET_CLICK") {
+    await ensureSession();
     const taskId = clickActionData?.taskId as number | undefined;
-    if (typeof taskId === "number") {
-      await offlineTaskOps.tryComplete(taskId, todayString(), true, 1);
+    const date = todayString();
+
+    if (clickAction === "COMPLETE_TASK" && typeof taskId === "number") {
+      const result = await offlineTaskOps.tryComplete(taskId, date, true, 1);
+      // Patch the local cache so the very next render (below) shows the change —
+      // tryComplete only writes through the API/queue, it never touches the cache.
+      if (result.ok || result.queued) {
+        await taskCache.patchTaskSilent(date, taskId, { completed: true, value: 1 });
+      }
+    } else if (clickAction === "INCREMENT_TASK" && typeof taskId === "number") {
+      const data = await taskCache.getForDate(date);
+      const task = findTask(data, taskId);
+      if (task) {
+        const isLimit = task.flexibilityRule === "limit_avoid";
+        const newValue = Math.max(0, task.value + 1);
+        const completed = isLimit ? task.completed : task.target ? newValue >= task.target : newValue > 0;
+        const result = await offlineTaskOps.tryComplete(taskId, date, completed, newValue);
+        if (result.ok || result.queued) {
+          await taskCache.patchTaskSilent(date, taskId, { completed, value: newValue });
+        }
+      }
     }
   }
-  renderWidget(await render());
+  renderWidget(await renderTaskWidget());
 };
 
 export function initWidget(): void {
   registerWidgetTaskHandler(widgetTaskHandler);
   taskCache.subscribeDateChanges((date) => {
     if (date !== todayString()) return;
-    requestWidgetUpdate({ widgetName: WIDGET_NAME, renderWidget: render });
+    requestWidgetUpdate({ widgetName: TASK_WIDGET_NAME, renderWidget: renderTaskWidget });
   });
 }

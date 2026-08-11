@@ -3,6 +3,7 @@ import { getAuthenticatedUserId, errorResponse } from "@/lib/api-utils";
 import { completeTask } from "@/lib/complete-task";
 import { db, tasks } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
+import { isTaskFrozen } from "@/lib/task-mutations";
 
 export async function POST(request: Request) {
   try {
@@ -32,13 +33,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
 
-    // Only allow changes for today and yesterday — older tasks are frozen
-    // Use client-provided date to derive yesterday (avoids server timezone mismatch)
+    // Freeze window depends on the linked goal's type (see lib/task-mutations.ts):
+    // adhoc/repeating/project tasks are never frozen, outcome/target keep the fixed
+    // today+yesterday window, habitual tasks freeze unless they're the latest miss.
     const refDate = date || task.date;
-    const clientYesterday = new Date(refDate + 'T12:00:00');
-    clientYesterday.setDate(clientYesterday.getDate() - 1);
-    const yesterdayStr = clientYesterday.toISOString().split('T')[0];
-    if (task.date && task.date < yesterdayStr) {
+    if (await isTaskFrozen(userId, task, refDate)) {
       return NextResponse.json({ error: "Cannot modify tasks older than yesterday" }, { status: 403 });
     }
 

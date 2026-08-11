@@ -10,7 +10,7 @@ import * as mutationQueue from "../offline/mutationQueue";
 import * as syncEngine from "../offline/syncEngine";
 import * as taskCache from "../offline/taskCache";
 import TaskRow from "./TaskRow";
-import WeekFlames from "./WeekFlames";
+import WeekRings from "./WeekRings";
 
 type Props = {
   date: string;
@@ -47,9 +47,19 @@ export default function TaskListView({ date, onEditTask }: Props) {
   }, [refreshPendingIds]);
 
   const load = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
     setError(null);
+
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      // Show whatever's cached immediately instead of blocking on the network round
+      // trip — that's the "trying to fetch" delay on every open/tab-switch even
+      // though we usually already have a perfectly good snapshot on disk. The fetch
+      // below still runs right after and reconciles once it lands.
+      const cached = await taskCache.getForDate(date);
+      if (cached) setData(cached);
+      setLoading(!cached);
+    }
 
     await syncEngine.drainQueue();
 
@@ -177,7 +187,7 @@ export default function TaskListView({ date, onEditTask }: Props) {
       contentContainerStyle={styles.scrollContent}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={theme.accent} />}
     >
-      {history && <WeekFlames theme={theme} entries={history.scores} />}
+      {history && <WeekRings theme={theme} entries={history.scores} />}
 
       {error && <Text style={[styles.error, { color: theme.danger }]}>{error}</Text>}
 

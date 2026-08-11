@@ -133,7 +133,7 @@ export default function GoalDetailPage() {
         fetch(`/api/goals/${id}/log`).then((r) => r.ok ? r.json() : []),
         fetch("/api/goals/tasks").then((r) => r.ok ? r.json() : []),
         fetch("/api/goals/completions").then((r) => r.ok ? r.json() : {}),
-      ]).then(([goalsData, logData, goalTasks, completions]: [Outcome[], LogEntry[], { id: number; name: string; goalId: number; completionType: string; basePoints: number; target: number | null; unit: string | null; date: string; completed: boolean; value: number | null }[], Record<number, { date: string; value: number; completed: boolean }[]>]) => {
+      ]).then(([goalsData, logData, goalTasks, completions]: [Outcome[], LogEntry[], { id: number; name: string; goalId: number; completionType: string; basePoints: number; target: number | null; unit: string | null; date: string; completed: boolean; value: number | null; frozen?: boolean }[], Record<number, { date: string; value: number; completed: boolean }[]>]) => {
         const found = goalsData.find((o: Outcome) => String(o.id) === id);
         setOutcome(found || null);
         setLogs(logData);
@@ -156,6 +156,7 @@ export default function GoalDetailPage() {
             unit: t.unit,
             startDate: t.date,
             date: t.date,
+            frozen: t.frozen ?? false,
             completion: {
               id: t.id,
               taskId: t.id,
@@ -213,12 +214,13 @@ export default function GoalDetailPage() {
     const found = (goalsData as Outcome[]).find(o => String(o.id) === id);
     if (found) setOutcome(found);
     const todayStr = getTodayString();
-    const tasks: EnrichedTask[] = (goalTasks as { id: number; name: string; goalId: number; completionType: string; basePoints: number; target: number | null; unit: string | null; date: string; completed: boolean; value: number | null }[])
+    const tasks: EnrichedTask[] = (goalTasks as { id: number; name: string; goalId: number; completionType: string; basePoints: number; target: number | null; unit: string | null; date: string; completed: boolean; value: number | null; frozen?: boolean }[])
       .filter(t => t.goalId === parseInt(id))
       .map(t => ({
         id: t.id, name: t.name, goalId: t.goalId, pillarId: 0, frequency: "adhoc",
         customDays: null, repeatInterval: null, completionType: t.completionType || "checkbox",
         basePoints: t.basePoints || 0, target: t.target, unit: t.unit, startDate: t.date, date: t.date,
+        frozen: t.frozen ?? false,
         periodId: null, _pillarColor: color, _pillarEmoji: '', _pillarName: '',
         completion: { id: t.id, taskId: t.id, completed: t.completed, value: t.value, pointsEarned: 0, isHighlighted: false, skipped: !t.completed && (t.value === null || t.value === 0) && t.date < todayStr, timerStartedAt: null },
       } as EnrichedTask));

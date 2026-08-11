@@ -7,7 +7,7 @@ import { ensureUpcomingTasks, invalidateTaskCache } from "@/lib/ensure-upcoming-
 import { completeTask } from "@/lib/complete-task";
 import { getOwnedTask, getOwnedPillar, getOwnedGoal } from "@/lib/db-utils";
 import { mapTaskUpdateFields, mapScheduleUpdateFields } from "@/lib/task-utils";
-import { isTaskTooOldToEdit, dismissOrDeleteTask } from "@/lib/task-mutations";
+import { isTaskFrozen, dismissOrDeleteTask } from "@/lib/task-mutations";
 import { recalculateGoalCurrentValue } from "@/lib/goal-mutations";
 
 const DAY_MAP: Record<string, number> = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
@@ -32,8 +32,7 @@ export async function handleCompleteTask(args: any, userId: string): Promise<str
   const task = await getOwnedTask(taskId, userId);
   if (!task) return "Error: Task not found.";
 
-  // Only allow changes for today, yesterday, and future
-  if (isTaskTooOldToEdit(task.date)) {
+  if (await isTaskFrozen(userId, task)) {
     return "Error: Cannot modify tasks older than yesterday.";
   }
 
@@ -141,8 +140,7 @@ export async function handleEditTask(args: any, userId: string): Promise<string>
   const task = await getOwnedTask(taskId, userId);
   if (!task) return "Error: Task not found.";
 
-  // Only allow edits for today, yesterday, and future
-  if (isTaskTooOldToEdit(task.date)) {
+  if (await isTaskFrozen(userId, task)) {
     return "Error: Cannot modify tasks older than yesterday.";
   }
 

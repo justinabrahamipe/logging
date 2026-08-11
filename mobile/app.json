@@ -34,12 +34,26 @@
           "name": "TaskWidget",
           "label": "Grind Console Tasks",
           "description": "Today's to-do and overdue tasks",
-          "minWidth": "250dp",
-          "minHeight": "180dp",
+          "minWidth": "180dp",
+          "minHeight": "110dp",
           "targetCellWidth": 4,
           "targetCellHeight": 3,
+          "maxResizeWidth": "400dp",
+          "maxResizeHeight": "500dp",
           "resizeMode": "horizontal|vertical",
           "updatePeriodMillis": 1800000
+        }, {
+          "name": "LogWidget",
+          "label": "Grind Console Quick Log",
+          "description": "Jump straight to typing a log entry",
+          "minWidth": "180dp",
+          "minHeight": "90dp",
+          "targetCellWidth": 3,
+          "targetCellHeight": 2,
+          "maxResizeWidth": "300dp",
+          "maxResizeHeight": "180dp",
+          "resizeMode": "horizontal|vertical",
+          "updatePeriodMillis": 0
         }]
       }]
     ],

@@ -31,8 +31,9 @@ import PillarsListScreen from "./src/screens/pillars/PillarsListScreen";
 import TaskFormScreen from "./src/screens/TaskFormScreen";
 import TasksScreen from "./src/screens/TasksScreen";
 
-// Lets the home-screen widget's "add task" button (OPEN_URI clickAction) deep-link
-// straight into the add-task form instead of just opening the app to its last screen.
+// Lets the home-screen widgets deep-link straight into a specific screen instead of
+// just opening the app to its last screen: the task widget's "add task" button, and
+// the log widget's card (both use OPEN_URI clickActions).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const linking: LinkingOptions<any> = {
   prefixes: ["grindconsole://"],
@@ -44,6 +45,7 @@ const linking: LinkingOptions<any> = {
           TaskForm: "tasks/new",
         },
       },
+      Log: "log",
     },
   },
 };

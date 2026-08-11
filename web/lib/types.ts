@@ -32,6 +32,7 @@ export interface Task {
   flexibilityRule?: string;
   limitValue?: number | null;
   description?: string | null;
+  frozen?: boolean;
   completion?: TaskCompletion | null;
 }
 
