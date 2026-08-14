@@ -9,7 +9,7 @@ import * as taskCache from "../src/offline/taskCache";
 import { darkTheme, lightTheme } from "../src/theme";
 import { todayString } from "../src/utils/date";
 import { LogWidget } from "./LogWidget";
-import { TaskWidget } from "./TaskWidget";
+import { TaskWidget, WidgetTask } from "./TaskWidget";
 
 const TASK_WIDGET_NAME = "TaskWidget";
 
@@ -30,10 +30,15 @@ async function ensureSession(): Promise<boolean> {
   return false;
 }
 
-function pendingTasks(data: TodayResponse | null): { overdue: Task[]; today: Task[] } {
+// justCompletedId: the task the tap that triggered this render just finished, if any —
+// kept in the list (instead of filtered out like every other completed task) so it can
+// render checked for one frame rather than the row silently vanishing. See TaskWidget.tsx.
+function pendingTasks(data: TodayResponse | null, justCompletedId?: number): { overdue: WidgetTask[]; today: WidgetTask[] } {
   if (!data) return { overdue: [], today: [] };
-  const today = data.groups.flatMap((g) => g.tasks).filter((t) => !t.completed && !t.skipped);
-  const overdue = data.overdueTasks.filter((t) => !t.completed && !t.skipped);
+  const keep = (t: Task) => !t.skipped && (!t.completed || t.id === justCompletedId);
+  const mark = (t: Task): WidgetTask => (t.id === justCompletedId && t.completed ? { ...t, justCompleted: true } : t);
+  const today = data.groups.flatMap((g) => g.tasks).filter(keep).map(mark);
+  const overdue = data.overdueTasks.filter(keep).map(mark);
   return { overdue, today };
 }
 
@@ -79,9 +84,9 @@ async function refreshTodayData(): Promise<TodayResponse | null> {
   return taskCache.getForDate(date);
 }
 
-async function renderTaskWidget(): Promise<{ light: React.JSX.Element; dark: React.JSX.Element }> {
+async function renderTaskWidget(justCompletedId?: number): Promise<{ light: React.JSX.Element; dark: React.JSX.Element }> {
   const data = await refreshTodayData();
-  const { overdue, today } = pendingTasks(data);
+  const { overdue, today } = pendingTasks(data, justCompletedId);
   const todayPct = todayCompletionPct(data);
   return {
     light: React.createElement(TaskWidget, { theme: lightTheme, overdue, today, todayPct }),
@@ -104,6 +109,8 @@ export const widgetTaskHandler: WidgetTaskHandler = async ({ widgetInfo, widgetA
     return;
   }
 
+  let justCompletedId: number | undefined;
+
   if (widgetAction === "WIDGET_CLICK") {
     await ensureSession();
     const taskId = clickActionData?.taskId as number | undefined;
@@ -115,6 +122,7 @@ export const widgetTaskHandler: WidgetTaskHandler = async ({ widgetInfo, widgetA
       // tryComplete only writes through the API/queue, it never touches the cache.
       if (result.ok || result.queued) {
         await taskCache.patchTaskSilent(date, taskId, { completed: true, value: 1 });
+        justCompletedId = taskId;
       }
     } else if (clickAction === "INCREMENT_TASK" && typeof taskId === "number") {
       const data = await taskCache.getForDate(date);
@@ -126,17 +134,44 @@ export const widgetTaskHandler: WidgetTaskHandler = async ({ widgetInfo, widgetA
         const result = await offlineTaskOps.tryComplete(taskId, date, completed, newValue);
         if (result.ok || result.queued) {
           await taskCache.patchTaskSilent(date, taskId, { completed, value: newValue });
+          if (completed) justCompletedId = taskId;
+        }
+      }
+    } else if (clickAction === "TOGGLE_TIMER" && typeof taskId === "number") {
+      const data = await taskCache.getForDate(date);
+      const task = findTask(data, taskId);
+      if (task) {
+        if (task.timerStartedAt != null) {
+          // Stop: same elapsed-minutes math as the app's timerToggle/restoreTimers —
+          // value already holds minutes logged before this run, timerStartedAt is when
+          // this run began.
+          const elapsedSec = (task.value || 0) * 60 + Math.max(0, Math.floor((Date.now() - task.timerStartedAt) / 1000));
+          const minutes = Math.round(elapsedSec / 60);
+          const isLimit = task.flexibilityRule === "limit_avoid";
+          const completed = isLimit ? task.completed : task.target ? elapsedSec >= task.target * 60 : minutes > 0;
+          await api.post("/api/tasks/timer", { taskId, action: "stop" }).catch(() => {});
+          const result = await offlineTaskOps.tryComplete(taskId, date, completed, minutes);
+          if (result.ok || result.queued) {
+            await taskCache.patchTaskSilent(date, taskId, { completed, value: minutes, timerStartedAt: null });
+            if (completed) justCompletedId = taskId;
+          }
+        } else {
+          // Start: best-effort like the app's saveTimerToDb — not queued offline, since
+          // a start that silently didn't take just means tapping Start again works.
+          const startedAt = Date.now();
+          await api.post("/api/tasks/timer", { taskId, action: "start" }).catch(() => {});
+          await taskCache.patchTaskSilent(date, taskId, { timerStartedAt: startedAt });
         }
       }
     }
   }
-  renderWidget(await renderTaskWidget());
+  renderWidget(await renderTaskWidget(justCompletedId));
 };
 
 export function initWidget(): void {
   registerWidgetTaskHandler(widgetTaskHandler);
   taskCache.subscribeDateChanges((date) => {
     if (date !== todayString()) return;
-    requestWidgetUpdate({ widgetName: TASK_WIDGET_NAME, renderWidget: renderTaskWidget });
+    requestWidgetUpdate({ widgetName: TASK_WIDGET_NAME, renderWidget: () => renderTaskWidget() });
   });
 }

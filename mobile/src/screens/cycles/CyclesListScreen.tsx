@@ -3,12 +3,15 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React, { useCallback, useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, SectionList, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { api, ApiRequestError } from "../../api/client";
+import { api, ApiRequestError, isOfflineError } from "../../api/client";
 import { Cycle } from "../../api/types";
 import FAB from "../../components/FAB";
 import { useAppTheme } from "../../hooks/useAppTheme";
 import { CyclesStackParamList } from "../../navigation/types";
+import { getJSON, setJSON } from "../../offline/storage";
 import { todayString } from "../../utils/date";
+
+const CACHE_KEY = "grindconsole.offline.cyclesCache";
 
 type Props = { navigation: NativeStackNavigationProp<CyclesStackParamList, "CyclesList"> };
 
@@ -20,14 +23,28 @@ export default function CyclesListScreen({ navigation }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
     setError(null);
+
+    let hasCached = false;
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      const cached = await getJSON<Cycle[]>(CACHE_KEY);
+      if (cached) {
+        setCycles(cached);
+        hasCached = true;
+      }
+      setLoading(!cached);
+    }
+
     try {
       const res = await api.get<Cycle[]>("/api/cycles");
       setCycles(res);
+      await setJSON(CACHE_KEY, res);
     } catch (err) {
-      setError(err instanceof ApiRequestError ? err.message : "Couldn't load cycles.");
+      if (!(hasCached && isOfflineError(err))) {
+        setError(err instanceof ApiRequestError ? err.message : "Couldn't load cycles.");
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);

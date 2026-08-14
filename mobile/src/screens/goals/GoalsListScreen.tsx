@@ -2,15 +2,20 @@ import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, SectionList, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { api, ApiRequestError } from "../../api/client";
+import { api, ApiRequestError, isOfflineError } from "../../api/client";
 import { Goal, GoalType } from "../../api/types";
 import GoalHeatmap from "../../components/GoalHeatmap";
 import FAB from "../../components/FAB";
 import SegmentedControl from "../../components/SegmentedControl";
 import { useAppTheme } from "../../hooks/useAppTheme";
 import { GoalsStackParamList } from "../../navigation/types";
+import { getJSON, setJSON } from "../../offline/storage";
 import { todayString } from "../../utils/date";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+
+const CACHE_KEY = "grindconsole.offline.goalsCache";
+
+type GoalsCache = { goals: Goal[]; completions: Record<number, { date: string; value: number; completed: boolean }[]> };
 
 // Habitual goals with no linked cycle are indefinite recurring routines — only an
 // explicit status change should retire them. But once a habitual goal IS attached
@@ -50,9 +55,21 @@ export default function GoalsListScreen({ navigation }: { navigation: NativeStac
   const [typeFilter, setTypeFilter] = useState<GoalType | "all">("all");
 
   const load = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
     setError(null);
+
+    let hasCached = false;
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      const cached = await getJSON<GoalsCache>(CACHE_KEY);
+      if (cached) {
+        setGoals(cached.goals);
+        setCompletions(cached.completions);
+        hasCached = true;
+      }
+      setLoading(!cached);
+    }
+
     try {
       const [res, completionsRes] = await Promise.all([
         api.get<Goal[]>("/api/goals"),
@@ -60,8 +77,11 @@ export default function GoalsListScreen({ navigation }: { navigation: NativeStac
       ]);
       setGoals(res);
       setCompletions(completionsRes);
+      await setJSON(CACHE_KEY, { goals: res, completions: completionsRes });
     } catch (err) {
-      setError(err instanceof ApiRequestError ? err.message : "Couldn't load goals.");
+      if (!(hasCached && isOfflineError(err))) {
+        setError(err instanceof ApiRequestError ? err.message : "Couldn't load goals.");
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);

@@ -120,6 +120,13 @@ export default function TaskListView({ date, onEditTask }: Props) {
     taskCache.removeTask(date, taskId).catch(() => {});
   };
 
+  const refreshHistory = useCallback(() => {
+    // Task completion changes today's action score, which the "Last 7 days" ring reads
+    // from `history` — that state only otherwise gets refetched on a full load(), so
+    // without this the ring stays stale until the next pull-to-refresh/screen focus.
+    api.get<ScoreHistoryResponse>("/api/daily-score/history?days=7").then(setHistory).catch(() => {});
+  }, []);
+
   const {
     busyIds, checkboxToggle, countChange, toggleSkip, reschedule, scheduleToday, duplicate, remove,
     timers, numericSubmit, timerToggle, durationManualSubmit, restoreTimers, formatTime,
@@ -129,6 +136,7 @@ export default function TaskListView({ date, onEditTask }: Props) {
     removeLocalTask,
     () => load(true),
     { date },
+    refreshHistory,
   );
 
   useEffect(() => {

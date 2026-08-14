@@ -2,12 +2,17 @@ import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { api, ApiRequestError } from "../api/client";
+import { api, ApiRequestError, isOfflineError } from "../api/client";
 import { DailyScore, Momentum, ScoreHistoryResponse } from "../api/types";
 import FlameGauge from "../components/FlameGauge";
 import { fonts } from "../fonts";
 import { useAppTheme } from "../hooks/useAppTheme";
+import { getJSON, setJSON } from "../offline/storage";
 import { todayString } from "../utils/date";
+
+const CACHE_KEY = "grindconsole.offline.dashboardCache";
+
+type DashboardCache = { score: DailyScore; momentum: Momentum; history: ScoreHistoryResponse };
 
 function RivetCorners({ color }: { color: string }) {
   return (
@@ -30,9 +35,24 @@ export default function DashboardScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
     setError(null);
+
+    let hasCached = false;
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      // Show whatever's cached immediately instead of blocking on the network
+      // round trip — the fetch below still runs right after and reconciles.
+      const cached = await getJSON<DashboardCache>(CACHE_KEY);
+      if (cached) {
+        setScore(cached.score);
+        setMomentum(cached.momentum);
+        setHistory(cached.history);
+        hasCached = true;
+      }
+      setLoading(!cached);
+    }
+
     try {
       const [scoreRes, momentumRes, historyRes] = await Promise.all([
         api.get<DailyScore>(`/api/daily-score?date=${todayString()}`),
@@ -42,8 +62,11 @@ export default function DashboardScreen() {
       setScore(scoreRes);
       setMomentum(momentumRes);
       setHistory(historyRes);
+      await setJSON(CACHE_KEY, { score: scoreRes, momentum: momentumRes, history: historyRes });
     } catch (err) {
-      setError(err instanceof ApiRequestError ? err.message : "Couldn't load dashboard.");
+      if (!(hasCached && isOfflineError(err))) {
+        setError(err instanceof ApiRequestError ? err.message : "Couldn't load dashboard.");
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);

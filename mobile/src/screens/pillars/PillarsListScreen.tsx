@@ -3,11 +3,14 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React, { useCallback, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { api, ApiRequestError } from "../../api/client";
+import { api, ApiRequestError, isOfflineError } from "../../api/client";
 import { Pillar } from "../../api/types";
 import FAB from "../../components/FAB";
 import { useAppTheme } from "../../hooks/useAppTheme";
 import { PillarsStackParamList } from "../../navigation/types";
+import { getJSON, setJSON } from "../../offline/storage";
+
+const CACHE_KEY = "grindconsole.offline.pillarsCache";
 
 type Props = { navigation: NativeStackNavigationProp<PillarsStackParamList, "PillarsList"> };
 
@@ -19,14 +22,28 @@ export default function PillarsListScreen({ navigation }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
     setError(null);
+
+    let hasCached = false;
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      const cached = await getJSON<Pillar[]>(CACHE_KEY);
+      if (cached) {
+        setPillars(cached);
+        hasCached = true;
+      }
+      setLoading(!cached);
+    }
+
     try {
       const res = await api.get<Pillar[]>("/api/pillars");
       setPillars(res);
+      await setJSON(CACHE_KEY, res);
     } catch (err) {
-      setError(err instanceof ApiRequestError ? err.message : "Couldn't load pillars.");
+      if (!(hasCached && isOfflineError(err))) {
+        setError(err instanceof ApiRequestError ? err.message : "Couldn't load pillars.");
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);

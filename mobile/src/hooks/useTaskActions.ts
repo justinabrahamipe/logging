@@ -13,6 +13,7 @@ export function useTaskActions(
   onRemoved?: (taskId: number) => void,
   onDuplicated?: () => void,
   offline?: OfflineContext,
+  onCompleted?: () => void,
 ) {
   const [busyIds, setBusyIds] = useState<Set<number>>(new Set());
 
@@ -33,12 +34,15 @@ export function useTaskActions(
       if (!result.ok && !result.queued) {
         applyPatch(task.id, { completed: task.completed, value: task.value });
         onError?.(result.message);
+      } else {
+        onCompleted?.();
       }
       setBusy(task.id, false);
       return;
     }
     try {
       await api.post("/api/tasks/complete", { taskId: task.id, date: task.date, completed, value });
+      onCompleted?.();
     } catch (err) {
       applyPatch(task.id, { completed: task.completed, value: task.value });
       onError?.(err instanceof ApiRequestError ? err.message : "Couldn't update task.");
