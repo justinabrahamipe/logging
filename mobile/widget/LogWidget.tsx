@@ -33,21 +33,16 @@ export function LogWidget({ theme }: Props) {
     >
       <FlexWidget
         style={{
-          width: 32,
-          height: 32,
-          borderRadius: 16,
+          width: 44,
+          height: 44,
+          borderRadius: 22,
           backgroundColor: hex(theme.accent),
           alignItems: "center",
           justifyContent: "center",
-          marginBottom: 6,
         }}
       >
-        <TextWidget text="+" style={{ color: "#ffffff" as HexColor, fontSize: 18, fontWeight: "700" }} />
+        <TextWidget text="+" style={{ color: "#ffffff" as HexColor, fontSize: 22, fontWeight: "700" }} />
       </FlexWidget>
-      <TextWidget
-        text="NEW LOG"
-        style={{ color: hex(theme.subtext), fontSize: 11, fontWeight: "700", letterSpacing: 1.5 }}
-      />
     </FlexWidget>
   );
 }
